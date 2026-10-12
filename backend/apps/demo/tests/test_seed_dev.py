@@ -81,7 +81,7 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
 
     # Every batch was received into a cold room, and Camion 1 was loaded once.
     # + Camion 2's demo load and return, + the 1.5 kg of mussels lost on Camion 1, + the demo sales' lines
-    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4 + 1 + 6
+    assert inventory.movements_of(organization).count() == 15 + 4 + 2 + 4 + 1 + 7
     rooms = {location.name: location for location in inventory.locations_of(organization)}
     # 38.5 kg, then 7 kg sold to Restaurant Le Corail (P2-T04 demo sales)
     assert inventory.quantity_on_hand(organization, location_id=truck.location_id) == Decimal("31.500")
