@@ -1,6 +1,7 @@
 """Demo sales (P2-T04): a counter sale to the walk-in customer at the fresh cold room, paid in cash; a sale from
 Camion 1 by the demo driver to Restaurant Le Corail, partly paid; the accepted quote of Café-Resto Sidi Mansour
-turned into a sale on credit; and a draft for Hôtel Thyna.
+turned into a sale on credit; a draft for Hôtel Thyna; and the whole of the Surgelés du Sahel partnership lot
+(SDS-2026-342, Symphonie Marine) sold to Poissonnerie El Bahr, paid in cash (P6-T01, D-060).
 
 Each sale has a fixed `client_uuid`, so running the seed again creates nothing. They are made at the moment of
 the first seed. A sale the stock or the quote no longer allows (staging data changed by hand, the quote's
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 
 SEED_NAMESPACE = uuid.UUID("5c0f8e1a-9d2b-4c47-a6e3-1f7b20d93c58")
 FRESH_ROOM = "Chambre froide 1 (frais)"
+FROZEN_ROOM = "Chambre froide 2 (congelé)"
 TRUCK = "Camion 1"
 QUOTE_CUSTOMER = "C-004"
 # key, customer reference (None: walk-in), place, seller ("driver" or "owner"), confirm,
@@ -47,6 +49,15 @@ SALES: list[tuple[str, str | None, str, str, bool, services.PaymentFields, list[
         [("CR-001", "3"), ("MO-007", "4")],
     ),
     ("thyna-brouillon", "C-002", FRESH_ROOM, "owner", False, {}, [("LO-004", "5")]),
+    (
+        "bahr-symphonie",
+        "C-003",
+        FROZEN_ROOM,
+        "owner",
+        True,
+        {"paid_in_full": True, "payment_method": "cash"},
+        [("SY-008", "20")],
+    ),
 ]
 
 
