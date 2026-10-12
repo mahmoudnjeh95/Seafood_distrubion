@@ -90,8 +90,9 @@ def test_seed_creates_an_organization_its_logins_catalogue_suppliers_locations_b
     assert inventory.quantity_on_hand(
         organization, location_id=rooms["Chambre froide 1 (frais)"].pk, product_id=shrimp.pk
     ) == Decimal("42.000")  # 53 kg, then 8 kg loaded on Camion 2 and 1 kg back, then 4 kg sold
+    # 107 kg, then the whole 20 kg Symphonie Marine partnership lot sold to Poissonnerie El Bahr (D-060)
     assert inventory.quantity_on_hand(organization, location_id=rooms["Chambre froide 2 (congelé)"].pk) == Decimal(
-        "107.000"
+        "87.000"
     )
 
     # The demo receipt: 60 kg of dorade accepted for 62 ordered and invoiced.
