@@ -60,15 +60,15 @@ function PlaceCard({
 }) {
   const body = (
     <>
-      <div className="grid h-16 w-[86px] flex-none place-items-center rounded-[10px] bg-surface-2">
-        <Illustration name={illustration} className="h-[58px] w-20" />
+      <div className="grid h-20 w-[104px] flex-none place-items-center rounded-[10px] bg-surface-2">
+        <Illustration name={illustration} className="h-[70px] w-24" />
       </div>
       <div className="flex min-w-0 flex-col items-start gap-1 text-start">
-        <h3 className="max-w-full truncate" title={title}>
+        <h3 className="max-w-full break-words" title={title}>
           {title}
         </h3>
-        <span className={cn("text-[0.82rem] text-ink-2", numeric && "num")}>{subtitle}</span>
-        {stock && <span className="num text-[0.85rem] font-semibold">{stock}</span>}
+        <span className={cn("text-[0.9rem] text-ink-2", numeric && "num")}>{subtitle}</span>
+        {stock && <span className="num text-base font-semibold">{stock}</span>}
         <span className="flex flex-wrap gap-1.5">{pills}</span>
       </div>
     </>
@@ -79,14 +79,14 @@ function PlaceCard({
         <button
           type="button"
           onClick={onOpen}
-          className="flex w-full items-center gap-3.5 rounded-card p-4 hover:bg-surface-2/60"
+          className="flex w-full items-center gap-4 rounded-card p-5 hover:bg-surface-2/60"
         >
           {body}
         </button>
       ) : (
-        <div className="flex items-center gap-3.5 p-4">{body}</div>
+        <div className="flex items-center gap-4 p-5">{body}</div>
       )}
-      {action && <div className="flex justify-end border-t border-line px-4 py-2">{action}</div>}
+      {action && <div className="flex justify-end border-t border-line px-5 py-2.5">{action}</div>}
     </Card>
   );
 }
@@ -186,7 +186,7 @@ export function LocationsPage() {
             {rooms.length === 0 ? (
               <p className="text-ink-2">{t("admin.locations.noRooms")}</p>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
                 {rooms.map((room) => (
                   <PlaceCard
                     key={room.id}
@@ -220,7 +220,7 @@ export function LocationsPage() {
             {truckList.length === 0 ? (
               <p className="text-ink-2">{t("admin.locations.noTrucks")}</p>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
                 {truckList.map((truck) => (
                   <PlaceCard
                     key={truck.id}

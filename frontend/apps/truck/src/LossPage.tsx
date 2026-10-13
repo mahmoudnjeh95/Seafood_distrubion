@@ -8,6 +8,7 @@ import { useState } from "react";
 import { pendingKilos, useQueue } from "./queue";
 import { sendOrKeep } from "./sendOrKeep";
 import { sendWaiting } from "./sync";
+import { newUuid } from "./uuid";
 
 const REASONS = ["spoiled", "damaged", "expired", "cold_chain", "other"] as const;
 
@@ -30,7 +31,7 @@ export function LossPage() {
   const [kilos, setKilos] = useState("");
   const [reason, setReason] = useState<(typeof REASONS)[number] | null>(null);
   const [photo, setPhoto] = useState<File | undefined>(undefined);
-  const [uuid, setUuid] = useState(() => crypto.randomUUID());
+  const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
   const [sure, setSure] = useState(false);
 
@@ -100,7 +101,7 @@ export function LossPage() {
       setKilos("");
       setReason(null);
       setPhoto(undefined);
-      setUuid(crypto.randomUUID());
+      setUuid(newUuid());
       void queryClient.invalidateQueries();
       void sendWaiting(queryClient);
     } catch (failure) {

@@ -15,6 +15,7 @@ import { useState } from "react";
 
 import { enqueue, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { sendWaiting } from "./sync";
+import { newUuid } from "./uuid";
 
 // Every text the server put in an error answer, so the driver reads why a sale was refused.
 function messagesOf(body: unknown): string[] {
@@ -41,7 +42,7 @@ export function SalePage() {
   const queue = useQueue();
   const [receipt, setReceipt] = useState<SaleDetail | QueuedSale | null>(null);
   const [sending, setSending] = useState(false);
-  const [uuid, setUuid] = useState(() => crypto.randomUUID());
+  const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
   const startNew = () => {
     setReceipt(null);
@@ -50,7 +51,7 @@ export function SalePage() {
     setPaid(null);
     setStep("goods");
     setError("");
-    setUuid(crypto.randomUUID());
+    setUuid(newUuid());
   };
 
   if (truck === null) {

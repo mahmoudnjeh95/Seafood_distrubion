@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { sendOrKeep } from "./sendOrKeep";
 import { sendWaiting } from "./sync";
+import { newUuid } from "./uuid";
 
 // "Dépense": what the driver paid on the road, in four taps and a photo of the receipt.
 export function ExpensePage() {
@@ -20,7 +21,7 @@ export function ExpensePage() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState<File | undefined>(undefined);
-  const [uuid, setUuid] = useState(() => crypto.randomUUID());
+  const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -57,7 +58,7 @@ export function ExpensePage() {
       setAmount("");
       setDescription("");
       setPhoto(undefined);
-      setUuid(crypto.randomUUID());
+      setUuid(newUuid());
       void queryClient.invalidateQueries();
       void sendWaiting(queryClient);
     } catch (failure) {
