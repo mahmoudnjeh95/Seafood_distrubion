@@ -29,7 +29,9 @@ TODAY = timezone.localdate()
 
 
 def moment(day: dt.date, hour: int = 10) -> dt.datetime:
-    return timezone.make_aware(dt.datetime.combine(day, dt.time(hour)))
+    """`day` at `hour`, local time, capped at now: `create_sale` refuses a future `sold_at`, and `TODAY`
+    at a fixed hour is still in the future until that hour actually happens."""
+    return min(timezone.make_aware(dt.datetime.combine(day, dt.time(hour))), timezone.now())
 
 
 @pytest.fixture
