@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { sendOrKeep } from "./sendOrKeep";
 import { sendWaiting } from "./sync";
+import { newUuid } from "./uuid";
 
 // Every text the server put in an error answer, so the driver reads why it was refused.
 function messagesOf(body: unknown): string[] {
@@ -27,7 +28,7 @@ export function PaymentPage() {
   const today = useListMyPayments();
   const [customer, setCustomer] = useState<CustomerChoice | null>(null);
   const [amount, setAmount] = useState("");
-  const [uuid, setUuid] = useState(() => crypto.randomUUID());
+  const [uuid, setUuid] = useState(newUuid);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -62,7 +63,7 @@ export function PaymentPage() {
       toast.success(t(outcome.kept ? "truck.payment.kept" : "truck.payment.saved"));
       setCustomer(null);
       setAmount("");
-      setUuid(crypto.randomUUID());
+      setUuid(newUuid());
       void queryClient.invalidateQueries();
       void sendWaiting(queryClient);
     } catch (failure) {
