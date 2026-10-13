@@ -75,6 +75,7 @@ class ResultCostLineSerializer(serializers.Serializer[Any]):
     source_id = serializers.IntegerField(read_only=True, allow_null=True)
     reference = serializers.CharField(read_only=True)
     detail = serializers.CharField(read_only=True)
+    category_id = serializers.IntegerField(read_only=True, allow_null=True)
 
 
 class ResultCostGroupSerializer(serializers.Serializer[Any]):
@@ -324,6 +325,28 @@ class MonthExpensesSerializer(serializers.Serializer[Any]):
     total = _money()
 
 
+class PartnerCostCategorySerializer(serializers.Serializer[Any]):
+    # Stable within the month: the expense category name, or "employee" for day and monthly salaries.
+    key = serializers.CharField(read_only=True)
+    # Empty for "employee": the screen shows a fixed label instead of an employee's name.
+    name = serializers.CharField(read_only=True)
+    is_employee = serializers.BooleanField(read_only=True)
+    # None for "employee": nothing to filter the expenses list by.
+    category_id = serializers.IntegerField(read_only=True, allow_null=True)
+    amount = _money()
+    count = serializers.IntegerField(read_only=True)
+
+
+class PartnerCostShareSerializer(serializers.Serializer[Any]):
+    """One partner's part of the month's shared costs (rent, electricity, fuel, salaries...): the raw cost
+    their lots carried, by category, not weighted by their profit or loss %."""
+
+    partner_id = serializers.IntegerField(read_only=True)
+    partner_name = serializers.CharField(read_only=True)
+    total = _money()
+    categories = PartnerCostCategorySerializer(many=True, read_only=True)
+
+
 class MonthLedgerSerializer(serializers.Serializer[Any]):
     # The ledger's movement kind: "receipt", "sale", "loss"...
     kind = serializers.CharField(read_only=True)
@@ -364,6 +387,8 @@ class MonthReportSerializer(serializers.Serializer[Any]):
     personnel = _money()
     operating_costs = _money()
     net_result = _money()
+    # Only partners with a cost line this month; absent on an old frozen closing from before this field.
+    partner_costs = PartnerCostShareSerializer(many=True, read_only=True, required=False)
     stock = MonthStockSerializer(read_only=True)
     checks = ClosingCheckSerializer(many=True, read_only=True)
 

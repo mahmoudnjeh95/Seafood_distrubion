@@ -34,11 +34,11 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
-import { useOutletContext } from "react-router";
+import { Link, useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { canReadResults, canWriteResults } from "../partnerships/shared";
-import { monthKey, monthLabel } from "./month";
+import { monthKey, monthLabel, monthRange } from "./month";
 
 type CheckCode =
   | "expenses_approved"
@@ -57,12 +57,31 @@ const STATE_TONE: Record<MonthStateEnum, "neutral" | "good" | "warn"> = {
   approved: "good",
 };
 
-function Line({ label, amount, strong, sign }: { label: ReactNode; amount: string; strong?: boolean; sign?: string }) {
+function Line({
+  label,
+  amount,
+  strong,
+  sign,
+  to,
+}: {
+  label: ReactNode;
+  amount: string;
+  strong?: boolean;
+  sign?: string;
+  // Where this figure comes from: the line becomes a link to it (D-122).
+  to?: string;
+}) {
   return (
     <div className={cn("flex items-baseline gap-3 px-2.5 py-1.5", strong && "border-t border-line font-semibold")}>
       <span className="me-auto">
         {sign && <span className="me-2 inline-block w-3 text-ink-2">{sign}</span>}
-        {label}
+        {to ? (
+          <Link to={to} className="text-sea hover:underline">
+            {label}
+          </Link>
+        ) : (
+          label
+        )}
       </span>
       <span className="num">{formatMoney(amount)}</span>
     </div>
@@ -109,6 +128,7 @@ function Checks({ view }: { view: MonthView }) {
 function ResultCard({ view }: { view: MonthView }) {
   const { t } = useTranslation();
   const report = view.report;
+  const range = monthRange(report.month);
   return (
     <Card className="flex flex-col p-4">
       <CardTitle>{t("admin.monthClosing.result.title")}</CardTitle>
@@ -119,6 +139,7 @@ function ResultCard({ view }: { view: MonthView }) {
           quantity: formatQuantity(report.sales.quantity),
         })}
         amount={report.sales.revenue}
+        to="/ventes"
       />
       <Line label={t("admin.monthClosing.result.cogs")} amount={report.cogs} sign="−" />
       <Line label={t("admin.monthClosing.result.grossMargin")} amount={report.gross_margin} strong />
@@ -126,9 +147,15 @@ function ResultCard({ view }: { view: MonthView }) {
         label={t("admin.monthClosing.result.spoilage", { quantity: formatQuantity(report.spoilage.quantity) })}
         amount={report.spoilage.value}
         sign="−"
+        to="/stock/pertes"
       />
-      <Line label={t("admin.monthClosing.result.expenses")} amount={report.expenses.total} sign="−" />
-      <Line label={t("admin.monthClosing.result.personnel")} amount={report.personnel} sign="−" />
+      <Line label={t("admin.monthClosing.result.expenses")} amount={report.expenses.total} sign="−" to="/charges" />
+      <Line
+        label={t("admin.monthClosing.result.personnel")}
+        amount={report.personnel}
+        sign="−"
+        to="/salaires/employes"
+      />
       <Line label={t("admin.monthClosing.result.net")} amount={report.net_result} strong />
       {report.expenses.categories.length > 0 && (
         <div className="mt-3 flex flex-col">
@@ -136,10 +163,60 @@ function ResultCard({ view }: { view: MonthView }) {
             {t("admin.monthClosing.result.byCategory")}
           </h3>
           {report.expenses.categories.map((category) => (
-            <Line key={category.category_id} label={`${category.name} (${category.count})`} amount={category.total} />
+            <Line
+              key={category.category_id}
+              label={`${category.name} (${category.count})`}
+              amount={category.total}
+              to={`/charges?category=${category.category_id}&date_from=${range.from}&date_to=${range.to}`}
+            />
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+/** Each partner's part of the month's shared costs: rent, electricity, fuel, salaries and the lot's other
+ * costs are split over the lots in stock (D-041), including partnership lots, exactly like an own-stock
+ * lot. This is the raw cost their lots carried, by category — not weighted by their profit or loss % — so
+ * it answers "where did this charge go" (owner request, 2026-10-13, D-122). */
+function PartnerCostsCard({ view }: { view: MonthView }) {
+  const { t } = useTranslation();
+  const shares = view.report.partner_costs;
+  const range = monthRange(view.report.month);
+  if (shares.length === 0) return null;
+  return (
+    <Card className="flex flex-col p-4">
+      <CardTitle>{t("admin.monthClosing.partnerCosts.title")}</CardTitle>
+      <p className="px-2.5 pb-2 text-[0.88rem] text-ink-2">{t("admin.monthClosing.partnerCosts.hint")}</p>
+      <div className="flex flex-col gap-3">
+        {shares.map((share) => (
+          <div key={share.partner_id} className="flex flex-col">
+            <div className="flex items-baseline gap-3 px-2.5 py-1">
+              <Link to={`/fournisseurs/${share.partner_id}`} className="me-auto font-semibold text-sea hover:underline">
+                {share.partner_name}
+              </Link>
+              <span className="num font-semibold">{formatMoney(share.total)}</span>
+            </div>
+            <div className="flex flex-col ps-3">
+              {share.categories.map((category) => (
+                <Line
+                  key={category.key}
+                  label={`${category.is_employee ? t("admin.monthClosing.partnerCosts.salaries") : category.name} (${category.count})`}
+                  amount={category.amount}
+                  to={
+                    category.is_employee
+                      ? "/salaires/employes"
+                      : category.category_id !== null
+                        ? `/charges?category=${category.category_id}&date_from=${range.from}&date_to=${range.to}`
+                        : undefined
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
@@ -181,7 +258,11 @@ function StockCard({ view }: { view: MonthView }) {
             <tbody>
               {stock.rows.map((row) => (
                 <tr key={row.batch_id}>
-                  <Td className="num whitespace-nowrap">{row.batch_number}</Td>
+                  <Td className="num whitespace-nowrap">
+                    <Link to={`/stock/lots/${row.batch_id}`} className="text-sea hover:underline">
+                      {row.batch_number}
+                    </Link>
+                  </Td>
                   <Td>
                     {row.product_name}
                     <span className="block text-[0.8rem] text-ink-2">{row.supplier_name}</span>
@@ -338,6 +419,7 @@ function MonthDetail({ month, session }: { month: string; session: Session }) {
       <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1">
         <div className="flex flex-col gap-4">
           <ResultCard view={data} />
+          <PartnerCostsCard view={data} />
           <StockCard view={data} />
         </div>
         <div className="flex flex-col gap-4">

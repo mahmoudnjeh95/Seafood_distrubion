@@ -17,4 +17,6 @@ export interface ResultCostLine {
   readonly source_id: number | null;
   readonly reference: string;
   readonly detail: string;
+  /** @nullable */
+  readonly category_id: number | null;
 }

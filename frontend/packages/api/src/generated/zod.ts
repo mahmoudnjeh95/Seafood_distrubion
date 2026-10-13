@@ -5261,7 +5261,8 @@ export const CloseLotResponse = zod.object({
   "source_type": zod.string(),
   "source_id": zod.int().nullable(),
   "reference": zod.string(),
-  "detail": zod.string()
+  "detail": zod.string(),
+  "category_id": zod.int().nullable()
 }))
 })),
   "partner": zod.union([zod.object({
@@ -5531,7 +5532,8 @@ export const ReopenLotResponse = zod.object({
   "source_type": zod.string(),
   "source_id": zod.int().nullable(),
   "reference": zod.string(),
-  "detail": zod.string()
+  "detail": zod.string(),
+  "category_id": zod.int().nullable()
 }))
 })),
   "partner": zod.union([zod.object({
@@ -5703,7 +5705,8 @@ export const GetLotResultResponse = zod.object({
   "source_type": zod.string(),
   "source_id": zod.int().nullable(),
   "reference": zod.string(),
-  "detail": zod.string()
+  "detail": zod.string(),
+  "category_id": zod.int().nullable()
 }))
 })),
   "partner": zod.union([zod.object({
@@ -6074,6 +6077,8 @@ export const getMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-?\\
 export const getMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6120,6 +6125,19 @@ export const GetMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', getMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', getMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', getMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', getMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', getMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', getMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', getMonthResponseReportOneStockOnePurchasesRegExp),
@@ -6201,6 +6219,8 @@ export const approveMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^
 export const approveMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6247,6 +6267,19 @@ export const ApproveMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', approveMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', approveMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', approveMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', approveMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', approveMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', approveMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', approveMonthResponseReportOneStockOnePurchasesRegExp),
@@ -6336,6 +6369,8 @@ export const reopenMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-
 export const reopenMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reopenMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reopenMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6382,6 +6417,19 @@ export const ReopenMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', reopenMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', reopenMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', reopenMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', reopenMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reopenMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', reopenMonthResponseReportOneStockOnePurchasesRegExp),
@@ -6472,6 +6520,8 @@ export const reviewMonthResponseReportOneExpensesOneTotalRegExp = new RegExp('^-
 export const reviewMonthResponseReportOnePersonnelRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneOperatingCostsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneNetResultRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOnePartnerCostsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviewMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneStockOneOpeningValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneStockOnePurchasesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviewMonthResponseReportOneStockOneClosingValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6518,6 +6568,19 @@ export const ReviewMonthResponse = zod.object({
   "personnel": zod.stringFormat('decimal', reviewMonthResponseReportOnePersonnelRegExp),
   "operating_costs": zod.stringFormat('decimal', reviewMonthResponseReportOneOperatingCostsRegExp),
   "net_result": zod.stringFormat('decimal', reviewMonthResponseReportOneNetResultRegExp),
+  "partner_costs": zod.array(zod.object({
+  "partner_id": zod.int(),
+  "partner_name": zod.string(),
+  "total": zod.stringFormat('decimal', reviewMonthResponseReportOnePartnerCostsItemTotalRegExp),
+  "categories": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "is_employee": zod.boolean(),
+  "category_id": zod.int().nullable(),
+  "amount": zod.stringFormat('decimal', reviewMonthResponseReportOnePartnerCostsItemCategoriesItemAmountRegExp),
+  "count": zod.int()
+}))
+}).describe('One partner\'s part of the month\'s shared costs (rent, electricity, fuel, salaries...): the raw cost\ntheir lots carried, by category, not weighted by their profit or loss %.')),
   "stock": zod.object({
   "opening_value": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOneOpeningValueRegExp),
   "purchases": zod.stringFormat('decimal', reviewMonthResponseReportOneStockOnePurchasesRegExp),

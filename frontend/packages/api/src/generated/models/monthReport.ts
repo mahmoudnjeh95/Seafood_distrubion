@@ -9,6 +9,7 @@ import type { MonthExpenses } from './monthExpenses';
 import type { MonthSales } from './monthSales';
 import type { MonthSpoilage } from './monthSpoilage';
 import type { MonthStock } from './monthStock';
+import type { PartnerCostShare } from './partnerCostShare';
 
 export interface MonthReport {
   readonly month: string;
@@ -25,6 +26,7 @@ export interface MonthReport {
   readonly operating_costs: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly net_result: string;
+  readonly partner_costs: readonly PartnerCostShare[];
   readonly stock: MonthStock;
   readonly checks: readonly ClosingCheck[];
 }

@@ -84,6 +84,9 @@ class CostRow:
     reference: str = ""
     # How the amount was found: "30 kg sur 120 kg", "0.5 j × 1 300 / 26"...
     detail: str = ""
+    # The expense category this line belongs to (None for an employee's day): what the month closing's
+    # partner cost participation links to in the expenses list.
+    category_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -415,6 +418,7 @@ def to_json(result: ComputedResult) -> dict[str, Any]:
                             "source_id",
                             "reference",
                             "detail",
+                            "category_id",
                         ),
                     )
                     for line in group.lines

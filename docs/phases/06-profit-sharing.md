@@ -71,3 +71,5 @@ _Coarse plan: detail each task when the phase starts._
 - [x] Prototype's "Partage des bénéfices" page reworked as a list of partnership lots (open, closed,
       settled), with the frozen result of closed lots. _List: P6-T01 (`/partenariats`), results D-105._
 - [x] "Clôture mensuelle" for the accountant. _`/cloture` (D-074)._
+- [x] Clôture mensuelle: each partner's share of the month's shared costs (rent, electricity, fuel,
+      salaries), and the existing figures made clickable to where they come from. _Owner request, D-122._

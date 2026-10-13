@@ -201,6 +201,7 @@ class LotCostLine:
     expense_number: str
     status: str
     spent_on: dt.date
+    category_id: int | None
     category_code: str
     category_name: str
     description: str
@@ -241,6 +242,7 @@ def lot_cost_lines(organization: Organization, *, batch_id: int, approved_only: 
             expense_number=expense.number,
             status=expense.status,
             spent_on=expense.spent_on,
+            category_id=expense.category_id,
             category_code=expense.category.code,
             category_name=expense.category.name,
             description=_label(expense),
@@ -282,6 +284,7 @@ def lot_cost_lines(organization: Organization, *, batch_id: int, approved_only: 
                         expense_number=expense.number,
                         status=expense.status,
                         spent_on=expense.spent_on,
+                        category_id=expense.category_id,
                         category_code=expense.category.code,
                         category_name=expense.category.name,
                         description=_label(expense),
@@ -315,6 +318,7 @@ def _computed_lines(organization: Organization, *, batch_id: int) -> list[LotCos
                 expense_number=expense.number if expense is not None else "",
                 status=ExpenseStatus.APPROVED,
                 spent_on=line.spent_on,
+                category_id=category.pk if category is not None else None,
                 category_code=category.code if category is not None else "",
                 category_name=category.name if category is not None else "",
                 description=line.description,

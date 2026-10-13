@@ -307,6 +307,8 @@ export * from './paginatedSupplierInvoiceList';
 export * from './paginatedSupplierPaymentList';
 export * from './paginatedTransferList';
 export * from './partnerBalances';
+export * from './partnerCostCategory';
+export * from './partnerCostShare';
 export * from './partnerLine';
 export * from './partnerReport';
 export * from './partnershipBatch';

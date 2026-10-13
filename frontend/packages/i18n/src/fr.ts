@@ -3017,6 +3017,13 @@ export const fr = {
         net: "Résultat net du mois",
         byCategory: "Dépenses par catégorie",
       },
+      partnerCosts: {
+        title: "Participation des partenaires aux charges",
+        hint:
+          "Le loyer, l'électricité, le carburant et les salaires sont répartis sur les lots en stock, lots en " +
+          "partenariat compris : ce que les lots de chaque partenaire ont porté ce mois-ci, par catégorie.",
+        salaries: "Salaires",
+      },
       stock: {
         title: "Stock à la fin du mois",
         hint: "Valorisé au coût d'achat de chaque lot. Ce qui reste en stock n'est pas une charge.",

@@ -13245,6 +13245,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        partner_costs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerCostShare'
+          readOnly: true
         stock:
           allOf:
           - $ref: '#/components/schemas/MonthStock'
@@ -13262,6 +13267,7 @@ components:
       - month
       - net_result
       - operating_costs
+      - partner_costs
       - personnel
       - sales
       - spoilage
@@ -14318,6 +14324,64 @@ components:
       - partner_name
       - profit_share
       - trade_payable
+    PartnerCostCategory:
+      type: object
+      properties:
+        key:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        is_employee:
+          type: boolean
+          readOnly: true
+        category_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        count:
+          type: integer
+          readOnly: true
+      required:
+      - amount
+      - category_id
+      - count
+      - is_employee
+      - key
+      - name
+    PartnerCostShare:
+      type: object
+      description: |-
+        One partner's part of the month's shared costs (rent, electricity, fuel, salaries...): the raw cost
+        their lots carried, by category, not weighted by their profit or loss %.
+      properties:
+        partner_id:
+          type: integer
+          readOnly: true
+        partner_name:
+          type: string
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerCostCategory'
+          readOnly: true
+      required:
+      - categories
+      - partner_id
+      - partner_name
+      - total
     PartnerLine:
       type: object
       properties:
@@ -16608,8 +16672,13 @@ components:
         detail:
           type: string
           readOnly: true
+        category_id:
+          type: integer
+          readOnly: true
+          nullable: true
       required:
       - amount
+      - category_id
       - description
       - detail
       - kind

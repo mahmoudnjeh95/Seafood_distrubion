@@ -110,6 +110,7 @@ def _expense_cost_row(line: Any) -> engine.CostRow:
         source_id=expense_id,
         reference=getattr(line, "expense_number", ""),
         detail=detail,
+        category_id=getattr(line, "category_id", None),
     )
 
 
@@ -135,6 +136,14 @@ def _cost_rows(organization: Organization, batch_id: int) -> tuple[engine.CostRo
         for day in hr.lot_work_days_of(organization, batch_id=batch_id).order_by("work_date", "id")
     ]
     return tuple(rows)
+
+
+def cost_rows_for_batch(
+    organization: Organization, *, batch_id: int, date_from: dt.date, date_to: dt.date
+) -> tuple[engine.CostRow, ...]:
+    """A lot's approved cost lines dated within a period (the month-closing's partner participation,
+    `partner_costs.month_partner_cost_shares`): the same rows `lot_snapshot` charges the lot with."""
+    return tuple(row for row in _cost_rows(organization, batch_id) if date_from <= row.on <= date_to)
 
 
 def _terms(organization: Organization, batch_id: int) -> engine.PartnershipTerms | None:

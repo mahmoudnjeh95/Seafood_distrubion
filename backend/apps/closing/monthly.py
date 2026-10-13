@@ -18,7 +18,7 @@ from apps.hr import selectors as hr
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
 
-from . import engine
+from . import engine, partner_costs
 from .selectors import ClosingCheck, checks_to_json
 
 ZERO = Decimal("0.000")
@@ -62,6 +62,9 @@ class MonthReport:
     personnel: Decimal
     operating_costs: Decimal
     net_result: Decimal
+    # What of the month's costs landed on a partnership lot, by partner and category (owner request,
+    # 2026-10-13): the raw cost, not weighted by the partner's profit or loss %.
+    partner_cost_shares: tuple[partner_costs.PartnerCostShare, ...]
     # Stock
     opening_value: Decimal
     closing_value: Decimal
@@ -101,6 +104,7 @@ def month_report(organization: Organization, *, month: dt.date) -> MonthReport:
     purchases = sum((row.value for row in ledger if row.kind == "receipt"), ZERO)
     rounding = closing_value - (opening_value + sum((row.value for row in ledger), ZERO))
     operating = spent.total + personnel
+    shares = partner_costs.month_partner_cost_shares(organization, date_from=first, date_to=last)
     return MonthReport(
         month=first,
         sales_count=sold.sales,
@@ -115,6 +119,7 @@ def month_report(organization: Organization, *, month: dt.date) -> MonthReport:
         personnel=personnel,
         operating_costs=operating,
         net_result=net_result_of(revenue=sold.revenue, cogs=sold.cogs, spoilage=spoilage, operating_costs=operating),
+        partner_cost_shares=shares,
         opening_value=opening_value,
         closing_value=closing_value,
         ledger=ledger,
@@ -192,6 +197,7 @@ def to_json(report: MonthReport) -> dict[str, Any]:
         "personnel": plain(report.personnel),
         "operating_costs": plain(report.operating_costs),
         "net_result": plain(report.net_result),
+        "partner_costs": partner_costs.to_json(report.partner_cost_shares),
         "stock": {
             "opening_value": plain(report.opening_value),
             "purchases": plain(report.purchases),

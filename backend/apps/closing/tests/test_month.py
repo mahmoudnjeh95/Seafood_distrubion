@@ -14,10 +14,13 @@ from apps.closing.models import MonthlyClosingStatus
 from apps.core.models import AuditLog, Role
 from apps.expenses import selectors as expense_selectors
 from apps.expenses import services as expense_services
+from apps.hr import services as hr
+from apps.hr.tests.factories import EmployeeFactory
 from apps.inventory import services as inventory
 from apps.inventory.models import LossReason, MovementKind
 from apps.inventory.tests.factories import BatchFactory
 from apps.partners.tests.factories import CustomerFactory
+from apps.partnerships import services as partnership_services
 from apps.sales import services as sales
 
 from .conftest import client_for, member
@@ -112,6 +115,85 @@ def test_the_month_is_worked_out_from_sales_not_from_purchases(organization, act
         ("loss", D("-100.000")),
     ]
     assert [(row.code, row.total) for row in report.expense_categories] == [("transport", D("120.000"))]
+
+
+def test_partner_cost_participation_groups_the_months_shared_costs_by_category(
+    organization, actor, cold_room, last_month, partner
+):
+    """A partnership lot's costs this month should show up next to "Dépenses approuvées", grouped by
+    category and by partner, so the partner sees where the charge went (owner request, 2026-10-13)."""
+    product = ProductFactory.create(organization=organization, name="Loup")
+    batch = BatchFactory.create(
+        organization=organization, product=product, unit_cost=D("15.000"), received_on=day_of(last_month, 3)
+    )
+    inventory.post_movement(
+        organization=organization,
+        actor=None,
+        kind=MovementKind.RECEIPT,
+        batch=batch,
+        quantity="50.000",
+        to_location=cold_room,
+        occurred_at=moment(day_of(last_month, 3)),
+    )
+    partnership_services.create_partnership(
+        organization=organization,
+        actor=actor,
+        batch=batch,
+        partner=partner,
+        owner_capital="500.000",
+        partner_capital="500.000",
+        profit_rate="50",
+        loss_rate="50",
+    )
+    expense_services.create_expense(
+        organization=organization,
+        actor=actor,
+        spent_on=day_of(last_month, 5),
+        category=expense_selectors.category_by_code(organization, "transport"),
+        amount="60.000",
+        batch=batch,
+        approve=True,
+    )
+    employee = EmployeeFactory.create(organization=organization, monthly_salary=D("2600.000"))
+    hr.add_lot_work_day(
+        organization=organization,
+        actor=actor,
+        employee=employee,
+        work_date=day_of(last_month, 6),
+        days="1.00",
+        batch=batch,
+    )
+    # An own-stock lot's cost (no partner): never counted in a partner's participation.
+    expense_services.create_expense(
+        organization=organization,
+        actor=actor,
+        spent_on=day_of(last_month, 5),
+        category=expense_selectors.category_by_code(organization, "transport"),
+        amount="999.000",
+        approve=True,
+    )
+
+    report = monthly.month_report(organization, month=last_month)
+
+    [share] = report.partner_cost_shares
+    assert (share.partner_id, share.partner_name, share.total) == (partner.pk, partner.name, D("160.000"))
+    transport, employees = share.categories
+    assert (transport.key, transport.name, transport.is_employee, transport.amount, transport.count) == (
+        "Transport",
+        "Transport",
+        False,
+        D("60.000"),
+        1,
+    )
+    assert transport.category_id == expense_selectors.category_by_code(organization, "transport").pk
+    assert (employees.key, employees.name, employees.is_employee, employees.amount, employees.count) == (
+        "employee",
+        "",
+        True,
+        D("100.000"),
+        1,
+    )
+    assert employees.category_id is None
 
 
 def test_the_stock_valuation_of_a_past_day_does_not_change_later(organization, actor, cold_room, last_month):

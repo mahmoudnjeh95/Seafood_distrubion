@@ -1582,3 +1582,25 @@ have it), and Arabic texts.
   `on_hand_never_negative` for every module sharing `StockOnHand` (losses, transfers, counts) and teaching
   `rebuild_on_hand` (D-038) to treat a negative ledger as a known state instead of corruption — too large a
   change for what the owner actually needed (sell now, reconcile the lot later).
+
+**D-122 · Clôture mensuelle: clickable figures and each partner's share of the shared costs (owner request)** · accepted · 2026-10-13
+- The owner pointed out that rent, electricity, fuel and the other costs the lot result engine already
+  splits over the lots in stock (D-041) land on partnership lots too: a partner effectively carries part of
+  these charges, and the month closing should show it, not just the month's own total.
+- New `closing.partner_costs.month_partner_cost_shares`: for every partnership (any status) with a cost
+  line dated in the month (`closing.selectors.cost_rows_for_batch`, reusing the lot result engine's cost
+  rows), groups the **raw cost** their lots carried by category and totals it per partner — not weighted by
+  the partner's profit or loss %, so it answers "where did this charge go", the same breakdown already on
+  the lot page (`LotResultCard`), just totalled across lots. An employee's day/monthly cost has no single
+  category (its title is their name): grouped under a fixed `employee` key instead. Exposed as
+  `MonthReport.partner_costs`, a new card on `/cloture` next to "Dépenses approuvées".
+- `expenses.LotCostLine` and `closing.engine.CostRow` gained `category_id` (the underlying `ExpenseCategory`
+  id, `None` for an employee's day): what the new card's category rows link to on `/charges?category=…`.
+- Made existing month-closing figures clickable: the stock valuation rows already had a lot id (link to
+  `/stock/lots/<id>`); "Dépenses par catégorie" rows now link to `/charges` filtered by that category and
+  the month's date range (`ExpensesPage` reads `category`/`date_from`/`date_to` from the URL on mount);
+  "Ventes", "Pertes et écarts d'inventaire" and "Salaires du mois" link to their list pages without a date
+  filter (those screens do not take one yet — a smaller follow-up, not blocking this).
+- Not done here: a full itemized drill-down (the individual sales, expense lines, losses and payroll
+  entries behind each month-level total) would need new list endpoints per line; this session reused what
+  already exists (lot-level cost rows, stock valuation rows, expense categories) rather than add new ones.

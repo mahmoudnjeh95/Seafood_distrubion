@@ -36,7 +36,7 @@ import {
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
-import { Link, useNavigate, useOutletContext } from "react-router";
+import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
@@ -150,11 +150,13 @@ export function ExpensesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canWrite = canWriteExpenses(session);
+  // The month closing's cost lines link here with a category and a date range pre-set (D-122).
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatusEnum | "">("");
-  const [category, setCategory] = useState(ALL);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [category, setCategory] = useState(searchParams.get("category") ?? ALL);
+  const [dateFrom, setDateFrom] = useState(searchParams.get("date_from") ?? "");
+  const [dateTo, setDateTo] = useState(searchParams.get("date_to") ?? "");
   const [offset, setOffset] = useState(0);
   const [managing, setManaging] = useState(false);
   const query = useDebounced(search.trim());
