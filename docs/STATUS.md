@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-17 (money actions ask Annuler / Confirmer, D-179; load BL delivery, P2-T15 / D-178)_
+_Last updated: 2026-10-17 (driver day counts delivered load BLs, D-180; money confirm, D-179; P2-T15 / D-178)_
 
 ## Where we are
 
+- **D-180 (branch day-figures-load-bl):** a driver's day (Suivi des chauffeurs, closing) now counts the load BLs
+  delivered (sales, cash at the door, kg sold); delivering sets `sold_at` to the delivery moment. Awaits CI.
 - **D-179 (branch money-confirm-popup):** every money action of the driver app (delivery, sale, payment, expense,
   purchase, opening cash and float, closing) opens an "Annuler / Confirmer" window with the amounts. Awaits CI.
   Admin money forms are not converted yet; new money screens must use `ConfirmButton`.
@@ -12,7 +14,6 @@ _Last updated: 2026-10-17 (money actions ask Annuler / Confirmer, D-179; load BL
   delivered is sold, the rest stays on the truck; versions, PDF "Commandé / Livré", notifications. Awaits CI.
 - **P3-T15 / D-175 (on main):** a bell in both apps; a driver's action notifies the office,
   the office's action notifies the driver, with a tone and a toast (polling every 20 s). Check on staging.
-- **D-173 (on main):** the new receipt's product lines are a bordered spreadsheet table. Check on staging.
 - **Phase 1:** done except P1-T14 (returnable boxes; owner decisions 2–4 are open). **Phase 2:** mostly done.
 - **Phase 3:** T01–T07d and T11–T12c are done; open: T08 field test, T09 Arabic review, T10 printing.
 - **P2-T13 / D-160:** load parts, draft BL per client, provisional PDF and driver-phone "Mes livraisons" are implemented
@@ -41,6 +42,8 @@ _Last updated: 2026-10-17 (money actions ask Annuler / Confirmer, D-179; load BL
 
 ## Next step
 
+0. D-180: merge after green CI; on staging, deliver a load BL with cash from the phone and check Suivi des
+   chauffeurs shows its sales and cash; a closing sent before the fix must be sent again.
 0. D-179: merge after green CI; on staging with a phone, check each money button opens the window and "Annuler" sends
    nothing. Then ask the owner whether the admin app's money forms need the same window.
 0. P2-T15: merge after green CI; on staging, load two clients, print both BLs (no PROVISOIRE), on the phone deliver one

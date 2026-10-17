@@ -18,6 +18,8 @@ from apps.inventory import services as inventory
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners import services as partners
+from apps.sales import services as sales
+from apps.sales.models import Sale
 
 pytestmark = pytest.mark.django_db
 
@@ -77,6 +79,8 @@ def day():
         "batch": batch,
         "truck": truck,
         "customer": customer,
+        "driver": driver.user,
+        "actor": actor,
     }
 
 
@@ -592,3 +596,62 @@ def test_the_office_follows_a_running_day_and_filters_it(day):
     assert detail["expenses"] == []
     assert len(drivers) == 1
     assert day["api"].get(reverse("day-overview-list")).status_code == 403
+
+
+def load_bl(day, kg):
+    """A load of `kg` of dorade for the day's customer, validated by the office: its BL waits for the driver."""
+    transfer = inventory.create_transfer(
+        organization=day["organization"],
+        actor=day["actor"],
+        from_location=day["room"],
+        to_location=day["truck"].location,
+        transferred_on=timezone.localdate(),
+        lines=[],
+        deliveries=[
+            {
+                "customer": day["customer"],
+                "delivery_address": "",
+                "lines": [{"product": day["product"], "quantity": kg}],
+                "boxes": {},
+            }
+        ],
+        validate=True,
+    )
+    return Sale.objects.get(transfer=transfer)
+
+
+def overview(day):
+    (row,) = day["office"].get(reverse("day-overview-list")).json()
+    return row
+
+
+def test_a_load_bl_the_driver_delivers_counts_in_their_day(day):
+    bl = load_bl(day, "5")
+    # Validated before midnight for the next morning: the delivery, not the load, dates the sale.
+    Sale.objects.filter(pk=bl.pk).update(sold_at=timezone.now() - dt.timedelta(days=1))
+
+    delivered = sales.deliver_sale(
+        sale=bl,
+        actor=day["driver"],
+        lines=[{"line": bl.lines.get().pk, "quantity": "4"}],
+        payment={"amount_paid": "60.000", "payment_method": "cash"},
+    )
+
+    assert delivered.sold_at == delivered.delivered_at
+    summary = day["api"].get(reverse("my-day-summary")).json()["summary"]
+    assert (summary["sales_count"], summary["sales_total"], summary["cash_received"]) == (1, "112.000", "60.000")
+    assert (summary["on_credit"], summary["expected_cash"]) == ("52.000", "110.000")  # 50 at the start + 60
+    (product,) = summary["products"]
+    assert (product["loaded"], product["sold"], product["remaining"]) == ("17.000", "4.000", "13.000")
+    assert product["unexplained"] == "0.000"
+    row = overview(day)
+    assert (row["sales_total"], row["deliveries_done"], row["deliveries_todo"]) == ("112.000", 1, 0)
+
+
+def test_a_load_bl_the_office_marks_delivered_counts_in_the_truck_drivers_day(day):
+    bl = load_bl(day, "5")
+
+    sales.confirm_sale(sale=bl, actor=day["actor"])
+
+    row = overview(day)
+    assert (row["sales_count"], row["sales_total"], row["on_credit"]) == (1, "140.000", "140.000")

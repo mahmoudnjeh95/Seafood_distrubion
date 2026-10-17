@@ -2601,3 +2601,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   day (opening cash, purchase float), changing the float, and sending the closing (counted cash).
 - **From now on:** any new screen that records money (driver or admin) uses `ConfirmButton`. The admin app's existing
   money forms are not yet converted.
+
+**D-180 · A load's BL counts in the day of the driver who delivered it, at the moment of the delivery** · accepted · 2026-10-17
+
+- **Bug (owner's screenshot, 2026-10-17):** "Suivi des chauffeurs" showed 4 / 4 deliveries done but 0 DT of sales and
+  0 DT in hand. The day's figures took only sales `created_by` the driver, and a load's BL is made by the office.
+- **Now:** the day counts the confirmed BL of its truck's loads too: those the driver delivered, and those the office
+  marked delivered (unless another driver of that truck and date delivered them). Their cash at the door is in hand.
+- **Sold at the door:** delivering a load's BL (phone or office "Marquer livré") sets `sold_at` to that moment, so the
+  sale, its stock movement and the day it counts in are the delivery's, not the load's (a load validated the evening
+  before counts on the delivery day). The prices stay those of the load.
+- **Already delivered BLs** keep their `sold_at` (posted movements are not edited); a closing already sent with the
+  wrong figures shows the difference and is sent again (D-132).

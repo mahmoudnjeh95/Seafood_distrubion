@@ -46,6 +46,15 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
     def inside(moment: dt.datetime) -> bool:
         return start <= moment < end
 
+    # The BL of a truck load is made by the office and delivered by the driver (D-178, D-180): it is the day of
+    # the driver who delivered it, or of the truck's driver when the office marked it delivered.
+    other_drivers = fleet.drivers_on_truck(organization, location_id=location_id, on=day) - {driver_day.driver_id}
+
+    def of_this_driver(sale: Any) -> bool:
+        if sale.transfer_id is None:
+            return bool(sale.created_by_id == driver_day.driver_id)
+        return sale.delivered_by_id not in other_drivers
+
     day_sales = [
         sale
         for sale in sales.sales_of(
@@ -53,10 +62,11 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
             status="confirmed",
             location_id=location_id,
             created_by_id=driver_day.driver_id,
+            load_location_id=location_id,
             date_from=day,
             date_to=day,
         )
-        if inside(sale.sold_at)
+        if inside(sale.sold_at) and of_this_driver(sale)
     ]
     cash = sum((s.amount_paid for s in day_sales if s.payment_method == "cash"), ZERO)
     paid = sum((s.amount_paid for s in day_sales), ZERO)

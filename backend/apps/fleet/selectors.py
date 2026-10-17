@@ -238,6 +238,15 @@ def closed_days_on_truck(organization: Organization, *, location_id: int, on: da
     return still_theirs
 
 
+def drivers_on_truck(organization: Organization, *, location_id: int, on: date_type) -> set[int]:
+    """The users who opened a day on the truck of this location that date."""
+    return set(
+        DriverDay.objects.for_organization(organization)
+        .filter(truck__location_id=location_id, date=on)
+        .values_list("driver_id", flat=True)
+    )
+
+
 def locked_driver_day(driver_day: DriverDay) -> DriverDay:
     """The same day read again with its row locked (inside a transaction), with truck and driver."""
     return DriverDay.objects.select_for_update().select_related("truck__location", "driver").get(pk=driver_day.pk)
