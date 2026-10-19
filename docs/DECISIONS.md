@@ -2744,3 +2744,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   confirms which. Changing it means changing `general_day_amounts` and its tests only.
 - Not changed by this decision, open for the owner: employer CNSS and bonus/overtime in the lot cost of employee days (D-055 vs D-041),
   the settlement of a carried negative balance against the capital (D-031), and the cash-flow basis (approval date vs paid date).
+**D-190 · "Convertir en vente" takes the payment on the spot (method, amount, reference)** · accepted · 2026-10-19
+- Reported by Mahmoud (2026-10-19): the quote's "Convertir en vente" window had no field for the payment method or
+  the amount the client pays. For a "Client de passage" the server refused the BL ("paie toute la vente sur place")
+  and the window had nothing to fix it with.
+- The window now has the same payment block as the sale form (D-047): "Payé en entier" (on by default for the
+  walk-in client), "Montant payé (DT)" (disabled while "Payé en entier" is on), "Mode de paiement" and the reference.
+  It is sent with the BL on both "Créer le brouillon" and "Créer et confirmer"; the server checks it against the BL's
+  total, as before. A payment error sits on its field, not in the red line at the bottom.
+- The quote's customer now says whether it is the walk-in client (`is_walk_in` on `QuoteCustomer`, read-only). The
+  payment method has no default: a walk-in BL cannot be confirmed until one is chosen.
