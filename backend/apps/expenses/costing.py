@@ -126,7 +126,7 @@ def allocate_room_days(day_amounts: Mapping[dt.date, Decimal], held: HeldByHour)
 
 def general_day_amounts(monthly_amount: Decimal, month: dt.date) -> dict[dt.date, Decimal]:
     """A month's general cost spread over its calendar days, to the millime, adding up to the month exactly: a lot
-    in stock all month carries the whole amount once (D-190, provisional: a day is a calendar day, not a 26th)."""
+    in stock all month carries the whole amount once (D-191, provisional: a day is a calendar day, not a 26th)."""
     days = month_days(month)
     return dict(zip(days, split_evenly(monthly_amount, len(days)), strict=True))
 

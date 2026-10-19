@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-10-19 (finance review fixes, D-190)_
+_Last updated: 2026-10-19 (finance review fixes, D-191)_
 
 ## Where we are
 
-- **D-190 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
+- **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
   (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
   carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**
   (owner to confirm the day rule). Not changed, owner decisions: employer CNSS in the lot cost of employee days, settlement
@@ -82,8 +82,8 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 
 ## Next step
 
-0. D-190: merge after green CI. Owner: confirm the day rule for general costs (calendar days or 26 working days) and
-   decide the four open finance points listed in D-190 (employer CNSS on lot days, carried debt vs capital, cash-flow
+0. D-191: merge after green CI. Owner: confirm the day rule for general costs (calendar days or 26 working days) and
+   decide the four open finance points listed in D-191 (employer CNSS on lot days, carried debt vs capital, cash-flow
    basis, cancelled paid sales in cash flow).
 0. D-189: merge after green CI; on staging check the dashboard figures (one "DT"), "octobre 2026", and on a phone the
    driver's Ma journée ("… · 31,500 kg") and an empty Livraisons screen (drawing above the text).

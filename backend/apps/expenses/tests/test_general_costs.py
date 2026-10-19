@@ -236,9 +236,7 @@ def test_template_validation(organization, actor):
 # ---- cost on lots ----
 
 
-def test_rent_is_spread_over_the_days_of_the_month_split_over_the_lots_in_stock_by_kg(
-    organization, actor, cold_room
-):
+def test_rent_is_spread_over_the_days_of_the_month_by_kg(organization, actor, cold_room):
     rent = category(organization, "rent")
     services.create_recurring_cost(
         organization=organization,

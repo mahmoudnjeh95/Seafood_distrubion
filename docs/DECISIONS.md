@@ -2735,7 +2735,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Left for later (e2e tests click these links): detail pages show both the shell's "Retour" (D-110) and their own
   link ("Toutes les ventes", "Retour au stock"…); keep one.
 
-**D-190 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
+**D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
 - Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried
   30/26 or 31/26 of the bill (a year: 14.04 months instead of 12). The month's expense counts the bill once, so the lots did not add up to it.
 - Now each calendar day of the month carries its share of the month, split to the millime (`general_day_amounts`), so a lot in stock all
