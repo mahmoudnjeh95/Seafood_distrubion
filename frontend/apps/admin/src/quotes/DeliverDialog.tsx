@@ -1,4 +1,11 @@
-import { convertQuoteToSale, type QuoteDetail, useGetQuote, useListLocations } from "@frutti/api";
+import {
+  convertQuoteToSale,
+  type QuoteConvert,
+  type QuoteDetail,
+  type SalePaymentMethodEnum,
+  useGetQuote,
+  useListLocations,
+} from "@frutti/api";
 import { formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -7,22 +14,33 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
+  Field,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   Td,
   Th,
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { choosePlace, type Need, usePlacesStock } from "../lib/placeStock";
+import { PAYMENT_METHODS } from "../sales/shared";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
 // The API writes "2.000"; people here write "2" or "2,5".
 const asTyped = (value: string) => value.replace(/\.?0+$/, "").replace(".", ",");
+const NO_METHOD = "none";
+// The payment made on the spot with the BL (D-047): the server checks it against the BL's total.
+type Payment = Pick<QuoteConvert, "amount_paid" | "paid_in_full" | "payment_method" | "payment_reference">;
+const PAYMENT_KEYS = ["amount_paid", "payment_method", "payment_reference"];
 
 /**
  * "Convertir en vente": a BL made from an accepted quote. It proposes every kilo not on a BL yet; lowering a
@@ -59,6 +77,12 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
     Object.fromEntries(open.map((line) => [line.id, asTyped(line.remaining_quantity)])),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const formId = useId();
+  // The walk-in client pays the whole BL on the spot (D-047); another client may pay part of it now.
+  const [paidInFull, setPaidInFull] = useState(quote.customer.is_walk_in);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [method, setMethod] = useState<string>(NO_METHOD);
+  const [reference, setReference] = useState("");
   const locations = useListLocations({ status: "active" });
   // The sale leaves from the one place that holds all the kilos typed here (D-144).
   const byPlace = usePlacesStock((locations.data ?? []).filter((option) => option.sells).map((option) => option.id));
@@ -68,11 +92,13 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
       confirmNow,
       lines,
       place,
+      payment,
     }: {
       confirmNow: boolean;
       lines: { quote_line: number; quantity: string }[];
       place: number;
-    }) => convertQuoteToSale(quote.id, { location: place, confirm_now: confirmNow, lines }),
+      payment: Payment;
+    }) => convertQuoteToSale(quote.id, { location: place, confirm_now: confirmNow, lines, ...payment }),
     onSuccess: async (sale) => {
       toast.success(t("admin.sales.fromQuote.created", { number: sale.number }));
       onClose();
@@ -87,6 +113,7 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
         const match = /^lines\.(\d+)\./.exec(key);
         const line = match ? open[Number(match[1])] : undefined;
         if (line) found[`line.${line.id}`] = message;
+        else if (PAYMENT_KEYS.includes(key)) found[key] = message;
         else found.detail = message;
       }
       setErrors(Object.keys(found).length > 0 ? found : { detail: t("admin.quotes.detail.actionError") });
@@ -114,8 +141,19 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
       const names = needs.map((need) => open.find((line) => String(line.product.id) === need.product)?.product.name);
       found.detail = t("admin.sales.form.noSinglePlace", { products: names.join(", ") });
     }
+    let paid: string | null = null;
+    if (!paidInFull && amountPaid.trim() !== "") {
+      paid = parseDecimalInput(amountPaid.trim(), 3);
+      if (paid === null || paid.startsWith("-")) found.amount_paid = t("admin.sales.form.money");
+    }
+    const payment: Payment = {
+      paid_in_full: paidInFull,
+      amount_paid: paidInFull ? null : paid,
+      payment_method: method === NO_METHOD ? "" : (method as SalePaymentMethodEnum),
+      payment_reference: reference.trim(),
+    };
     setErrors(found);
-    if (Object.keys(found).length === 0 && place !== null) convert.mutate({ confirmNow, lines, place });
+    if (Object.keys(found).length === 0 && place !== null) convert.mutate({ confirmNow, lines, place, payment });
   };
 
   return (
@@ -169,6 +207,60 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
           })}
         </tbody>
       </Table>
+      <div className="grid grid-cols-2 items-start gap-3">
+        <label className="col-span-2 flex items-center gap-2 font-semibold">
+          <input
+            type="checkbox"
+            checked={paidInFull}
+            onChange={(event) => setPaidInFull(event.target.checked)}
+            className="size-4 accent-sea"
+          />
+          {t("admin.sales.form.paidInFull")}
+        </label>
+        {quote.customer.is_walk_in && (
+          <p className="col-span-2 text-[0.85rem] text-ink-2">{t("admin.sales.form.walkInPays")}</p>
+        )}
+        <Field label={t("admin.sales.form.amountPaid")} htmlFor={`${formId}-amount_paid`} error={errors.amount_paid}>
+          <Input
+            id={`${formId}-amount_paid`}
+            inputMode="decimal"
+            value={amountPaid}
+            disabled={paidInFull}
+            onChange={(event) => setAmountPaid(event.target.value)}
+            aria-invalid={errors.amount_paid ? true : undefined}
+            autoComplete="off"
+            className="num"
+          />
+        </Field>
+        <Field label={t("admin.sales.form.method")} htmlFor={`${formId}-payment_method`} error={errors.payment_method}>
+          <Select value={method} onValueChange={setMethod}>
+            <SelectTrigger id={`${formId}-payment_method`} aria-invalid={errors.payment_method ? true : undefined}>
+              <SelectValue placeholder={t("admin.sales.form.choose")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_METHOD}>{t("admin.sales.detail.none")}</SelectItem>
+              {PAYMENT_METHODS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {t(`admin.sales.methods.${value}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field
+          label={t("admin.sales.form.reference")}
+          htmlFor={`${formId}-payment_reference`}
+          error={errors.payment_reference}
+          className="col-span-2"
+        >
+          <Input
+            id={`${formId}-payment_reference`}
+            value={reference}
+            maxLength={50}
+            onChange={(event) => setReference(event.target.value)}
+          />
+        </Field>
+      </div>
       {errors.detail && (
         <p role="alert" className="text-[0.85rem] text-bad">
           {errors.detail}

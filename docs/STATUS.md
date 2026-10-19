@@ -1,9 +1,13 @@
 # Project status
 
-_Last updated: 2026-10-19 (UI review of the office and driver apps, D-189)_
+_Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en vente", D-190)_
 
 ## Where we are
 
+- **D-190 (branch quote-convert-payment, 2026-10-19):** "Convertir en vente" on an accepted quote has the payment block
+  of the sale form: "Payé en entier" (on for "Client de passage"), amount, method, reference. Before, a walk-in BL
+  could not be confirmed and the window had no field to fix it. The API client is regenerated (`is_walk_in` on the
+  quote customer). Awaits CI.
 - **D-189 (branch ui-polish-units, 2026-10-19):** UI review of both apps. Units no longer shown twice ("DT DT" on the
   dashboard, "kg kg" on the driver's day), dashboard month in French, empty screens stack on a phone, long product
   names wrap on the driver's Vente screen. Awaits CI. Follow-up: one back link per detail page (D-189).
@@ -77,6 +81,9 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 
 ## Next step
 
+0. D-190: merge after green CI; on staging accept a quote for "Client de passage", click "Convertir en vente": the
+   payment block is there with "Payé en entier" on; "Créer et confirmer" without a method shows "Indiquez le mode de
+   paiement" on the field; with a method it confirms. A regular client can pay part now.
 0. D-189: merge after green CI; on staging check the dashboard figures (one "DT"), "octobre 2026", and on a phone the
    driver's Ma journée ("… · 31,500 kg") and an empty Livraisons screen (drawing above the text).
 0. D-188: merge after green CI; on staging open Site web → Demandes du site, take a request with products, click
