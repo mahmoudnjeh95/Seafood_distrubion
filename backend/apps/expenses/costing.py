@@ -9,10 +9,11 @@ import datetime as dt
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from fractions import Fraction
 
 from apps.core.money import money, quantity
 
-from .allocation import split_by_weight
+from .allocation import split_by_weight, split_by_weight_carrying
 
 ZERO = Decimal("0.000")
 
@@ -86,9 +87,12 @@ class RoomCharge:
     kg_days: Decimal
 
 
-def _hour_shares(hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, Decimal]]]) -> dict[int, Decimal]:
+def _hour_shares(
+    hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, Decimal]]], carry: dict[int, Fraction]
+) -> dict[int, Decimal]:
     """One hour's amount over the stretches of time in it: each stretch takes its seconds' part of the hour,
-    the seconds the room was empty take nothing, and each stretch shares its part over its lots by kg."""
+    the seconds the room was empty take nothing, and each stretch shares its part over its lots by kg. The
+    lots' millime left over is carried in `carry` from hour to hour (see `split_by_weight_carrying`)."""
     weights = {index: Decimal(seconds) for index, (seconds, _lots) in enumerate(slices)}
     empty = SECONDS_PER_HOUR - sum(seconds for seconds, _lots in slices)
     if empty > 0:
@@ -96,7 +100,7 @@ def _hour_shares(hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, 
     parts = split_by_weight(hour_amount, weights)
     shares: dict[int, Decimal] = {}
     for index, (_seconds, lots) in enumerate(slices):
-        for batch_id, share in split_by_weight(parts.get(index, ZERO), lots).items():
+        for batch_id, share in split_by_weight_carrying(parts.get(index, ZERO), lots, carry).items():
             shares[batch_id] = shares.get(batch_id, ZERO) + share
     return shares
 
@@ -108,10 +112,11 @@ def allocate_room_days(day_amounts: Mapping[dt.date, Decimal], held: HeldByHour)
     adds up to its amount exactly, so every day does too."""
     totals: dict[int, Decimal] = {}
     kg_seconds: dict[int, Decimal] = {}
-    for day, amount in day_amounts.items():
+    carry: dict[int, Fraction] = {}
+    for day, amount in sorted(day_amounts.items()):
         hour_amounts = split_evenly(amount, HOURS_PER_DAY)
-        for hour, slices in held.get(day, {}).items():
-            for batch_id, share in _hour_shares(hour_amounts[hour], slices).items():
+        for hour, slices in sorted(held.get(day, {}).items()):
+            for batch_id, share in _hour_shares(hour_amounts[hour], slices, carry).items():
                 totals[batch_id] = totals.get(batch_id, ZERO) + share
             for seconds, lots in slices:
                 for batch_id, kg in lots.items():
