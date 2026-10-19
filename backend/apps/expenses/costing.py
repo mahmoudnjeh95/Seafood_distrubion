@@ -10,13 +10,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
-from apps.core.money import money
+from apps.core.money import money, quantity
 
 from .allocation import split_by_weight
 
 ZERO = Decimal("0.000")
-# The client's rule (2026-10-11): a day is a 26th of the monthly amount, for salaries and general costs.
-WORKING_DAYS_PER_MONTH = 26
 
 
 def first_of_month(day: dt.date) -> dt.date:
@@ -119,14 +117,18 @@ def allocate_room_days(day_amounts: Mapping[dt.date, Decimal], held: HeldByHour)
                 for batch_id, kg in lots.items():
                     kg_seconds[batch_id] = kg_seconds.get(batch_id, ZERO) + kg * seconds
     return {
-        batch_id: RoomCharge(amount=totals.get(batch_id, ZERO), kg_days=kg_seconds[batch_id] / SECONDS_PER_DAY)
+        batch_id: RoomCharge(
+            amount=totals.get(batch_id, ZERO), kg_days=quantity(kg_seconds[batch_id] / SECONDS_PER_DAY)
+        )
         for batch_id in sorted(kg_seconds)
     }
 
 
-def general_day_amount(monthly_amount: Decimal) -> Decimal:
-    """A general cost "like a salary" (client, D-041): the monthly amount / 26, rounded once."""
-    return money(monthly_amount / WORKING_DAYS_PER_MONTH)
+def general_day_amounts(monthly_amount: Decimal, month: dt.date) -> dict[dt.date, Decimal]:
+    """A month's general cost spread over its calendar days, to the millime, adding up to the month exactly: a lot
+    in stock all month carries the whole amount once (D-190, provisional: a day is a calendar day, not a 26th)."""
+    days = month_days(month)
+    return dict(zip(days, split_evenly(monthly_amount, len(days)), strict=True))
 
 
 def spread_over_months(amount: Decimal, months: int) -> list[Decimal]:
@@ -134,8 +136,11 @@ def spread_over_months(amount: Decimal, months: int) -> list[Decimal]:
     return split_evenly(amount, months)
 
 
-def allocate_general_days(monthly_amount: Decimal, days: list[dt.date], held: HeldByHour) -> dict[int, RoomCharge]:
-    """A month's general cost: each of `days` costs monthly / 26, charged by the hour over the lots in stock
-    (D-142, the same split as the cold room, Q21 confirmed 2026-10-13). Time with nothing in stock is not
-    charged to anyone."""
-    return allocate_room_days({day: general_day_amount(monthly_amount) for day in days}, held)
+def allocate_general_days(
+    monthly_amount: Decimal, month: dt.date, days: list[dt.date], held: HeldByHour
+) -> dict[int, RoomCharge]:
+    """A month's general cost: each of `days` (days of `month`) costs its share of the month, charged by the hour
+    over the lots in stock (D-142, the same split as the cold room, Q21 confirmed 2026-10-13). Time with nothing
+    in stock is not charged to anyone."""
+    shares = general_day_amounts(monthly_amount, month)
+    return allocate_room_days({day: shares[day] for day in days}, held)

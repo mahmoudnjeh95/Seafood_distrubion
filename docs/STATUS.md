@@ -1,10 +1,15 @@
 # Project status
 
-_Last updated: 2026-10-19 (UI review of the office and driver apps, D-189)_
+_Last updated: 2026-10-19 (finance review fixes, D-190)_
 
 ## Where we are
 
-- **D-189 (branch ui-polish-units, 2026-10-19):** UI review of both apps. Units no longer shown twice ("DT DT" on the
+- **D-190 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
+  (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
+  carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**
+  (owner to confirm the day rule). Not changed, owner decisions: employer CNSS in the lot cost of employee days, settlement
+  of a carried negative balance, cash-flow basis, and a cancelled paid sale in the cash flow. Awaits CI.
+- **D-189 (on main, 2026-10-19):** UI review of both apps. Units no longer shown twice ("DT DT" on the
   dashboard, "kg kg" on the driver's day), dashboard month in French, empty screens stack on a phone, long product
   names wrap on the driver's Vente screen. Awaits CI. Follow-up: one back link per detail page (D-189).
 - **D-188 (PR #201, branch web-request-quote, 2026-10-19):** on a site request, the "Suivi du bureau" card is the first
@@ -77,6 +82,9 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 
 ## Next step
 
+0. D-190: merge after green CI. Owner: confirm the day rule for general costs (calendar days or 26 working days) and
+   decide the four open finance points listed in D-190 (employer CNSS on lot days, carried debt vs capital, cash-flow
+   basis, cancelled paid sales in cash flow).
 0. D-189: merge after green CI; on staging check the dashboard figures (one "DT"), "octobre 2026", and on a phone the
    driver's Ma journée ("… · 31,500 kg") and an empty Livraisons screen (drawing above the text).
 0. D-188: merge after green CI; on staging open Site web → Demandes du site, take a request with products, click

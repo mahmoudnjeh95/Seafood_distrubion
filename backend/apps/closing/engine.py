@@ -97,7 +97,8 @@ class PartnershipTerms:
     partner_id: int
     partner_name: str
     owner_capital: Decimal
-    # The partner's capital in this lot before the result (the ledger's balance).
+    # The partner's capital put into this lot: contributions and their corrections (D-031). The loss share taken
+    # from it at closing is the result's own consequence, not part of this figure.
     partner_capital: Decimal
     profit_rate: Decimal
     loss_rate: Decimal
