@@ -44,9 +44,18 @@ const PAYMENT_KEYS = ["amount_paid", "payment_method", "payment_reference"];
 
 /**
  * "Convertir en vente": a BL made from an accepted quote. It proposes every kilo not on a BL yet; lowering a
- * weight leaves the rest for a later BL (D-115). Closed while `quoteId` is null.
+ * weight leaves the rest for a later BL (D-115). Closed while `quoteId` is null. `stayHere` (D-192): inside a window
+ * over another page, the BL is made without navigating to it.
  */
-export function DeliverDialog({ quoteId, onClose }: { quoteId: number | null; onClose: () => void }) {
+export function DeliverDialog({
+  quoteId,
+  onClose,
+  stayHere = false,
+}: {
+  quoteId: number | null;
+  onClose: () => void;
+  stayHere?: boolean;
+}) {
   const { t } = useTranslation();
   const quote = useGetQuote(quoteId ?? 0, { query: { enabled: quoteId !== null, retry: false } });
   const data = quoteId !== null && quote.data?.id === quoteId ? quote.data : undefined;
@@ -56,7 +65,12 @@ export function DeliverDialog({ quoteId, onClose }: { quoteId: number | null; on
       <DialogContent>
         {data ? (
           // Keyed: the weights start again from what is left each time the quote changes.
-          <DeliverForm key={`${data.id}:${data.remaining_quantity}`} quote={data} onClose={onClose} />
+          <DeliverForm
+            key={`${data.id}:${data.remaining_quantity}`}
+            quote={data}
+            onClose={onClose}
+            stayHere={stayHere}
+          />
         ) : (
           <>
             <DialogTitle>{t("admin.sales.fromQuote.convert")}</DialogTitle>
@@ -68,7 +82,7 @@ export function DeliverDialog({ quoteId, onClose }: { quoteId: number | null; on
   );
 }
 
-function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => void }) {
+function DeliverForm({ quote, onClose, stayHere }: { quote: QuoteDetail; onClose: () => void; stayHere: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -103,7 +117,7 @@ function DeliverForm({ quote, onClose }: { quote: QuoteDetail; onClose: () => vo
       toast.success(t("admin.sales.fromQuote.created", { number: sale.number }));
       onClose();
       await queryClient.invalidateQueries();
-      void navigate(`/ventes/${sale.id}`);
+      if (!stayHere) void navigate(`/ventes/${sale.id}`);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
