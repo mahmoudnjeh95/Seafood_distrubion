@@ -45,7 +45,7 @@ function ProductCard({
           </span>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
+      <div className="flex flex-col gap-1.5 p-2.5">
         <div className="min-w-0">
           <h3 className="text-[0.98rem] leading-tight">{product.name}</h3>
           {product.name_ar && (
@@ -71,7 +71,7 @@ function ProductCard({
         {product.description && <p className="line-clamp-2 text-[0.8rem] text-ink-2">{product.description}</p>}
 
         <form
-          className="mt-auto flex flex-col gap-1.5 pt-1"
+          className="flex flex-col gap-1.5 pt-0.5"
           onSubmit={(event) => {
             event.preventDefault();
             if (!kilos) return;
@@ -89,7 +89,7 @@ function ProductCard({
             onChange={(event) => setQuantity(event.target.value)}
             aria-invalid={kilos ? undefined : true}
             className={cn(
-              "num w-full rounded-control border bg-surface px-2 py-1.5 text-center text-[0.9rem] text-ink",
+              "num w-full rounded-control border bg-surface px-2 py-1 text-center text-[0.9rem] text-ink",
               kilos ? "border-line" : "border-bad",
             )}
           />
@@ -184,7 +184,7 @@ export function Products({
           <p className="mt-10 rounded-card border border-line bg-surface p-5 text-ink-2">{t("site.products.empty")}</p>
         ) : (
           <>
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="mt-6 grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {shown.map((product, index) => (
                 <ProductCard
                   key={product.id}
