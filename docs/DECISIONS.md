@@ -2724,3 +2724,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   save or send. Accepting the quote (which creates the BL, D-115) stays on the quote page.
 - Not copied: the customer (a site request has no customer link, the office picks it) and the web price (the price is
   proposed as for any line: the customer's list, else the day's price). Saving closes the window; the request page stays.
+
+**D-189 · Units come from the formatter only; empty screens stack on a phone (UI review)** · accepted · 2026-10-19
+- `formatMoney` and `formatQuantity` already end with "DT" / "kg": no screen or translation adds the unit again
+  (fixed: dashboard figures and alert pills, "dont … en retard", product stock, the driver's "Dans le camion" line).
+  A screen that wants the unit smaller splits the formatted text at its last no-break space (dashboard `Kpi`).
+- Month names follow the app language (`monthLabel`), never the browser's (the dashboard showed "October 2026").
+- `EmptyState`: below the `sm` width the drawing sits above the text, full width, instead of squeezing the text into a
+  narrow column (driver phone). On the driver's Vente screen a long product name wraps instead of being cut.
+- Left for later (e2e tests click these links): detail pages show both the shell's "Retour" (D-110) and their own
+  link ("Toutes les ventes", "Retour au stock"…); keep one.

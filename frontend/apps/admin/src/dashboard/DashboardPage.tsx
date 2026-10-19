@@ -4,12 +4,17 @@ import { formatDate, formatMoney, formatPercent, formatQuantity, useTranslation 
 import { Card, CardTitle, EmptyState, PageHeader, Pill } from "@frutti/ui";
 import { Link, useOutletContext } from "react-router";
 
+import { monthLabel } from "../hr/shared";
+
 function Kpi({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "good" | "bad" }) {
+  // formatMoney ends with the currency after a no-break space: show it smaller next to the figure.
+  const money = formatMoney(value);
+  const cut = money.lastIndexOf("\u00a0");
   return (
     <Card className="flex flex-col gap-1.5 p-4">
       <span className="eyebrow">{label}</span>
       <span className="num font-display text-[1.55rem] font-bold leading-tight">
-        {formatMoney(value)} <small className="text-[0.8rem] font-semibold text-ink-2">DT</small>
+        {money.slice(0, cut)} <small className="text-[0.8rem] font-semibold text-ink-2">{money.slice(cut + 1)}</small>
       </span>
       {note && <span className={tone === "bad" ? "text-[0.85rem] text-bad" : "text-[0.85rem] text-ink-2"}>{note}</span>}
     </Card>
@@ -25,7 +30,7 @@ function change(now: string, before: string): string | null {
 
 /** "Tableau de bord": this month's profit and cash side by side but never mixed, then what needs a look. */
 export function DashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const session = useOutletContext<Session>();
   const dashboard = useGetDashboard();
   const header = <PageHeader eyebrow={session.organization.name} title={t("admin.nav.dashboard")} />;
@@ -54,7 +59,7 @@ export function DashboardPage() {
     );
   }
 
-  const month = new Date(`${data.month}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const month = monthLabel(data.month, i18n.language);
   const delta = change(data.sales, data.previous_sales);
   const alerts =
     data.overdue_customer_count +
@@ -126,7 +131,7 @@ export function DashboardPage() {
                 <Link to={`/clients/${row.customer_id}`} className="hover:underline">
                   {t("admin.dashboard.alerts.overdue", { name: row.name })}
                 </Link>
-                <Pill tone="bad">{formatMoney(row.overdue)} DT</Pill>
+                <Pill tone="bad">{formatMoney(row.overdue)}</Pill>
               </li>
             ))}
             {data.overdue_customer_count > data.overdue_customers.length && (
@@ -151,7 +156,7 @@ export function DashboardPage() {
                 <Link to="/journees" className="hover:underline">
                   {t("admin.dashboard.alerts.cashDifference", { driver: row.driver_name, day: formatDate(row.day) })}
                 </Link>
-                <Pill tone="bad">{formatMoney(row.difference)} DT</Pill>
+                <Pill tone="bad">{formatMoney(row.difference)}</Pill>
               </li>
             ))}
             {data.cash_difference_count > data.cash_differences.length && (
