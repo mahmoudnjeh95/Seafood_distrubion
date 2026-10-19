@@ -60,6 +60,8 @@ class QuoteCustomerSerializer(serializers.Serializer[Any]):
     tax_id = serializers.CharField(read_only=True)
     # Printed in the client block of every document's header (D-131).
     phone = serializers.CharField(read_only=True)
+    # The "Client de passage": pays every sale on the spot (D-047).
+    is_walk_in = serializers.BooleanField(read_only=True)
 
 
 class QuoteLocationSerializer(serializers.Serializer[Any]):
@@ -241,7 +243,7 @@ class QuoteRefSerializer(serializers.Serializer[Any]):
 
 
 class SaleCustomerSerializer(QuoteCustomerSerializer):
-    is_walk_in = serializers.BooleanField(read_only=True)
+    pass
 
 
 class SaleLocationSerializer(QuoteLocationSerializer):

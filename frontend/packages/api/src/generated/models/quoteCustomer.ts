@@ -13,4 +13,5 @@ export interface QuoteCustomer {
   readonly city: string;
   readonly tax_id: string;
   readonly phone: string;
+  readonly is_walk_in: boolean;
 }
