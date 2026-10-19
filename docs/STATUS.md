@@ -7,7 +7,7 @@ _Last updated: 2026-10-19 (UI review of the office and driver apps, D-189)_
 - **D-189 (branch ui-polish-units, 2026-10-19):** UI review of both apps. Units no longer shown twice ("DT DT" on the
   dashboard, "kg kg" on the driver's day), dashboard month in French, empty screens stack on a phone, long product
   names wrap on the driver's Vente screen. Awaits CI. Follow-up: one back link per detail page (D-189).
-- **D-188 (PR #201, merged; follow-up on branch web-request-followups):** on a site request, the "Suivi du bureau" card
+- **D-192 (PR #201, merged; follow-up on branch web-request-followups):** on a site request, the "Suivi du bureau" card
   is the first card, buttons above the note. "Créer un devis" opens the quote in the D-138 window with the visitor's
   products pre-filled, the customer pre-picked when one active customer has the same phone, and "Accepter et créer le
   BL" to accept and open the BL dialog in the window. Awaits CI, then check on staging.
@@ -80,7 +80,7 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 
 0. D-189: merge after green CI; on staging check the dashboard figures (one "DT"), "octobre 2026", and on a phone the
    driver's Ma journée ("… · 31,500 kg") and an empty Livraisons screen (drawing above the text).
-0. D-188 (follow-up): merge after green CI; on staging open Site web → Demandes du site, take a request with products,
+0. D-192 (follow-up): merge after green CI; on staging open Site web → Demandes du site, take a request with products,
    click "Créer un devis": the products (and the customer, when the phone matches one) are in; "Accepter et créer le
    BL" then creates the BL in the window and the request page stays open.
 0. Product cards (branch site-product-cards): merge after green CI, then on https://www.fruttidelmare.com check that

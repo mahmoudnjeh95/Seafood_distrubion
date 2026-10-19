@@ -26,7 +26,7 @@ const asTyped = (value: string) => value.replace(/\.?0+$/, "").replace(".", ",")
 
 /**
  * "Convertir en vente": a BL made from an accepted quote. It proposes every kilo not on a BL yet; lowering a
- * weight leaves the rest for a later BL (D-115). Closed while `quoteId` is null. `stayHere` (D-188): inside a window
+ * weight leaves the rest for a later BL (D-115). Closed while `quoteId` is null. `stayHere` (D-192): inside a window
  * over another page, the BL is made without navigating to it.
  */
 export function DeliverDialog({

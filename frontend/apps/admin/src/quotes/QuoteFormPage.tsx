@@ -133,7 +133,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
           ),
     ),
   );
-  // A site request whose phone is a customer's: that customer is picked once, the office can change it (D-188).
+  // A site request whose phone is a customer's: that customer is picked once, the office can change it (D-192).
   const customerOfRequest = useMemo(() => {
     if (!fromRequest) return undefined;
     const matches = (customers.data ?? []).filter(
@@ -196,7 +196,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
       : t("admin.quotes.form.noPrice");
   };
 
-  // Set once a quote is accepted from its window: the BL dialog then opens over the form (D-188).
+  // Set once a quote is accepted from its window: the BL dialog then opens over the form (D-192).
   const [converting, setConverting] = useState<number | null>(null);
   const save = useMutation({
     mutationFn: ({ payload }: { payload: QuoteWrite; approve: boolean }) =>
@@ -210,7 +210,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
         leave(`/devis/${saved.id}`);
         return;
       }
-      // "Accepter et créer le BL" (D-188): the customer's yes is recorded, then the BL is made in this window.
+      // "Accepter et créer le BL" (D-192): the customer's yes is recorded, then the BL is made in this window.
       try {
         await acceptQuote(saved.id);
       } catch {
