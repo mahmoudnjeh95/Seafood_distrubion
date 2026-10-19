@@ -139,7 +139,8 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
     const matches = (customers.data ?? []).filter(
       (option) => option.is_active && samePhone(option.phone, fromRequest.phone),
     );
-    return matches.length === 1 ? String(matches[0].id) : undefined;
+    const [only] = matches;
+    return matches.length === 1 && only ? String(only.id) : undefined;
   }, [customers.data, fromRequest]);
   const suggested = useRef(false);
   useEffect(() => {
