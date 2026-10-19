@@ -2722,8 +2722,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - "Créer un devis" does not leave the page. It opens the quote form in the window of D-138 (`NewDocumentDialog`), with
   the request given as `fromRequest`: the products the visitor asked for and their kilos start the quote, to change,
   save or send. Accepting the quote (which creates the BL, D-115) stays on the quote page.
-- Not copied: the customer (a site request has no customer link, the office picks it) and the web price (the price is
-  proposed as for any line: the customer's list, else the day's price). Saving closes the window; the request page stays.
+- Not copied: the web price (the price is proposed as for any line: the customer's list, else the day's price).
+- Customer: a site request has no customer link, so the window picks the active customer whose phone has the same last
+  eight digits, only when exactly one matches; the office can change it.
+- "Envoyer" saves and sends, then the window closes. "Accepter et créer le BL" saves, sends and accepts, then opens the
+  BL dialog (`DeliverDialog`, D-115) over the window with `stayHere`: the BL is made without navigating to it. Cancel
+  there keeps the accepted quote; the BL can be made later from its page.
 
 **D-189 · Units come from the formatter only; empty screens stack on a phone (UI review)** · accepted · 2026-10-19
 - `formatMoney` and `formatQuantity` already end with "DT" / "kg": no screen or translation adds the unit again
