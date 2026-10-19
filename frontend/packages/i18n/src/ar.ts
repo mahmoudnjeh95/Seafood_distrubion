@@ -404,8 +404,8 @@ export const ar: PartialTranslation = {
     },
     day: {
       yourTruck: "شاحنتك اليوم",
-      loadSummary_one: "{{count}} منتج · {{kg}} كغ",
-      loadSummary_other: "{{count}} منتجات · {{kg}} كغ",
+      loadSummary_one: "{{count}} منتج · {{kg}}",
+      loadSummary_other: "{{count}} منتجات · {{kg}}",
       noTruck: "لا توجد شاحنة اليوم",
       noTruckBody: "لا توجد شاحنة متاحة. اتصل بالمكتب.",
       pickTruck: "أي شاحنة تأخذ اليوم؟",

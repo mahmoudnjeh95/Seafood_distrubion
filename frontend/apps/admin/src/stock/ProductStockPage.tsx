@@ -53,9 +53,7 @@ export function ProductStockPage() {
       <Card className="grid gap-4 p-4 sm:grid-cols-3" role="region" aria-label={t("admin.stock.product.summary")}>
         <div>
           <p className="text-[0.72rem] font-semibold text-ink-2">{t("admin.stock.product.quantity")}</p>
-          <p className="num text-[1.4rem] font-bold">
-            {formatQuantity(data.quantity)} <span className="text-[0.8rem] font-normal text-ink-2">kg</span>
-          </p>
+          <p className="num text-[1.4rem] font-bold">{formatQuantity(data.quantity)}</p>
           <p className="text-[0.8rem] text-ink-2">
             {t("admin.stock.minimum", { quantity: formatQuantity(data.min_stock) })}
           </p>

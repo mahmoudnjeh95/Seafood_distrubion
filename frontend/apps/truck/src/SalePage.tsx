@@ -190,7 +190,7 @@ export function SalePage() {
                   <li key={line.product_id} className="flex items-center gap-3 py-2.5">
                     <ProductPhoto url={line.photo_url} name={line.product_name} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-lg font-semibold">{line.product_name}</span>
+                      <span className="block break-words text-lg font-semibold leading-tight">{line.product_name}</span>
                       <span className="block text-sm text-ink-2">
                         {t("truck.sale.left", { kg: formatQuantity(available(line).toFixed(3)) })}
                         {line.unit_price === null ? null : ` · ${formatMoney(line.unit_price)} / kg`}
