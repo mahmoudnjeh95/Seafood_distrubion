@@ -30,7 +30,7 @@ function ProductCard({
   return (
     <article
       ref={ref}
-      className="reveal card-lift flex flex-col overflow-hidden rounded-[16px] border border-line bg-surface shadow-card"
+      className="reveal card-lift flex h-full flex-col overflow-hidden rounded-[16px] border border-line bg-surface shadow-card"
       style={{ "--delay": `${(index % 3) * 90}ms` } as CSSProperties}
     >
       <div className="relative aspect-[3/2] overflow-hidden bg-[#0c2633]">
@@ -45,9 +45,10 @@ function ProductCard({
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-1.5 p-2.5">
-        <div className="min-w-0">
-          <h3 className="text-[0.98rem] leading-tight">{product.name}</h3>
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5">
+        {/* Reserves room for two name lines and the Arabic name, so the prices line up across a row. */}
+        <div className="min-h-[3.75rem] min-w-0">
+          <h3 className="line-clamp-2 text-[0.98rem] leading-tight">{product.name}</h3>
           {product.name_ar && (
             <p lang="ar" dir="rtl" className="text-[0.8rem] text-ink-2">
               {product.name_ar}
@@ -71,7 +72,7 @@ function ProductCard({
         {product.description && <p className="line-clamp-2 text-[0.8rem] text-ink-2">{product.description}</p>}
 
         <form
-          className="flex flex-col gap-1.5 pt-0.5"
+          className="mt-auto flex flex-col gap-1.5 pt-0.5"
           onSubmit={(event) => {
             event.preventDefault();
             if (!kilos) return;
@@ -184,7 +185,7 @@ export function Products({
           <p className="mt-10 rounded-card border border-line bg-surface p-5 text-ink-2">{t("site.products.empty")}</p>
         ) : (
           <>
-            <div className="mt-6 grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {shown.map((product, index) => (
                 <ProductCard
                   key={product.id}

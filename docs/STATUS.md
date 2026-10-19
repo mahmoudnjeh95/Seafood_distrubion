@@ -10,9 +10,9 @@ _Last updated: 2026-10-19 (UI review of the office and driver apps, D-189)_
 - **D-188 (PR #201, branch web-request-quote, 2026-10-19):** on a site request, the "Suivi du bureau" card is the first
   card and its buttons sit above the note. "Créer un devis" opens the quote in the D-138 window, with the visitor's
   products and kilos already in (price proposed as usual, customer picked by the office). Awaits CI, then check on staging.
-- **Product cards (branch site-product-cards, 2026-10-19):** the public site's product grid shows 5 to 6 compact
-  cards per row on a desktop (2 on a phone, 3 to 4 between): shorter photo, price under the name, tighter rows
-  (owner: the cards were too big and he kept scrolling). Awaits CI.
+- **Product cards (branch site-card-alignment, 2026-10-19):** the public site's product cards are now all the same
+  height in a row: the grid stretches them (it used to top-align, so cards were ragged), the name block reserves two
+  lines so prices line up, and the quantity and Add button sit at the bottom of every card. Awaits CI.
 - **D-186 (merged in PR #198):** a public, animated site (`frontend/apps/site`, :5175; Artlist video and
   photos): catalogue with web prices, basket, order or quote request with a **required phone number**. The office gets
   a bell notification and handles requests in "Site web → Demandes du site". **Every active product shows with its
@@ -82,8 +82,8 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 0. D-188: merge after green CI; on staging open Site web → Demandes du site, take a request with products, click
    "Créer un devis": the window opens with the products in, the customer is empty; pick one, save; the request page
    stays open. Then accept the quote to create the BL.
-0. Product cards (branch site-product-cards): merge after green CI, then on https://www.fruttidelmare.com check that
-   5 to 6 cards fit in a row on a laptop and the quantity buttons still work.
+0. Product cards (branch site-card-alignment): merge after green CI, then on https://www.fruttidelmare.com check that
+   the cards in a row are the same height, prices line up, and the quantity buttons still work.
 0. D-186 (PR #198, merged): **live on https://www.fruttidelmare.com** (2026-10-19: certificate holds www and the
    bare name, 41 products with 40 photos, logo; in the uptime watch). Owner, in the admin app: type the phone in
    "Site web → Paramètres du site", set web prices and hide what should not show in "Produits du site", move the
