@@ -1,4 +1,5 @@
 import {
+  acceptQuote,
   ApiError,
   createQuote,
   type QuoteDetail,
@@ -30,7 +31,7 @@ import {
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useId, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams } from "react-router";
 
 import { subtract, sum } from "../lib/decimal";
@@ -52,6 +53,7 @@ import { LinesGrid } from "../lib/LinesGrid";
 import { placesOf, totalsOf, usePlacesStock, usePlacesStockLoaded } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { todayInTunis } from "../receipts/shared";
+import { DeliverDialog } from "./DeliverDialog";
 import { canWriteQuotes, refreshAfterQuote } from "./shared";
 
 type Errors = Record<string, string>;
@@ -60,6 +62,10 @@ type Errors = Record<string, string>;
 const VALIDITY_DAYS = 3;
 
 const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
+
+/** The last eight digits of a phone number: the same number with or without +216, spaces or dashes. */
+const digitsOf = (phone: string) => phone.replace(/\D/g, "").slice(-8);
+const samePhone = (a: string, b: string) => digitsOf(a) !== "" && digitsOf(a) === digitsOf(b);
 
 /** An ISO day plus some days, in the calendar (no time zone involved). */
 function addDays(day: string, days: number): string {
@@ -127,6 +133,20 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
           ),
     ),
   );
+  // A site request whose phone is a customer's: that customer is picked once, the office can change it (D-188).
+  const customerOfRequest = useMemo(() => {
+    if (!fromRequest) return undefined;
+    const matches = (customers.data ?? []).filter(
+      (option) => option.is_active && samePhone(option.phone, fromRequest.phone),
+    );
+    return matches.length === 1 ? String(matches[0].id) : undefined;
+  }, [customers.data, fromRequest]);
+  const suggested = useRef(false);
+  useEffect(() => {
+    if (suggested.current || customerOfRequest === undefined) return;
+    suggested.current = true;
+    setCustomer((current) => current || customerOfRequest);
+  }, [customerOfRequest]);
   const [errors, setErrors] = useState<Errors>({});
 
   // A quote has no place of its own: the kilos left are those in all the places (D-144).
@@ -175,14 +195,31 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
       : t("admin.quotes.form.noPrice");
   };
 
+  // Set once a quote is accepted from its window: the BL dialog then opens over the form (D-188).
+  const [converting, setConverting] = useState<number | null>(null);
   const save = useMutation({
-    mutationFn: (payload: QuoteWrite) => (draft ? updateQuote(draft.id, payload) : createQuote(payload)),
-    onSuccess: async (saved) => {
+    mutationFn: ({ payload }: { payload: QuoteWrite; approve: boolean }) =>
+      draft ? updateQuote(draft.id, payload) : createQuote(payload),
+    onSuccess: async (saved, { approve }) => {
       toast.success(
         t(saved.status === "sent" ? "admin.quotes.form.sent" : "admin.quotes.form.created", { number: saved.number }),
       );
       await refreshAfterQuote(queryClient);
-      leave(`/devis/${saved.id}`);
+      if (!approve) {
+        leave(`/devis/${saved.id}`);
+        return;
+      }
+      // "Accepter et créer le BL" (D-188): the customer's yes is recorded, then the BL is made in this window.
+      try {
+        await acceptQuote(saved.id);
+      } catch {
+        // Already saved and sent: the person accepts it on its page, so nothing is saved twice.
+        toast.error(t("admin.quotes.detail.actionError"));
+        leave(`/devis/${saved.id}`);
+        return;
+      }
+      await refreshAfterQuote(queryClient);
+      setConverting(saved.id);
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
@@ -198,7 +235,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
   const discountTotal = sum(priced.map((preview) => preview.discount));
   const totalExclTax = subtract(subtotal, discountTotal);
 
-  function submit(sendNow: boolean) {
+  function submit(sendNow: boolean, approve = false) {
     const found: Errors = {};
     if (!customer) found.customer = t("admin.quotes.form.required");
     if (!day) found.quoted_on = t("admin.quotes.form.required");
@@ -236,14 +273,17 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     save.mutate({
-      customer: Number(customer),
-      // Kept as it was: the place is chosen when the quote is delivered.
-      location: draft?.location?.id ?? null,
-      quoted_on: day,
-      valid_until: validUntil,
-      notes: notes.trim(),
-      lines: payloadLines,
-      send_now: sendNow,
+      payload: {
+        customer: Number(customer),
+        // Kept as it was: the place is chosen when the quote is delivered.
+        location: draft?.location?.id ?? null,
+        quoted_on: day,
+        valid_until: validUntil,
+        notes: notes.trim(),
+        lines: payloadLines,
+        send_now: sendNow,
+      },
+      approve,
     });
   }
 
@@ -394,8 +434,15 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
             <Icon name="check" />
             {t("admin.quotes.form.send")}
           </Button>
+          {fromRequest && (
+            <Button variant="primary" disabled={save.isPending} onClick={() => submit(true, true)}>
+              <Icon name="check" />
+              {t("admin.quotes.form.approveAndDeliver")}
+            </Button>
+          )}
         </div>
       </form>
+      <DeliverDialog quoteId={converting} stayHere onClose={() => leave(back)} />
     </>
   );
 }

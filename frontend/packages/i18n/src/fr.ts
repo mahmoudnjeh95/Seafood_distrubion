@@ -1303,6 +1303,7 @@ export const fr = {
         notes: "Notes pour le client",
         saveDraft: "Enregistrer le brouillon",
         send: "Enregistrer et envoyer",
+        approveAndDeliver: "Accepter et créer le BL",
         saving: "Enregistrement…",
         cancel: "Annuler",
         required: "Obligatoire.",
