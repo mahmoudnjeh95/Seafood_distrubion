@@ -317,6 +317,42 @@ class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
         return f"{self.payment} → {self.invoice}"
 
 
+class PlanLineStatus(models.TextChoices):
+    OPEN = "open", _("Planifiée")
+    PAID = "paid", _("Payée")
+    CANCELLED = "cancelled", _("Annulée")
+
+
+class SupplierPaymentPlanLine(OrganizationScopedModel, TimeStampedModel):
+    """A part of what is still owed on an invoice that the office decided how and when to pay (D-192).
+
+    A plan is not a payment: creating, changing or cancelling a line never touches the supplier balance.
+    Recording the real payment can name the line it settles; the line then becomes `paid`.
+    """
+
+    invoice = models.ForeignKey(SupplierInvoice, on_delete=models.PROTECT, related_name="plan_lines")
+    amount = MoneyField()
+    method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    planned_on = models.DateField()
+    # Cheque or bill number, transfer reference.
+    reference = models.CharField(max_length=50, blank=True)
+    # The day a cheque or a traite may be cashed.
+    cash_on = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=PlanLineStatus.choices, default=PlanLineStatus.OPEN)
+    # The payment that settled it.
+    payment = models.ForeignKey(SupplierPayment, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["planned_on", "id"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="plan_line_amount_positive")]
+
+    def __str__(self) -> str:
+        return f"{self.invoice} · {self.amount}"
+
+
 class DocumentKind(models.TextChoices):
     SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
     SUPPLIER_PAYMENT = "supplier_payment", _("Paiement fournisseur")

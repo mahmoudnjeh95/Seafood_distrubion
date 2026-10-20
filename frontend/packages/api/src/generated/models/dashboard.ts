@@ -42,4 +42,5 @@ export interface Dashboard {
   readonly pending_terms_count: number;
   readonly field_purchases_waiting: number;
   readonly field_purchases_late: number;
+  readonly settlements_undefined_late: number;
 }

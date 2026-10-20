@@ -25,6 +25,7 @@ from apps.purchasing.models import (
     PurchaseOrder,
     SupplierInvoice,
     SupplierPayment,
+    SupplierPaymentPlanLine,
 )
 
 from .serializers import (
@@ -42,9 +43,13 @@ from .serializers import (
     OrderSerializer,
     OrderWriteSerializer,
     PaymentAllocateSerializer,
+    PlanWriteSerializer,
     ReceiptFilterSerializer,
     ReceiptSerializer,
     ReceiptWriteSerializer,
+    SettlementFilterSerializer,
+    SettlementRowSerializer,
+    SettlementsSerializer,
     SupplierBalanceSerializer,
     SupplierDebtsSerializer,
     SupplierInvoiceFilterSerializer,
@@ -321,6 +326,16 @@ def _allocations(organization: Organization, lines: list[dict[str, Any]]) -> lis
     return resolved
 
 
+def _plan_line(organization: Organization, line_id: int | None) -> SupplierPaymentPlanLine | None:
+    """The plan line named by id in the organization (D-192); an unknown one is an error on `plan_line`."""
+    if line_id is None:
+        return None
+    try:
+        return selectors.plan_line_of(organization, line_id)
+    except SupplierPaymentPlanLine.DoesNotExist:
+        raise ValidationError({"plan_line": _("Ligne de règlement inconnue.")}) from None
+
+
 class SupplierInvoiceListView(PurchasingView, ListAPIView[SupplierInvoice]):
     serializer_class = SupplierInvoiceSerializer
     pagination_class = PagedList
@@ -363,6 +378,32 @@ class SupplierInvoiceListView(PurchasingView, ListAPIView[SupplierInvoice]):
             SupplierInvoiceSerializer(selectors.invoice_of(self.organization, invoice.pk)).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+def _settlement_data(row: selectors.SettlementRow) -> Any:
+    """A settlement row as the serializer reads it."""
+    invoice = row.invoice
+    purchase = getattr(invoice, "field_purchase", None)
+    return SettlementRowSerializer(
+        {
+            "invoice_id": invoice.pk,
+            "number": invoice.number,
+            "supplier_reference": invoice.supplier_reference,
+            "supplier": {"id": invoice.supplier_id, "name": invoice.supplier.name},
+            "purchase_type": row.purchase_type,
+            "field_purchase_number": purchase.number if purchase else None,
+            "invoice_date": invoice.invoice_date,
+            "due_date": invoice.due_date,
+            "posted_at": invoice.posted_at,
+            "age_hours": row.age_hours,
+            "total": row.total,
+            "paid": row.paid,
+            "planned": row.planned,
+            "undefined": row.undefined,
+            "state": row.state,
+            "plan_lines": row.plan_lines,
+        }
+    ).data
 
 
 class InvoiceView(PurchasingView):
@@ -409,6 +450,56 @@ class SupplierInvoicePostView(InvoiceView):
         return Response(SupplierInvoiceSerializer(self._invoice(invoice_id)).data)
 
 
+class SupplierInvoicePlanView(InvoiceView):
+    @extend_schema(
+        operation_id="setSupplierInvoicePlan", request=PlanWriteSerializer, responses=SettlementRowSerializer
+    )
+    def put(self, request: Request, invoice_id: int) -> Response:
+        """Replace the open plan lines of a posted invoice: how, when and how much will be paid (D-192). Their sum
+        may not exceed what is left to pay. A plan is not a payment: the supplier balance does not move. Errors of a
+        line come back on `lines.<index>.<field>`; an empty list clears the plan."""
+        invoice = self._invoice(invoice_id)
+        serializer = PlanWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_payment_plan(invoice=invoice, actor=self.membership.user, lines=serializer.validated_data["lines"])
+        return Response(_settlement_data(selectors.settlement_of(self.organization, invoice_id)))
+
+
+class SupplierPlanLineView(PurchasingView):
+    @extend_schema(operation_id="cancelSupplierPlanLine", responses=SettlementRowSerializer)
+    def delete(self, request: Request, line_id: int) -> Response:
+        """Cancel an open plan line: its amount goes back to "undefined". Answers the invoice's settlement row. A
+        line already paid is kept (400)."""
+        try:
+            line = selectors.plan_line_of(self.organization, line_id)
+        except SupplierPaymentPlanLine.DoesNotExist:
+            raise Http404 from None
+        services.cancel_plan_line(line=line, actor=self.membership.user)
+        return Response(_settlement_data(selectors.settlement_of(self.organization, line.invoice_id)))
+
+
+class SupplierSettlementsView(PurchasingView):
+    @extend_schema(
+        operation_id="listSupplierSettlements",
+        parameters=[SettlementFilterSerializer],
+        responses=SettlementsSerializer,
+    )
+    def get(self, request: Request) -> Response:
+        """Every posted supplier invoice with what is paid, planned and still undefined, and its state: settled,
+        overdue, planned or undefined (D-192). The summary covers the type and supplier filters, whatever the
+        `state`, so the tabs can show their counts; `rows` are kept to `state` when given."""
+        filters = SettlementFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        found = selectors.supplier_settlements(
+            self.organization,
+            state=filters.validated_data.get("state"),
+            purchase_type=filters.validated_data.get("type"),
+            supplier_id=filters.validated_data.get("supplier"),
+        )
+        data = {"rows": [_settlement_data(row) for row in found.rows], "summary": found.summary}
+        return Response(SettlementsSerializer(data).data)
+
+
 class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
     serializer_class = SupplierPaymentSerializer
     pagination_class = PagedList
@@ -443,11 +534,13 @@ class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
         data = dict(serializer.validated_data)
         supplier = _supplier(self.organization, data.pop("supplier"))
         allocations = _allocations(self.organization, data.pop("allocations"))
+        plan_line = _plan_line(self.organization, data.pop("plan_line"))
         payment = services.record_payment(
             organization=self.organization,
             actor=self.membership.user,
             supplier=supplier,
             allocations=allocations,
+            plan_line=plan_line,
             **data,
         )
         return Response(

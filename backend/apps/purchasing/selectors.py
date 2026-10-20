@@ -35,6 +35,7 @@ from .models import (
     GoodsReceipt,
     GoodsReceiptLine,
     PaymentMethod,
+    PlanLineStatus,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -43,6 +44,7 @@ from .models import (
     SupplierInvoiceStatus,
     SupplierPayment,
     SupplierPaymentAllocation,
+    SupplierPaymentPlanLine,
 )
 
 if TYPE_CHECKING:
@@ -804,3 +806,158 @@ def supplier_debts(organization: Organization, *, today: dt.date | None = None) 
         cheques=cheques,
         cheques_total=sum((c.amount for c in cheques if c.cash_on >= today), ZERO),
     )
+
+
+# ---- Paid, planned or undefined, per supplier invoice (P3-T16a, D-192) ----
+
+type SettlementState = Literal["settled", "overdue", "planned", "undefined"]
+type PurchaseType = Literal["port", "office", "opening"]
+# An invoice undefined for longer than this since it was posted is an alert (provisional, as D-176's window).
+UNDEFINED_ALERT_AFTER = dt.timedelta(hours=24)
+
+
+@dataclass(frozen=True)
+class SettlementRow:
+    invoice: SupplierInvoice
+    purchase_type: PurchaseType
+    total: Decimal
+    paid: Decimal
+    planned: Decimal
+    undefined: Decimal
+    state: SettlementState
+    plan_lines: list[SupplierPaymentPlanLine]  # open and paid lines, soonest first
+    age_hours: int  # since the invoice was posted
+
+
+@dataclass(frozen=True)
+class SettlementSummary:
+    paid: Decimal
+    planned: Decimal
+    undefined: Decimal
+    overdue: Decimal  # what is left to pay on the invoices in the "overdue" state
+    counts: dict[str, int]  # invoices per state
+
+
+@dataclass(frozen=True)
+class Settlements:
+    rows: list[SettlementRow]
+    summary: SettlementSummary
+
+
+def purchase_type_of(invoice: SupplierInvoice) -> PurchaseType:
+    """Port when the invoice comes from a driver's purchase at the port, opening when typed as an opening
+    balance, else an office receipt."""
+    if invoice.is_opening:
+        return "opening"
+    return "port" if hasattr(invoice, "field_purchase") else "office"
+
+
+def _settlement_row(invoice: SupplierInvoice, *, today: dt.date, now: dt.datetime) -> SettlementRow:
+    paid: Decimal = getattr(invoice, "paid_amount")  # noqa: B009
+    remaining = max(invoice.total - paid, ZERO)
+    lines = [line for line in invoice.plan_lines.all() if line.status in (PlanLineStatus.OPEN, PlanLineStatus.PAID)]
+    open_lines = [line for line in lines if line.status == PlanLineStatus.OPEN]
+    # Payments recorded without naming a line can leave the open lines above the remainder: never plan more than owed.
+    planned = min(sum((line.amount for line in open_lines), ZERO), remaining)
+    undefined = remaining - planned
+    if remaining <= 0:
+        state: SettlementState = "settled"
+    elif any(line.planned_on < today for line in open_lines) or (undefined > 0 and invoice.due_date < today):
+        state = "overdue"
+    elif undefined == 0:
+        state = "planned"
+    else:
+        state = "undefined"
+    posted_at = invoice.posted_at or invoice.created_at
+    return SettlementRow(
+        invoice=invoice,
+        purchase_type=purchase_type_of(invoice),
+        total=invoice.total,
+        paid=min(paid, invoice.total),
+        planned=planned,
+        undefined=undefined,
+        state=state,
+        plan_lines=lines,
+        age_hours=max(int((now - posted_at).total_seconds() // 3600), 0),
+    )
+
+
+def _settlement_rows(
+    organization: Organization,
+    *,
+    supplier_id: int | None = None,
+    purchase_type: PurchaseType | None = None,
+    invoice_id: int | None = None,
+    today: dt.date | None = None,
+    now: dt.datetime | None = None,
+) -> list[SettlementRow]:
+    now = now or timezone.now()
+    today = today or timezone.localtime(now).date()
+    lines = SupplierPaymentPlanLine.objects.exclude(status=PlanLineStatus.CANCELLED).order_by("planned_on", "id")
+    invoices = (
+        invoices_of(organization, supplier_id=supplier_id)
+        .exclude(status=SupplierInvoiceStatus.DRAFT)
+        .select_related("field_purchase")
+        .prefetch_related(Prefetch("plan_lines", queryset=lines))
+    )
+    if invoice_id is not None:
+        invoices = invoices.filter(pk=invoice_id)
+    rows = [_settlement_row(invoice, today=today, now=now) for invoice in invoices]
+    if purchase_type is not None:
+        rows = [row for row in rows if row.purchase_type == purchase_type]
+    return rows
+
+
+def supplier_settlements(
+    organization: Organization,
+    *,
+    state: SettlementState | None = None,
+    purchase_type: PurchaseType | None = None,
+    supplier_id: int | None = None,
+    today: dt.date | None = None,
+    now: dt.datetime | None = None,
+) -> Settlements:
+    """Every posted supplier invoice with what is paid, planned and still undefined, and its state.
+
+    The summary covers the invoices matching the type and supplier filters, whatever the state, so the tabs
+    show their counts; `rows` are further kept to `state`. Newest invoice first, as `invoices_of` sorts them.
+    """
+    everything = _settlement_rows(
+        organization, supplier_id=supplier_id, purchase_type=purchase_type, today=today, now=now
+    )
+    counts = {"settled": 0, "overdue": 0, "planned": 0, "undefined": 0}
+    for row in everything:
+        counts[row.state] += 1
+    summary = SettlementSummary(
+        paid=sum((row.paid for row in everything), ZERO),
+        planned=sum((row.planned for row in everything), ZERO),
+        undefined=sum((row.undefined for row in everything), ZERO),
+        overdue=sum((row.total - row.paid for row in everything if row.state == "overdue"), ZERO),
+        counts=counts,
+    )
+    rows = [row for row in everything if state is None or row.state == state]
+    return Settlements(rows=rows, summary=summary)
+
+
+def settlement_of(organization: Organization, invoice_id: int) -> SettlementRow:
+    """One posted invoice's settlement. Raises SupplierInvoice.DoesNotExist for a draft or outside the organization."""
+    rows = _settlement_rows(organization, invoice_id=invoice_id)
+    if not rows:
+        raise SupplierInvoice.DoesNotExist
+    return rows[0]
+
+
+def undefined_settlements_late(organization: Organization, *, now: dt.datetime | None = None) -> int:
+    """Invoices with part of what is owed still undefined more than UNDEFINED_ALERT_AFTER after they were posted
+    (the dashboard alert, whichever state the invoice shows)."""
+    now = now or timezone.now()
+    return sum(
+        1
+        for row in _settlement_rows(organization, now=now)
+        if row.undefined > 0 and row.age_hours >= UNDEFINED_ALERT_AFTER.total_seconds() // 3600
+    )
+
+
+def plan_line_of(organization: Organization, line_id: int) -> SupplierPaymentPlanLine:
+    """One plan line. Raises SupplierPaymentPlanLine.DoesNotExist outside the organization."""
+    return SupplierPaymentPlanLine.objects.for_organization(organization).select_related("invoice").get(pk=line_id)

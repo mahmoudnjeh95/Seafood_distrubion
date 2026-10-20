@@ -35,6 +35,7 @@ from .models import (
     GoodsReceipt,
     GoodsReceiptLine,
     PaymentTerms,
+    PlanLineStatus,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -44,6 +45,7 @@ from .models import (
     SupplierInvoiceStatus,
     SupplierPayment,
     SupplierPaymentAllocation,
+    SupplierPaymentPlanLine,
 )
 from .models import PaymentMethod as PaymentMethod  # re-exported for apps that record payments (the demo)
 
@@ -912,6 +914,33 @@ def _payment_snapshot(payment: SupplierPayment) -> dict[str, Any]:
     }
 
 
+def _checked_plan_line(
+    organization: Organization,
+    supplier: "Supplier",
+    plan_line: SupplierPaymentPlanLine,
+    allocations: Sequence[tuple[SupplierInvoice, Decimal]],
+    errors: dict[str, str],
+) -> SupplierPaymentPlanLine | None:
+    """The plan line a payment settles, locked, once checked; a problem is added to `errors["plan_line"]`."""
+    line = (
+        SupplierPaymentPlanLine.objects.select_for_update()
+        .select_related("invoice")
+        .filter(pk=plan_line.pk, organization=organization)
+        .first()
+    )
+    if line is None:
+        errors["plan_line"] = _("Ligne de règlement inconnue.")
+    elif line.invoice.supplier_id != supplier.pk:
+        errors["plan_line"] = _("Cette ligne de règlement est d'un autre fournisseur.")
+    elif line.status != PlanLineStatus.OPEN:
+        errors["plan_line"] = _("Cette ligne de règlement n'est plus planifiée.")
+    elif not any(invoice.pk == line.invoice_id and amount > 0 for invoice, amount in allocations):
+        errors["plan_line"] = _("Affectez ce paiement à la facture de la ligne de règlement.")
+    else:
+        return line
+    return None
+
+
 @transaction.atomic
 def record_payment(
     *,
@@ -925,12 +954,16 @@ def record_payment(
     reference: str = "",
     notes: str = "",
     cash_on: dt.date | None = None,
+    plan_line: SupplierPaymentPlanLine | None = None,
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles.
 
     The allocations may cover all of the amount, part of it or none: what is left is an advance, already
     deducted from the supplier balance, to allocate later (`allocate_payment`). An allocation never goes
     beyond what is left to pay on its invoice. Every problem comes back at once, on its field.
+
+    `plan_line` is an open plan line (D-192) this payment settles: its invoice must be among the allocations
+    (with an amount) and its supplier the payment's; the line becomes `paid`, linked to the payment.
     """
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
@@ -952,6 +985,7 @@ def record_payment(
     allocated = (
         _checked_allocations(organization, supplier, allocations, checked, errors) if "supplier" not in errors else []
     )
+    locked_line = _checked_plan_line(organization, supplier, plan_line, allocated, errors) if plan_line else None
     if errors:
         raise ValidationError(errors)
     assert checked is not None  # an amount error would have been raised above
@@ -968,6 +1002,17 @@ def record_payment(
         created_by=actor,
     )
     _allocate(payment, actor, allocated)
+    if locked_line is not None:
+        locked_line.status = PlanLineStatus.PAID
+        locked_line.payment = payment
+        locked_line.save(update_fields=["status", "payment", "updated_at"])
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="supplier_plan_line.paid",
+            target=locked_line,
+            after={"invoice": locked_line.invoice.number, "amount": str(locked_line.amount), "payment": payment.number},
+        )
     audit.record(
         organization=organization,
         actor=actor,
@@ -1003,6 +1048,134 @@ def allocate_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+# ---- Paid, planned or undefined: the settlement plan of an invoice (P3-T16a, D-192) ----
+# A plan is not a payment: nothing below touches a payment, an allocation or the supplier balance.
+
+
+class PlanLineFields(TypedDict, total=False):
+    amount: Number
+    method: str
+    planned_on: dt.date
+    reference: str
+    cash_on: dt.date | None
+
+
+def plan_error_key(index: int, field: str) -> str:
+    """Errors of a plan line are reported on `lines.<index>.<field>`."""
+    return f"lines.{index}.{field}"
+
+
+def _plan_snapshot(invoice: SupplierInvoice) -> dict[str, Any]:
+    lines = SupplierPaymentPlanLine.objects.filter(invoice=invoice, status=PlanLineStatus.OPEN).order_by(
+        "planned_on", "id"
+    )
+    return {
+        "invoice": invoice.number,
+        "lines": [
+            {
+                "amount": str(line.amount),
+                "method": line.method,
+                "planned_on": line.planned_on.isoformat(),
+                "reference": line.reference,
+                "cash_on": line.cash_on.isoformat() if line.cash_on else None,
+            }
+            for line in lines
+        ],
+    }
+
+
+@transaction.atomic
+def set_payment_plan(
+    *, invoice: SupplierInvoice, actor: User | None, lines: Sequence[PlanLineFields]
+) -> SupplierInvoice:
+    """Replace the open plan lines of a posted invoice (an empty list clears the plan).
+
+    Their sum may not exceed what is left to pay (total - allocated). Lines already paid stay as they are; the
+    replaced open lines are kept as `cancelled`. Never touches the supplier balance.
+    """
+    invoice = SupplierInvoice.objects.select_for_update().select_related("organization").get(pk=invoice.pk)
+    errors: dict[str, str] = {}
+    if invoice.status == SupplierInvoiceStatus.DRAFT:
+        errors["invoice"] = _("Cette facture est un brouillon : validez-la avant de planifier son règlement.")
+    elif invoice.status == SupplierInvoiceStatus.PAID:
+        errors["invoice"] = _("Cette facture est déjà payée.")
+    remaining = invoice.total - _paid_on(invoice)
+    checked: list[dict[str, Any]] = []
+    for index, line in enumerate(lines):
+        amount = ZERO
+        try:
+            value: Any = line.get("amount", "")
+            amount = checked_amount(value)
+            if amount == 0:
+                errors[plan_error_key(index, "amount")] = _("Le montant doit être supérieur à zéro.")
+        except (ValueError, TypeError):
+            errors[plan_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
+        method = line.get("method", "")
+        if method not in PaymentMethod.values:
+            errors[plan_error_key(index, "method")] = _("Mode de paiement inconnu.")
+        planned_on = line.get("planned_on")
+        if planned_on is None:
+            errors[plan_error_key(index, "planned_on")] = _("Indiquez la date prévue.")
+        cash_on = line.get("cash_on")
+        if cash_on is not None and planned_on is not None and cash_on < planned_on:
+            errors[plan_error_key(index, "cash_on")] = _("Le jour d'encaissement ne peut pas précéder la date prévue.")
+        checked.append(
+            {
+                "amount": amount,
+                "method": method,
+                "planned_on": planned_on,
+                "reference": (line.get("reference") or "").strip(),
+                "cash_on": cash_on,
+            }
+        )
+    if not errors:
+        planned = sum((row["amount"] for row in checked), ZERO)
+        if planned > remaining:
+            errors["lines"] = _("Les lignes (%(planned)s DT) dépassent ce qu'il reste à payer (%(remaining)s DT).") % {
+                "planned": planned,
+                "remaining": remaining,
+            }
+    if errors:
+        raise ValidationError(errors)
+    before = _plan_snapshot(invoice)
+    SupplierPaymentPlanLine.objects.filter(invoice=invoice, status=PlanLineStatus.OPEN).update(
+        status=PlanLineStatus.CANCELLED, updated_at=timezone.now()
+    )
+    for row in checked:
+        SupplierPaymentPlanLine.objects.create(
+            organization=invoice.organization, invoice=invoice, created_by=actor, **row
+        )
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="supplier_invoice.plan_set",
+        target=invoice,
+        before=before,
+        after=_plan_snapshot(invoice),
+    )
+    return invoice
+
+
+@transaction.atomic
+def cancel_plan_line(*, line: SupplierPaymentPlanLine, actor: User | None) -> SupplierPaymentPlanLine:
+    """Cancel an open plan line: its amount goes back to "undefined". A paid line stays (400)."""
+    line = SupplierPaymentPlanLine.objects.select_for_update().select_related("invoice", "organization").get(pk=line.pk)
+    if line.status != PlanLineStatus.OPEN:
+        raise ValidationError({"line": _("Seule une ligne planifiée peut être annulée.")})
+    before = _plan_snapshot(line.invoice)
+    line.status = PlanLineStatus.CANCELLED
+    line.save(update_fields=["status", "updated_at"])
+    audit.record(
+        organization=line.organization,
+        actor=actor,
+        action="supplier_plan_line.cancelled",
+        target=line,
+        before=before,
+        after=_plan_snapshot(line.invoice),
+    )
+    return line
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----

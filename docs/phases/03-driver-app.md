@@ -166,7 +166,7 @@ do the stock, the supplier debt and the payment count.
 - [ ] Check on a real phone with a driver (with P3-T08): the folds and tiles read well, the sticky bar hides no field.
 
 **P3-T16 · Règlements fournisseurs: paid, planned, undefined (D-192) · L → T16a to T16c, in this order** _(owner brainstorm 2026-10-20)_
-- [ ] **T16a Backend:** `SupplierPaymentPlanLine` (migration), services to set/replace/cancel plan lines and to tie a payment
+- [x] **T16a Backend:** `SupplierPaymentPlanLine` (migration), services to set/replace/cancel plan lines and to tie a payment
       to one, state per invoice (`settled/overdue/planned/undefined`), `GET /supplier-settlements` (list with summary, tab and
       type filters), plan endpoints, dashboard count of `undefined` older than 24 h. Tests for the states and the limits.
 - [ ] **T16b Office:** Achats › "Règlements fournisseurs" (summary bar, 4 tabs, type filter, "Définir le règlement" dialog with
