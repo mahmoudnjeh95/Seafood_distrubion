@@ -5,7 +5,7 @@ export type PaidMode = "none" | "part" | "all";
 export type PayLine = { key: number; method: PaymentMethodEnum; amount: string; reference: string; cashOn: string };
 
 /** The methods a driver can hand over at the port; a cheque or a traite also has a number and a cashing day. */
-export const GIVEN_METHODS: PaymentMethodEnum[] = ["cash", "cheque", "bill", "transfer"];
+export const GIVEN_METHODS: Extract<PaymentMethodEnum, "cash" | "cheque" | "bill" | "transfer">[] = ["cash", "cheque", "bill", "transfer"];
 export const hasPaper = (method: PaymentMethodEnum) => method === "cheque" || method === "bill";
 
 let nextPayKey = 0;
