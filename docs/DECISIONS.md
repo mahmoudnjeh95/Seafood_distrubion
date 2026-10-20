@@ -2739,6 +2739,33 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Left for later (e2e tests click these links): detail pages show both the shell's "Retour" (D-110) and their own
   link ("Toutes les ventes", "Retour au stock"…); keep one.
 
+**D-192 · "Règlements fournisseurs": what is paid, planned or still undefined, per purchase (P3-T16, owner brainstorm 2026-10-20)** · accepted · 2026-10-20
+- **Owner request:** when we pay a supplier (office or driver app) the steps must be clear: what is given now, nothing, a part
+  or all, and with which method. The driver only records what he gives; the rest is decided in the office. The office needs one
+  view of every purchase: settled, planned, or not yet defined.
+- **Unit = the supplier invoice (FF).** Every purchase (port, office receipt, opening balance) ends as an FF, so the state is
+  computed per FF: `paid` (allocated payments), `planned` (open plan lines), `undefined = total - paid - planned`.
+  State of an invoice: `settled` (nothing left), `overdue` (a plan line or the due date passed, not paid), `planned`
+  (the whole remainder has plan lines), `undefined` (part of the remainder has no plan; partial plans stay `undefined`
+  until the sum is complete).
+- **A plan is not a payment (owner):** new `SupplierPaymentPlanLine` (invoice, amount > 0, method, `planned_on`, reference,
+  cheque/traite `cash_on`, status `open` | `paid` | `cancelled`, the `SupplierPayment` that settled it). Creating, changing or
+  cancelling a plan line never touches the supplier balance. Recording the real payment (existing payment form) can name the
+  plan line it settles; then the line becomes `paid`. Several lines per invoice (split across methods and dates, owner: often);
+  their sum may not exceed the remainder; a payment is still never edited.
+- **Existing invoices start as `undefined`** (owner): no data migration to a plan.
+- **View:** Achats › "Règlements fournisseurs", its own sub-view, not Dettes. Summary bar (total dû = payé + planifié + à
+  définir), tabs `À définir`, `Planifié`, `En retard`, `Réglé`, a filter by purchase type (port, office receipt, opening),
+  per row a "Définir le règlement" button opening a multi-line dialog (method, amount, date, reference, cashing day; lines
+  must add up to the remainder). Dettes stays as it is.
+- **Driver app (and the office receipt form, same component logic):** first "Qu'avez-vous donné maintenant ?" with
+  `Rien / Une partie / Tout`; part or all asks amount and method (a cheque or traite asks number and cashing day); a live
+  line "Total · Donné · Reste → à définir par le bureau". The driver never picks the method of the rest. Builds on the
+  sums-given lines of D-176/D-181, no new rule for them.
+- **Alert:** the dashboard counts invoices left `undefined` for more than 24 hours since they were posted (provisional
+  window, as D-176's).
+- Not changed: the three balances stay separate (payables, capital, profit share).
+
 **D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
 - Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried
   30/26 or 31/26 of the bill (a year: 14.04 months instead of 12). The month's expense counts the bill once, so the lots did not add up to it.

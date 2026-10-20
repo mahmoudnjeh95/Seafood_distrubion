@@ -165,6 +165,17 @@ do the stock, the supplier debt and the payment count.
 - [x] Deliveries: each client folds; the confirm button sits inside its fold.
 - [ ] Check on a real phone with a driver (with P3-T08): the folds and tiles read well, the sticky bar hides no field.
 
+**P3-T16 · Règlements fournisseurs: paid, planned, undefined (D-192) · L → T16a to T16c, in this order** _(owner brainstorm 2026-10-20)_
+- [ ] **T16a Backend:** `SupplierPaymentPlanLine` (migration), services to set/replace/cancel plan lines and to tie a payment
+      to one, state per invoice (`settled/overdue/planned/undefined`), `GET /supplier-settlements` (list with summary, tab and
+      type filters), plan endpoints, dashboard count of `undefined` older than 24 h. Tests for the states and the limits.
+- [ ] **T16b Office:** Achats › "Règlements fournisseurs" (summary bar, 4 tabs, type filter, "Définir le règlement" dialog with
+      several lines, "Enregistrer le paiement" from a plan line), the dashboard alert, i18n FR (Arabic keys too).
+- [ ] **T16c Paying steps:** `Rien / Une partie / Tout` + live "Reste → à définir" on the driver's purchase screen and on the
+      office receipt form; cheque/traite number and cashing day; the office check page shows the same.
+- [ ] Check on staging: a port purchase with a part paid shows in "À définir" with the right remainder; define two lines;
+      pay one with the payment form: it moves to "Réglé" part and the other stays "Planifié".
+
 **P3-T15 · Notifications between the office and the drivers, with a tone (D-175) · M** _(owner's request of 2026-10-17)_
 - [x] Server: a notification is written from the audit entry of each action (`apps.notifications`): a driver's action
       tells the owner and the managers, the office's action on a driver's day, load, purchase, loss, expense or truck
