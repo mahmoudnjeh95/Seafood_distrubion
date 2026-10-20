@@ -66,6 +66,7 @@ export function DashboardPage() {
     data.days_waiting +
     data.expenses_waiting +
     data.field_purchases_waiting +
+    data.settlements_undefined_late +
     data.low_stock_count +
     data.expiring_count +
     data.cash_difference_count +
@@ -230,6 +231,14 @@ export function DashboardPage() {
                   )}
                 </Link>
                 <Pill tone={data.field_purchases_late > 0 ? "bad" : "warn"}>{data.field_purchases_waiting}</Pill>
+              </li>
+            )}
+            {data.settlements_undefined_late > 0 && (
+              <li className="flex items-center justify-between gap-3">
+                <Link to="/achats/reglements?etat=undefined" className="hover:underline">
+                  {t("admin.dashboard.alerts.settlementsUndefined", { count: data.settlements_undefined_late })}
+                </Link>
+                <Pill tone="bad">{data.settlements_undefined_late}</Pill>
               </li>
             )}
             {data.expenses_waiting > 0 && (
