@@ -14,8 +14,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { NewDocumentDialog } from "../doclist/NewDocumentDialog";
 import { lineTotal, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { canWriteQuotes } from "../quotes/shared";
 import { canRecordReceipts } from "../receipts/shared";
 import { KIND_TONE, STATUS_TONE } from "./shared";
 
@@ -64,6 +66,7 @@ function WebRequestView({ request, back }: { request: WebRequest; back: ReactNod
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const canHandle = canRecordReceipts(session);
+  const canQuote = canWriteQuotes(session);
   const none = "—";
   const priced = request.lines.filter((line) => line.web_price !== null);
   const estimate =
@@ -79,6 +82,9 @@ function WebRequestView({ request, back }: { request: WebRequest; back: ReactNod
         <Pill tone={KIND_TONE[request.kind]}>{t(`admin.webRequests.kind.${request.kind}`)}</Pill>
         <Pill tone={STATUS_TONE[request.status]}>{t(`admin.webRequests.status.${request.status}`)}</Pill>
       </PageHeader>
+
+      {/* The office's actions come first: they are what the person came to this page for (D-186). */}
+      <OfficeCard request={request} canHandle={canHandle} canQuote={canQuote} />
 
       <Card>
         <CardTitle>{t("admin.webRequests.contact")}</CardTitle>
@@ -166,18 +172,18 @@ function WebRequestView({ request, back }: { request: WebRequest; back: ReactNod
           </Table>
         )}
       </Card>
-
-      <OfficeCard request={request} canHandle={canHandle} />
     </>
   );
 }
 
-function OfficeCard({ request, canHandle }: { request: WebRequest; canHandle: boolean }) {
+function OfficeCard({ request, canHandle, canQuote }: { request: WebRequest; canHandle: boolean; canQuote: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const noteId = useId();
   const [note, setNote] = useState(request.office_note);
   const [error, setError] = useState("");
+  // The quote opens in a window over this page, its products already in; the page itself does not change (D-138).
+  const [quoting, setQuoting] = useState(false);
 
   const change = useMutation({
     mutationFn: (status: WebRequestStatusEnum) => setWebRequestStatus(request.id, { status, office_note: note }),
@@ -210,16 +216,6 @@ function OfficeCard({ request, canHandle }: { request: WebRequest; canHandle: bo
             change.mutate(request.status);
           }}
         >
-          <Field label={t("admin.webRequests.officeNote")} htmlFor={noteId} error={error}>
-            <textarea
-              id={noteId}
-              rows={3}
-              maxLength={2000}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              className="w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink"
-            />
-          </Field>
           <div className="flex flex-wrap gap-2">
             {request.status === "new" ? (
               <>
@@ -238,16 +234,33 @@ function OfficeCard({ request, canHandle }: { request: WebRequest; canHandle: bo
             <Button type="submit" variant="ghost" disabled={change.isPending}>
               {t("admin.webRequests.saveNote")}
             </Button>
-            <Link
-              to="/devis/nouveau"
-              className="ms-auto self-center text-[0.9rem] font-semibold text-sea hover:underline"
-            >
-              {t("admin.webRequests.newQuote")}
-            </Link>
+            {canQuote && (
+              <Button className="ms-auto" onClick={() => setQuoting(true)}>
+                {t("admin.webRequests.newQuote")}
+              </Button>
+            )}
           </div>
+          <Field label={t("admin.webRequests.officeNote")} htmlFor={noteId} error={error}>
+            <textarea
+              id={noteId}
+              rows={3}
+              maxLength={2000}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              className="w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink"
+            />
+          </Field>
         </form>
       ) : (
         <p className="whitespace-pre-line">{request.office_note || "—"}</p>
+      )}
+      {canQuote && (
+        <NewDocumentDialog
+          kind={quoting ? "quote" : null}
+          title={t("admin.webRequests.newQuote")}
+          fromRequest={request}
+          onClose={() => setQuoting(false)}
+        />
       )}
     </Card>
   );

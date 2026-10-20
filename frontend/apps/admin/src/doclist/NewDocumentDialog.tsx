@@ -1,3 +1,4 @@
+import type { WebRequest } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,8 +15,8 @@ import { SaleFormPage } from "../sales/SaleFormPage";
 export type NewDocumentKind = "quote" | "sale" | "counter" | "order" | "receipt" | "supplierInvoice";
 
 // The creation screens of each kind, shown as they are on their own page; they learn they are in a window
-// through `EmbeddedContext` (D-138).
-const FORMS: Record<NewDocumentKind, ComponentType> = {
+// through `EmbeddedContext` (D-138). Only a quote takes `fromRequest`: a site request's products (D-186).
+const FORMS: Record<NewDocumentKind, ComponentType<{ fromRequest?: WebRequest }>> = {
   quote: QuoteFormPage,
   sale: SaleFormPage,
   counter: CounterSalePage,
@@ -35,10 +36,12 @@ const isPick = (target: EventTarget) => target instanceof Element && target.clos
 export function NewDocumentDialog({
   kind,
   title,
+  fromRequest,
   onClose,
 }: {
   kind: NewDocumentKind | null;
   title: string;
+  fromRequest?: WebRequest;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -79,7 +82,7 @@ export function NewDocumentDialog({
           <DialogTitle className="sr-only">{title}</DialogTitle>
           {Form && (
             <EmbeddedContext.Provider value={{ close }}>
-              <Form />
+              <Form fromRequest={fromRequest} />
             </EmbeddedContext.Provider>
           )}
         </DialogContent>

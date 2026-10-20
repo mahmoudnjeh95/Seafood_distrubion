@@ -1,10 +1,28 @@
 # Project status
 
-_Last updated: 2026-10-18 (public site: phone set in the office app, domain www.fruttidelmare.com, D-186)_
+_Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en vente", D-190)_
 
 ## Where we are
 
-- **D-186 (branch public-site, PR #198):** a public, animated site (`frontend/apps/site`, :5175; Artlist video and
+- **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
+  (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
+  carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**
+  (owner to confirm the day rule). Not changed, owner decisions: employer CNSS in the lot cost of employee days, settlement
+  of a carried negative balance, cash-flow basis, and a cancelled paid sale in the cash flow. Awaits CI.
+- **D-190 (branch quote-convert-payment, 2026-10-19):** "Convertir en vente" on an accepted quote has the payment block
+  of the sale form: "Payé en entier" (on for "Client de passage"), amount, method, reference. Before, a walk-in BL
+  could not be confirmed and the window had no field to fix it. The API client is regenerated (`is_walk_in` on the
+  quote customer). Awaits CI.
+- **D-189 (branch ui-polish-units, 2026-10-19):** UI review of both apps. Units no longer shown twice ("DT DT" on the
+  dashboard, "kg kg" on the driver's day), dashboard month in French, empty screens stack on a phone, long product
+  names wrap on the driver's Vente screen. Awaits CI. Follow-up: one back link per detail page (D-189).
+- **D-188 (PR #201, branch web-request-quote, 2026-10-19):** on a site request, the "Suivi du bureau" card is the first
+  card and its buttons sit above the note. "Créer un devis" opens the quote in the D-138 window, with the visitor's
+  products and kilos already in (price proposed as usual, customer picked by the office). Awaits CI, then check on staging.
+- **Product cards (branch site-card-alignment, 2026-10-19):** the public site's product cards are now all the same
+  height in a row: the grid stretches them (it used to top-align, so cards were ragged), the name block reserves two
+  lines so prices line up, and the quantity and Add button sit at the bottom of every card. Awaits CI.
+- **D-186 (merged in PR #198):** a public, animated site (`frontend/apps/site`, :5175; Artlist video and
   photos): catalogue with web prices, basket, order or quote request with a **required phone number**. The office gets
   a bell notification and handles requests in "Site web → Demandes du site". **Every active product shows with its
   photo and the company logo**; "Site web → Produits du site" hides products, orders them and sets a **web-only
@@ -69,12 +87,21 @@ _Last updated: 2026-10-18 (Caisses page: "Bilan des caisses", whose boxes are wh
 
 ## Next step
 
-0. D-186 (PR #198): merge after green CI (app `storefront`, migrations 0001–0002). The deploy publishes
-   https://www.fruttidelmare.com and adds www and the bare name to the certificate: read its log for "Certificate now
-   holds" (else run the runbook's certbot line). Then in the admin app: "Site web → Paramètres du site", type the
-   phone; "Produits du site", set web prices and hide what should not show; on https://www.fruttidelmare.com check
-   the logo, the product photos, the phone in the header and footer, send an order with a wrong then a right phone, see the bell and "Demandes du site". Then add
-   the site to the uptime watch. Ask the owner to read the page's texts (D-186, provisional).
+0. D-190: merge after green CI; on staging accept a quote for "Client de passage", click "Convertir en vente": the
+   payment block is there with "Payé en entier" on; "Créer et confirmer" without a method shows "Indiquez le mode de
+   paiement" on the field; with a method it confirms. A regular client can pay part now.
+0. D-189: merge after green CI; on staging check the dashboard figures (one "DT"), "octobre 2026", and on a phone the
+   driver's Ma journée ("… · 31,500 kg") and an empty Livraisons screen (drawing above the text).
+0. D-188: merge after green CI; on staging open Site web → Demandes du site, take a request with products, click
+   "Créer un devis": the window opens with the products in, the customer is empty; pick one, save; the request page
+   stays open. Then accept the quote to create the BL.
+0. Product cards (branch site-card-alignment): merge after green CI, then on https://www.fruttidelmare.com check that
+   the cards in a row are the same height, prices line up, and the quantity buttons still work.
+0. D-186 (PR #198, merged): **live on https://www.fruttidelmare.com** (2026-10-19: certificate holds www and the
+   bare name, 41 products with 40 photos, logo; in the uptime watch). Owner, in the admin app: type the phone in
+   "Site web → Paramètres du site", set web prices and hide what should not show in "Produits du site", move the
+   products out of "À classer"; then send a test order with a wrong then a right phone and see the bell and
+   "Demandes du site". Ask the owner to read the page's texts (D-186, provisional).
 0. D-183: on staging open Achats → Nouvelle réception, type "dor" in the product cell, take
 0. D-187: merge after green CI; on staging open Stock › Caisses: with the demo data, "À nous" shows 50 small and
    50 big (the opening stock), and "Aux fournisseurs (à rendre)" equals the Fournisseurs list added up.

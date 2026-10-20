@@ -2714,3 +2714,47 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   in the browser from the balances the page already loads (`boxSummary` in `boxes/shared.ts`); no API change.
 - Each list has a one-line note: locations hold ours or lent ones, clients' boxes are to collect, suppliers' are to
   give back (`kindNotes`, replaces `supplierNote`).
+
+**D-188 · "Créer un devis" on a site request opens the quote in a window, its products already in** · accepted · 2026-10-19
+- Asked by Mahmoud (2026-10-19): the office's buttons (Marquer traitée, Annuler la demande, Enregistrer la note,
+  Créer un devis) sat at the bottom of the request page. They move to the top: the "Suivi du bureau" card is the
+  first card, its buttons come before the note.
+- "Créer un devis" does not leave the page. It opens the quote form in the window of D-138 (`NewDocumentDialog`), with
+  the request given as `fromRequest`: the products the visitor asked for and their kilos start the quote, to change,
+  save or send. Accepting the quote (which creates the BL, D-115) stays on the quote page.
+- Not copied: the web price (the price is proposed as for any line: the customer's list, else the day's price).
+- Customer: a site request has no customer link, so the window picks the active customer whose phone has the same last
+  eight digits, only when exactly one matches; the office can change it.
+- "Envoyer" saves and sends, then the window closes. "Accepter et créer le BL" saves, sends and accepts, then opens the
+  BL dialog (`DeliverDialog`, D-115) over the window with `stayHere`: the BL is made without navigating to it. Cancel
+  there keeps the accepted quote; the BL can be made later from its page.
+
+**D-189 · Units come from the formatter only; empty screens stack on a phone (UI review)** · accepted · 2026-10-19
+- `formatMoney` and `formatQuantity` already end with "DT" / "kg": no screen or translation adds the unit again
+  (fixed: dashboard figures and alert pills, "dont … en retard", product stock, the driver's "Dans le camion" line).
+  A screen that wants the unit smaller splits the formatted text at its last no-break space (dashboard `Kpi`).
+- Month names follow the app language (`monthLabel`), never the browser's (the dashboard showed "October 2026").
+- `EmptyState`: below the `sm` width the drawing sits above the text, full width, instead of squeezing the text into a
+  narrow column (driver phone). On the driver's Vente screen a long product name wraps instead of being cut.
+- Left for later (e2e tests click these links): detail pages show both the shell's "Retour" (D-110) and their own
+  link ("Toutes les ventes", "Retour au stock"…); keep one.
+
+**D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
+- Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried
+  30/26 or 31/26 of the bill (a year: 14.04 months instead of 12). The month's expense counts the bill once, so the lots did not add up to it.
+- Now each calendar day of the month carries its share of the month, split to the millime (`general_day_amounts`), so a lot in stock all
+  month carries the bill exactly once. Hours with nothing in stock stay uncharged (D-142), as before.
+- **Provisional:** the client's rule "a day is a 26th of the monthly amount" (D-041, Q21) may mean 26 working days a month; the owner
+  confirms which. Changing it means changing `general_day_amounts` and its tests only.
+- Not changed by this decision, open for the owner: employer CNSS and bonus/overtime in the lot cost of employee days (D-055 vs D-041),
+  the settlement of a carried negative balance against the capital (D-031), and the cash-flow basis (approval date vs paid date).
+**D-190 · "Convertir en vente" takes the payment on the spot (method, amount, reference)** · accepted · 2026-10-19
+- Reported by Mahmoud (2026-10-19): the quote's "Convertir en vente" window had no field for the payment method or
+  the amount the client pays. For a "Client de passage" the server refused the BL ("paie toute la vente sur place")
+  and the window had nothing to fix it with.
+- The window now has the same payment block as the sale form (D-047): "Payé en entier" (on by default for the
+  walk-in client), "Montant payé (DT)" (disabled while "Payé en entier" is on), "Mode de paiement" and the reference.
+  It is sent with the BL on both "Créer le brouillon" and "Créer et confirmer"; the server checks it against the BL's
+  total, as before. A payment error sits on its field, not in the red line at the bottom.
+- The quote's customer now says whether it is the walk-in client (`is_walk_in` on `QuoteCustomer`, read-only). The
+  payment method has no default: a walk-in BL cannot be confirmed until one is chosen.

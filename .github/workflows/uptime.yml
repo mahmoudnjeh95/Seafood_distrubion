@@ -1,5 +1,5 @@
 # Uptime watch of staging (P4-T04, D-140), separate from CI. Every 15 minutes it opens the admin app, the
-# driver app, the API health and the nightly stock check status. When one fails, the run fails and GitHub
+# driver app, the public site (D-186), the API health and the nightly stock check status. When one fails, the run fails and GitHub
 # e-mails the person the scheduled runs belong to (docs/runbook.md, "Monitoring").
 # It reads public addresses only: no secret, no SSH key, no checkout, no third-party action.
 # GitHub turns scheduled workflows off after 60 days without activity in the repository: see the runbook.
@@ -26,6 +26,7 @@ jobs:
       # example once production has its own addresses.
       ADMIN_URL: ${{ vars.UPTIME_ADMIN_URL || 'https://app.fruttidelmare.com' }}
       DRIVER_URL: ${{ vars.UPTIME_DRIVER_URL || 'https://ch.fruttidelmare.com' }}
+      SITE_URL: ${{ vars.UPTIME_SITE_URL || 'https://www.fruttidelmare.com' }}
     steps:
       - name: Check the apps, the API and the nightly stock check
         run: |
@@ -43,6 +44,7 @@ jobs:
           }
           check_app "Admin app" "$ADMIN_URL"
           check_app "Driver app" "$DRIVER_URL"
+          check_app "Public site" "$SITE_URL"
 
           code=$(fetch "$ADMIN_URL/api/v1/health") || code=000
           if [ "$code" = 200 ] && [ "$(jq -r .status body 2>/dev/null)" = ok ]; then

@@ -374,7 +374,7 @@ def general_lines(organization: Organization, *, batch_id: int, today: dt.date) 
         month = period.first_month
         for monthly in amounts:
             days = [day for day in month_days(month) if first <= day <= today]
-            charge = allocate_general_days(monthly, days, held).get(batch_id)
+            charge = allocate_general_days(monthly, month, days, held).get(batch_id)
             if charge is not None and charge.amount != 0:
                 lines.append(
                     ComputedLine(

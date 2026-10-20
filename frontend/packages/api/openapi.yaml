@@ -20255,10 +20255,14 @@ components:
         phone:
           type: string
           readOnly: true
+        is_walk_in:
+          type: boolean
+          readOnly: true
       required:
       - address
       - city
       - id
+      - is_walk_in
       - name
       - phone
       - reference

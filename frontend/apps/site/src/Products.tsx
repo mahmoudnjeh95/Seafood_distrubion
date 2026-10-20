@@ -30,7 +30,7 @@ function ProductCard({
   return (
     <article
       ref={ref}
-      className="reveal card-lift flex flex-col overflow-hidden rounded-[16px] border border-line bg-surface shadow-card"
+      className="reveal card-lift flex h-full flex-col overflow-hidden rounded-[16px] border border-line bg-surface shadow-card"
       style={{ "--delay": `${(index % 3) * 90}ms` } as CSSProperties}
     >
       <div className="relative aspect-[3/2] overflow-hidden bg-[#0c2633]">
@@ -45,9 +45,10 @@ function ProductCard({
           </span>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        <div className="min-w-0">
-          <h3 className="text-[0.98rem] leading-tight">{product.name}</h3>
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5">
+        {/* Reserves room for two name lines and the Arabic name, so the prices line up across a row. */}
+        <div className="min-h-[3.75rem] min-w-0">
+          <h3 className="line-clamp-2 text-[0.98rem] leading-tight">{product.name}</h3>
           {product.name_ar && (
             <p lang="ar" dir="rtl" className="text-[0.8rem] text-ink-2">
               {product.name_ar}
@@ -71,7 +72,7 @@ function ProductCard({
         {product.description && <p className="line-clamp-2 text-[0.8rem] text-ink-2">{product.description}</p>}
 
         <form
-          className="mt-auto flex flex-col gap-1.5 pt-1"
+          className="mt-auto flex flex-col gap-1.5 pt-0.5"
           onSubmit={(event) => {
             event.preventDefault();
             if (!kilos) return;
@@ -89,7 +90,7 @@ function ProductCard({
             onChange={(event) => setQuantity(event.target.value)}
             aria-invalid={kilos ? undefined : true}
             className={cn(
-              "num w-full rounded-control border bg-surface px-2 py-1.5 text-center text-[0.9rem] text-ink",
+              "num w-full rounded-control border bg-surface px-2 py-1 text-center text-[0.9rem] text-ink",
               kilos ? "border-line" : "border-bad",
             )}
           />

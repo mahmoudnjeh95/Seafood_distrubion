@@ -12,8 +12,9 @@ from apps.expenses import cost_selectors, selectors, services
 from apps.expenses.costing import (
     add_months,
     allocate_general_days,
+    days_in_month,
     first_of_month,
-    general_day_amount,
+    general_day_amounts,
     month_days,
     spread_over_months,
 )
@@ -62,9 +63,13 @@ def assert_charged(amount, per_day, before, after):
 # ---- pure functions ----
 
 
-def test_a_day_is_a_26th_of_the_monthly_amount():
-    assert general_day_amount(D("260.000")) == D("10.000")
-    assert general_day_amount(D("1500.000")) == D("57.692")
+def test_a_month_is_spread_over_its_calendar_days_to_the_millime():
+    september = general_day_amounts(D("260.000"), dt.date(2026, 9, 1))
+    assert len(september) == 30
+    assert sum(september.values()) == D("260.000")  # a lot in stock all month carries the bill once
+    assert set(september.values()) <= {D("8.666"), D("8.667")}
+    february = general_day_amounts(D("280.000"), dt.date(2026, 2, 1))
+    assert set(february.values()) == {D("10.000")}
 
 
 def test_a_bill_over_several_months_is_spread_exactly():
@@ -78,11 +83,12 @@ def test_each_days_general_cost_is_shared_over_the_lots_in_stock_that_day():
     month = dt.date(2026, 9, 1)
     days = month_days(month)
     held = whole_days(days[:10], {1: D("75.000"), 2: D("25.000")})
-    charges = allocate_general_days(D("260.000"), days, held)
-    assert charges[1].amount + charges[2].amount == D("100.000")  # 10 days x 10 DT
-    assert abs(charges[1].amount - D("75.000")) <= D("0.050")  # hour by hour, to the millime
+    charged = sum(general_day_amounts(D("260.000"), month)[day] for day in days[:10])
+    charges = allocate_general_days(D("260.000"), month, days, held)
+    assert charges[1].amount + charges[2].amount == charged  # the 10 days' shares
+    assert abs(charges[1].amount - charged * D("0.75")) <= D("0.050")  # hour by hour, to the millime
     assert charges[2].kg_days == D("250.000")
-    assert allocate_general_days(D("260.000"), days, {}) == {}
+    assert allocate_general_days(D("260.000"), month, days, {}) == {}
 
 
 # ---- templates ----
@@ -230,7 +236,7 @@ def test_template_validation(organization, actor):
 # ---- cost on lots ----
 
 
-def test_rent_is_a_26th_per_day_split_over_the_lots_in_stock_by_kg(organization, actor, cold_room):
+def test_rent_is_spread_over_the_days_of_the_month_by_kg(organization, actor, cold_room):
     rent = category(organization, "rent")
     services.create_recurring_cost(
         organization=organization,
@@ -251,8 +257,9 @@ def test_rent_is_a_26th_per_day_split_over_the_lots_in_stock_by_kg(organization,
     [line_big] = general_lines(organization, big)
     [line_small] = general_lines(organization, small)
     after = elapsed_days()
-    assert_charged(line_big.amount + line_small.amount, D("10.000"), before, after)
-    assert_charged(line_big.amount, D("7.500"), before, after)
+    per_day = D("260.000") / days_in_month(current_month())
+    assert_charged(line_big.amount + line_small.amount, per_day, before, after)
+    assert_charged(line_big.amount, per_day * D("0.75"), before, after)
     assert (line_big.month, line_big.expense_number, line_big.category_code) == (
         current_month(),
         period.expense.number,
@@ -281,7 +288,7 @@ def test_only_the_hours_a_lot_is_in_stock_are_charged(organization, actor, cold_
     before = today_so_far()
     [line] = general_lines(organization, lot)
     after = today_so_far()
-    assert_charged(line.amount, D("10.000"), before, after)  # today's hours so far only
+    assert_charged(line.amount, D("260.000") / days_in_month(current_month()), before, after)  # today's hours so far
 
 
 def test_a_bill_over_several_months_is_spread_over_them(organization, actor, cold_room):
@@ -303,8 +310,8 @@ def test_a_bill_over_several_months_is_spread_over_them(organization, actor, col
     lines = general_lines(organization, lot)
     after = elapsed_days()
     assert [line.month for line in lines] == [start, current_month()]  # next month has not come yet
-    assert lines[0].amount == D("260.000") / 26 * len(month_days(start))  # 10 DT x days
-    assert_charged(lines[1].amount, D("10.000"), before, after)
+    assert lines[0].amount == D("260.000")  # the whole third of the bill, every day of that month in stock
+    assert_charged(lines[1].amount, D("260.000") / days_in_month(current_month()), before, after)
     assert lines[0].description == "Assurance trimestrielle"
     assert cost_selectors.general_periods_of(organization, month=add_months(start, 2)).count() == 1
     assert cost_selectors.general_periods_of(organization, month=add_months(start, 3)).count() == 0

@@ -15,8 +15,8 @@ export function EmptyState({
   children?: ReactNode;
 }) {
   return (
-    <Card className="flex flex-wrap items-center gap-6">
-      <div className="grid h-[110px] w-40 flex-none place-items-center rounded-control bg-radial-[120%_90%_at_30%_20%] from-tile-a to-tile-b">
+    <Card className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
+      <div className="grid h-[110px] w-full flex-none sm:w-40 place-items-center rounded-control bg-radial-[120%_90%_at_30%_20%] from-tile-a to-tile-b">
         <Illustration name={illustration} className="h-[80%] w-[72%]" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">

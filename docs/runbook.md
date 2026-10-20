@@ -128,7 +128,7 @@ What is watched (D-140):
 
 | What | How | Alert |
 |---|---|---|
-| Admin app, driver app, API | `.github/workflows/uptime.yml`, every 15 minutes | the run fails, GitHub e-mails |
+| Admin app, driver app, public site, API | `.github/workflows/uptime.yml`, every 15 minutes | the run fails, GitHub e-mails |
 | Nightly stock check | `/api/v1/health/stock-check` read by the same workflow | same |
 | Errors in the API and both apps | Sentry, once a DSN is set | Sentry e-mails |
 
