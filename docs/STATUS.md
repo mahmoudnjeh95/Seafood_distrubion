@@ -4,6 +4,10 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 
 ## Where we are
 
+- **P3-T16c (branch supplier-pay-steps, 2026-10-20):** driver purchase screen and office check page of a port purchase
+  ask "Qu'avez-vous donné maintenant ?" (Rien / Une partie / Tout), method, cheque/traite number and cashing day, live
+  "Total · Donné · Reste → à définir par le bureau" (D-192). Same payments payload. Not done: the office receipt form
+  ("Nouvelle réception"), because `receive_and_invoice` and its API take no payment; add one in the backend first.
 - **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
   (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
   carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**

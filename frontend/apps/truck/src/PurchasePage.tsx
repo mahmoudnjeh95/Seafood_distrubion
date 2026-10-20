@@ -31,6 +31,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { useOnline } from "./offline";
+import { blankPayLine, effectiveLines, hasPaper, PaidNow, type PaidMode, type PayLine } from "./PaidNow";
 import { PaperPhotoInput } from "./PaperPhotoInput";
 import { dueDateOn, lineAmount, purchaseTotals } from "./purchase";
 import { sendError } from "./sendError";
@@ -99,12 +100,23 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
         }))
       : [blankLine()],
   );
-  const firstCash = purchase?.payments.find((payment) => payment.method === "cash");
-  const firstCheque = purchase?.payments.find((payment) => payment.method === "cheque");
-  const [cash, setCash] = useState(firstCash ? asTyped(firstCash.amount) : "");
-  const [cheque, setCheque] = useState(firstCheque ? asTyped(firstCheque.amount) : "");
-  const [chequeNumber, setChequeNumber] = useState(firstCheque?.reference ?? "");
-  const [chequeDate, setChequeDate] = useState(firstCheque?.cash_on ?? "");
+  // What was given now (D-192): none, a part (typed lines) or all (one line for the total).
+  const [payLines, setPayLines] = useState<PayLine[]>(() =>
+    (purchase?.payments ?? []).map((payment) => ({
+      ...blankPayLine(payment.method, asTyped(payment.amount)),
+      reference: payment.reference,
+      cashOn: payment.cash_on ?? "",
+    })),
+  );
+  const [payMode, setPayMode] = useState<PaidMode>(() => {
+    if (purchase === undefined || purchase.payments.length === 0) return "none";
+    const sum = purchase.payments.reduce((acc, payment) => acc + Number(payment.amount), 0);
+    const total = purchase.lines.reduce(
+      (acc, line) => acc + Number(line.declared_quantity) * Number(line.unit_cost),
+      0,
+    );
+    return purchase.payments.length === 1 && Math.abs(sum - total) < 0.0005 ? "all" : "part";
+  });
   const [paper, setPaper] = useState(purchase?.supplier_reference ?? "");
   const [note, setNote] = useState(purchase?.notes ?? "");
   // A photo of the supplier's paper (optional, D-159); on a purchase already sent, a new one replaces it.
@@ -124,9 +136,12 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...change } : line)));
 
   const dayCount = terms === "cash" ? 0 : Number(days || "0");
+  const lineSums = lines.map((line) => ({ kilos: line.kilos, price: line.price }));
+  const purchaseTotal = purchaseTotals(lineSums, []).total;
+  const given = effectiveLines(payMode, payLines, purchaseTotal);
   const totals = purchaseTotals(
-    lines.map((line) => ({ kilos: line.kilos, price: line.price })),
-    [cash, cheque],
+    lineSums,
+    given.map((line) => line.amount),
   );
   const supplierReady = newSupplier ? supplierName.trim() !== "" : supplier !== "";
   const linesReady =
@@ -135,8 +150,11 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
       (line) =>
         (line.isNew ? line.newName.trim() !== "" : line.product !== "") && lineAmount(line.kilos, line.price) !== null,
     );
-  const moneyReady = [cash, cheque].every(
-    (typed) => typed.trim() === "" || parseDecimalInput(typed.trim(), 3) !== null,
+  const moneyReady = given.every(
+    (line) =>
+      parseDecimalInput(line.amount.trim(), 3) !== null &&
+      Number(parseDecimalInput(line.amount.trim(), 3)) > 0 &&
+      (!hasPaper(line.method) || (line.reference.trim() !== "" && line.cashOn !== "")),
   );
   const daysReady = terms === "cash" || (Number.isInteger(dayCount) && dayCount >= (terms === "days" ? 1 : 0));
   const ready =
@@ -150,18 +168,12 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
 
   /** What the purchase says, without the `client_uuid` that only a new one carries. */
   function payload(): Omit<MyFieldPurchaseCreate, "client_uuid"> {
-    const payments: MyFieldPurchaseCreate["payments"] = [];
-    const cashValue = parseDecimalInput(cash.trim(), 3);
-    if (cashValue && Number(cashValue) > 0) payments.push({ method: "cash", amount: cashValue });
-    const chequeValue = parseDecimalInput(cheque.trim(), 3);
-    if (chequeValue && Number(chequeValue) > 0) {
-      payments.push({
-        method: "cheque",
-        amount: chequeValue,
-        reference: chequeNumber.trim(),
-        cash_on: chequeDate || null,
-      });
-    }
+    // Same payload shape as before: one line per sum given. The rest is left to the office (D-192).
+    const payments: MyFieldPurchaseCreate["payments"] = given.map((line) => ({
+      method: line.method,
+      amount: parseDecimalInput(line.amount.trim(), 3) ?? "",
+      ...(hasPaper(line.method) ? { reference: line.reference.trim(), cash_on: line.cashOn || null } : {}),
+    }));
     return {
       supplier: newSupplier ? null : Number(supplier),
       proposed_supplier: newSupplier ? supplierName.trim() : "",
@@ -397,62 +409,16 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
         ) : null}
       </Card>
 
-      <Card className="space-y-3">
-        <h2>{t("truck.purchase.given")}</h2>
-        <Field label={t("truck.purchase.cash")} htmlFor="purchase-cash">
-          <Input
-            id="purchase-cash"
-            inputMode="decimal"
-            className="text-xl"
-            value={cash}
-            onChange={(event) => setCash(event.target.value)}
-          />
-        </Field>
-        <Field label={t("truck.purchase.cheque")} htmlFor="purchase-cheque">
-          <Input
-            id="purchase-cheque"
-            inputMode="decimal"
-            className="text-xl"
-            value={cheque}
-            onChange={(event) => setCheque(event.target.value)}
-          />
-        </Field>
-        {cheque.trim() === "" ? null : (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("truck.purchase.chequeNumber")} htmlFor="purchase-cheque-number">
-              <Input
-                id="purchase-cheque-number"
-                value={chequeNumber}
-                onChange={(event) => setChequeNumber(event.target.value)}
-              />
-            </Field>
-            <Field label={t("truck.purchase.chequeDate")} htmlFor="purchase-cheque-date">
-              <Input
-                id="purchase-cheque-date"
-                type="date"
-                value={chequeDate}
-                onChange={(event) => setChequeDate(event.target.value)}
-              />
-            </Field>
-          </div>
-        )}
-      </Card>
-
-      <Card className="space-y-2">
-        <p className="flex justify-between text-lg">
-          <span>{t("truck.purchase.total")}</span>
-          <b>{formatMoney(totals.total)}</b>
-        </p>
-        <p className="flex justify-between text-lg">
-          <span>{t("truck.purchase.paid")}</span>
-          <span>{formatMoney(totals.paid)}</span>
-        </p>
-        <p className="flex justify-between text-xl font-bold">
-          <span>{t("truck.purchase.rest")}</span>
-          <span>{formatMoney(totals.rest)}</span>
-        </p>
-        {totals.overpaid ? <p className="font-semibold text-bad">{t("truck.purchase.overpaid")}</p> : null}
-      </Card>
+      <PaidNow
+        mode={payMode}
+        lines={payLines}
+        total={totals.total}
+        paid={totals.paid}
+        rest={totals.rest}
+        overpaid={totals.overpaid}
+        onMode={setPayMode}
+        onLines={setPayLines}
+      />
 
       <Card className="space-y-3">
         <Field label={t("truck.purchase.paper")} htmlFor="purchase-paper">

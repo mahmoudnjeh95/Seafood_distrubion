@@ -310,6 +310,26 @@ export function FieldPurchaseForm({
   const kilos = sum(amounts.flatMap(({ kilos: value }) => (value ? [value] : [])));
   const paid = sum(payments.flatMap((payment) => parseDecimalInput(payment.amount.trim(), 3) ?? []));
   const rest = subtract(total, paid);
+  // The three-step choice of D-192: nothing, a part, or all of the total; the rest is for the office to define.
+  const givenChoice: "none" | "part" | "all" =
+    payments.length === 0 ? "none" : paid === total && total !== "0.000" ? "all" : "part";
+  const chooseGiven = (choice: "none" | "part" | "all") => {
+    if (choice === "none") setPayments([]);
+    else if (choice === "all") {
+      const first = payments[0];
+      setPayments([
+        {
+          key: first?.key ?? key(),
+          method: first?.method ?? "cash",
+          amount: asTyped(total),
+          reference: first?.reference ?? "",
+          cash_on: first?.cash_on ?? "",
+        },
+      ]);
+    } else if (payments.length === 0) {
+      setPayments([{ key: key(), method: "cash", amount: "", reference: "", cash_on: "" }]);
+    }
+  };
   const due = dueDateOf(boughtOn, terms, terms === "cash" ? 0 : Number(dueDays || "0") || 0);
 
   const productOptions = pickable(
@@ -584,6 +604,19 @@ export function FieldPurchaseForm({
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.fieldPurchases.form.payments")}</CardTitle>
           <p className="text-[0.85rem] text-ink-2">{t("admin.fieldPurchases.form.paymentsHint")}</p>
+          <p className="font-semibold">{t("admin.fieldPurchases.form.givenNow")}</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t("admin.fieldPurchases.form.givenNow")}>
+            {(["none", "part", "all"] as const).map((choice) => (
+              <Button
+                key={choice}
+                variant={givenChoice === choice ? "primary" : "secondary"}
+                aria-pressed={givenChoice === choice}
+                onClick={() => chooseGiven(choice)}
+              >
+                {t(`admin.fieldPurchases.form.choice.${choice}`)}
+              </Button>
+            ))}
+          </div>
           {payments.length === 0 && <p className="text-ink-2">{t("admin.fieldPurchases.form.noPayments")}</p>}
           {payments.map((payment, index) => (
             <div
