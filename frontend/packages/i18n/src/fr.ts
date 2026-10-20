@@ -405,7 +405,8 @@ export const fr = {
       quotes: "Devis",
       sales: "Ventes & factures",
       invoices: "Factures",
-      payments: "Règlements",
+      payments: "Règlements clients",
+      supplierSettlements: "Règlements fournisseurs",
       customers: "Clients",
       products: "Produits",
       prices: "Prix du jour",
@@ -2143,7 +2144,6 @@ export const fr = {
       invoices: "Factures",
       payments: "Paiements",
       debts: "Dettes",
-      settlements: "Règlements",
     },
     // ---- Supplier settlements: paid, planned, to define (P3-T16b, D-192) ----
     supplierSettlements: {

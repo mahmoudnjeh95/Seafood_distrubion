@@ -12,7 +12,6 @@ export function PurchasingTabs() {
     { to: "/achats/factures", label: t("admin.purchasing.invoices"), end: false },
     { to: "/achats/paiements", label: t("admin.purchasing.payments"), end: false },
     { to: "/achats/dettes", label: t("admin.purchasing.debts"), end: false },
-    { to: "/achats/reglements", label: t("admin.purchasing.settlements"), end: false },
   ];
   return (
     <nav aria-label={t("admin.purchasing.tabs")} className="flex w-fit rounded-control bg-surface-2 p-1">

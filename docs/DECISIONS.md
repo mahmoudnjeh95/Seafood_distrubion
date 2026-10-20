@@ -2773,6 +2773,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Receipt payment (P3-T16d):** `POST /receipts` takes optional `payments` (amount, method, reference, cash_on) only with `invoice_now` ("Dû dès la réception"): recorded with `record_payment` in the same transaction, allocated to the receipt's FF; sums above its total are refused on `payments.<last>.amount` (D-181), without the invoice they are refused on `payments`. The office receipt form has the same Rien / Une partie / Tout step and Total · Donné · Reste line.
 - **Built in T16b (office):** the page is a tab "Règlements" of the Achats tabs (the menu has no counters, so counts sit on the page tabs). "Enregistrer le paiement" opens the existing payment form with `ligne`, `montant`, `mode`, `ref`, `encaisse` in the URL, and the form sends `plan_line`. The dialog plans `total - paid` and replaces the open lines.
 
+**D-192 (follow-up, owner 2026-10-20):** "Règlements fournisseurs" is a side-menu entry (Marchandises group, under Achats), not a tab of Achats; the sales entry is renamed "Règlements clients". The menu highlights only the deepest entry matching the path.
+
 **D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
 - Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried
   30/26 or 31/26 of the bill (a year: 14.04 months instead of 12). The month's expense counts the bill once, so the lots did not add up to it.
