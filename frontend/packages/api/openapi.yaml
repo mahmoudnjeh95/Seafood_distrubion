@@ -8156,6 +8156,42 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/supplier-invoices/{invoice_id}/plan:
+    put:
+      operationId: setSupplierInvoicePlan
+      description: |-
+        Replace the open plan lines of a posted invoice: how, when and how much will be paid (D-192). Their sum
+        may not exceed what is left to pay. A plan is not a payment: the supplier balance does not move. Errors of a
+        line come back on `lines.<index>.<field>`; an empty list clears the plan.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlanWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlanWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementRow'
+          description: ''
   /api/v1/supplier-invoices/{invoice_id}/post:
     post:
       operationId: postSupplierInvoice
@@ -8306,6 +8342,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SupplierPayment'
+          description: ''
+  /api/v1/supplier-plan-lines/{line_id}:
+    delete:
+      operationId: cancelSupplierPlanLine
+      description: |-
+        Cancel an open plan line: its amount goes back to "undefined". Answers the invoice's settlement row. A
+        line already paid is kept (400).
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-plan-lines
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/supplier-settlements:
+    get:
+      operationId: listSupplierSettlements
+      description: |-
+        Every posted supplier invoice with what is paid, planned and still undefined, and its state: settled,
+        overdue, planned or undefined (D-192). The summary covers the type and supplier filters, whatever the
+        `state`, so the tabs can show their counts; `rows` are kept to `state` when given.
+      parameters:
+      - in: query
+        name: state
+        schema:
+          enum:
+          - settled
+          - overdue
+          - planned
+          - undefined
+          type: string
+          minLength: 1
+        description: |-
+          * `settled` - settled
+          * `overdue` - overdue
+          * `planned` - planned
+          * `undefined` - undefined
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: type
+        schema:
+          enum:
+          - port
+          - office
+          - opening
+          type: string
+          minLength: 1
+        description: |-
+          * `port` - port
+          * `office` - office
+          * `opening` - opening
+      tags:
+      - supplier-settlements
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settlements'
           description: ''
   /api/v1/suppliers:
     get:
@@ -11442,6 +11549,9 @@ components:
         field_purchases_late:
           type: integer
           readOnly: true
+        settlements_undefined_late:
+          type: integer
+          readOnly: true
       required:
       - cash_collected
       - cash_difference_count
@@ -11465,6 +11575,7 @@ components:
       - receivables
       - receivables_overdue
       - sales
+      - settlements_undefined_late
       - stock_value
     DayClosingDetail:
       type: object
@@ -19442,6 +19553,93 @@ components:
       - id
       - kind
       - name
+    PlanLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        planned_on:
+          type: string
+          format: date
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        cash_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PlanLineStatusEnum'
+          readOnly: true
+        payment_id:
+          type: integer
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - cash_on
+      - id
+      - method
+      - payment_id
+      - planned_on
+      - reference
+      - status
+    PlanLineStatusEnum:
+      enum:
+      - open
+      - paid
+      - cancelled
+      type: string
+      description: |-
+        * `open` - Planifiée
+        * `paid` - Payée
+        * `cancelled` - Annulée
+    PlanLineWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        planned_on:
+          type: string
+          format: date
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        cash_on:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - amount
+      - method
+      - planned_on
+    PlanWrite:
+      type: object
+      description: 'The open plan lines of an invoice, replacing the ones there are
+        (empty: clears the plan).'
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanLineWrite'
+      required:
+      - lines
     PriceBoard:
       type: object
       properties:
@@ -20063,6 +20261,16 @@ components:
         * `received` - Reçu
         * `closed` - Clôturé
         * `cancelled` - Annulé
+    PurchaseTypeEnum:
+      enum:
+      - port
+      - office
+      - opening
+      type: string
+      description: |-
+        * `port` - port
+        * `office` - office
+        * `opening` - opening
     Quote:
       type: object
       properties:
@@ -23063,6 +23271,26 @@ components:
         notes:
           type: string
           default: ''
+    SettlementCounts:
+      type: object
+      properties:
+        settled:
+          type: integer
+          readOnly: true
+        overdue:
+          type: integer
+          readOnly: true
+        planned:
+          type: integer
+          readOnly: true
+        undefined:
+          type: integer
+          readOnly: true
+      required:
+      - overdue
+      - planned
+      - settled
+      - undefined
     SettlementPayment:
       type: object
       properties:
@@ -23225,6 +23453,104 @@ components:
       - settled_on
       - share_paid
       - uncovered_loss
+    SettlementRow:
+      type: object
+      properties:
+        invoice_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/SettlementSupplier'
+          readOnly: true
+        purchase_type:
+          allOf:
+          - $ref: '#/components/schemas/PurchaseTypeEnum'
+          readOnly: true
+        field_purchase_number:
+          type: string
+          readOnly: true
+          nullable: true
+        invoice_date:
+          type: string
+          format: date
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          readOnly: true
+        posted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        age_hours:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        planned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        undefined:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/SettlementRowStateEnum'
+          readOnly: true
+        plan_lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanLine'
+          readOnly: true
+      required:
+      - age_hours
+      - due_date
+      - field_purchase_number
+      - invoice_date
+      - invoice_id
+      - number
+      - paid
+      - plan_lines
+      - planned
+      - posted_at
+      - purchase_type
+      - state
+      - supplier
+      - supplier_reference
+      - total
+      - undefined
+    SettlementRowStateEnum:
+      enum:
+      - settled
+      - overdue
+      - planned
+      - undefined
+      type: string
+      description: |-
+        * `settled` - settled
+        * `overdue` - overdue
+        * `planned` - planned
+        * `undefined` - undefined
     SettlementStateEnum:
       enum:
       - none
@@ -23237,6 +23563,69 @@ components:
         * `not_closed` - Lot non clôturé
         * `ready` - À régler
         * `settled` - Réglé
+    SettlementSummary:
+      type: object
+      description: |-
+        Over the invoices matching the type and supplier filters, whatever the state: total due = paid + planned
+        + undefined (overdue is part of what is left, not a fourth amount).
+      properties:
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        planned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        undefined:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counts:
+          allOf:
+          - $ref: '#/components/schemas/SettlementCounts'
+          readOnly: true
+      required:
+      - counts
+      - overdue
+      - paid
+      - planned
+      - undefined
+    SettlementSupplier:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    Settlements:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettlementRow'
+          readOnly: true
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/SettlementSummary'
+          readOnly: true
+      required:
+      - rows
+      - summary
     SiteCatalog:
       type: object
       properties:
@@ -24342,6 +24731,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AllocationWrite'
+        plan_line:
+          type: integer
+          minimum: 1
+          nullable: true
       required:
       - amount
       - method

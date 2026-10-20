@@ -19,4 +19,9 @@ export interface SupplierPaymentWrite {
   cash_on?: string | null;
   notes?: string;
   allocations?: AllocationWrite[];
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  plan_line?: number | null;
 }
