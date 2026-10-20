@@ -1224,6 +1224,33 @@ def payment_error_key(index: int, field: str) -> str:
     return f"payments.{index}.{field}"
 
 
+def _checked_payment_lines(
+    payments: Sequence[FieldPaymentFields], bought_on: dt.date, errors: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Check the sums given with a purchase or a receipt (D-176, D-192); problems go on `payments.<index>.<field>`."""
+    checked_payments: list[dict[str, Any]] = []
+    for index, payment in enumerate(payments):
+        method = payment.get("method", "")
+        if method not in PaymentMethod.values:
+            errors[payment_error_key(index, "method")] = _("Mode de paiement inconnu.")
+        values: dict[str, Any] = {
+            "method": method,
+            "reference": payment.get("reference", "").strip()[:50],
+            "cash_on": payment.get("cash_on"),
+        }
+        try:
+            amount: Any = payment.get("amount", "")
+            values["amount"] = checked_amount(amount)
+            if values["amount"] == 0:
+                errors[payment_error_key(index, "amount")] = _("Le montant doit être supérieur à zéro.")
+        except (ValueError, TypeError):
+            errors[payment_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
+        if values["cash_on"] is not None and values["cash_on"] < bought_on:
+            errors[payment_error_key(index, "cash_on")] = _("Le jour d'encaissement ne peut pas précéder l'achat.")
+        checked_payments.append(values)
+    return checked_payments
+
+
 def due_date_of(bought_on: dt.date, terms: str, due_days: int) -> dt.date:
     """When a purchase is due by its deal: the day itself (comptant), N days later, or the end of its month + N days."""
     if terms == PaymentTerms.DAYS:
@@ -1315,26 +1342,7 @@ def _checked_field_purchase(organization: Organization, fields: FieldPurchaseFie
             )
         checked_lines.append(checked)
 
-    checked_payments: list[dict[str, Any]] = []
-    for index, payment in enumerate(fields.get("payments", ())):
-        method = payment.get("method", "")
-        if method not in PaymentMethod.values:
-            errors[payment_error_key(index, "method")] = _("Mode de paiement inconnu.")
-        values: dict[str, Any] = {
-            "method": method,
-            "reference": payment.get("reference", "").strip()[:50],
-            "cash_on": payment.get("cash_on"),
-        }
-        try:
-            amount: Any = payment.get("amount", "")
-            values["amount"] = checked_amount(amount)
-            if values["amount"] == 0:
-                errors[payment_error_key(index, "amount")] = _("Le montant doit être supérieur à zéro.")
-        except (ValueError, TypeError):
-            errors[payment_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
-        if values["cash_on"] is not None and values["cash_on"] < bought_on:
-            errors[payment_error_key(index, "cash_on")] = _("Le jour d'encaissement ne peut pas précéder l'achat.")
-        checked_payments.append(values)
+    checked_payments = _checked_payment_lines(fields.get("payments", ()), bought_on, errors)
 
     # More given than the purchase is worth is a typing mistake, not an advance: refused. The ceiling takes the
     # bigger of the driver's kg and the kg received per line, so a lot counted lighter at the office keeps what was
@@ -1739,10 +1747,12 @@ def receive_and_invoice(
     notes: str = "",
     purchase_order: PurchaseOrder | None = None,
     boxes: Mapping[str, int] | None = None,
+    payments: Sequence[FieldPaymentFields] = (),
 ) -> GoodsReceipt:
     """Record goods received and, in the same step, what is owed for them (D-159): a posted supplier invoice for the
     receipt, due by the deal made for this delivery, as a purchase at the port is (D-176). The debt starts at the
-    reception; a paper invoice of the supplier, if one comes, is only matched by its number."""
+    reception; a paper invoice of the supplier, if one comes, is only matched by its number. `payments` are the
+    sums given now (D-192), recorded and allocated to that invoice; more than its total is refused."""
     errors: dict[str, str] = {}
     if terms not in PaymentTerms.values:
         errors["terms"] = _("Accord de paiement inconnu.")
@@ -1750,6 +1760,7 @@ def receive_and_invoice(
         errors["due_days"] = _("Indiquez un nombre de jours entre 0 et 365.")
     elif terms == PaymentTerms.DAYS and due_days == 0:
         errors["due_days"] = _("Indiquez dans combien de jours la livraison est payée.")
+    checked_payments = _checked_payment_lines(payments, received_on, errors)
     if errors:
         raise ValidationError(errors)
     receipt = create_receipt(
@@ -1764,7 +1775,7 @@ def receive_and_invoice(
         purchase_order=purchase_order,
         boxes=boxes,
     )
-    create_invoice(
+    invoice = create_invoice(
         organization=organization,
         actor=actor,
         supplier=supplier,
@@ -1774,6 +1785,31 @@ def receive_and_invoice(
         supplier_reference=receipt.supplier_reference,
         post=True,
     )
+    given = sum((payment["amount"] for payment in checked_payments), ZERO)
+    if given > invoice.total:
+        # Rolls the whole receipt back: more given than owed is a typing mistake (D-181).
+        raise ValidationError(
+            {
+                payment_error_key(len(checked_payments) - 1, "amount"): _(
+                    "L'argent donné (%(given)s DT) dépasse le montant de la réception (%(total)s DT) : "
+                    "vérifiez les montants."
+                )
+                % {"given": given, "total": invoice.total}
+            }
+        )
+    for payment in checked_payments:
+        record_payment(
+            organization=organization,
+            actor=actor,
+            supplier=supplier,
+            paid_on=received_on,
+            amount=payment["amount"],
+            method=payment["method"],
+            reference=payment["reference"],
+            cash_on=payment["cash_on"],
+            notes=_("Donné à la réception %(number)s") % {"number": receipt.number},
+            allocations=[{"invoice": invoice, "amount": payment["amount"]}],
+        )
     return receipt
 
 

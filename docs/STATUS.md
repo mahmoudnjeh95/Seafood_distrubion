@@ -4,10 +4,7 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 
 ## Where we are
 
-- **P3-T16c (branch supplier-pay-steps, 2026-10-20):** driver purchase screen and office check page of a port purchase
-  ask "Qu'avez-vous donné maintenant ?" (Rien / Une partie / Tout), method, cheque/traite number and cashing day, live
-  "Total · Donné · Reste → à définir par le bureau" (D-192). Same payments payload. Not done: the office receipt form
-  ("Nouvelle réception"), because `receive_and_invoice` and its API take no payment; add one in the backend first.
+- **P3-T16c/d (branch receipt-pay-now, 2026-10-20):** driver purchase screen, office check page and the office receipt form ("Nouvelle réception", only with "Dû dès la réception") ask "Qu'avez-vous donné maintenant ?" (Rien / Une partie / Tout) with a live "Total · Donné · Reste → à définir par le bureau" (D-192). `POST /receipts` takes `payments`. API client regenerated. Awaits CI.
 - **D-192 / P3-T16a (branch supplier-settlements, 2026-10-20):** backend of "Règlements fournisseurs" done: `SupplierPaymentPlanLine`,
   `PUT /supplier-invoices/<id>/plan`, `DELETE /supplier-plan-lines/<id>`, `GET /supplier-settlements`, `plan_line` on the payment, dashboard
   `settlements_undefined_late`; API client regenerated. Awaits CI. **Next: T16b (office page), then T16c.**

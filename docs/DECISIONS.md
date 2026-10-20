@@ -2770,6 +2770,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the amount (a part-payment of a line leaves the rest `undefined`). Replacing a plan marks the old open lines `cancelled` (history kept).
   `overdue` = an open line's date passed, or part undefined with the due date passed. Dashboard `settlements_undefined_late` counts invoices with
   any undefined amount posted 24 h ago or more, whatever their state.
+- **Receipt payment (P3-T16d):** `POST /receipts` takes optional `payments` (amount, method, reference, cash_on) only with `invoice_now` ("Dû dès la réception"): recorded with `record_payment` in the same transaction, allocated to the receipt's FF; sums above its total are refused on `payments.<last>.amount` (D-181), without the invoice they are refused on `payments`. The office receipt form has the same Rien / Une partie / Tout step and Total · Donné · Reste line.
 
 **D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
 - Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried

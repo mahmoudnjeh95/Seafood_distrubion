@@ -1983,6 +1983,13 @@ export const fr = {
         dueDays: "Nombre de jours",
         dueDaysError: "Indiquez un nombre de jours entre 1 et 365 (0 possible en fin de mois).",
         dueOn: "Échéance : {{date}}",
+        // Given now with the delivery (D-192).
+        payments: "Paiement à la réception",
+        givenNow: "Qu'avez-vous donné maintenant ?",
+        owedTotal: "Total",
+        paidNow: "Donné",
+        restToDefine: "Reste → à définir par le bureau",
+        overpaid: "L'argent donné ({{paid}}) dépasse le montant de la réception ({{total}}) : vérifiez les montants.",
         supplier: "Fournisseur",
         location: "Reçu dans",
         date: "Date de réception",
