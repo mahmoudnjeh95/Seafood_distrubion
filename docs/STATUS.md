@@ -11,7 +11,7 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 - **D-192 / P3-T16b (branch supplier-settlements-ui, 2026-10-20):** office page Achats › "Règlements" (`/achats/reglements`: summary, 4 tabs with counts,
   type and supplier filters, plan lines inline, "Définir le règlement" dialog, "Enregistrer le paiement" opens the payment form prefilled with the
   plan line, "Annuler la ligne"), dashboard alert `settlements_undefined_late`. French only (the admin app has no Arabic keys). Awaits CI.
-  **Next: T16c (driver and receipt form paying steps).**
+  **T16c/d done (paying steps).**
 - **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
   (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
   carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**
