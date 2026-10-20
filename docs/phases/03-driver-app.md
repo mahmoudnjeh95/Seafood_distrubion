@@ -171,7 +171,7 @@ do the stock, the supplier debt and the payment count.
       type filters), plan endpoints, dashboard count of `undefined` older than 24 h. Tests for the states and the limits.
 - [ ] **T16b Office:** Achats › "Règlements fournisseurs" (summary bar, 4 tabs, type filter, "Définir le règlement" dialog with
       several lines, "Enregistrer le paiement" from a plan line), the dashboard alert, i18n FR (Arabic keys too).
-- [ ] **T16c Paying steps:** `Rien / Une partie / Tout` + live "Reste → à définir" on the driver's purchase screen and on the
+- [~] **T16c Paying steps (done: driver screen + office check page; the office receipt form has no payment in its API today, so no step there):** `Rien / Une partie / Tout` + live "Reste → à définir" on the driver's purchase screen and on the
       office receipt form; cheque/traite number and cashing day; the office check page shows the same.
 - [ ] Check on staging: a port purchase with a part paid shows in "À définir" with the right remainder; define two lines;
       pay one with the payment form: it moves to "Réglé" part and the other stays "Planifié".
