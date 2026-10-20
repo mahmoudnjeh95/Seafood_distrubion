@@ -169,7 +169,7 @@ do the stock, the supplier debt and the payment count.
 - [x] **T16a Backend:** `SupplierPaymentPlanLine` (migration), services to set/replace/cancel plan lines and to tie a payment
       to one, state per invoice (`settled/overdue/planned/undefined`), `GET /supplier-settlements` (list with summary, tab and
       type filters), plan endpoints, dashboard count of `undefined` older than 24 h. Tests for the states and the limits.
-- [ ] **T16b Office:** Achats › "Règlements fournisseurs" (summary bar, 4 tabs, type filter, "Définir le règlement" dialog with
+- [x] **T16b Office:** Achats › "Règlements fournisseurs" (summary bar, 4 tabs, type filter, "Définir le règlement" dialog with
       several lines, "Enregistrer le paiement" from a plan line), the dashboard alert, i18n FR (Arabic keys too).
 - [ ] **T16c Paying steps:** `Rien / Une partie / Tout` + live "Reste → à définir" on the driver's purchase screen and on the
       office receipt form; cheque/traite number and cashing day; the office check page shows the same.

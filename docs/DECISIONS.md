@@ -2770,6 +2770,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the amount (a part-payment of a line leaves the rest `undefined`). Replacing a plan marks the old open lines `cancelled` (history kept).
   `overdue` = an open line's date passed, or part undefined with the due date passed. Dashboard `settlements_undefined_late` counts invoices with
   any undefined amount posted 24 h ago or more, whatever their state.
+- **Built in T16b (office):** the page is a tab "Règlements" of the Achats tabs (the menu has no counters, so counts sit on the page tabs). "Enregistrer le paiement" opens the existing payment form with `ligne`, `montant`, `mode`, `ref`, `encaisse` in the URL, and the form sends `plan_line`. The dialog plans `total - paid` and replaces the open lines.
 
 **D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
 - Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried
