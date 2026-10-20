@@ -55,20 +55,27 @@ export function SupplierPaymentFormPage() {
   const [params] = useSearchParams();
   // From an invoice page: `?fournisseur=3&facture=12` pays that invoice.
   const fromInvoice = idFrom(params.get("facture"));
+  // From "Règlements fournisseurs" (D-192): `ligne` is the plan line this payment settles, with its amount and method.
+  const planLine = idFrom(params.get("ligne"));
+  const planAmount = planLine && fromInvoice ? (parseDecimalInput(params.get("montant") ?? "", 3) ?? "") : "";
+  const planMethod = METHODS.find((one) => one === params.get("mode")) ?? "";
 
   const suppliers = useListSuppliers({ status: "all" });
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [paidOn, setPaidOn] = useState(todayInTunis);
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethodEnum | "">("");
-  const [reference, setReference] = useState("");
+  const [amount, setAmount] = useState(asTyped(planAmount));
+  const [method, setMethod] = useState<PaymentMethodEnum | "">(planAmount ? planMethod : "");
+  const [reference, setReference] = useState(planAmount ? (params.get("ref") ?? "") : "");
   // The day a cheque or a traite may be cashed (D-159): asked only for those two.
-  const [cashOn, setCashOn] = useState("");
+  const [cashOn, setCashOn] = useState(planAmount ? (params.get("encaisse") ?? "") : "");
   const postDated = method === "cheque" || method === "bill";
   const [notes, setNotes] = useState("");
-  const [allocations, setAllocations] = useState<Allocations>({});
+  const [allocations, setAllocations] = useState<Allocations>(
+    planAmount && fromInvoice ? { [fromInvoice]: asTyped(planAmount) } : {},
+  );
   // Until the person types an amount or an allocation, the invoice they came from is paid in full.
-  const [touched, setTouched] = useState(false);
+  // A plan line brings its own amount, so it counts as typed.
+  const [touched, setTouched] = useState(planAmount !== "");
   const [errors, setErrors] = useState<Errors>({});
   const [lineErrors, setLineErrors] = useState<Record<number, string>>({});
 
@@ -137,6 +144,7 @@ export function SupplierPaymentFormPage() {
       cash_on: postDated && cashOn ? cashOn : null,
       notes: notes.trim(),
       allocations: payload,
+      plan_line: planAmount ? planLine : null,
     });
   }
 

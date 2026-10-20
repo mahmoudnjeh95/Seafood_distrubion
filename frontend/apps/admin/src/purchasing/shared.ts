@@ -8,6 +8,7 @@ export function refreshPurchasing(queryClient: QueryClient) {
     "/api/v1/supplier-invoices",
     "/api/v1/supplier-payments",
     "/api/v1/supplier-balances",
+    "/api/v1/supplier-settlements",
   ];
   return queryClient.invalidateQueries({
     predicate: (query) =>
