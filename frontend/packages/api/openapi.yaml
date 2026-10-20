@@ -21058,6 +21058,10 @@ components:
           maximum: 365
           minimum: 0
           default: 30
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldPurchasePaymentWrite'
       required:
       - lines
       - location

@@ -152,10 +152,18 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
         serializer.is_valid(raise_exception=True)
         data = _resolved(self.organization, serializer.validated_data, is_owner=self.membership.role == Role.OWNER)
         invoice_now, terms, due_days = data.pop("invoice_now"), data.pop("terms"), data.pop("due_days")
+        payments = data.pop("payments", [])
+        if payments and not invoice_now:
+            raise ValidationError({"payments": _("Un paiement à la réception demande « Dû dès la réception ».")})
         if invoice_now:
             # Owed at once, due by the deal made for this delivery (D-159).
             receipt = services.receive_and_invoice(
-                organization=self.organization, actor=self.membership.user, terms=terms, due_days=due_days, **data
+                organization=self.organization,
+                actor=self.membership.user,
+                terms=terms,
+                due_days=due_days,
+                payments=payments,
+                **data,
             )
         else:
             receipt = services.create_receipt(organization=self.organization, actor=self.membership.user, **data)

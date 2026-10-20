@@ -260,3 +260,65 @@ def test_a_paper_that_is_not_a_photo_is_refused(organization, product):
     )
     assert answer.status_code == 400
     assert not FieldPurchase.objects.get().paper
+
+
+# ---- Given now, at the reception (D-192) ----
+
+
+def test_a_receipt_owed_at_once_records_what_is_given_now(organization, room, product):
+    supplier = SupplierFactory.create(organization=organization)
+    manager = client_for(MembershipFactory.create(organization=organization, role=Role.MANAGER))
+    payload: dict[str, Any] = {
+        "supplier": supplier.pk,
+        "location": room.pk,
+        "received_on": TODAY().isoformat(),
+        "lines": [{"product": product.pk, "invoiced_quantity": "10", "accepted_quantity": "10", "unit_cost": "12"}],
+        "invoice_now": True,
+        "terms": "days",
+        "due_days": 30,
+        "payments": [
+            {"method": "cash", "amount": "50"},
+            {"method": "cheque", "amount": "20", "reference": "CH-1", "cash_on": TODAY().isoformat()},
+        ],
+    }
+
+    created = manager.post(reverse("receipt-list"), payload, format="json")
+
+    assert created.status_code == 201, created.json()
+    assert SupplierInvoice.objects.get().total == Decimal("120.000")
+    assert selectors.supplier_balance(organization, supplier.pk).balance == Decimal("50.000")
+
+
+def test_more_given_than_the_receipt_is_refused_and_nothing_is_kept(organization, room, product):
+    supplier = SupplierFactory.create(organization=organization)
+    with pytest.raises(ValidationError) as caught:
+        services.receive_and_invoice(
+            organization=organization,
+            actor=None,
+            supplier=supplier,
+            location=room,
+            received_on=TODAY(),
+            lines=[{"product": product, "invoiced_quantity": "1", "accepted_quantity": "1", "unit_cost": "100"}],
+            terms="cash",
+            payments=[{"method": "cash", "amount": "80"}, {"method": "cash", "amount": "30"}],
+        )
+    assert set(caught.value.message_dict) == {"payments.1.amount"}
+    assert not SupplierInvoice.objects.exists()
+
+
+def test_a_payment_without_the_invoice_is_refused(organization, room, product):
+    supplier = SupplierFactory.create(organization=organization)
+    manager = client_for(MembershipFactory.create(organization=organization, role=Role.MANAGER))
+    payload: dict[str, Any] = {
+        "supplier": supplier.pk,
+        "location": room.pk,
+        "received_on": TODAY().isoformat(),
+        "lines": [{"product": product.pk, "invoiced_quantity": "10", "accepted_quantity": "10", "unit_cost": "12"}],
+        "invoice_now": False,
+        "payments": [{"method": "cash", "amount": "10"}],
+    }
+
+    refused = manager.post(reverse("receipt-list"), payload, format="json")
+
+    assert refused.status_code == 400
+    assert not SupplierInvoice.objects.exists()

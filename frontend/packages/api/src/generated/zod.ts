@@ -12543,6 +12543,9 @@ export const createReceiptBodyDueDaysDefault = 30;
 export const createReceiptBodyDueDaysMin = 0;
 export const createReceiptBodyDueDaysMax = 365;
 
+export const createReceiptBodyPaymentsItemReferenceDefault = ``;
+export const createReceiptBodyPaymentsItemReferenceMax = 50;
+
 
 
 export const CreateReceiptBody = zod.object({
@@ -12564,7 +12567,13 @@ export const CreateReceiptBody = zod.object({
   "boxes": zod.record(zod.string(), zod.int().min(createReceiptBodyBoxesMinOne)).optional(),
   "invoice_now": zod.boolean().default(createReceiptBodyInvoiceNowDefault),
   "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois').default(createReceiptBodyTermsDefault),
-  "due_days": zod.int().min(createReceiptBodyDueDaysMin).max(createReceiptBodyDueDaysMax).default(createReceiptBodyDueDaysDefault)
+  "due_days": zod.int().min(createReceiptBodyDueDaysMin).max(createReceiptBodyDueDaysMax).default(createReceiptBodyDueDaysDefault),
+  "payments": zod.array(zod.object({
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.string(),
+  "reference": zod.string().max(createReceiptBodyPaymentsItemReferenceMax).default(createReceiptBodyPaymentsItemReferenceDefault),
+  "cash_on": zod.iso.date().nullish()
+})).optional()
 })
 
 export const createReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');

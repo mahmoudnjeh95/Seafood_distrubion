@@ -167,6 +167,13 @@ class ReceiptLineWriteSerializer(serializers.Serializer[Any]):
     partner = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
 
 
+class FieldPurchasePaymentWriteSerializer(serializers.Serializer[Any]):
+    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    amount = serializers.CharField(allow_blank=True)
+    reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    cash_on = serializers.DateField(required=False, allow_null=True, default=None)
+
+
 class ReceiptWriteSerializer(serializers.Serializer[Any]):
     supplier = serializers.IntegerField(min_value=1)
     location = serializers.IntegerField(min_value=1)
@@ -182,6 +189,8 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     invoice_now = serializers.BooleanField(required=False, default=False)
     terms = serializers.ChoiceField(choices=PaymentTerms.choices, required=False, default=PaymentTerms.DAYS)
     due_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=30)
+    # Given now (D-192): only with `invoice_now`; recorded and allocated to the invoice of this receipt.
+    payments = FieldPurchasePaymentWriteSerializer(many=True, required=False, default=list)
 
 
 class ReceiptFilterSerializer(serializers.Serializer[Any]):
@@ -739,13 +748,6 @@ class FieldPurchaseLineWriteSerializer(serializers.Serializer[Any]):
     unit_cost = serializers.CharField(allow_blank=True)
     # A partner lot (D-100): the owner's choice.
     partner = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
-
-
-class FieldPurchasePaymentWriteSerializer(serializers.Serializer[Any]):
-    method = serializers.ChoiceField(choices=PaymentMethod.choices)
-    amount = serializers.CharField(allow_blank=True)
-    reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
-    cash_on = serializers.DateField(required=False, allow_null=True, default=None)
 
 
 class FieldPurchaseCreateSerializer(serializers.Serializer[Any]):

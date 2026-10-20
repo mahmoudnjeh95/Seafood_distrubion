@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { FieldPurchasePaymentWrite } from './fieldPurchasePaymentWrite';
 import type { PaymentTermsEnum } from './paymentTermsEnum';
 import type { ReceiptLineWrite } from './receiptLineWrite';
 import type { ReceiptWriteBoxes } from './receiptWriteBoxes';
@@ -31,4 +32,5 @@ export interface ReceiptWrite {
      * @maximum 365
      */
   due_days?: number;
+  payments?: FieldPurchasePaymentWrite[];
 }

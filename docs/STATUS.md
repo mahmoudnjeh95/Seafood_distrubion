@@ -4,17 +4,14 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 
 ## Where we are
 
-- **P3-T16c (branch supplier-pay-steps, 2026-10-20):** driver purchase screen and office check page of a port purchase
-  ask "Qu'avez-vous donné maintenant ?" (Rien / Une partie / Tout), method, cheque/traite number and cashing day, live
-  "Total · Donné · Reste → à définir par le bureau" (D-192). Same payments payload. Not done: the office receipt form
-  ("Nouvelle réception"), because `receive_and_invoice` and its API take no payment; add one in the backend first.
+- **P3-T16c/d (branch receipt-pay-now, 2026-10-20):** driver purchase screen, office check page and the office receipt form ("Nouvelle réception", only with "Dû dès la réception") ask "Qu'avez-vous donné maintenant ?" (Rien / Une partie / Tout) with a live "Total · Donné · Reste → à définir par le bureau" (D-192). `POST /receipts` takes `payments`. API client regenerated. Awaits CI.
 - **D-192 / P3-T16a (branch supplier-settlements, 2026-10-20):** backend of "Règlements fournisseurs" done: `SupplierPaymentPlanLine`,
   `PUT /supplier-invoices/<id>/plan`, `DELETE /supplier-plan-lines/<id>`, `GET /supplier-settlements`, `plan_line` on the payment, dashboard
   `settlements_undefined_late`; API client regenerated. Merged.
 - **D-192 / P3-T16b (branch supplier-settlements-ui, 2026-10-20):** office page Achats › "Règlements" (`/achats/reglements`: summary, 4 tabs with counts,
   type and supplier filters, plan lines inline, "Définir le règlement" dialog, "Enregistrer le paiement" opens the payment form prefilled with the
   plan line, "Annuler la ligne"), dashboard alert `settlements_undefined_late`. French only (the admin app has no Arabic keys). Awaits CI.
-  **Next: T16c (driver and receipt form paying steps).**
+  **T16c/d done (paying steps).**
 - **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
   (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
   carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**
