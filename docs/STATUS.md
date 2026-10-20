@@ -28,7 +28,8 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
   photo and the company logo**; "Site web → Produits du site" hides products, orders them and sets a **web-only
   price** (the day's price never changes);
   "Paramètres du site" sets the **phone** (and WhatsApp, e-mail, address, hours) the site shows. Domain
-  **https://www.fruttidelmare.com** (bare name redirects; certificate expanded by the deploy). Awaits CI.
+  **https://www.fruttidelmare.com** (bare name redirects; certificate expanded by the deploy). Product cards are
+  compact: 5 to 6 per row on a desktop, 2 on a phone, smaller photo and tighter rows (owner, 2026-10-19). Awaits CI.
 - **D-185 (on main, #189):** a driver's day (Suivi des chauffeurs, closing) counts the load BLs delivered (sales, cash
   at the door, kg "Vendu" in "Marchandise du camion"); delivering sets `sold_at` to the delivery moment. The owner saw
   the old gap again on 2026-10-18 (4/4 delivered, "Vendu" 0 kg, "Reste" right) on a build without it. Check on staging.
