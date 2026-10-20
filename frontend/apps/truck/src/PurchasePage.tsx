@@ -31,7 +31,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { useOnline } from "./offline";
-import { blankPayLine, effectiveLines, hasPaper, PaidNow, type PaidMode, type PayLine } from "./PaidNow";
+import { PaidNow } from "./PaidNow";
+import { blankPayLine, effectiveLines, hasPaper, type PaidMode, type PayLine } from "./purchasePay";
 import { PaperPhotoInput } from "./PaperPhotoInput";
 import { dueDateOn, lineAmount, purchaseTotals } from "./purchase";
 import { sendError } from "./sendError";
