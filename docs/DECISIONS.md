@@ -2739,6 +2739,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Left for later (e2e tests click these links): detail pages show both the shell's "Retour" (D-110) and their own
   link ("Toutes les ventes", "Retour au stock"…); keep one.
 
+**D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
+- Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried
+  30/26 or 31/26 of the bill (a year: 14.04 months instead of 12). The month's expense counts the bill once, so the lots did not add up to it.
+- Now each calendar day of the month carries its share of the month, split to the millime (`general_day_amounts`), so a lot in stock all
+  month carries the bill exactly once. Hours with nothing in stock stay uncharged (D-142), as before.
+- **Provisional:** the client's rule "a day is a 26th of the monthly amount" (D-041, Q21) may mean 26 working days a month; the owner
+  confirms which. Changing it means changing `general_day_amounts` and its tests only.
+- Not changed by this decision, open for the owner: employer CNSS and bonus/overtime in the lot cost of employee days (D-055 vs D-041),
+  the settlement of a carried negative balance against the capital (D-031), and the cash-flow basis (approval date vs paid date).
 **D-190 · "Convertir en vente" takes the payment on the spot (method, amount, reference)** · accepted · 2026-10-19
 - Reported by Mahmoud (2026-10-19): the quote's "Convertir en vente" window had no field for the payment method or
   the amount the client pays. For a "Client de passage" the server refused the BL ("paie toute la vente sur place")

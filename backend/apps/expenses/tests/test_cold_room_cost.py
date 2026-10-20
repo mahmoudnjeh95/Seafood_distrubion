@@ -139,7 +139,7 @@ def test_a_lot_pays_the_hours_it_stayed_not_a_whole_day():
     held[day][21] = [(38 * 60, {1: D("10.000")})]
     charge = allocate_room_days({day: D("24.000")}, held)[1]
     assert charge.amount == D("21.166")  # 0.533 (32 min of hour 0) + 20 hours + 0.633 (38 min of hour 21)
-    assert charge.kg_days == D("10.000") * (21 * 3600 + 10 * 60) / 86400
+    assert charge.kg_days == D("8.819")  # 10 kg x 21 h 10 min / 24 h, kept to 3 decimals (quantity)
 
 
 def test_two_lots_share_the_time_they_overlap_by_kg():

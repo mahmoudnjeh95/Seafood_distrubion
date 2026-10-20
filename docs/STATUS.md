@@ -4,6 +4,11 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 
 ## Where we are
 
+- **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
+  (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
+  carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**
+  (owner to confirm the day rule). Not changed, owner decisions: employer CNSS in the lot cost of employee days, settlement
+  of a carried negative balance, cash-flow basis, and a cancelled paid sale in the cash flow. Awaits CI.
 - **D-190 (branch quote-convert-payment, 2026-10-19):** "Convertir en vente" on an accepted quote has the payment block
   of the sale form: "Payé en entier" (on for "Client de passage"), amount, method, reference. Before, a walk-in BL
   could not be confirmed and the window had no field to fix it. The API client is regenerated (`is_walk_in` on the

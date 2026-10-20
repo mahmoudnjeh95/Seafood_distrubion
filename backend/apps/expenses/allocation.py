@@ -1,8 +1,10 @@
 """Splitting an amount over lots by weight, to the millime (D-041, D-053). Pure functions: no database."""
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from fractions import Fraction
 
 from apps.core.money import GRAM, MILLIME
 
@@ -27,6 +29,31 @@ def split_by_weight(amount: Decimal, weights: Mapping[int, Decimal]) -> dict[int
     left_over = millimes - sum(floors.values())
     for key in sorted(grams, key=lambda key: (-remainders[key], -grams[key], key))[:left_over]:
         floors[key] += 1
+    return {key: Decimal(floors[key]) * MILLIME for key in sorted(grams)}
+
+
+def split_by_weight_carrying(
+    amount: Decimal, weights: Mapping[int, Decimal], carry: dict[int, Fraction]
+) -> dict[int, Decimal]:
+    """`split_by_weight`, but each key's part of a millime left over by the earlier splits in `carry` is
+    added to its share here, and what is left over now goes back into `carry`. Used over the hours of a
+    month, where the same split comes back every hour: a key then gets its exact share over the whole run,
+    to within one millime, instead of the same rounding every hour. The parts add up to `amount` exactly.
+    """
+    grams = {key: int(weight / GRAM) for key, weight in weights.items() if weight > 0}
+    total_grams = sum(grams.values())
+    if total_grams == 0:
+        return {}
+    millimes = int(amount / MILLIME)
+    ideal = {
+        key: Fraction(millimes * weight, total_grams) + carry.get(key, Fraction(0)) for key, weight in grams.items()
+    }
+    floors = {key: math.floor(value) for key, value in ideal.items()}
+    left_over = millimes - sum(floors.values())
+    for key in sorted(grams, key=lambda key: (-(ideal[key] - floors[key]), -grams[key], key))[:left_over]:
+        floors[key] += 1
+    for key in grams:
+        carry[key] = ideal[key] - floors[key]
     return {key: Decimal(floors[key]) * MILLIME for key in sorted(grams)}
 
 

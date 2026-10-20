@@ -9,14 +9,13 @@ import datetime as dt
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from fractions import Fraction
 
-from apps.core.money import money
+from apps.core.money import money, quantity
 
-from .allocation import split_by_weight
+from .allocation import split_by_weight, split_by_weight_carrying
 
 ZERO = Decimal("0.000")
-# The client's rule (2026-10-11): a day is a 26th of the monthly amount, for salaries and general costs.
-WORKING_DAYS_PER_MONTH = 26
 
 
 def first_of_month(day: dt.date) -> dt.date:
@@ -88,9 +87,12 @@ class RoomCharge:
     kg_days: Decimal
 
 
-def _hour_shares(hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, Decimal]]]) -> dict[int, Decimal]:
+def _hour_shares(
+    hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, Decimal]]], carry: dict[int, Fraction]
+) -> dict[int, Decimal]:
     """One hour's amount over the stretches of time in it: each stretch takes its seconds' part of the hour,
-    the seconds the room was empty take nothing, and each stretch shares its part over its lots by kg."""
+    the seconds the room was empty take nothing, and each stretch shares its part over its lots by kg. The
+    lots' millime left over is carried in `carry` from hour to hour (see `split_by_weight_carrying`)."""
     weights = {index: Decimal(seconds) for index, (seconds, _lots) in enumerate(slices)}
     empty = SECONDS_PER_HOUR - sum(seconds for seconds, _lots in slices)
     if empty > 0:
@@ -98,7 +100,7 @@ def _hour_shares(hour_amount: Decimal, slices: Sequence[tuple[int, Mapping[int, 
     parts = split_by_weight(hour_amount, weights)
     shares: dict[int, Decimal] = {}
     for index, (_seconds, lots) in enumerate(slices):
-        for batch_id, share in split_by_weight(parts.get(index, ZERO), lots).items():
+        for batch_id, share in split_by_weight_carrying(parts.get(index, ZERO), lots, carry).items():
             shares[batch_id] = shares.get(batch_id, ZERO) + share
     return shares
 
@@ -110,23 +112,28 @@ def allocate_room_days(day_amounts: Mapping[dt.date, Decimal], held: HeldByHour)
     adds up to its amount exactly, so every day does too."""
     totals: dict[int, Decimal] = {}
     kg_seconds: dict[int, Decimal] = {}
-    for day, amount in day_amounts.items():
+    carry: dict[int, Fraction] = {}
+    for day, amount in sorted(day_amounts.items()):
         hour_amounts = split_evenly(amount, HOURS_PER_DAY)
-        for hour, slices in held.get(day, {}).items():
-            for batch_id, share in _hour_shares(hour_amounts[hour], slices).items():
+        for hour, slices in sorted(held.get(day, {}).items()):
+            for batch_id, share in _hour_shares(hour_amounts[hour], slices, carry).items():
                 totals[batch_id] = totals.get(batch_id, ZERO) + share
             for seconds, lots in slices:
                 for batch_id, kg in lots.items():
                     kg_seconds[batch_id] = kg_seconds.get(batch_id, ZERO) + kg * seconds
     return {
-        batch_id: RoomCharge(amount=totals.get(batch_id, ZERO), kg_days=kg_seconds[batch_id] / SECONDS_PER_DAY)
+        batch_id: RoomCharge(
+            amount=totals.get(batch_id, ZERO), kg_days=quantity(kg_seconds[batch_id] / SECONDS_PER_DAY)
+        )
         for batch_id in sorted(kg_seconds)
     }
 
 
-def general_day_amount(monthly_amount: Decimal) -> Decimal:
-    """A general cost "like a salary" (client, D-041): the monthly amount / 26, rounded once."""
-    return money(monthly_amount / WORKING_DAYS_PER_MONTH)
+def general_day_amounts(monthly_amount: Decimal, month: dt.date) -> dict[dt.date, Decimal]:
+    """A month's general cost spread over its calendar days, to the millime, adding up to the month exactly: a lot
+    in stock all month carries the whole amount once (D-191, provisional: a day is a calendar day, not a 26th)."""
+    days = month_days(month)
+    return dict(zip(days, split_evenly(monthly_amount, len(days)), strict=True))
 
 
 def spread_over_months(amount: Decimal, months: int) -> list[Decimal]:
@@ -134,8 +141,11 @@ def spread_over_months(amount: Decimal, months: int) -> list[Decimal]:
     return split_evenly(amount, months)
 
 
-def allocate_general_days(monthly_amount: Decimal, days: list[dt.date], held: HeldByHour) -> dict[int, RoomCharge]:
-    """A month's general cost: each of `days` costs monthly / 26, charged by the hour over the lots in stock
-    (D-142, the same split as the cold room, Q21 confirmed 2026-10-13). Time with nothing in stock is not
-    charged to anyone."""
-    return allocate_room_days({day: general_day_amount(monthly_amount) for day in days}, held)
+def allocate_general_days(
+    monthly_amount: Decimal, month: dt.date, days: list[dt.date], held: HeldByHour
+) -> dict[int, RoomCharge]:
+    """A month's general cost: each of `days` (days of `month`) costs its share of the month, charged by the hour
+    over the lots in stock (D-142, the same split as the cold room, Q21 confirmed 2026-10-13). Time with nothing
+    in stock is not charged to anyone."""
+    shares = general_day_amounts(monthly_amount, month)
+    return allocate_room_days({day: shares[day] for day in days}, held)
