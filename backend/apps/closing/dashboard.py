@@ -101,6 +101,8 @@ class Dashboard:
     # Purchases at the port waiting for the office, and those of them sent more than 24 hours ago (D-176).
     field_purchases_waiting: int
     field_purchases_late: int
+    # Supplier invoices with part of what is owed still without a settlement plan, posted over 24 h ago (D-192).
+    settlements_undefined_late: int
 
 
 def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
@@ -174,4 +176,5 @@ def dashboard_of(organization: Organization, *, today: dt.date) -> Dashboard:
         pending_terms_count=len(pending),
         field_purchases_waiting=field_purchases.waiting,
         field_purchases_late=field_purchases.late,
+        settlements_undefined_late=purchasing.undefined_settlements_late(organization),
     )

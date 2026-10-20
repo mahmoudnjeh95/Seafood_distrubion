@@ -511,3 +511,5 @@ class DashboardSerializer(serializers.Serializer[Any]):
     # Purchases at the port to check, and those of them waiting for more than 24 hours (D-176).
     field_purchases_waiting = serializers.IntegerField(read_only=True)
     field_purchases_late = serializers.IntegerField(read_only=True)
+    # Supplier invoices still "à définir" (no settlement plan for part of the amount) for more than 24 hours (D-192).
+    settlements_undefined_late = serializers.IntegerField(read_only=True)

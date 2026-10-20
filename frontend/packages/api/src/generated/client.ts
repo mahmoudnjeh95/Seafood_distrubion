@@ -159,6 +159,7 @@ import type {
   ListSalesParams,
   ListSupplierInvoicesParams,
   ListSupplierPaymentsParams,
+  ListSupplierSettlementsParams,
   ListSuppliersParams,
   ListTransfersParams,
   ListTruckAssignmentsParams,
@@ -249,6 +250,7 @@ import type {
   PayrollSummary,
   PdfState,
   PhotoUpload,
+  PlanWrite,
   PriceBoard,
   PriceList,
   PriceListWrite,
@@ -292,6 +294,8 @@ import type {
   SetPrice,
   SetPrices,
   SettleLot,
+  SettlementRow,
+  Settlements,
   SiteCatalog,
   SiteRequest,
   SiteRequestReceived,
@@ -26458,6 +26462,94 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getDeleteSupplierInvoiceMutationOptions(options), queryClient);
     }
 
+export const getSetSupplierInvoicePlanUrl = (invoiceId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-invoices/${invoiceId}/plan`
+}
+
+/**
+ * Replace the open plan lines of a posted invoice: how, when and how much will be paid (D-192). Their sum
+ * may not exceed what is left to pay. A plan is not a payment: the supplier balance does not move. Errors of a
+ * line come back on `lines.<index>.<field>`; an empty list clears the plan.
+ */
+export const setSupplierInvoicePlan = async (invoiceId: number,
+    planWrite: PlanWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SettlementRow> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SettlementRow>(getSetSupplierInvoicePlanUrl(invoiceId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(planWrite)
+  }
+);}
+
+
+
+
+
+export const getSetSupplierInvoicePlanMutationKey = () => ['setSupplierInvoicePlan'] as const;
+
+export const getSetSupplierInvoicePlanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSupplierInvoicePlan>>, TError,SetSupplierInvoicePlanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setSupplierInvoicePlan>>, TError,SetSupplierInvoicePlanMutationVariables, TContext> => {
+
+const mutationKey = getSetSupplierInvoicePlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setSupplierInvoicePlan>>, SetSupplierInvoicePlanMutationVariables> = (props) => {
+          const {invoiceId,data} = props ?? {};
+
+          return  setSupplierInvoicePlan(invoiceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetSupplierInvoicePlanMutationResult = NonNullable<Awaited<ReturnType<typeof setSupplierInvoicePlan>>>
+    export type SetSupplierInvoicePlanMutationBody = PlanWrite
+    export type SetSupplierInvoicePlanMutationError = unknown
+    export type SetSupplierInvoicePlanMutationVariables = {invoiceId: number;data: PlanWrite}
+
+    export const useSetSupplierInvoicePlan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSupplierInvoicePlan>>, TError,SetSupplierInvoicePlanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setSupplierInvoicePlan>>,
+        TError,
+        SetSupplierInvoicePlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetSupplierInvoicePlanMutationOptions(options), queryClient);
+    }
+
 export const getPostSupplierInvoiceUrl = (invoiceId: number,) => {
 
 
@@ -26902,6 +26994,185 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getAllocateSupplierPaymentMutationOptions(options), queryClient);
     }
+
+export const getCancelSupplierPlanLineUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-plan-lines/${lineId}`
+}
+
+/**
+ * Cancel an open plan line: its amount goes back to "undefined". Answers the invoice's settlement row. A
+ * line already paid is kept (400).
+ */
+export const cancelSupplierPlanLine = async (lineId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getCancelSupplierPlanLineUrl(lineId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelSupplierPlanLineMutationKey = () => ['cancelSupplierPlanLine'] as const;
+
+export const getCancelSupplierPlanLineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSupplierPlanLine>>, TError,CancelSupplierPlanLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelSupplierPlanLine>>, TError,CancelSupplierPlanLineMutationVariables, TContext> => {
+
+const mutationKey = getCancelSupplierPlanLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelSupplierPlanLine>>, CancelSupplierPlanLineMutationVariables> = (props) => {
+          const {lineId} = props ?? {};
+
+          return  cancelSupplierPlanLine(lineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelSupplierPlanLineMutationResult = NonNullable<Awaited<ReturnType<typeof cancelSupplierPlanLine>>>
+
+    export type CancelSupplierPlanLineMutationError = unknown
+    export type CancelSupplierPlanLineMutationVariables = {lineId: number}
+
+    export const useCancelSupplierPlanLine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSupplierPlanLine>>, TError,CancelSupplierPlanLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelSupplierPlanLine>>,
+        TError,
+        CancelSupplierPlanLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelSupplierPlanLineMutationOptions(options), queryClient);
+    }
+
+export const getListSupplierSettlementsUrl = (params?: ListSupplierSettlementsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/supplier-settlements?${stringifiedParams}` : `/api/v1/supplier-settlements`
+}
+
+/**
+ * Every posted supplier invoice with what is paid, planned and still undefined, and its state: settled,
+ * overdue, planned or undefined (D-192). The summary covers the type and supplier filters, whatever the
+ * `state`, so the tabs can show their counts; `rows` are kept to `state` when given.
+ */
+export const listSupplierSettlements = async (params?: ListSupplierSettlementsParams, options?: Parameters<typeof apiFetch>[1]): Promise<Settlements> => {
+
+  return apiFetch<Settlements>(getListSupplierSettlementsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierSettlementsQueryKey = (params?: ListSupplierSettlementsParams,) => {
+    return [
+    `/api/v1/supplier-settlements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSupplierSettlementsQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierSettlements>>, TError = unknown>(params?: ListSupplierSettlementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierSettlements>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierSettlementsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierSettlements>>> = ({ signal }) => listSupplierSettlements(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierSettlements>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSupplierSettlementsQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierSettlements>>>
+export type ListSupplierSettlementsQueryError = unknown
+
+
+export function useListSupplierSettlements<TData = Awaited<ReturnType<typeof listSupplierSettlements>>, TError = unknown>(
+ params: undefined |  ListSupplierSettlementsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierSettlements>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupplierSettlements>>,
+          TError,
+          Awaited<ReturnType<typeof listSupplierSettlements>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupplierSettlements<TData = Awaited<ReturnType<typeof listSupplierSettlements>>, TError = unknown>(
+ params?: ListSupplierSettlementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierSettlements>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupplierSettlements>>,
+          TError,
+          Awaited<ReturnType<typeof listSupplierSettlements>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupplierSettlements<TData = Awaited<ReturnType<typeof listSupplierSettlements>>, TError = unknown>(
+ params?: ListSupplierSettlementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierSettlements>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSupplierSettlements<TData = Awaited<ReturnType<typeof listSupplierSettlements>>, TError = unknown>(
+ params?: ListSupplierSettlementsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierSettlements>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSupplierSettlementsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSuppliersUrl = (params?: ListSuppliersParams,) => {
   const normalizedParams = new URLSearchParams();

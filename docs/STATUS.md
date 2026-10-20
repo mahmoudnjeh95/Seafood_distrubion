@@ -4,6 +4,9 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 
 ## Where we are
 
+- **D-192 / P3-T16a (branch supplier-settlements, 2026-10-20):** backend of "Règlements fournisseurs" done: `SupplierPaymentPlanLine`,
+  `PUT /supplier-invoices/<id>/plan`, `DELETE /supplier-plan-lines/<id>`, `GET /supplier-settlements`, `plan_line` on the payment, dashboard
+  `settlements_undefined_late`; API client regenerated. Awaits CI. **Next: T16b (office page), then T16c.**
 - **D-191 (branch fix/finance-review-calculations, 2026-10-19):** finance review of the calculations. Fixed: a general cost
   (rent, insurance) is spread over the calendar days of its month, so a lot in stock all month carries the bill once (it
   carried 30/26 or 31/26 before); kg-days rounded to the gram; the partner-capital docstring corrected. **Provisional**

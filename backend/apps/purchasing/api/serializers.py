@@ -20,6 +20,7 @@ from apps.purchasing.models import (
     GoodsReceiptLine,
     PaymentMethod,
     PaymentTerms,
+    PlanLineStatus,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -499,6 +500,8 @@ class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
     cash_on = serializers.DateField(required=False, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     allocations = AllocationWriteSerializer(many=True, required=False, default=list)
+    # An open plan line (D-192) this payment settles; its invoice must be one of the allocations.
+    plan_line = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
 
 
 class PaymentAllocateSerializer(serializers.Serializer[Any]):
@@ -917,3 +920,90 @@ class SupplierDebtsSerializer(serializers.Serializer[Any]):
 class FieldPurchasePaperSerializer(serializers.Serializer[Any]):
     # A photo of the supplier's paper (JPEG, PNG or WebP).
     paper = UploadedPaperField()
+
+
+# ---- Paid, planned or undefined, per supplier invoice (P3-T16a, D-192) ----
+
+SETTLEMENT_STATES = ("settled", "overdue", "planned", "undefined")
+PURCHASE_TYPES = ("port", "office", "opening")
+
+
+class PlanLineSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    method = serializers.ChoiceField(choices=PaymentMethod.choices, read_only=True)
+    planned_on = serializers.DateField(read_only=True)
+    reference = serializers.CharField(read_only=True)
+    cash_on = serializers.DateField(read_only=True, allow_null=True)
+    # open: planned, not paid yet; paid: settled by `payment`.
+    status = serializers.ChoiceField(choices=PlanLineStatus.choices, read_only=True)
+    payment_id = serializers.IntegerField(read_only=True, allow_null=True)
+
+
+class PlanLineWriteSerializer(serializers.Serializer[Any]):
+    # A string ("500.000"), checked by the service, which reports it on `lines.<i>.amount`.
+    amount = serializers.CharField(allow_blank=True)
+    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    planned_on = serializers.DateField()
+    reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    cash_on = serializers.DateField(required=False, allow_null=True, default=None)
+
+
+class PlanWriteSerializer(serializers.Serializer[Any]):
+    """The open plan lines of an invoice, replacing the ones there are (empty: clears the plan)."""
+
+    lines = PlanLineWriteSerializer(many=True, allow_empty=True)
+
+
+class SettlementSupplierSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class SettlementRowSerializer(serializers.Serializer[Any]):
+    invoice_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    supplier_reference = serializers.CharField(read_only=True)
+    supplier = SettlementSupplierSerializer(read_only=True)
+    purchase_type = serializers.ChoiceField(choices=PURCHASE_TYPES, read_only=True)
+    # The achat terrain number (AT-...) for a port purchase.
+    field_purchase_number = serializers.CharField(read_only=True, allow_null=True)
+    invoice_date = serializers.DateField(read_only=True)
+    due_date = serializers.DateField(read_only=True)
+    posted_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    age_hours = serializers.IntegerField(read_only=True)
+    total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    paid = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    planned = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    undefined = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    state = serializers.ChoiceField(choices=SETTLEMENT_STATES, read_only=True)
+    plan_lines = PlanLineSerializer(many=True, read_only=True)
+
+
+class SettlementCountsSerializer(serializers.Serializer[Any]):
+    settled = serializers.IntegerField(read_only=True)
+    overdue = serializers.IntegerField(read_only=True)
+    planned = serializers.IntegerField(read_only=True)
+    undefined = serializers.IntegerField(read_only=True)
+
+
+class SettlementSummarySerializer(serializers.Serializer[Any]):
+    """Over the invoices matching the type and supplier filters, whatever the state: total due = paid + planned
+    + undefined (overdue is part of what is left, not a fourth amount)."""
+
+    paid = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    planned = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    undefined = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    overdue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    counts = SettlementCountsSerializer(read_only=True)
+
+
+class SettlementsSerializer(serializers.Serializer[Any]):
+    rows = SettlementRowSerializer(many=True, read_only=True)
+    summary = SettlementSummarySerializer(read_only=True)
+
+
+class SettlementFilterSerializer(serializers.Serializer[Any]):
+    state = serializers.ChoiceField(choices=SETTLEMENT_STATES, required=False)
+    type = serializers.ChoiceField(choices=PURCHASE_TYPES, required=False)
+    supplier = serializers.IntegerField(required=False, min_value=1)

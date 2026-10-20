@@ -18,6 +18,11 @@ urlpatterns = [
     path(
         "supplier-invoices/<int:invoice_id>/post", views.SupplierInvoicePostView.as_view(), name="supplier-invoice-post"
     ),
+    path(
+        "supplier-invoices/<int:invoice_id>/plan", views.SupplierInvoicePlanView.as_view(), name="supplier-invoice-plan"
+    ),
+    path("supplier-plan-lines/<int:line_id>", views.SupplierPlanLineView.as_view(), name="supplier-plan-line"),
+    path("supplier-settlements", views.SupplierSettlementsView.as_view(), name="supplier-settlements"),
     path("supplier-payments", views.SupplierPaymentListView.as_view(), name="supplier-payment-list"),
     path(
         "supplier-payments/<int:payment_id>", views.SupplierPaymentDetailView.as_view(), name="supplier-payment-detail"

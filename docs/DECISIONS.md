@@ -2765,6 +2765,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Alert:** the dashboard counts invoices left `undefined` for more than 24 hours since they were posted (provisional
   window, as D-176's).
 - Not changed: the three balances stay separate (payables, capital, profit share).
+- **Built in T16a (backend):** `planned` never exceeds what is left (total - allocated), so a payment made without naming a line cannot make
+  the amounts add up to more than the total. A payment naming a plan line must allocate to that line's invoice; the line becomes `paid` whatever
+  the amount (a part-payment of a line leaves the rest `undefined`). Replacing a plan marks the old open lines `cancelled` (history kept).
+  `overdue` = an open line's date passed, or part undefined with the due date passed. Dashboard `settlements_undefined_late` counts invoices with
+  any undefined amount posted 24 h ago or more, whatever their state.
 
 **D-191 · A general cost is spread over the calendar days of its month, not monthly / 26 a day (finance review)** · provisional · 2026-10-19
 - Found by a finance review of the calculations: the code charged each calendar day monthly / 26, so a lot in stock all month carried

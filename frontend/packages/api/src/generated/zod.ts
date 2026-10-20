@@ -1829,7 +1829,8 @@ export const GetDashboardResponse = zod.object({
 })),
   "pending_terms_count": zod.int(),
   "field_purchases_waiting": zod.int(),
-  "field_purchases_late": zod.int()
+  "field_purchases_late": zod.int(),
+  "settlements_undefined_late": zod.int()
 })
 
 
@@ -15868,6 +15869,69 @@ export const DeleteSupplierInvoiceResponse = zod.void()
 
 
 /**
+ * Replace the open plan lines of a posted invoice: how, when and how much will be paid (D-192). Their sum
+ * may not exceed what is left to pay. A plan is not a payment: the supplier balance does not move. Errors of a
+ * line come back on `lines.<index>.<field>`; an empty list clears the plan.
+ */
+export const SetSupplierInvoicePlanParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+export const setSupplierInvoicePlanBodyLinesItemReferenceDefault = ``;
+export const setSupplierInvoicePlanBodyLinesItemReferenceMax = 50;
+
+
+
+export const SetSupplierInvoicePlanBody = zod.object({
+  "lines": zod.array(zod.object({
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "planned_on": zod.iso.date(),
+  "reference": zod.string().max(setSupplierInvoicePlanBodyLinesItemReferenceMax).default(setSupplierInvoicePlanBodyLinesItemReferenceDefault),
+  "cash_on": zod.iso.date().nullish()
+}))
+}).describe('The open plan lines of an invoice, replacing the ones there are (empty: clears the plan).')
+
+export const setSupplierInvoicePlanResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setSupplierInvoicePlanResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setSupplierInvoicePlanResponsePlannedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setSupplierInvoicePlanResponseUndefinedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setSupplierInvoicePlanResponsePlanLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetSupplierInvoicePlanResponse = zod.object({
+  "invoice_id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "purchase_type": zod.enum(['port', 'office', 'opening']).describe('* `port` - port\n* `office` - office\n* `opening` - opening'),
+  "field_purchase_number": zod.string().nullable(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable(),
+  "age_hours": zod.int(),
+  "total": zod.stringFormat('decimal', setSupplierInvoicePlanResponseTotalRegExp),
+  "paid": zod.stringFormat('decimal', setSupplierInvoicePlanResponsePaidRegExp),
+  "planned": zod.stringFormat('decimal', setSupplierInvoicePlanResponsePlannedRegExp),
+  "undefined": zod.stringFormat('decimal', setSupplierInvoicePlanResponseUndefinedRegExp),
+  "state": zod.enum(['settled', 'overdue', 'planned', 'undefined']).describe('* `settled` - settled\n* `overdue` - overdue\n* `planned` - planned\n* `undefined` - undefined'),
+  "plan_lines": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', setSupplierInvoicePlanResponsePlanLinesItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "planned_on": zod.iso.date(),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'paid', 'cancelled']).describe('* `open` - Planifiée\n* `paid` - Payée\n* `cancelled` - Annulée'),
+  "payment_id": zod.int().nullable()
+}))
+})
+
+
+/**
  * Post a draft invoice: it is owed to the supplier, counts in their balance and can be paid. Final.
  */
 export const PostSupplierInvoiceParams = zod.object({
@@ -15998,6 +16062,7 @@ export const recordSupplierPaymentBodyReferenceMax = 50;
 export const recordSupplierPaymentBodyNotesDefault = ``;
 
 
+
 export const RecordSupplierPaymentBody = zod.object({
   "supplier": zod.int().min(1),
   "paid_on": zod.iso.date(),
@@ -16009,7 +16074,8 @@ export const RecordSupplierPaymentBody = zod.object({
   "allocations": zod.array(zod.object({
   "invoice": zod.int().min(1),
   "amount": zod.string()
-})).optional()
+})).optional(),
+  "plan_line": zod.int().min(1).nullish()
 })
 
 export const recordSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -16144,6 +16210,88 @@ export const AllocateSupplierPaymentResponse = zod.object({
 })),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Cancel an open plan line: its amount goes back to "undefined". Answers the invoice's settlement row. A
+ * line already paid is kept (400).
+ */
+export const CancelSupplierPlanLineParams = zod.object({
+  "line_id": zod.int()
+})
+
+export const CancelSupplierPlanLineResponse = zod.void()
+
+
+/**
+ * Every posted supplier invoice with what is paid, planned and still undefined, and its state: settled,
+ * overdue, planned or undefined (D-192). The summary covers the type and supplier filters, whatever the
+ * `state`, so the tabs can show their counts; `rows` are kept to `state` when given.
+ */
+
+
+
+export const ListSupplierSettlementsQueryParams = zod.object({
+  "state": zod.enum(['settled', 'overdue', 'planned', 'undefined']).optional().describe('* `settled` - settled\n* `overdue` - overdue\n* `planned` - planned\n* `undefined` - undefined'),
+  "supplier": zod.int().min(1).optional(),
+  "type": zod.enum(['port', 'office', 'opening']).optional().describe('* `port` - port\n* `office` - office\n* `opening` - opening')
+})
+
+export const listSupplierSettlementsResponseRowsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseRowsItemPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseRowsItemPlannedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseRowsItemUndefinedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseRowsItemPlanLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseSummaryOnePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseSummaryOnePlannedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseSummaryOneUndefinedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierSettlementsResponseSummaryOneOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierSettlementsResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "invoice_id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "purchase_type": zod.enum(['port', 'office', 'opening']).describe('* `port` - port\n* `office` - office\n* `opening` - opening'),
+  "field_purchase_number": zod.string().nullable(),
+  "invoice_date": zod.iso.date(),
+  "due_date": zod.iso.date(),
+  "posted_at": zod.iso.datetime({"offset":true}).nullable(),
+  "age_hours": zod.int(),
+  "total": zod.stringFormat('decimal', listSupplierSettlementsResponseRowsItemTotalRegExp),
+  "paid": zod.stringFormat('decimal', listSupplierSettlementsResponseRowsItemPaidRegExp),
+  "planned": zod.stringFormat('decimal', listSupplierSettlementsResponseRowsItemPlannedRegExp),
+  "undefined": zod.stringFormat('decimal', listSupplierSettlementsResponseRowsItemUndefinedRegExp),
+  "state": zod.enum(['settled', 'overdue', 'planned', 'undefined']).describe('* `settled` - settled\n* `overdue` - overdue\n* `planned` - planned\n* `undefined` - undefined'),
+  "plan_lines": zod.array(zod.object({
+  "id": zod.int(),
+  "amount": zod.stringFormat('decimal', listSupplierSettlementsResponseRowsItemPlanLinesItemAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "planned_on": zod.iso.date(),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "status": zod.enum(['open', 'paid', 'cancelled']).describe('* `open` - Planifiée\n* `paid` - Payée\n* `cancelled` - Annulée'),
+  "payment_id": zod.int().nullable()
+}))
+})),
+  "summary": zod.object({
+  "paid": zod.stringFormat('decimal', listSupplierSettlementsResponseSummaryOnePaidRegExp),
+  "planned": zod.stringFormat('decimal', listSupplierSettlementsResponseSummaryOnePlannedRegExp),
+  "undefined": zod.stringFormat('decimal', listSupplierSettlementsResponseSummaryOneUndefinedRegExp),
+  "overdue": zod.stringFormat('decimal', listSupplierSettlementsResponseSummaryOneOverdueRegExp),
+  "counts": zod.object({
+  "settled": zod.int(),
+  "overdue": zod.int(),
+  "planned": zod.int(),
+  "undefined": zod.int()
+})
+}).describe('Over the invoices matching the type and supplier filters, whatever the state: total due = paid + planned\n+ undefined (overdue is part of what is left, not a fourth amount).')
 })
 
 
