@@ -65,6 +65,14 @@ function BackLink({ nav }: { nav: AdminNavGroup[] }) {
  */
 export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: Props) {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
+  // The menu entry that owns this page: the longest entry the path is under, so "Règlements fournisseurs"
+  // (/achats/reglements) lights up alone and not "Achats" (/achats) too.
+  const path = pathname.replace(/\/+$/, "") || "/";
+  const activeTo = nav
+    .flatMap((group) => group.items.map((item) => item.to))
+    .filter((to) => (to === "/" ? path === "/" : path === to || path.startsWith(`${to}/`)))
+    .sort((a, b) => b.length - a.length)[0];
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 print:hidden flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
@@ -119,7 +127,13 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
                   key={item.to}
                   to={item.to}
                   end={item.to === "/"}
-                  className="flex flex-none items-center gap-[11px] rounded-[10px] px-3 py-[9px] font-medium whitespace-nowrap text-ink-2 hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-sea-soft aria-[current=page]:font-bold aria-[current=page]:text-sea"
+                  className={() =>
+                    `flex flex-none items-center gap-[11px] rounded-[10px] px-3 py-[9px] whitespace-nowrap ${
+                      activeTo === item.to
+                        ? "bg-sea-soft font-bold text-sea"
+                        : "font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+                    }`
+                  }
                 >
                   <Icon name={item.icon} />
                   <span>{item.label}</span>

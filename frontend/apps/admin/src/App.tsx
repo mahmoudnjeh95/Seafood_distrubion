@@ -118,6 +118,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/journees", label: t("admin.nav.dayClosings"), icon: "calcheck" },
         { to: "/produits", label: t("admin.nav.products"), icon: "snow" },
         { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
+        { to: "/achats/reglements", label: t("admin.nav.supplierSettlements"), icon: "cash" },
         { to: "/fournisseurs", label: t("admin.nav.suppliers"), icon: "anchor" },
       ],
     },

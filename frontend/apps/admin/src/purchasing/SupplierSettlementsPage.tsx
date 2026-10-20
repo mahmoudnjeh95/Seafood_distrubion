@@ -31,7 +31,6 @@ import { Link, useNavigate, useOutletContext, useSearchParams } from "react-rout
 
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import { PlanDialog } from "./PlanDialog";
-import { PurchasingTabs } from "./PurchasingTabs";
 import { refreshPurchasing } from "./shared";
 
 const TABS: readonly ListSupplierSettlementsState[] = ["undefined", "planned", "overdue", "settled"];
@@ -110,7 +109,6 @@ export function SupplierSettlementsPage() {
   const header = (
     <>
       <PageHeader eyebrow={t("admin.nav.purchases")} title={t("admin.supplierSettlements.title")} />
-      <PurchasingTabs />
       <p className="text-ink-2">{t("admin.supplierSettlements.intro")}</p>
     </>
   );
