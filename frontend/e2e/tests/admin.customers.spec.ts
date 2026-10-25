@@ -7,7 +7,7 @@ test.use({ storageState: OWNER_STATE });
 
 async function openCustomers(page: Page) {
   await page.goto("/");
-  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("link", { name: "Clients", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Clients", level: 1 })).toBeVisible();
 }
 
