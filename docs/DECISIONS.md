@@ -2739,6 +2739,21 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Left for later (e2e tests click these links): detail pages show both the shell's "Retour" (D-110) and their own
   link ("Toutes les ventes", "Retour au stock"…); keep one.
 
+**D-193 · Price floor: an owner or manager may go under the minimum with a reason; products without a minimum are flagged** · accepted · 2026-10-25
+- Question from Mahmoud (2026-10-25): does a "remise" that takes the price under the minimum get stopped on quotes, BL and invoices?
+  D-163 already refuses it on every quote and sale line (also on update and on "Convertir en vente"). A BL's lines are those of
+  its sale and an invoice's lines are copied from its BLs with no price edit, so they inherit the check; no extra check was added.
+- **Override.** `below_minimum_reason` (text, max 255) on `POST/PUT /quotes` and `/sales`. Counted only when the caller is owner or
+  manager (the view drops it for anyone else, so a driver's or accountant's line stays refused). With a non-blank reason the line is
+  kept, `below_minimum` is set, and the audit logs `quote.price_below_minimum_approved` / `sale.price_below_minimum_approved`
+  (actor, reason, each line's price, discount and minimum). The reason is not kept on the document, only in the audit.
+- **Quote → BL.** A BL made from a quote takes the quote's prices as agreed (the quote already passed the floor, or an owner let it
+  go): its lines are not refused if the minimum was raised since, and anyone who may deliver can do it.
+- **Warning.** In the admin line grid, a product with no minimum shows "Aucun prix minimum : la remise n'est pas contrôlée", and a
+  row under its minimum shows the price after discount in red while typing; the quote and sale forms then ask the owner or manager
+  for the reason, and tell others to correct the row. The server stays the judge.
+- Not done: an invoice-level guard (nothing can change an invoice line's price), a reason stored on the document, the driver app.
+
 **D-192 · "Règlements fournisseurs": what is paid, planned or still undefined, per purchase (P3-T16, owner brainstorm 2026-10-20)** · accepted · 2026-10-20
 - **Owner request:** when we pay a supplier (office or driver app) the steps must be clear: what is given now, nothing, a part
   or all, and with which method. The driver only records what he gives; the rest is decided in the office. The office needs one

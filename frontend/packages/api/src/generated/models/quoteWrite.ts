@@ -20,4 +20,6 @@ export interface QuoteWrite {
   notes?: string;
   lines: QuoteLineWrite[];
   send_now?: boolean;
+  /** @maxLength 255 */
+  below_minimum_reason?: string;
 }

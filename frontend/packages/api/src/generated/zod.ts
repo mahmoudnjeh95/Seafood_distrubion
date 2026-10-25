@@ -11683,6 +11683,10 @@ export const ListQuotesResponse = zod.object({
 
 export const createQuoteBodyNotesDefault = ``;
 export const createQuoteBodySendNowDefault = false;
+export const createQuoteBodyBelowMinimumReasonDefault = ``;
+export const createQuoteBodyBelowMinimumReasonMax = 255;
+
+
 
 export const CreateQuoteBody = zod.object({
   "customer": zod.int().min(1),
@@ -11696,7 +11700,8 @@ export const CreateQuoteBody = zod.object({
   "unit_price": zod.string().nullish(),
   "discount_rate": zod.string().nullish()
 })),
-  "send_now": zod.boolean().default(createQuoteBodySendNowDefault)
+  "send_now": zod.boolean().default(createQuoteBodySendNowDefault),
+  "below_minimum_reason": zod.string().max(createQuoteBodyBelowMinimumReasonMax).default(createQuoteBodyBelowMinimumReasonDefault)
 })
 
 export const createQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -11880,6 +11885,10 @@ export const UpdateQuoteParams = zod.object({
 
 export const updateQuoteBodyNotesDefault = ``;
 export const updateQuoteBodySendNowDefault = false;
+export const updateQuoteBodyBelowMinimumReasonDefault = ``;
+export const updateQuoteBodyBelowMinimumReasonMax = 255;
+
+
 
 export const UpdateQuoteBody = zod.object({
   "customer": zod.int().min(1),
@@ -11893,7 +11902,8 @@ export const UpdateQuoteBody = zod.object({
   "unit_price": zod.string().nullish(),
   "discount_rate": zod.string().nullish()
 })),
-  "send_now": zod.boolean().default(updateQuoteBodySendNowDefault)
+  "send_now": zod.boolean().default(updateQuoteBodySendNowDefault),
+  "below_minimum_reason": zod.string().max(updateQuoteBodyBelowMinimumReasonMax).default(updateQuoteBodyBelowMinimumReasonDefault)
 })
 
 export const updateQuoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -14247,6 +14257,9 @@ export const createSaleBodyPaymentReferenceMax = 50;
 export const createSaleBodyNotesDefault = ``;
 
 export const createSaleBodyConfirmNowDefault = false;
+export const createSaleBodyBelowMinimumReasonDefault = ``;
+export const createSaleBodyBelowMinimumReasonMax = 255;
+
 export const createSaleBodyApproveCreditDefault = false;
 export const createSaleBodyBoxesMinOne = 0;
 
@@ -14271,6 +14284,7 @@ export const CreateSaleBody = zod.object({
   "batch": zod.int().min(1).nullish()
 })),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
+  "below_minimum_reason": zod.string().max(createSaleBodyBelowMinimumReasonMax).default(createSaleBodyBelowMinimumReasonDefault),
   "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
   "client_uuid": zod.uuid().nullish(),
   "boxes": zod.record(zod.string(), zod.int().min(createSaleBodyBoxesMinOne)).nullish(),
@@ -14591,6 +14605,9 @@ export const updateSaleBodyPaymentReferenceMax = 50;
 export const updateSaleBodyNotesDefault = ``;
 
 export const updateSaleBodyConfirmNowDefault = false;
+export const updateSaleBodyBelowMinimumReasonDefault = ``;
+export const updateSaleBodyBelowMinimumReasonMax = 255;
+
 export const updateSaleBodyApproveCreditDefault = false;
 export const updateSaleBodyBoxesMinOne = 0;
 
@@ -14615,6 +14632,7 @@ export const UpdateSaleBody = zod.object({
   "batch": zod.int().min(1).nullish()
 })),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
+  "below_minimum_reason": zod.string().max(updateSaleBodyBelowMinimumReasonMax).default(updateSaleBodyBelowMinimumReasonDefault),
   "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),
   "client_uuid": zod.uuid().nullish(),
   "boxes": zod.record(zod.string(), zod.int().min(updateSaleBodyBoxesMinOne)).nullish(),

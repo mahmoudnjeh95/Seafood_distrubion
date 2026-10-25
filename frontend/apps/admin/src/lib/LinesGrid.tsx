@@ -4,7 +4,7 @@ import { Button, cn, Combobox, type ComboboxOption, Icon, Pill, Table, Th } from
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { subtract, sum } from "./decimal";
-import { amountsOf, filled, isBlank, isShort, type Line, shownPrice, withSpare } from "./lines";
+import { amountsOf, filled, isBlank, isShort, type Line, netUnderMinimum, shownPrice, withSpare } from "./lines";
 import type { PlaceKilos } from "./placeStock";
 
 type Column = "product" | "quantity" | "unit_price" | "discount_rate";
@@ -238,9 +238,17 @@ export function LinesGrid({
             // What is left once this row is taken out of the stock; a negative amount is shown in red.
             const typedKg = parseDecimalInput(line.quantity.trim(), 3);
             const left = available !== undefined ? subtract(available, typedKg ?? "0") : undefined;
+            // The price after the discount against the product's minimum price (D-163): the server refuses it.
+            const minimum = products.find((product) => String(product.id) === line.product)?.min_price ?? null;
+            const underMinimum = discount && !blank ? netUnderMinimum(line, price, minimum) : null;
             const message = (text: string | undefined) =>
               text && <p className="px-2.5 pb-1.5 text-[0.78rem] font-semibold text-bad">{text}</p>;
-            const number = (column: Exclude<Column, "product">, name: string, value: string) => (
+            const number = (
+              column: Exclude<Column, "product">,
+              name: string,
+              value: string,
+              under?: string | null | false,
+            ) => (
               <td className={CELL}>
                 <input
                   data-row={row}
@@ -263,6 +271,11 @@ export function LinesGrid({
                   className={cn(CELL_INPUT, "num text-end")}
                 />
                 {message(errorOf(column))}
+                {under && !errorOf(column) && (
+                  <p className="px-2.5 pb-1.5 text-[0.78rem] font-semibold text-bad">
+                    {t("admin.lines.underMinimum", { net: formatMoney(under), minimum: formatMoney(minimum ?? "0") })}
+                  </p>
+                )}
               </td>
             );
             return (
@@ -291,6 +304,9 @@ export function LinesGrid({
                     className={CELL_INPUT}
                   />
                   {message(errorOf("product") ?? duplicate)}
+                  {discount && line.product && minimum === null && (
+                    <p className="px-2.5 pb-1.5 text-[0.78rem] text-warn">{t("admin.lines.noMinimum")}</p>
+                  )}
                   {line.product && (places || partners) && (
                     <div className="flex flex-wrap gap-1 px-2.5 pb-1.5">
                       {places?.get(line.product)?.map((place) => (
@@ -321,8 +337,9 @@ export function LinesGrid({
                   </td>
                 )}
                 {number("quantity", t("admin.lines.quantity"), line.quantity)}
-                {priced && number("unit_price", t("admin.lines.price"), price)}
-                {discount && number("discount_rate", t("admin.lines.discount"), line.discount_rate)}
+                {priced &&
+                  number("unit_price", t("admin.lines.price"), price, line.discount_rate ? null : underMinimum)}
+                {discount && number("discount_rate", t("admin.lines.discount"), line.discount_rate, underMinimum)}
                 <td
                   className={cn(
                     CELL,

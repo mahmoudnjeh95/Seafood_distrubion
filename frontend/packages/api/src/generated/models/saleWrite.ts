@@ -27,6 +27,8 @@ export interface SaleWrite {
   notes?: string;
   lines: SaleLineWrite[];
   confirm_now?: boolean;
+  /** @maxLength 255 */
+  below_minimum_reason?: string;
   approve_credit?: boolean;
   /** @nullable */
   client_uuid?: string | null;

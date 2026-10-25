@@ -80,6 +80,8 @@ Rubrique **Inventaires** : comptez le stock réel ; les écarts deviennent des c
 
 1. Pour chaque produit, tapez le prix de vente (et le minimum).
 2. Touchez **Enregistrer les prix**. Un prix sous le minimum est enregistré mais signalé « Sous le minimum ».
+3. Sur un devis ou une vente, une remise qui ramène le prix sous le minimum est **refusée**. Le propriétaire et le gérant peuvent
+   l'accepter en écrivant une **raison** (gardée dans le journal). Un produit sans minimum n'est pas contrôlé : l'écran le signale.
 
 ## 4. Vendre : devis, bon de livraison, facture
 

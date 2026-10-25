@@ -20793,6 +20793,10 @@ components:
         send_now:
           type: boolean
           default: false
+        below_minimum_reason:
+          type: string
+          default: ''
+          maxLength: 255
       required:
       - customer
       - lines
@@ -23114,6 +23118,10 @@ components:
         confirm_now:
           type: boolean
           default: false
+        below_minimum_reason:
+          type: string
+          default: ''
+          maxLength: 255
         approve_credit:
           type: boolean
           default: false

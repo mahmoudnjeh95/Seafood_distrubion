@@ -786,3 +786,108 @@ def test_one_draft_confirmed_twice_at_once_moves_once():
     assert len(errors) == 1
     assert "ne se modifie plus" in str(errors[0])
     assert on_hand(organization, counter, product) == Decimal("6.000")
+
+
+# ---- the price floor and the owner's reason (D-163, D-193) ----
+
+
+def test_a_reason_lets_a_discount_go_under_the_minimum_and_is_audited(organization, actor, customer, counter, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+    receive(organization, crevette, counter, "5")
+
+    approved = sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        [{"product": crevette, "quantity": "1", "unit_price": "42.000", "discount_rate": "10.00"}],
+        confirm=True,
+        below_minimum_reason="Client fidèle, fin de journée",
+    )
+
+    line = approved.lines.get()
+    assert (line.amount, line.below_minimum) == (Decimal("37.800"), True)
+    trail = AuditLog.objects.get(action="sale.price_below_minimum_approved", target_id=str(approved.pk))
+    assert trail.actor == actor
+    assert trail.after is not None
+    assert trail.after["reason"] == "Client fidèle, fin de journée"
+    assert trail.after["lines"][0]["minimum"] == "40.000"
+
+
+def test_a_blank_reason_does_not_let_a_price_go_under_the_minimum(organization, actor, customer, counter, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+
+    with pytest.raises(ValidationError) as refused:
+        sale(
+            organization,
+            actor,
+            customer,
+            counter,
+            [{"product": crevette, "quantity": "1", "unit_price": "42.000", "discount_rate": "10.00"}],
+            below_minimum_reason="   ",
+        )
+
+    assert "lines.0.discount_rate" in errors_of(refused)
+    assert not AuditLog.objects.filter(action="sale.price_below_minimum_approved").exists()
+
+
+def test_a_reason_is_not_audited_when_no_line_goes_under_the_minimum(organization, actor, customer, counter, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+
+    sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        [{"product": crevette, "quantity": "1"}],
+        below_minimum_reason="Par précaution",
+    )
+
+    assert not AuditLog.objects.filter(action="sale.price_below_minimum_approved").exists()
+
+
+def test_a_draft_is_changed_under_the_minimum_only_with_a_reason(organization, actor, customer, counter, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+    draft = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}])
+    lines: list[services.SaleLineFields] = [
+        {"product": crevette, "quantity": "1", "unit_price": "42.000", "discount_rate": "10.00"}
+    ]
+
+    with pytest.raises(ValidationError):
+        services.update_sale(sale=draft, actor=actor, customer=customer, location=counter, lines=lines)
+    services.update_sale(
+        sale=draft,
+        actor=actor,
+        customer=customer,
+        location=counter,
+        lines=lines,
+        below_minimum_reason="Accord du patron",
+    )
+
+    assert draft.lines.get().discount_rate == Decimal("10.00")
+    assert AuditLog.objects.filter(action="sale.price_below_minimum_approved", target_id=str(draft.pk)).exists()
+
+
+def test_a_quote_approved_under_the_minimum_is_delivered_by_anyone(organization, actor, customer, counter, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+    receive(organization, crevette, counter, "5")
+    quote = services.create_quote(
+        organization=organization,
+        actor=actor,
+        customer=customer,
+        quoted_on=timezone.localdate(),
+        lines=[{"product": crevette, "quantity": "2", "unit_price": "42.000", "discount_rate": "10.00"}],
+        below_minimum_reason="Gros volume",
+    )
+    services.send_quote(quote=quote, actor=actor)
+    services.accept_quote(quote=quote, actor=actor)
+
+    delivered = services.create_sale_from_quote(quote=quote, actor=actor, location=counter, confirm=True)
+
+    assert delivered.lines.get().amount == Decimal("75.600")
+    assert AuditLog.objects.filter(action="quote.price_below_minimum_approved", target_id=str(quote.pk)).exists()
