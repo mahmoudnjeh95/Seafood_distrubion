@@ -18,7 +18,12 @@ ARG RELEASE=""
 ENV VITE_SENTRY_DSN=$SENTRY_DSN_FRONTEND \
     VITE_SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT \
     VITE_RELEASE=$RELEASE
-RUN pnpm --filter @frutti/admin --filter @frutti/truck --filter @frutti/site run build
+# One app at a time, with a capped Node heap: building the three together (tsc + vite each) took the shared
+# staging VPS down on CPU and RAM. Slower, but the server stays up.
+ENV NODE_OPTIONS=--max-old-space-size=1024
+RUN pnpm --filter @frutti/admin run build \
+    && pnpm --filter @frutti/truck run build \
+    && pnpm --filter @frutti/site run build
 
 # ---- backend: Django + gunicorn ----
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend

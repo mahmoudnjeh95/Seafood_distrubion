@@ -47,7 +47,9 @@ export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
 cd "$RELEASE_DIR/deploy"
-sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml build
+# The VPS is shared with other clients' production: build one image at a time, at low CPU priority.
+export COMPOSE_PARALLEL_LIMIT=1
+sudo -E nice -n 19 ionice -c3 docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml build
 sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --remove-orphans
 
 # 3. Host nginx: install our site only if it changed, test, then reload. On a failed test, put back the old file.
