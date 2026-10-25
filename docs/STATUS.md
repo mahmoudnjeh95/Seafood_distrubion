@@ -4,6 +4,10 @@ _Last updated: 2026-10-19 (quote → sale: payment on the spot in "Convertir en 
 
 ## Where we are
 
+- **D-193 (branch price-floor-override, 2026-10-25):** price floor follow-up. Owner/manager can accept a line under the minimum
+  price with a reason (`below_minimum_reason` on quotes and sales, audited `*.price_below_minimum_approved`); quote → BL keeps
+  the quote's prices; the line grid warns "Aucun prix minimum" and shows the price after discount in red; quote and sale forms ask
+  for the reason. API client regenerated; backend + vitest tests added. Awaits CI.
 - **D-192 follow-up (branch settlements-sidebar, 2026-10-20):** "Règlements clients" (was "Règlements") and "Règlements fournisseurs" are two entries of the side menu; the Achats tab for the latter is gone. The menu lights only the deepest matching entry. Awaits CI.
 - **P3-T16c/d (branch receipt-pay-now, 2026-10-20):** driver purchase screen, office check page and the office receipt form ("Nouvelle réception", only with "Dû dès la réception") ask "Qu'avez-vous donné maintenant ?" (Rien / Une partie / Tout) with a live "Total · Donné · Reste → à définir par le bureau" (D-192). `POST /receipts` takes `payments`. API client regenerated. Awaits CI.
 - **D-192 / P3-T16a (branch supplier-settlements, 2026-10-20):** backend of "Règlements fournisseurs" done: `SupplierPaymentPlanLine`,

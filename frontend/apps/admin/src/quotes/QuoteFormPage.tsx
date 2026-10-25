@@ -45,10 +45,12 @@ import {
   isZero,
   type Line,
   newLine,
+  netUnderMinimum,
   rateAsTyped,
   shownPrice,
   withSpare,
 } from "../lib/lines";
+import { BelowMinimumReason } from "../lib/BelowMinimumReason";
 import { LinesGrid } from "../lib/LinesGrid";
 import { placesOf, totalsOf, usePlacesStock, usePlacesStockLoaded } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
@@ -149,6 +151,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
     setCustomer((current) => current || customerOfRequest);
   }, [customerOfRequest]);
   const [errors, setErrors] = useState<Errors>({});
+  const [belowReason, setBelowReason] = useState("");
 
   // A quote has no place of its own: the kilos left are those in all the places (D-144).
   const activePlaces = (locations.data ?? []).filter((option) => option.is_active).map((option) => option.id);
@@ -230,6 +233,17 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
 
   if (!canWriteQuotes(session)) return <Navigate to="/devis" replace />;
 
+  // Rows whose price after the discount is under the product's minimum (D-163): the owner and the manager may
+  // accept them with a reason, the others must correct them (D-193).
+  const canApprove = session.role === "owner" || session.role === "manager";
+  const belowCount = filled(lines).filter((line) =>
+    netUnderMinimum(
+      line,
+      priceOf(line),
+      (products.data ?? []).find((p) => String(p.id) === line.product)?.min_price ?? null,
+    ),
+  ).length;
+
   // Browser-side preview of the server's amounts (D-050): gross, discount, net per line.
   const priced = lines.flatMap((line) => amountsOf(line, priceOf(line)) ?? []);
   const subtotal = sum(priced.map((preview) => preview.gross));
@@ -271,6 +285,8 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
         discount_rate: rate,
       });
     });
+    if (belowCount > 0 && canApprove && !belowReason.trim())
+      found.below_minimum_reason = t("admin.lines.floor.required");
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     save.mutate({
@@ -283,6 +299,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
         notes: notes.trim(),
         lines: payloadLines,
         send_now: sendNow,
+        below_minimum_reason: belowCount > 0 && canApprove ? belowReason.trim() : "",
       },
       approve,
     });
@@ -407,6 +424,14 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
             </dl>
           </div>
         </Card>
+
+        <BelowMinimumReason
+          count={belowCount}
+          canApprove={canApprove}
+          reason={belowReason}
+          onReason={setBelowReason}
+          error={errors.below_minimum_reason}
+        />
 
         <Card>
           <Field label={t("admin.quotes.form.notes")} htmlFor={id("notes")} error={errors.notes}>

@@ -7,7 +7,7 @@ test.use({ storageState: OWNER_STATE });
 
 async function openSuppliers(page: Page) {
   await page.goto("/");
-  await page.getByRole("link", { name: "Fournisseurs" }).click();
+  await page.getByRole("link", { name: "Fournisseurs", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Fournisseurs", level: 1 })).toBeVisible();
 }
 

@@ -1339,6 +1339,17 @@ export const fr = {
       partnerWith: "Partenaire : {{name}}",
       noPartner: "Sans partenaire",
       amount: "Montant",
+      // D-193 · price floor
+      noMinimum: "Aucun prix minimum : la remise n'est pas contrôlée.",
+      underMinimum: "Après remise : {{net}} par kg, sous le minimum ({{minimum}}).",
+      floor: {
+        title: "Prix sous le minimum",
+        refused:
+          "Seul le propriétaire ou le gérant peut accepter un prix sous le minimum. Corrigez la remise ou le prix.",
+        reason: "Raison de l'accord",
+        reasonHint: "Obligatoire : {{count}} ligne(s) sous le minimum. La raison est gardée dans le journal.",
+        required: "Indiquez la raison pour accepter ce prix.",
+      },
       remove: "Retirer la ligne {{number}}",
       keys: "Entrée : case suivante · ↑ ↓ : changer de ligne · Ctrl + Suppr : retirer la ligne",
     },

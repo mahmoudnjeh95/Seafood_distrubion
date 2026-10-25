@@ -470,3 +470,20 @@ def test_a_driver_loaded_for_clients_is_offered_only_those_clients_and_the_walk_
         (after[1]["name"], False),
     ]
     assert after[1]["is_walk_in"] is True
+
+
+def test_a_manager_may_sell_under_the_minimum_with_a_reason(api, organization, customer, counter, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+    receive(organization, crevette, counter, "10")
+    lines = [{"product": crevette.pk, "quantity": "1", "unit_price": "42.000", "discount_rate": "10.00"}]
+
+    refused = create(api, counter, lines, customer=customer.pk)
+    approved = create(
+        api, counter, lines, customer=customer.pk, below_minimum_reason="Accord du gérant", confirm_now=True
+    )
+
+    assert refused.status_code == 400
+    assert "lines.0.discount_rate" in refused.json()
+    assert approved.status_code == 201
+    assert approved.json()["lines"][0]["below_minimum"] is True

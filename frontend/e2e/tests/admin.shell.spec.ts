@@ -24,7 +24,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Devis",
     "Ventes & factures",
     "Factures",
-    "Règlements",
+    "Règlements clients",
     "Clients",
     "Prix du jour",
     "Stock frigo & camions",
@@ -32,6 +32,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Journées chauffeurs",
     "Produits",
     "Achats",
+    "Règlements fournisseurs",
     "Fournisseurs",
     "Documents",
     "Charges",
@@ -46,11 +47,11 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
   ]);
   await expect(modules.getByRole("link", { name: "Tableau de bord" })).toHaveAttribute("aria-current", "page");
 
-  await modules.getByRole("link", { name: "Clients" }).click();
+  await modules.getByRole("link", { name: "Clients", exact: true }).click();
 
   await expect(page).toHaveURL(/\/clients$/);
   await expect(page.getByRole("heading", { name: "Clients", level: 1 })).toBeVisible();
-  await expect(modules.getByRole("link", { name: "Clients" })).toHaveAttribute("aria-current", "page");
+  await expect(modules.getByRole("link", { name: "Clients", exact: true })).toHaveAttribute("aria-current", "page");
 });
 
 test("the theme switch changes the whole page and is remembered", async ({ page }, testInfo) => {

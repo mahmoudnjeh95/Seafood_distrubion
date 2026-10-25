@@ -75,6 +75,17 @@ export function amountsOf(line: Line, price: string): Amounts | null {
   return { gross, discount, amount: subtract(gross, discount) };
 }
 
+/** The price per kg once the row's discount is taken off, when that is under the product's minimum (D-163), else null.
+ * The server decides: this only warns while typing. */
+export function netUnderMinimum(line: Line, price: string, minimum: string | null): string | null {
+  if (!minimum) return null;
+  const unit = parseDecimalInput(price.trim(), 3);
+  const rate = line.discount_rate.trim() === "" ? "0" : parseDecimalInput(line.discount_rate.trim(), 2);
+  if (!unit || !rate || unit.startsWith("-") || rate.startsWith("-")) return null;
+  const net = subtract(unit, percentOf(unit, rate));
+  return toThousandths(net) > 0n && toThousandths(net) < toThousandths(minimum) ? net : null;
+}
+
 /** True when more kilos are typed than the place holds; never when the stock is not known. */
 export function isShort(typed: string, available: string | undefined): boolean {
   const quantity = parseDecimalInput(typed.trim(), 3);

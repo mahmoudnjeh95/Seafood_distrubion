@@ -438,3 +438,19 @@ def test_quotes_saved_at_once_never_share_a_number():
 
     assert failures == []
     assert sorted(numbers) == [f"DV-{YEAR}-0001", f"DV-{YEAR}-0002", f"DV-{YEAR}-0003", f"DV-{YEAR}-0004"]
+
+
+def test_a_quote_line_under_the_minimum_is_refused_unless_a_reason_is_given(organization, actor, customer, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+    lines = [{"product": crevette, "quantity": "5", "unit_price": "42.000", "discount_rate": "10.00"}]
+
+    with pytest.raises(ValidationError) as refused:
+        quote(organization, actor, customer, lines)
+    approved = quote(organization, actor, customer, lines, below_minimum_reason="Offre de lancement")
+
+    assert "lines.0.discount_rate" in errors_of(refused)
+    assert approved.total == Decimal("189.000")
+    trail = AuditLog.objects.get(action="quote.price_below_minimum_approved", target_id=str(approved.pk))
+    assert trail.after is not None
+    assert trail.after["reason"] == "Offre de lancement"

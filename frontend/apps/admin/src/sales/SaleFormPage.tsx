@@ -46,10 +46,12 @@ import {
   isZero,
   type Line,
   newLine,
+  netUnderMinimum,
   rateAsTyped,
   shownPrice,
   withSpare,
 } from "../lib/lines";
+import { BelowMinimumReason } from "../lib/BelowMinimumReason";
 import { LinesGrid } from "../lib/LinesGrid";
 import { addressOf } from "../transfers/formLines";
 import { canSell, localInputOf, momentOf, PAYMENT_METHODS, refreshAfterSale } from "./shared";
@@ -122,6 +124,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
     ),
   );
   const [errors, setErrors] = useState<Errors>({});
+  const [belowReason, setBelowReason] = useState("");
 
   // The sale leaves from one place: the seller picks products, and the place that holds them is found (D-144).
   const places = (locations.data ?? []).filter((option) => option.sells);
@@ -185,6 +188,17 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
 
   if (!canSell(session)) return <Navigate to="/ventes" replace />;
 
+  // Rows whose price after the discount is under the product's minimum (D-163): the owner and the manager may
+  // accept them with a reason, the others must correct them (D-193).
+  const canApprove = session.role === "owner" || session.role === "manager";
+  const belowCount = filled(lines).filter((line) =>
+    netUnderMinimum(
+      line,
+      priceOf(line),
+      (products.data ?? []).find((product) => String(product.id) === line.product)?.min_price ?? null,
+    ),
+  ).length;
+
   // Browser-side preview of the server's amounts: gross, discount, net per line.
   const priced = lines.flatMap((line) => amountsOf(line, priceOf(line)) ?? []);
   const subtotal = sum(priced.map((preview) => preview.gross));
@@ -235,6 +249,8 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
         products: needs.map((need) => nameOf(need.product)).join(", "),
       });
     }
+    if (belowCount > 0 && canApprove && !belowReason.trim())
+      found.below_minimum_reason = t("admin.lines.floor.required");
     setErrors(found);
     if (Object.keys(found).length > 0 || place === null) return;
     save.mutate({
@@ -249,6 +265,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
       payment_method: method === NO_METHOD ? "" : (method as SalePaymentMethodEnum),
       payment_reference: reference.trim(),
       confirm_now: confirmNow,
+      below_minimum_reason: belowCount > 0 && canApprove ? belowReason.trim() : "",
     });
   }
 
@@ -366,6 +383,14 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             </dl>
           </div>
         </Card>
+
+        <BelowMinimumReason
+          count={belowCount}
+          canApprove={canApprove}
+          reason={belowReason}
+          onReason={setBelowReason}
+          error={errors.below_minimum_reason}
+        />
 
         <Card className="grid grid-cols-4 items-start gap-4 max-[1000px]:grid-cols-2 max-[600px]:grid-cols-1">
           <CardTitle className="col-span-4 mb-0 max-[1000px]:col-span-2 max-[600px]:col-span-1">

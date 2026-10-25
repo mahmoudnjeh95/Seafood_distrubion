@@ -232,3 +232,16 @@ def test_another_organizations_quotes_and_customers_are_not_found(api, customer,
     assert create(api, stranger, [{"product": crevette.pk, "quantity": "1"}]).json() == {
         "customer": ["Client inconnu."]
     }
+
+
+def test_a_manager_may_quote_under_the_minimum_with_a_reason(api, customer, crevette):
+    crevette.min_price = Decimal("40.000")
+    crevette.save()
+    lines = [{"product": crevette.pk, "quantity": "5", "unit_price": "42.000", "discount_rate": "10.00"}]
+
+    refused = create(api, customer, lines)
+    approved = create(api, customer, lines, below_minimum_reason="Offre de lancement")
+
+    assert refused.status_code == 400
+    assert "lines.0.discount_rate" in refused.json()
+    assert approved.status_code == 201

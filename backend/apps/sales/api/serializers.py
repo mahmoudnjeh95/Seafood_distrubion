@@ -220,6 +220,9 @@ class QuoteWriteSerializer(serializers.Serializer[Any]):
     lines = QuoteLineWriteSerializer(many=True, allow_empty=True)
     # Mark it sent at once; otherwise it stays a draft.
     send_now = serializers.BooleanField(required=False, default=False)
+    # Owner or manager only: why a price after the discount may go under a product's minimum (D-193). Others'
+    # lines under the minimum are refused.
+    below_minimum_reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
 
 
 class QuoteRefuseSerializer(serializers.Serializer[Any]):
@@ -480,6 +483,8 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     lines = SaleLineWriteSerializer(many=True, allow_empty=True)
     # Confirm at once (the stock leaves); otherwise it stays a draft.
     confirm_now = serializers.BooleanField(required=False, default=False)
+    # Owner or manager only: why a price after the discount may go under a product's minimum (D-193).
+    below_minimum_reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
     # Accept going above the customer's credit limit (owner or manager only, when the company asks for
     # approval).
     approve_credit = serializers.BooleanField(required=False, default=False)

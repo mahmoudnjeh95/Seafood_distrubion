@@ -77,10 +77,17 @@ class OfficeView(APIView):
 # ---- Quotes (P2-T03) ----
 
 
-def _quote_fields(organization: Organization, data: dict[str, Any]) -> dict[str, Any]:
-    """The ids of a quote replaced by the rows they name in the organization; unknown ids are field errors."""
+def may_approve_below_minimum(membership: Membership) -> bool:
+    """Only the owner and the manager let a price go under a product's minimum, with a reason (D-193)."""
+    return membership.role in (Role.OWNER, Role.MANAGER)
+
+
+def _quote_fields(organization: Organization, data: dict[str, Any], *, may_approve: bool = False) -> dict[str, Any]:
+    """The ids of a quote replaced by the rows they name in the organization; unknown ids are field errors.
+    The reason to go under a minimum price counts only from someone who may approve it."""
     errors: dict[str, str] = {}
     fields = {key: value for key, value in data.items() if key != "send_now"}
+    fields["below_minimum_reason"] = data["below_minimum_reason"] if may_approve else ""
     try:
         fields["customer"] = partners.customer_of(organization, data["customer"])
     except ObjectDoesNotExist:
@@ -144,7 +151,9 @@ class QuoteListView(QuoteView, ListAPIView[Quote]):
         Errors of a line come back on `lines.<index>.<field>`."""
         serializer = QuoteWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = _quote_fields(self.organization, serializer.validated_data)
+        data = _quote_fields(
+            self.organization, serializer.validated_data, may_approve=may_approve_below_minimum(self.membership)
+        )
         quote = services.create_quote(organization=self.organization, actor=self.membership.user, **data)
         return _quote_answer(self.organization, quote.pk, status_code=status.HTTP_201_CREATED)
 
@@ -162,7 +171,9 @@ class QuoteDetailView(QuoteView):
         quote = self.quote(quote_id)
         serializer = QuoteWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = _quote_fields(self.organization, serializer.validated_data)
+        data = _quote_fields(
+            self.organization, serializer.validated_data, may_approve=may_approve_below_minimum(self.membership)
+        )
         services.update_quote(quote=quote, actor=self.membership.user, **data)
         return _quote_answer(self.organization, quote.pk)
 
@@ -324,6 +335,7 @@ class SaleView(OfficeView):
             "approve_credit": self.may_approve_credit(data["approve_credit"]),
             "boxes": data["boxes"],
             "delivery_address": data["delivery_address"],
+            "below_minimum_reason": data["below_minimum_reason"] if may_approve_below_minimum(self.membership) else "",
         }
 
     def may_approve_credit(self, asked: bool) -> bool:

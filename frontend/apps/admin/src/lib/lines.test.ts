@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { amountsOf, filled, isBlank, isShort, newLine, shownPrice, withSpare } from "./lines";
+import { amountsOf, filled, isBlank, isShort, netUnderMinimum, newLine, shownPrice, withSpare } from "./lines";
 
 test("a row is blank until a product is chosen or something is typed", () => {
   expect(isBlank(newLine())).toBe(true);
@@ -60,4 +60,13 @@ test("more kilos typed than the place holds is short; an unknown stock never is"
   expect(isShort("0,2", "0")).toBe(true);
   expect(isShort("abc", "5.000")).toBe(false);
   expect(isShort("5000", undefined)).toBe(false);
+});
+
+test("a price after the discount under the product's minimum is named; no minimum never warns", () => {
+  const discounted = newLine({ product: "4", discount_rate: "10" });
+  expect(netUnderMinimum(discounted, "42,000", "40.000")).toBe("37.800");
+  expect(netUnderMinimum(newLine({ product: "4", discount_rate: "2" }), "42,000", "40.000")).toBeNull();
+  expect(netUnderMinimum(newLine({ product: "4" }), "38,000", "40.000")).toBe("38.000");
+  expect(netUnderMinimum(discounted, "42,000", null)).toBeNull();
+  expect(netUnderMinimum(discounted, "", "40.000")).toBeNull();
 });

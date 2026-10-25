@@ -226,12 +226,14 @@ def _checked_lines(
     at: dt.datetime,
     errors: dict[str, str],
     typed_source: str = PriceSource.TYPED,
+    below_minimum_reason: str = "",
 ) -> list[dict[str, Any]]:
     """The lines' values once checked and priced; each problem is added to `errors` under the line's keys.
 
     Each line also says where its price comes from (`price_source`) and whether it is below the product's
     minimum price (`below_minimum`). A price once the discount is taken off may not go under that minimum: the
-    line is refused (D-163)."""
+    line is refused (D-163), unless an owner or manager gave a `below_minimum_reason` (D-193); the line is then
+    kept, flagged `below_minimum` and `approved_below_minimum`."""
     checked_lines: list[dict[str, Any]] = []
     seen: set[int] = set()
     for index, line in enumerate(lines):
@@ -266,10 +268,14 @@ def _checked_lines(
         if rate is not None and "unit_price" in checked and product is not None and product.min_price is not None:
             net = checked["unit_price"] * (100 - rate) / 100
             if net < product.min_price:
-                key = line_error_key(index, "discount_rate" if rate > 0 else "unit_price")
-                errors[key] = _("Le prix après remise ({net} DT/kg) est sous le minimum ({minimum} DT/kg).").format(
-                    net=money(net), minimum=product.min_price
-                )
+                if below_minimum_reason.strip():
+                    checked["below_minimum"] = True
+                    checked["approved_below_minimum"] = True
+                else:
+                    key = line_error_key(index, "discount_rate" if rate > 0 else "unit_price")
+                    errors[key] = _("Le prix après remise ({net} DT/kg) est sous le minimum ({minimum} DT/kg).").format(
+                        net=money(net), minimum=product.min_price
+                    )
         if "quantity" in checked and "unit_price" in checked and rate is not None:
             checked.update(priced_line(checked["quantity"], checked["unit_price"], rate))
         checked_lines.append(checked)
@@ -283,6 +289,7 @@ def _prepared(
     quoted_on: dt.date,
     valid_until: dt.date | None,
     lines: Sequence[QuoteLineFields],
+    below_minimum_reason: str = "",
 ) -> tuple[dt.date, list[dict[str, Any]]]:
     """The validity date and the checked lines of a quote, or a ValidationError with every problem at once."""
     if valid_until is None:
@@ -290,7 +297,9 @@ def _prepared(
     errors = _header_errors(organization, customer, location, quoted_on, valid_until)
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
-    checked_lines = _checked_lines(organization, customer, lines, moment_of(quoted_on), errors)
+    checked_lines = _checked_lines(
+        organization, customer, lines, moment_of(quoted_on), errors, below_minimum_reason=below_minimum_reason
+    )
     if errors:
         raise ValidationError(errors)
     return valid_until, checked_lines
@@ -345,6 +354,39 @@ def _snapshot(quote: Quote) -> dict[str, Any]:
     }
 
 
+def _record_floor_approval(
+    *,
+    organization: Organization,
+    actor: User | None,
+    target: Quote | Sale,
+    reason: str,
+    checked_lines: list[dict[str, Any]],
+) -> None:
+    """Audit the lines an owner or manager let go under the product's minimum price, with their reason (D-193)."""
+    approved = [values for values in checked_lines if values.get("approved_below_minimum")]
+    if not approved:
+        return
+    prefix = "quote" if isinstance(target, Quote) else "sale"
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action=f"{prefix}.price_below_minimum_approved",
+        target=target,
+        after={
+            "reason": reason.strip(),
+            "lines": [
+                {
+                    "product": values["product"].pk,
+                    "unit_price": str(values["unit_price"]),
+                    "discount_rate": str(values["discount_rate"]),
+                    "minimum": str(values["product"].min_price),
+                }
+                for values in approved
+            ],
+        },
+    )
+
+
 @transaction.atomic
 def create_quote(
     *,
@@ -358,6 +400,7 @@ def create_quote(
     notes: str = "",
     client_uuid: uuid.UUID | None = None,
     send: bool = False,
+    below_minimum_reason: str = "",
 ) -> Quote:
     """Prepare a quote as a draft; with `send`, also mark it sent (one transaction).
 
@@ -369,7 +412,9 @@ def create_quote(
         existing = Quote.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
         if existing is not None:
             return existing
-    valid_until, checked_lines = _prepared(organization, customer, location, quoted_on, valid_until, lines)
+    valid_until, checked_lines = _prepared(
+        organization, customer, location, quoted_on, valid_until, lines, below_minimum_reason
+    )
     quote = Quote.objects.create(
         organization=organization,
         number=_next_yearly_number(organization, QUOTE_SERIES, timezone.localdate().year),
@@ -383,6 +428,9 @@ def create_quote(
     )
     _write_lines(quote, checked_lines)
     audit.record(organization=organization, actor=actor, action="quote.created", target=quote, after=_snapshot(quote))
+    _record_floor_approval(
+        organization=organization, actor=actor, target=quote, reason=below_minimum_reason, checked_lines=checked_lines
+    )
     if send:
         return send_quote(quote=quote, actor=actor)
     return quote
@@ -420,12 +468,15 @@ def update_quote(
     location: "StockLocation | None" = None,
     notes: str = "",
     send: bool = False,
+    below_minimum_reason: str = "",
 ) -> Quote:
     """Change a draft: customer, place, dates, notes and lines (all replaced). With `send`, send it too."""
     quote = _locked_draft(quote)
     organization = quote.organization
     before = _snapshot(quote)
-    valid_until, checked_lines = _prepared(organization, customer, location, quoted_on, valid_until, lines)
+    valid_until, checked_lines = _prepared(
+        organization, customer, location, quoted_on, valid_until, lines, below_minimum_reason
+    )
     quote.customer = customer
     quote.location = location
     quote.quoted_on = quoted_on
@@ -441,6 +492,9 @@ def update_quote(
         target=quote,
         before=before,
         after=_snapshot(quote),
+    )
+    _record_floor_approval(
+        organization=organization, actor=actor, target=quote, reason=below_minimum_reason, checked_lines=checked_lines
     )
     if send:
         return send_quote(quote=quote, actor=actor)
@@ -646,12 +700,13 @@ def _prepared_sale(
     lines: Sequence[SaleLineFields],
     payment: PaymentFields,
     typed_source: str = PriceSource.TYPED,
+    below_minimum_reason: str = "",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The checked lines and payment of a sale, or a ValidationError with every problem at once."""
     errors = _sale_header_errors(organization, customer, location, sold_at)
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
-    checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source)
+    checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source, below_minimum_reason)
     _checked_batches(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
     paid = _checked_payment(total, payment, errors)
@@ -784,6 +839,7 @@ def create_sale(
     stock_held_since: bool = False,
     delivery_address: str | None = None,
     transfer: "Transfer | None" = None,
+    below_minimum_reason: str = "",
 ) -> Sale:
     """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
 
@@ -800,7 +856,9 @@ def create_sale(
     if customer is None:
         customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     sold_at = sold_at or timezone.now()
-    checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
+    checked_lines, paid = _prepared_sale(
+        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason
+    )
     box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
         organization=organization,
@@ -818,6 +876,9 @@ def create_sale(
     _write_sale_lines(sale, checked_lines, paid)
     _write_sale_boxes(sale, box_counts)
     audit.record(organization=organization, actor=actor, action="sale.created", target=sale, after=_sale_snapshot(sale))
+    _record_floor_approval(
+        organization=organization, actor=actor, target=sale, reason=below_minimum_reason, checked_lines=checked_lines
+    )
     if confirm:
         return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit, stock_held_since=stock_held_since)
     return sale
@@ -1102,6 +1163,7 @@ def update_sale(
     approve_credit: bool = False,
     boxes: Mapping[str, object] | None = None,
     delivery_address: str | None = None,
+    below_minimum_reason: str = "",
 ) -> Sale:
     """Change a draft: customer, place, moment, notes, payment, lines and boxes (all replaced). With `confirm`,
     confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment.
@@ -1117,7 +1179,9 @@ def update_sale(
     sold_at = sold_at or sale.sold_at
     # A sale made from a quote keeps "quote" as the source of the prices typed again from it.
     typed_source = PriceSource.QUOTE if sale.quote_id is not None else PriceSource.TYPED
-    checked_lines, paid = _prepared_sale(organization, customer, location, sold_at, lines, payment or {}, typed_source)
+    checked_lines, paid = _prepared_sale(
+        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason
+    )
     box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
     sale.customer = customer
     sale.location = location
@@ -1142,6 +1206,9 @@ def update_sale(
         target=sale,
         before=before,
         after=_sale_snapshot(sale),
+    )
+    _record_floor_approval(
+        organization=organization, actor=actor, target=sale, reason=below_minimum_reason, checked_lines=checked_lines
     )
     if sale.delivery_status == DeliveryStatus.TO_DELIVER:
         # The BL on the road changes (D-178): a new version, and what it says now is what is to deliver.
@@ -1636,6 +1703,8 @@ def create_sale_from_quote(
         quote=quote,
         typed_source=PriceSource.QUOTE,
         confirm=confirm,
+        # The quote already passed the price floor, or an owner let it go (D-193): its prices are agreed.
+        below_minimum_reason="devis",
     )
     audit.record(
         organization=quote.organization,
