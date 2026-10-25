@@ -65,7 +65,7 @@ test("more kilos typed than the place holds is short; an unknown stock never is"
 test("a price after the discount under the product's minimum is named; no minimum never warns", () => {
   const discounted = newLine({ product: "4", discount_rate: "10" });
   expect(netUnderMinimum(discounted, "42,000", "40.000")).toBe("37.800");
-  expect(netUnderMinimum(newLine({ product: "4", discount_rate: "5" }), "42,000", "40.000")).toBeNull();
+  expect(netUnderMinimum(newLine({ product: "4", discount_rate: "2" }), "42,000", "40.000")).toBeNull();
   expect(netUnderMinimum(newLine({ product: "4" }), "38,000", "40.000")).toBe("38.000");
   expect(netUnderMinimum(discounted, "42,000", null)).toBeNull();
   expect(netUnderMinimum(discounted, "", "40.000")).toBeNull();

@@ -354,7 +354,6 @@ def _snapshot(quote: Quote) -> dict[str, Any]:
     }
 
 
-@transaction.atomic
 def _record_floor_approval(
     *,
     organization: Organization,
@@ -388,6 +387,7 @@ def _record_floor_approval(
     )
 
 
+@transaction.atomic
 def create_quote(
     *,
     organization: Organization,
@@ -492,6 +492,9 @@ def update_quote(
         target=quote,
         before=before,
         after=_snapshot(quote),
+    )
+    _record_floor_approval(
+        organization=organization, actor=actor, target=quote, reason=below_minimum_reason, checked_lines=checked_lines
     )
     if send:
         return send_quote(quote=quote, actor=actor)
@@ -1203,6 +1206,9 @@ def update_sale(
         target=sale,
         before=before,
         after=_sale_snapshot(sale),
+    )
+    _record_floor_approval(
+        organization=organization, actor=actor, target=sale, reason=below_minimum_reason, checked_lines=checked_lines
     )
     if sale.delivery_status == DeliveryStatus.TO_DELIVER:
         # The BL on the road changes (D-178): a new version, and what it says now is what is to deliver.
