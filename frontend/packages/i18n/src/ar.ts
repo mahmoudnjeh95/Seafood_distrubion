@@ -18,6 +18,8 @@ export const ar: PartialTranslation = {
     cancel: "إلغاء",
     confirm: "تأكيد",
     confirmTitle: "تأكيد؟",
+    logoutTitle: "تسجيل الخروج؟",
+    logoutBody: "ستحتاج إلى إدخال اسم المستخدم وكلمة المرور من جديد.",
     back: "رجوع",
     comingSoon: "قريبًا",
     comingSoonBody: "ستُبنى هذه الشاشة في مرحلة قادمة من المشروع.",
@@ -295,6 +297,7 @@ export const ar: PartialTranslation = {
       ...plural("waiting", "عدد الإرسالات المنتظرة للشبكة: {{count}}"),
       refused: "رفض الخادم « {{what}} »: {{reason}}. تم إعلام المكتب.",
       understood: "فهمت",
+      ...plural("logoutWarning", "إرسالات لم تُبعث بعد: {{count}}. تسجيل الخروج الآن يمحوها من الهاتف."),
     },
     lateSale: {
       madeAt: "تم البيع يوم {{when}}: سيُسجَّل بهذا التاريخ وبسعر ذلك اليوم.",

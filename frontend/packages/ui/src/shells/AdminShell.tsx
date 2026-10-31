@@ -1,5 +1,5 @@
 import { useTranslation } from "@frutti/i18n";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 
 import { Button } from "../components/button";
@@ -7,6 +7,7 @@ import { Pill } from "../components/pill";
 import type { IconName } from "../icon-names";
 import { Icon } from "../icons";
 import { Brand } from "./Brand";
+import { LogoutDialog } from "./LogoutDialog";
 import { ThemeToggle } from "./ThemeToggle";
 
 export interface AdminNavGroup {
@@ -38,6 +39,7 @@ function initials(name: string): string {
 function BackLink({ nav }: { nav: AdminNavGroup[] }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const [leaving, setLeaving] = useState(false);
   const navigate = useNavigate();
   const entries = nav.flatMap((group) => group.items.map((item) => item.to));
   if (entries.includes(pathname.replace(/\/+$/, "") || "/")) return null;
@@ -107,7 +109,7 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
             size="icon"
             aria-label={t("common.logout")}
             title={t("common.logout")}
-            onClick={onLogout}
+            onClick={() => setLeaving(true)}
           >
             <Icon name="return" />
           </Button>
@@ -153,6 +155,7 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
           {children}
         </main>
       </div>
+      <LogoutDialog open={leaving} onOpenChange={setLeaving} onLogout={onLogout} />
     </div>
   );
 }

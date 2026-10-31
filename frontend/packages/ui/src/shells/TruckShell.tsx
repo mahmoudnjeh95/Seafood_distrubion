@@ -1,9 +1,10 @@
 import { useTranslation } from "@frutti/i18n";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { NavLink } from "react-router";
 
 import type { IconName } from "../icon-names";
 import { Icon } from "../icons";
+import { LogoutDialog } from "./LogoutDialog";
 
 export interface TruckTab {
   to: string;
@@ -25,11 +26,25 @@ interface Props {
   /** Shown before the logout button, e.g. the notification bell (D-175). */
   actions?: ReactNode;
   onLogout: () => void;
+  /** Said in the logout window instead of the plain question, e.g. actions not sent yet. */
+  logoutWarning?: ReactNode;
   children: ReactNode;
 }
 
 /** Driver frame: one phone-width column with a blue header, a scrolling body and a bottom tab bar. */
-export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, leading, actions, onLogout, children }: Props) {
+export function TruckShell({
+  tabs,
+  eyebrow,
+  title,
+  chips = [],
+  logoUrl,
+  leading,
+  actions,
+  onLogout,
+  logoutWarning,
+  children,
+}: Props) {
+  const [leaving, setLeaving] = useState(false);
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-bg min-[481px]:border-x min-[481px]:border-line">
@@ -50,7 +65,7 @@ export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, leading,
           {actions}
           <button
             type="button"
-            onClick={onLogout}
+            onClick={() => setLeaving(true)}
             aria-label={t("common.logout")}
             title={t("common.logout")}
             className="grid size-9 flex-none place-items-center rounded-full bg-white/15"
@@ -92,6 +107,7 @@ export function TruckShell({ tabs, eyebrow, title, chips = [], logoUrl, leading,
           </NavLink>
         ))}
       </nav>
+      <LogoutDialog open={leaving} onOpenChange={setLeaving} onLogout={onLogout} warning={logoutWarning} />
     </div>
   );
 }

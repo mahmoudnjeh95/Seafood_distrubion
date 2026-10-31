@@ -2809,3 +2809,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   total, as before. A payment error sits on its field, not in the red line at the bottom.
 - The quote's customer now says whether it is the walk-in client (`is_walk_in` on `QuoteCustomer`, read-only). The
   payment method has no default: a walk-in BL cannot be confirmed until one is chosen.
+
+**D-194 · Logging out asks first, in both apps (owner list 2026-10-31, item 4)** · accepted · 2026-10-31
+- The logout icon of the office and driver apps opens "Se déconnecter ?" (`LogoutDialog` in `@frutti/ui`) with
+  Annuler / Se déconnecter; nothing happens until the second button.
+- On the phone, logging out erases what is still waiting to be sent, so the window says how many sends are waiting
+  instead of the plain question.

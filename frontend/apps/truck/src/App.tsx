@@ -32,6 +32,7 @@ import { PriceNotice } from "./PriceNotice";
 import { PurchaseNotice } from "./PurchaseNotice";
 import { PurchasePage } from "./PurchasePage";
 import { usePriceWatch } from "./priceWatch";
+import { useQueue } from "./queue";
 import { SalePage } from "./SalePage";
 import { ScreenError } from "./ScreenError";
 import { StockPage } from "./StockPage";
@@ -125,6 +126,8 @@ function Shell({ session }: { session: Session }) {
   const tabs = useTabs();
   const logout = useLogout();
   const location = useLocation();
+  // Logging out erases what the phone still has to send, so the logout window says how much (D-194).
+  const waiting = useQueue().filter((item) => item.status === "pending").length;
   // The prices are watched on every screen, so a change is announced wherever the driver is (P3-T02).
   const stock = useTruckStock(session.truck !== null);
   usePriceWatch(stock.data);
@@ -139,6 +142,7 @@ function Shell({ session }: { session: Session }) {
       eyebrow={session.truck?.name ?? session.organization.name}
       title={t("truck.hello", { name: session.user.first_name || session.user.username })}
       actions={<NotificationCenter userId={session.user.id} tone="dark" />}
+      logoutWarning={waiting > 0 ? t("truck.sync.logoutWarning", { count: waiting }) : undefined}
       onLogout={() => {
         void forgetSavedData();
         forgetPoints();
