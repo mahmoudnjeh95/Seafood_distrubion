@@ -10,6 +10,7 @@ from django.utils.translation import gettext as _
 from apps.core import audit
 from apps.core.locks import lock_lot
 from apps.core.models import Organization, User
+from apps.core.money import display_money
 from apps.partnerships import selectors as partnerships
 from apps.partnerships import services as partnership_services
 
@@ -36,7 +37,8 @@ def _refusals(checks: list[selectors.ClosingCheck]) -> list[str]:
                 % {"count": check.count}
             )
         elif check.code == "customers_paid":
-            messages.append(_("Des clients doivent encore %(amount)s DT sur ce lot.") % {"amount": check.amount})
+            owed = display_money(check.amount or 0)
+            messages.append(_("Des clients doivent encore %(amount)s DT sur ce lot.") % {"amount": owed})
     return messages
 
 
@@ -168,7 +170,8 @@ def _book_late_adjustment(organization: Organization, actor: User | None, result
         lot_result_id=result.pk,
         amount=drift.pending_share,
         basis=drift.pending_basis,
-        note=_("Écart de %(amount)s DT sur le résultat du lot après sa clôture") % {"amount": drift.pending_basis},
+        note=_("Écart de %(amount)s DT sur le résultat du lot après sa clôture")
+        % {"amount": display_money(drift.pending_basis)},
     )
     return True
 

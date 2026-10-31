@@ -12,7 +12,7 @@ from django.utils.translation import gettext as _
 from apps.core import audit
 from apps.core.locks import lock_lot
 from apps.core.models import Organization, User
-from apps.core.money import Number, checked_amount
+from apps.core.money import Number, checked_amount, display_money
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
 
@@ -492,7 +492,7 @@ def settle_partnership(
         raise ValidationError(
             {
                 "payments": _("Les paiements (%(paid)s DT) doivent égaler le montant à régler (%(total)s DT).")
-                % {"paid": paid, "total": total}
+                % {"paid": display_money(paid), "total": display_money(total)}
             }
         )
 

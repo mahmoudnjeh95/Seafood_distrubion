@@ -247,7 +247,7 @@ def test_every_payment_problem_is_reported_at_once(organization, actor, supplier
         "allocations.2.invoice",
         "allocations.3.invoice",
     }
-    assert "1255.500" in caught.value.message_dict["allocations.0.amount"][0]
+    assert "1 255,500" in caught.value.message_dict["allocations.0.amount"][0]
     assert not SupplierPayment.objects.exists()
 
 
@@ -273,7 +273,7 @@ def test_an_advance_is_allocated_later(organization, actor, supplier, receive):
     services.allocate_payment(payment=advance, actor=actor, allocations=[{"invoice": first, "amount": "1255.500"}])
     with pytest.raises(ValidationError) as caught:
         services.allocate_payment(payment=advance, actor=actor, allocations=[{"invoice": second, "amount": "800"}])
-    assert "744.500" in caught.value.message_dict["allocations"][0]
+    assert "744,500" in caught.value.message_dict["allocations"][0]
     services.allocate_payment(payment=advance, actor=actor, allocations=[{"invoice": second, "amount": "744.5"}])
 
     assert (refreshed(first).status, refreshed(second).status) == ("paid", "partly_paid")

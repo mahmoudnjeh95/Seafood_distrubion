@@ -414,7 +414,7 @@ def test_more_given_than_the_purchase_is_worth_is_refused(organization, driver, 
         )
 
     assert set(caught.value.message_dict) == {"payments.1.amount"}
-    assert "1000.000" in caught.value.message_dict["payments.1.amount"][0]
+    assert "1 000,000" in caught.value.message_dict["payments.1.amount"][0]
     assert not FieldPurchase.objects.exists()
 
     # Exactly the amount is fine, and so is a lower price later as long as the money still fits.

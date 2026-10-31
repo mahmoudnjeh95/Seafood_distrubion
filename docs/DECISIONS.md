@@ -2872,3 +2872,10 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - "Stock par produit" has a "Cartes / Liste" switch. The list is one table: reference, product, total kg, one column per
   place holding stock, average and last purchase price, state; it sorts by product, total or average price.
 - The choice is remembered per browser (`localStorage`, best effort); cards stay the default.
+
+**D-199 · Every amount reads 1 250,000 DT, server messages included (owner list 2026-10-31, item 6)** · accepted · 2026-10-31
+- Audit: the two apps, the public site and the PDFs already format every shown amount with 3 decimals and a
+  thousands separator (`formatMoney`, `pdf_format.money`). The server's error messages did not ("1250.000 DT").
+- `core.money.display_money` gives the same format as the PDFs (narrow no-break space, comma, 3 decimals) and the
+  20 messages that name an amount use it (credit limit, payments over what is due, allocations, closing notes…).
+- Not changed: what a user types in an amount field stays as typed; the parser already accepts "1 250,5".

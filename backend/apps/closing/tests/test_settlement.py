@@ -99,7 +99,7 @@ def test_payments_must_add_up_and_nothing_is_posted_when_they_do_not(organizatio
 
     with pytest.raises(ValidationError) as short:
         settle(organization, actor, finished_lot, ("1000.000", "cash"))
-    assert "1286.000" in str(short.value.message_dict["payments"])
+    assert "1 286,000" in short.value.message_dict["payments"][0]
     with pytest.raises(ValidationError):
         settle(organization, actor, finished_lot, ("1286.0005", "cash"))
     with pytest.raises(ValidationError):

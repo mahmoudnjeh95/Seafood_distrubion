@@ -14,7 +14,7 @@ from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Membership, Organization, User
-from apps.core.money import MAX_AMOUNT, Number, checked_amount, money
+from apps.core.money import MAX_AMOUNT, Number, checked_amount, display_money, money
 
 from . import selectors
 from .models import (
@@ -537,7 +537,7 @@ def _checked_allocations(
         remaining = _remaining(record)
         if amount > remaining:
             errors[amount_key] = _("Il ne reste que %(remaining)s DT à payer sur cette paie.") % {
-                "remaining": max(remaining, ZERO)
+                "remaining": display_money(max(remaining, ZERO))
             }
             continue
         checked.append((record, amount))
@@ -545,7 +545,7 @@ def _checked_allocations(
     if available is not None and allocated > available:
         errors["allocations"] = _(
             "Les affectations (%(allocated)s DT) dépassent le montant disponible (%(available)s DT)."
-        ) % {"allocated": allocated, "available": available}
+        ) % {"allocated": display_money(allocated), "available": display_money(available)}
     return checked
 
 
