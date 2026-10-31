@@ -1,4 +1,5 @@
 import {
+  type DayOverviewPurchase,
   type DayOverviewRow,
   type DayOverviewSale,
   useGetDayOverview,
@@ -22,6 +23,7 @@ import {
   Th,
 } from "@frutti/ui";
 import { type ReactNode, useState } from "react";
+import { Link } from "react-router";
 
 import { ROUTE_MAP_ENABLED, RouteMap } from "./RouteMap";
 
@@ -32,6 +34,11 @@ const PHASE_TONES = {
   justification: "bad",
   reopened: "sea",
   approved: "good",
+} as const;
+const PURCHASE_TONES = {
+  submitted: "warn",
+  validated: "good",
+  refused: "bad",
 } as const;
 
 /** Millimes of a decimal string, so sums stay exact (never a float, ARCHITECTURE §4.1). */
@@ -112,6 +119,13 @@ function DayCard({ row, onOpen }: { row: DayOverviewRow; onOpen: () => void }) {
           />
           <Stat label={t("admin.dayOverview.cashLabel")} value={formatMoney(row.expected_cash)} />
           <Stat label={t("admin.dayOverview.expensesLabel")} value={formatMoney(row.expenses_total)} />
+          {row.purchases_count > 0 && (
+            <Stat
+              label={t("admin.dayOverview.purchasesLabel")}
+              value={formatMoney(row.purchases_total)}
+              hint={t("admin.dayOverview.purchasesCount", { count: row.purchases_count })}
+            />
+          )}
           <div>
             <p className="text-[0.75rem] font-semibold text-ink-2">{t("admin.dayOverview.deliveriesLabel")}</p>
             <Delivery done={row.deliveries_done} todo={row.deliveries_todo} />
@@ -288,6 +302,32 @@ function DayDialog({ id }: { id: number }) {
                         </Pill>
                       </Td>
                       <Td className="num text-end">{formatMoney(e.amount)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Section>
+
+          <Section title={`${t(`${k}.purchasesTitle`)} (${d.purchases.length})`}>
+            {d.purchases.length === 0 ? (
+              <p className="text-ink-2">{t(`${k}.purchasesEmpty`)}</p>
+            ) : (
+              <Table>
+                <tbody>
+                  {d.purchases.map((p) => (
+                    <tr key={p.id}>
+                      <Td>
+                        <Link className="font-semibold underline" to={`/achats/terrain/${p.id}`}>
+                          {p.number}
+                        </Link>
+                        <p className="text-[0.78rem] text-ink-2">{p.supplier_name}</p>
+                      </Td>
+                      <Td className="text-ink-2">{formatDateTime(p.made_at)}</Td>
+                      <Td>
+                        <Pill tone={PURCHASE_TONES[p.status]}>{t(`${k}.purchaseStatus.${p.status}`)}</Pill>
+                      </Td>
+                      <Td className="num text-end">{formatMoney(p.total)}</Td>
                     </tr>
                   ))}
                 </tbody>
