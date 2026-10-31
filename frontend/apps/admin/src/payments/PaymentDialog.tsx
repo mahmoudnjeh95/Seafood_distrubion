@@ -1,4 +1,4 @@
-import { createCustomerPayment, type SalePaymentMethodEnum } from "@frutti/api";
+import { createCustomerPayment, type CustomerPaymentMethodEnum, useListBanks } from "@frutti/api";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -20,10 +20,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
 import { fieldErrors } from "../lib/errors";
-import { PAYMENT_METHODS } from "../sales/shared";
-import { refreshAfterPayment, todayInput } from "./shared";
+import { CUSTOMER_PAYMENT_METHODS, isInstrumentMethod, lineErrors, refreshAfterPayment, todayInput } from "./shared";
 
-/** Register money received from a customer: it settles their oldest open sales first; the rest is credit. */
+/** Register money received from a customer, by one means: it settles their oldest open sales first; the rest is
+ * credit. A cheque or a traite asks its number, bank and échéance (D-197). */
 export function PaymentDialog({
   customer,
   owed,
@@ -38,9 +38,14 @@ export function PaymentDialog({
   const formId = useId();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState(owed && Number(owed) > 0 ? owed.replace(".", ",") : "");
-  const [method, setMethod] = useState<SalePaymentMethodEnum>("cash");
+  const [method, setMethod] = useState<CustomerPaymentMethodEnum>("cash");
   const [receivedOn, setReceivedOn] = useState(todayInput());
   const [reference, setReference] = useState("");
+  const [bank, setBank] = useState("");
+  const [dueOn, setDueOn] = useState("");
+  const [drawer, setDrawer] = useState("");
+  const banks = useListBanks();
+  const paper = isInstrumentMethod(method);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const mutation = useMutation({
@@ -52,10 +57,19 @@ export function PaymentDialog({
       }
       return createCustomerPayment({
         customer: customer.id,
-        amount: value,
-        method,
         received_on: receivedOn || null,
-        reference: reference.trim(),
+        lines: [
+          paper
+            ? {
+                method,
+                amount: value,
+                number: reference.trim(),
+                bank: bank ? Number(bank) : null,
+                due_on: dueOn || null,
+                drawer: drawer.trim(),
+              }
+            : { method, amount: value, reference: reference.trim() },
+        ],
       });
     },
     onSuccess: async (payment) => {
@@ -64,7 +78,7 @@ export function PaymentDialog({
       onClose();
     },
     onError: (failure) => {
-      const fromServer = fieldErrors(failure);
+      const fromServer = lineErrors(fieldErrors(failure), 0);
       if (Object.keys(fromServer).length > 0) setErrors(fromServer);
       else if (!(failure instanceof Error && failure.message === "invalid"))
         toast.error(t("admin.payments.dialog.error"));
@@ -92,12 +106,12 @@ export function PaymentDialog({
             />
           </Field>
           <Field label={t("admin.payments.dialog.method")} htmlFor={`${formId}-method`} error={errors.method}>
-            <Select value={method} onValueChange={(value) => setMethod(value as SalePaymentMethodEnum)}>
+            <Select value={method} onValueChange={(value) => setMethod(value as CustomerPaymentMethodEnum)}>
               <SelectTrigger id={`${formId}-method`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAYMENT_METHODS.map((value) => (
+                {CUSTOMER_PAYMENT_METHODS.map((value) => (
                   <SelectItem key={value} value={value}>
                     {t(`admin.sales.methods.${value}`)}
                   </SelectItem>
@@ -113,7 +127,11 @@ export function PaymentDialog({
               onChange={(event) => setReceivedOn(event.target.value)}
             />
           </Field>
-          <Field label={t("admin.payments.dialog.reference")} htmlFor={`${formId}-ref`} error={errors.reference}>
+          <Field
+            label={paper ? t("admin.payments.dialog.number") : t("admin.payments.dialog.reference")}
+            htmlFor={`${formId}-ref`}
+            error={paper ? errors.number : errors.reference}
+          >
             <Input
               id={`${formId}-ref`}
               value={reference}
@@ -122,6 +140,47 @@ export function PaymentDialog({
               autoComplete="off"
             />
           </Field>
+          {paper && (
+            <>
+              <Field label={t("admin.payments.dialog.bank")} htmlFor={`${formId}-bank`} error={errors.bank}>
+                <Select value={bank} onValueChange={setBank}>
+                  <SelectTrigger id={`${formId}-bank`}>
+                    <SelectValue placeholder={t("admin.payments.dialog.bankPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(banks.data ?? []).map((row) => (
+                      <SelectItem key={row.id} value={String(row.id)}>
+                        {row.code} · {row.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={t("admin.payments.dialog.dueOn")} htmlFor={`${formId}-due`} error={errors.due_on}>
+                <Input
+                  id={`${formId}-due`}
+                  type="date"
+                  value={dueOn}
+                  onChange={(event) => setDueOn(event.target.value)}
+                />
+              </Field>
+              <Field
+                label={t("admin.payments.dialog.drawer")}
+                htmlFor={`${formId}-drawer`}
+                error={errors.drawer}
+                className="col-span-2 max-[520px]:col-span-1"
+              >
+                <Input
+                  id={`${formId}-drawer`}
+                  value={drawer}
+                  maxLength={150}
+                  placeholder={customer.name}
+                  onChange={(event) => setDrawer(event.target.value)}
+                  autoComplete="off"
+                />
+              </Field>
+            </>
+          )}
         </div>
         {errors.customer && (
           <p role="alert" className="text-[0.85rem] text-bad">
