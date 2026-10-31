@@ -360,7 +360,8 @@ def _sale_line(sale: Any) -> dict[str, Any]:
 
 def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """Everything a driver's day holds, for the office: the figures, the sales made, the deliveries of the
-    loads (to do and done), the customer payments collected and the road expenses."""
+    loads (to do and done), the customer payments collected, the road expenses and the purchases at the port
+    (to check, checked or refused, D-214)."""
     start, end = fleet.day_window(driver_day)
     answer = day_answer(organization, driver_day)
     made = [
@@ -386,11 +387,24 @@ def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[st
         for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=driver_day.date)
         if start <= (e.made_at or e.created_at) < end
     ]
+    bought = purchasing.purchases_made_between(organization, buyer_id=driver_day.driver_id, start=start, end=end)
     return {
         **day_row(organization, driver_day),
         "closing": answer["closing"],
         "sales": [_sale_line(s) for s in made],
         "deliveries": [_sale_line(s) for s in deliveries],
+        "purchases": [
+            {
+                "id": purchase.pk,
+                "number": purchase.number,
+                "supplier_name": purchase.supplier.name if purchase.supplier else purchase.proposed_supplier,
+                "status": purchase.status,
+                "total": sum((line.amount for line in purchase.lines.all()), ZERO),
+                "cash": sum((p.amount for p in purchase.payments.all() if p.method == "cash"), ZERO),
+                "made_at": purchase.made_at or purchase.created_at,
+            }
+            for purchase in bought
+        ],
         "payments": [
             {
                 "id": p.pk,

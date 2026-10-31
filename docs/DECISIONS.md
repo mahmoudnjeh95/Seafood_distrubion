@@ -3058,6 +3058,20 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   still holds the cash until the next count); the owner may prefer the count to be required at the send instead.
   Purchase money is counted only when expected (no purchase money = no purchase count needed).
 
+**D-214 · A port purchase by a driver goes on the driver's truck, and shows on the day until the office checks it (changes D-176, D-158)** · accepted · 2026-10-31
+- **Owner report (2026-10-31):** "when the driver pays for a product it should be in his stock", and the purchase did
+  not appear in "Journées des chauffeurs" in the office app, although it needs the office's validation.
+- **Where the goods go:** the office form defaulted the place to the first cold room, and the driver never chose one.
+  `POST /my-field-purchases` now sets the place to the driver's truck of the purchase's day (`fleet.truck_of_driver`),
+  so it is the place on the purchase when the office checks it, and the validated receipt goes into that truck's stock.
+  A driver with no truck that day keeps no place: the office chooses, as before. The office may still change the place
+  before validating. Goods still do not count in stock before the office validates (D-176, Q28).
+- **Purchases on the day:** `purchasing.purchases_made_between` (the same span as the day's money, refused ones
+  included). `day_activity` lists them as `purchases` (number, supplier, status submitted / validated / refused, total,
+  cash given, time); the page's day dialog shows a "Achats au port" table linked to each purchase, and the day card shows
+  the purchases' total and count (refused ones excluded from the count, as in the money).
+- Provisional: the card shows no "to check" count yet; the status in the dialog is the only sign.
+- Existing purchases sent before this change keep no place (the form still defaults them to the first cold room).
 **D-215 · Supplier payment receipt PDF; several plan lines paid by one règlement (Phase 9, P9-T03c)** · accepted · 2026-10-31
 - A new document kind `supplier_receipt` ("Paiement fournisseur N° RF-…"): the shared header with the supplier as
   the party, the means (number, bank, échéance of each effet), the invoices settled and the advance left; "ANNULÉ"

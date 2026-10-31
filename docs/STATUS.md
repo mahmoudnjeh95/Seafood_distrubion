@@ -14,8 +14,8 @@ _Last updated: 2026-10-31 (P9-T04b merged, D-217; P9-T04c rejected effets built,
   (`purchasing.RejectedEffet`, `RejectedRelease`, migration `purchasing/0015`): the supplier and the invoices are owed
   again. Endorsing waits for Q29.
 - **Other work merged 2026-10-31 (other sessions):** D-194 to D-207 (owner list, PRs #217–#230), D-212 counter sale on
-  several lots (#235), D-213 the office alone counts the driver's cash (#239). D-214 (#238, truck purchase stock) is
-  still open in another session; the next free decision number is D-217.
+  several lots (#235), D-213 the office alone counts the driver's cash (#239). D-214 (#245, port purchases on the truck and
+  the day; replaces #238, still open, to close) awaits CI; the next free decision number is D-219.
 - **Earlier, check on staging:** D-193 price floor override, D-192 Règlements fournisseurs, D-191 general cost by day,
   D-190 payment in "Convertir en vente", D-189 UI units, D-188 site request → quote, D-187 Bilan des caisses, D-186
   public site, D-185 load BLs, D-184 empty truck, D-181 purchase paid limit, D-179 money confirm window.

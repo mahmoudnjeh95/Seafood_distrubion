@@ -13694,6 +13694,11 @@ components:
           items:
             $ref: '#/components/schemas/DayOverviewExpense'
           readOnly: true
+        purchases:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayOverviewPurchase'
+          readOnly: true
       required:
       - cash_received
       - closing
@@ -13720,6 +13725,7 @@ components:
       - phase
       - products
       - purchase_float
+      - purchases
       - purchases_cash
       - purchases_count
       - purchases_from_sales
@@ -13808,6 +13814,56 @@ components:
       - made_at
       - method
       - number
+    DayOverviewPurchase:
+      type: object
+      description: 'A purchase at the port made on the day: `status` is "submitted"
+        until the office validates or refuses it.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayOverviewPurchaseStatusEnum'
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        made_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cash
+      - id
+      - made_at
+      - number
+      - status
+      - supplier_name
+      - total
+    DayOverviewPurchaseStatusEnum:
+      enum:
+      - submitted
+      - validated
+      - refused
+      type: string
+      description: |-
+        * `submitted` - submitted
+        * `validated` - validated
+        * `refused` - refused
     DayOverviewRow:
       type: object
       description: 'One driver''s day for the office, running or sent: its money,
