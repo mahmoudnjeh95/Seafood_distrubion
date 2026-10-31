@@ -1,0 +1,20 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block heading %}Bordereau de remise{% endblock %}
+{% block body %}
+<p>{{ cheques }} chèque{{ cheques|pluralize }} et {{ bills }} traite{{ bills|pluralize }} remis à l'encaissement.</p>
+
+<table class="lines">
+  <thead><tr><th>#</th><th>Effet</th><th>Numéro</th><th>Banque tirée</th><th>Tireur</th><th>Échéance</th><th class="r">Montant</th></tr></thead>
+  <tbody>
+    {% for effet in effets %}
+    <tr><td class="num">{{ forloop.counter }}</td><td>{{ effet.kind }}</td><td class="num">{{ effet.number }}</td><td>{{ effet.bank }}</td><td>{{ effet.drawer }}</td><td class="num">{{ effet.due_on|date:"d/m/Y" }}</td><td class="r num">{{ effet.amount|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="totals num" style="margin-bottom: 6mm">
+  <div class="grand"><span>Total remis</span><span>{{ total|money }} DT</span></div>
+</div>
+{% if deposit.notes %}<div class="note"><h2>Remarques</h2><p>{{ deposit.notes|linebreaksbr }}</p></div>{% endif %}
+<p class="small muted" style="margin-top: 14mm">Cachet et signature de la banque :</p>
+{% endblock %}

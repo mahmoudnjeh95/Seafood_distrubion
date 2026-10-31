@@ -67,6 +67,48 @@ FIRST_STATUS = {
 }
 
 
+class Deposit(OrganizationScopedModel, TimeStampedModel):
+    """A remise en banque (bordereau, D-216): received effets handed to one of our banks on one day, to be cashed.
+
+    Numbered "RB-2026-0001" per organization and year. Never edited: an effet taken back from the bank
+    ("Retirer") stays listed on its bordereau with its own history.
+    """
+
+    number = models.CharField(max_length=20)
+    # The bank we hand the effets to (T05 replaces it with our bank account).
+    bank = models.ForeignKey(Bank, on_delete=models.PROTECT, related_name="deposits")
+    deposited_on = models.DateField()
+    notes = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-deposited_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="treasury_deposit_number_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class TreasuryCounter(OrganizationScopedModel):
+    """The last number given to a kind of treasury document in a year, locked while taken."""
+
+    kind = models.CharField(max_length=20)
+    year = models.PositiveIntegerField()
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "kind", "year"], name="treasury_counter_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.year} · {self.last_number}"
+
+
 class Instrument(OrganizationScopedModel, TimeStampedModel):
     """A cheque or a traite, received from a customer or issued to a supplier, followed until the bank pays it.
 
@@ -96,6 +138,8 @@ class Instrument(OrganizationScopedModel, TimeStampedModel):
     # The number of the règlement holding it ("RG-0042", "RF-0012").
     source_number = models.CharField(max_length=20, blank=True)
     notes = models.CharField(max_length=255, blank=True)
+    # The last remise en banque that took it (D-216); kept when it comes back to the portfolio.
+    deposit = models.ForeignKey(Deposit, null=True, blank=True, on_delete=models.PROTECT, related_name="instruments")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )

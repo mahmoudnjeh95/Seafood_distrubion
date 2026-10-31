@@ -106,17 +106,24 @@ cash only on the phone (as today, D-133).
 - [x] PDF "reçu de paiement fournisseur" (lines, effets, invoices), PDF and e-mail buttons on the detail page (D-215).
 - [x] "Payer" several plan lines at once from "Règlements fournisseurs" (tick boxes, "Payer la sélection", D-215).
 
-### P9-T04 · Portefeuille: the life of an effet · L
-- [ ] Page Trésorerie › Portefeuille: tabs À remettre (portfolio), En banque, Encaissés, Impayés, Émis (ours); filters
-      due day, bank, party, kind; totals; overdue in red.
-- [ ] Remise en banque: tick effets, choose our bank account and the day → a bordereau (`BR-…`) with its PDF.
-- [ ] Encaissé (one or many, the day the bank credited); Impayé (day, reason, bank charges): the customer owes again
-      the amount (new record, D-197), charges as an expense "Frais financiers", the invoices owe again.
+### P9-T04a · Portefeuille: remise en banque, encaissé, débité · M
+- [x] Page Trésorerie › Portefeuille (`/tresorerie/portefeuille`, D-216): tabs À remettre, En banque, Encaissés,
+      Émis (à débiter), Débités, Bordereaux; filters search, kind, bank, due days; totals (count, amount, late);
+      overdue in red; tick effets, an action bar with the steps of the tab.
+- [x] Remise en banque: tick effets in portfolio, choose the bank and the day → a bordereau `RB-2026-0001` (model
+      `Deposit`) with its PDF (document kind `bank_deposit`), opened at once; each effet "Remis en banque".
+- [x] Encaissé (one or many, the day the bank credited; also from the portfolio, cashed at the bank's counter);
+      Retirer de la banque (back to the portfolio); our effets Débité.
+- [x] Each change is an `InstrumentEvent` and an audit entry. Tests; vitest for the tabs.
+
+### P9-T04b · Portefeuille: impayé, restituer, endosser, rejeté · M
+- [ ] Impayé (day, reason, bank charges): the customer owes again the amount (new record, D-197), charges as an
+      expense "Frais financiers", the invoices owe again.
 - [ ] After an impayé: Restituer (paper given back), or replace it by a new règlement.
 - [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement (provisional: allowed
       for cheques and traites still in portfolio).
-- [ ] Issued effets: Débité (day), Rejeté (day, reason: the supplier is owed again).
-- [ ] Each change is an `InstrumentEvent` and an audit entry; notifications to the owner on an impayé.
+- [ ] Issued effets: Rejeté (day, reason: the supplier is owed again).
+- [ ] Notifications to the owner on an impayé.
 
 ### P9-T05 · Accounts and movements · L
 - [ ] `TreasuryAccount`: Caisse (one per organization, more allowed), bank accounts (bank, RIB, label), each driver's
