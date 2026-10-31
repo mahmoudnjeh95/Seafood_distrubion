@@ -2809,7 +2809,10 @@ def _plan_invoice(
     elif amount <= 0:
         errors[key] = _("Le montant doit être supérieur à zéro.")
     elif amount > due:
-        errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {"number": invoice.number, "due": due}
+        errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {
+            "number": invoice.number,
+            "due": display_money(due),
+        }
     else:
         left = amount
         for row, row_left in left_by_row:
