@@ -1,4 +1,5 @@
-"""Customer payments, balances, ageing and withholding certificates (P2-T06, D-062, D-063).
+"""Customer payments (règlements with several lines, D-197), balances, ageing and withholding certificates
+(P2-T06, D-062, D-063).
 
 Office data: the owner and the manager write, the accountant reads, drivers get 403 (collecting money on the
 phone is a later task).
@@ -25,6 +26,7 @@ from apps.core.api.pagination import PagedList
 from apps.partners import selectors as partners
 from apps.sales import payment_selectors, receivables, selectors, services
 from apps.sales.models import CustomerPayment, Invoice, WithholdingCertificate
+from apps.treasury import selectors as treasury
 
 from .payment_serializers import (
     AllocateWriteSerializer,
@@ -48,19 +50,47 @@ HISTORY_LIMIT = 200
 
 
 def _allocations(organization: Any, data: Any) -> Any:
-    """The sales named in a payment's allocations, as rows of the organization; unknown ones are field errors.
-    None stays None (allocate the oldest open sales first)."""
+    """The sales or invoices named in a payment's allocations, as rows of the organization; unknown ones are
+    field errors. None stays None (allocate the oldest open sales first)."""
     if data is None:
         return None
     errors: dict[str, str] = {}
     rows = []
     for index, item in enumerate(data):
+        if item.get("invoice") is not None:
+            try:
+                invoice = selectors.invoice_of(organization, item["invoice"])
+            except ObjectDoesNotExist:
+                errors[f"allocations.{index}.amount"] = _("Facture inconnue.")
+                continue
+            rows.append({"invoice": invoice, "amount": item["amount"]})
+            continue
         try:
             sale = selectors.sale_of(organization, item["sale"])
         except ObjectDoesNotExist:
             errors[f"allocations.{index}.amount"] = _("Vente inconnue.")
             continue
         rows.append({"sale": sale, "amount": item["amount"]})
+    if errors:
+        raise ValidationError(errors)
+    return rows
+
+
+def _lines(organization: Any, data: Any) -> Any:
+    """The règlement's lines with their bank as a row of the organization; an unknown bank is an error on
+    `lines.<index>.bank`. None stays None (the single `amount` and `method` make the line)."""
+    if data is None:
+        return None
+    errors: dict[str, str] = {}
+    rows = []
+    for index, item in enumerate(data):
+        bank = None
+        if item["bank"] is not None:
+            try:
+                bank = treasury.bank_of(organization, item["bank"])
+            except ObjectDoesNotExist:
+                errors[f"lines.{index}.bank"] = _("Banque inconnue.")
+        rows.append({**item, "bank": bank})
     if errors:
         raise ValidationError(errors)
     return rows
@@ -108,9 +138,11 @@ class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment])
         responses={201: CustomerPaymentDetailSerializer},
     )
     def post(self, request: Request) -> Response:
-        """Register a payment received from a customer (owner or manager). `allocations` empty or absent
-        settles their oldest open sales first; a list names the sales and amounts (an empty list keeps
-        everything as credit). Errors of a row come back on `allocations.<index>.amount`."""
+        """Register a règlement received from a customer (owner or manager). `lines` gives its means (cash,
+        cheques, traites with number, bank and échéance, transfer, card); without it, `amount` and `method` make
+        its one line. `allocations` empty or absent settles their oldest open sales first; a list names the sales
+        or invoices and amounts (an empty list keeps everything as credit). Errors of a row come back on
+        `lines.<index>.<field>` and `allocations.<index>.amount`."""
         serializer = CustomerPaymentWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -123,7 +155,8 @@ class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment])
             actor=self.membership.user,
             customer=customer,
             amount=data["amount"],
-            method=data["method"],
+            method=data.get("method", ""),
+            lines=_lines(self.organization, data["lines"]),
             received_on=data["received_on"],
             reference=data["reference"],
             notes=data["notes"],
