@@ -8,6 +8,8 @@ _Last updated: 2026-10-31 (D-213: the office alone counts the driver's cash; bra
   longer asks the driver to count the cash or the purchase money; it shows what they should hold, and only the office
   counts (`POST /day-closings/<id>/count`, "Enregistrer le comptage" in the closing window). The gap is office − expected;
   the driver never sees it. Migration `dayclose.0008`; the API client is regenerated.
+- **Counter sale, several lots (D-212, owner request 2026-10-31)** — branch `counter-sale-multi-lot` (PR #235), awaits CI and merge: a counter-sale line picks lots with the kilos from each (`SaleLinePick`, API `picks`), the rest oldest first; a single `batch` stays one pick of the whole line; migration `0022_sale_line_picks`. The till's lot cell opens a dialog to choose the lots.
+
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
   **Merged:** T01 (#223, D-197), T02 (#231, D-208), T03a (#234, D-210: "Nouveau règlement" pages, lines editor,
   Répartir, Banques). **P9-T03b on branch `payment-lists`** (awaits CI, D-211): supplier règlement void (migration

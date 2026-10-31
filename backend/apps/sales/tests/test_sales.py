@@ -373,12 +373,12 @@ def test_a_lot_picked_by_hand_overrides_fifo(organization, actor, customer, coun
         actor,
         customer,
         counter,
-        [{"product": crevette, "quantity": "2", "batch": new}],
+        [{"product": crevette, "quantity": "2", "picks": [{"batch": new, "quantity": "2"}]}],
         confirm=True,
     )
 
     line = confirmed.lines.get()
-    assert line.requested_batch == new
+    assert [(pick.batch, pick.quantity) for pick in line.picks.all()] == [(new, Decimal("2.000"))]
     assert [(row.batch, row.quantity) for row in line.batches.order_by("id")] == [(new, Decimal("2.000"))]
     assert on_hand(organization, counter, crevette) == Decimal("11.000")
     old_on_hand = StockOnHand.objects.get(location=counter, batch=old)
@@ -396,7 +396,7 @@ def test_a_short_lot_picked_by_hand_falls_back_to_the_other_lots_oldest_first(
         actor,
         customer,
         counter,
-        [{"product": crevette, "quantity": "5", "batch": short}],
+        [{"product": crevette, "quantity": "5", "picks": [{"batch": short, "quantity": "5"}]}],
         confirm=True,
     )
 
@@ -408,11 +408,63 @@ def test_a_short_lot_picked_by_hand_falls_back_to_the_other_lots_oldest_first(
     assert on_hand(organization, counter, crevette) == Decimal("7.000")
 
 
+def test_several_lots_picked_by_hand_then_the_rest_oldest_first(organization, actor, customer, counter, crevette):
+    old = receive(organization, crevette, counter, "3", cost="20.000", days_ago=2)
+    middle = receive(organization, crevette, counter, "4", cost="21.000", days_ago=1)
+    new = receive(organization, crevette, counter, "10", cost="22.000")
+
+    confirmed = sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        [
+            {
+                "product": crevette,
+                "quantity": "5",
+                "picks": [{"batch": new, "quantity": "2"}, {"batch": middle, "quantity": "1"}],
+            }
+        ],
+        confirm=True,
+    )
+
+    line = confirmed.lines.get()
+    assert [(row.batch, row.quantity) for row in line.batches.order_by("id")] == [
+        (new, Decimal("2.000")),
+        (middle, Decimal("1.000")),
+        (old, Decimal("2.000")),
+    ]
+    assert on_hand(organization, counter, crevette) == Decimal("12.000")
+    assert StockOnHand.objects.get(location=counter, batch=old).quantity == Decimal("1.000")
+
+
+def test_lots_picked_by_hand_asking_more_than_the_line_are_refused(organization, actor, customer, counter, crevette):
+    first = receive(organization, crevette, counter, "10")
+    second = receive(organization, crevette, counter, "10")
+    picks = [{"batch": first, "quantity": "3"}, {"batch": second, "quantity": "3"}]
+
+    with pytest.raises(ValidationError) as refused:
+        sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "5", "picks": picks}])
+
+    assert "lines.0.picks" in errors_of(refused)
+
+
+def test_a_lot_picked_twice_on_one_line_is_refused(organization, actor, customer, counter, crevette):
+    lot = receive(organization, crevette, counter, "10")
+    picks = [{"batch": lot, "quantity": "1"}, {"batch": lot, "quantity": "1"}]
+
+    with pytest.raises(ValidationError) as refused:
+        sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "2", "picks": picks}])
+
+    assert "lines.0.picks" in errors_of(refused)
+
+
 def test_a_lot_picked_by_hand_still_refuses_a_sale_short_of_stock_everywhere(
     organization, actor, customer, counter, crevette
 ):
     short = receive(organization, crevette, counter, "2")
-    draft = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "5", "batch": short}])
+    lines = [{"product": crevette, "quantity": "5", "picks": [{"batch": short, "quantity": "5"}]}]
+    draft = sale(organization, actor, customer, counter, lines)
 
     with pytest.raises(ValidationError) as refused:
         services.confirm_sale(sale=draft, actor=actor)
@@ -423,12 +475,14 @@ def test_a_lot_picked_by_hand_still_refuses_a_sale_short_of_stock_everywhere(
 
 def test_a_batch_not_of_the_lines_product_is_refused(organization, actor, customer, counter, crevette, calamar):
     other_product_batch = receive(organization, calamar, counter, "5")
-    draft_lines = [{"product": crevette, "quantity": "1", "batch": other_product_batch}]
+    draft_lines = [
+        {"product": crevette, "quantity": "1", "picks": [{"batch": other_product_batch, "quantity": "1"}]},
+    ]
 
     with pytest.raises(ValidationError) as refused:
         sale(organization, actor, customer, counter, draft_lines)
 
-    assert "lines.0.batch" in errors_of(refused)
+    assert "lines.0.picks" in errors_of(refused)
 
 
 def test_a_sale_short_of_stock_is_refused_as_a_whole_on_each_line(

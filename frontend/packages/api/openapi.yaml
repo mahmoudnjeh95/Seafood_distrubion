@@ -24614,6 +24614,17 @@ components:
       - quantity
       - revenue_amount
       - unit_cost
+    SaleLinePick:
+      type: object
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+      required:
+      - batch
+      - quantity
     SaleLineWrite:
       type: object
       description: 'A sale line as typed: the same fields as a quote line, the lot
@@ -24634,6 +24645,10 @@ components:
           type: integer
           minimum: 1
           nullable: true
+        picks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleLinePick'
       required:
       - product
       - quantity

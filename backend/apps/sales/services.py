@@ -56,6 +56,7 @@ from .models import (
     SaleBoxLine,
     SaleLine,
     SaleLineBatch,
+    SaleLinePick,
     SalePaymentMethod,
     SaleRevision,
     SaleRevisionKind,
@@ -603,6 +604,13 @@ SALE_SERIES = "VE"
 DELIVERY_NOTE_PREFIX = "BL"
 
 
+class LotPickFields(TypedDict):
+    """A lot picked by hand for a sale line, and the kilos to take from it first (D-121, D-208)."""
+
+    batch: "Batch"
+    quantity: Number
+
+
 class SaleLineFields(TypedDict, total=False):
     product: "Product"
     quantity: Number
@@ -612,6 +620,8 @@ class SaleLineFields(TypedDict, total=False):
     discount_rate: Number | None
     # Picked by hand instead of FIFO (D-121); empty takes the oldest lot first, as always.
     batch: "Batch | None"
+    # Several lots picked by hand, each with its kilos (D-208); they take precedence over `batch`.
+    picks: Sequence[LotPickFields]
 
 
 class QuoteDeliveryFields(TypedDict):
@@ -703,6 +713,45 @@ def _checked_batches(
             checked["requested_batch"] = batch
 
 
+def _checked_picks(
+    organization: Organization,
+    lines: Sequence[SaleLineFields],
+    checked_lines: list[dict[str, Any]],
+    errors: dict[str, str],
+) -> None:
+    """Check each sale line's lots picked by hand (D-208): of that organization and the line's product, each lot
+    once, with kilos above zero, and together no more kilos than the line asks. A single `batch` (D-121) is one
+    pick of the line's whole weight.
+
+    Mutates `checked_lines` in place, adding `picks` as `[(batch, kg)]` (empty keeps FIFO, the default).
+    """
+    for index, (line, checked) in enumerate(zip(lines, checked_lines, strict=True)):
+        key = line_error_key(index, "picks")
+        product = checked.get("product")
+        picks: list[tuple[Batch, Decimal]] = []
+        if line.get("picks"):
+            for pick in line["picks"]:
+                batch = pick["batch"]
+                try:
+                    kg = checked_quantity(pick["quantity"])
+                except (ValueError, TypeError):
+                    errors.setdefault(key, _("Indiquez un poids en kg pour chaque lot, supérieur à zéro."))
+                    continue
+                if batch.organization_id != organization.pk:
+                    errors.setdefault(key, _("Lot inconnu."))
+                elif product is not None and batch.product_id != product.pk:
+                    errors.setdefault(key, _("Ce lot ne correspond pas au produit de la ligne."))
+                elif any(batch.pk == picked.pk for picked, _kg in picks):
+                    errors.setdefault(key, _("Un lot ne peut être choisi qu'une fois par ligne."))
+                else:
+                    picks.append((batch, kg))
+        elif checked.get("requested_batch") is not None and "quantity" in checked:
+            picks = [(checked["requested_batch"], checked["quantity"])]
+        checked["picks"] = picks
+        if "quantity" in checked and sum((kg for _batch, kg in picks), Decimal("0")) > checked["quantity"]:
+            errors.setdefault(key, _("Les lots choisis dépassent le poids de la ligne."))
+
+
 def _prepared_sale(
     organization: Organization,
     customer: "Customer",
@@ -719,6 +768,7 @@ def _prepared_sale(
         errors["lines"] = _("Ajoutez au moins un produit.")
     checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source, below_minimum_reason)
     _checked_batches(organization, lines, checked_lines, errors)
+    _checked_picks(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
     paid = _checked_payment(total, payment, errors)
     if errors:
@@ -770,23 +820,29 @@ def _post_sale_boxes(sale: Sale, actor: User | None, kind: str, *, from_customer
 
 def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dict[str, Any]) -> None:
     """Replace the lines and set the sale's totals and payment from them (no VAT yet: P2-T05)."""
-    SaleLine.objects.bulk_create(
+    new_lines = [
+        SaleLine(
+            organization_id=sale.organization_id,
+            sale=sale,
+            product=values["product"],
+            quantity=values["quantity"],
+            unit_price=values["unit_price"],
+            price_source=values["price_source"],
+            below_minimum=values["below_minimum"],
+            requested_batch=values.get("requested_batch"),
+            discount_rate=values["discount_rate"],
+            gross_amount=values["gross_amount"],
+            discount_amount=values["discount_amount"],
+            amount=values["amount"],
+        )
+        for values in checked_lines
+    ]
+    SaleLine.objects.bulk_create(new_lines)
+    SaleLinePick.objects.bulk_create(
         [
-            SaleLine(
-                organization_id=sale.organization_id,
-                sale=sale,
-                product=values["product"],
-                quantity=values["quantity"],
-                unit_price=values["unit_price"],
-                price_source=values["price_source"],
-                below_minimum=values["below_minimum"],
-                requested_batch=values.get("requested_batch"),
-                discount_rate=values["discount_rate"],
-                gross_amount=values["gross_amount"],
-                discount_amount=values["discount_amount"],
-                amount=values["amount"],
-            )
-            for values in checked_lines
+            SaleLinePick(organization_id=sale.organization_id, line=line, batch=batch, quantity=kg)
+            for line, values in zip(new_lines, checked_lines, strict=True)
+            for batch, kg in values["picks"]
         ]
     )
     sale.subtotal = sum((values["gross_amount"] for values in checked_lines), Decimal("0.000"))
@@ -1395,11 +1451,11 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
 def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_since: bool = False) -> None:
     """Take the line's kilos out of the sale's place and keep which batches went.
 
-    Oldest batch first (FIFO, the default) unless a lot was picked by hand (D-121): that lot is then taken
-    from first and, if it is not enough, the rest still comes from the other lots, oldest first — stock
-    never goes negative. The till warns beforehand when the picked lot looks short. The movements are dated
-    at the sale's moment; with `stock_held_since`, a sale of an earlier day takes only kilos the place has
-    held since that day (D-133).
+    Oldest batch first (FIFO, the default) unless lots were picked by hand (D-121, D-208): each picked lot gives
+    the kilos picked from it, and the rest still comes from the other lots, oldest first — stock never goes
+    negative. The till warns beforehand when a picked lot looks short. The movements are dated at the sale's
+    moment; with `stock_held_since`, a sale of an earlier day takes only kilos the place has held since that
+    day (D-133).
     """
     movements = inventory.post_fifo_movements(
         organization=sale.organization,
@@ -1411,7 +1467,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_sin
         reason=sale.number,
         source=line,
         occurred_at=sale.sold_at,
-        prefer_batch_id=line.requested_batch_id,
+        picks=[(pick.batch_id, pick.quantity) for pick in line.picks.order_by("id")],
         held_since_then=stock_held_since,
     )
     revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
