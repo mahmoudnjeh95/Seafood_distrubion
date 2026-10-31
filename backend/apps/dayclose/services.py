@@ -193,8 +193,15 @@ def approve_day_closing(
     closing = _reviewable(closing)
     if selectors.changed_since_sent(closing):
         raise ValidationError(CHANGED_SINCE_SENT)
-    if office_counted_cash is not None:
-        _set_office_count(closing, office_counted_cash, office_counted_purchase_cash)
+    # A count sent with the approval replaces the saved one; a figure left out keeps what was saved.
+    cash = office_counted_cash if office_counted_cash is not None else closing.office_counted_cash
+    purchase = (
+        office_counted_purchase_cash
+        if office_counted_purchase_cash is not None
+        else closing.office_counted_purchase_cash
+    )
+    if cash is not None:
+        _set_office_count(closing, cash, purchase)
     if closing.office_counted_cash is None:
         raise ValidationError({"office_counted_cash": _("Comptez l'argent du chauffeur avant d'approuver.")})
     if closing.expected_purchase_cash > 0 and closing.office_counted_purchase_cash is None:

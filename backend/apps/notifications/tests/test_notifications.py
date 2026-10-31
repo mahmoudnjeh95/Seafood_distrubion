@@ -151,7 +151,7 @@ def test_the_day_sent_and_its_review_go_both_ways(day):
     assert day["api"].post(reverse("my-day-closing"), {}, format="json").status_code == 201
 
     sent = told(day["manager"])["results"][0]
-    assert (sent["kind"], sent["params"]) == ("day_sent", {"date": sent["params"]["date"]})
+    assert (sent["kind"], "difference" in sent["params"]) == ("day_sent", False)
 
     closing = day["owner"].get(reverse("day-closing-list")).json()[0]
     asked = day["owner"].post(

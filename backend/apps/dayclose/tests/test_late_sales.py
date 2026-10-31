@@ -229,7 +229,8 @@ def test_a_time_in_the_future_is_refused(loaded, ahead):
 
 def approve(road, day):
     closing = services.submit_day_closing(driver_day=road[day], actor=road["driver"].user)
-    return services.approve_day_closing(closing=closing, actor=road["actor"], office_counted_cash=Decimal("50.000"))
+    # The office counts what the driver should hold: no gap, so no note is needed.
+    return services.approve_day_closing(closing=closing, actor=road["actor"], office_counted_cash=closing.expected_cash)
 
 
 def test_a_sale_of_a_day_the_office_approved_is_refused_in_plain_words(loaded):

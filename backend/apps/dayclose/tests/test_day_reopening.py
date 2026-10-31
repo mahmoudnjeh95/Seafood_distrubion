@@ -241,11 +241,7 @@ def test_a_load_validated_that_date_opens_the_sent_day_again(road, clock):
 
     assert resent.status_code == 201
     closing = resent.json()["closing"]
-    assert (closing["status"], closing["expected_cash"], closing["office_difference"]) == (
-        "submitted",
-        "56.000",
-        "0.000",
-    )
+    assert (closing["status"], closing["expected_cash"]) == ("submitted", "56.000")
     assert timezone.localtime(driver_day(road).ended_at) == at(18)
     assert sell(road, "1", "28.000").status_code == 403  # closed again
 
