@@ -201,10 +201,15 @@ def closing_of(driver_day: "DriverDay") -> DayClosing | None:
 
 def day_answer(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """A driver's day as the phone shows it: the figures as sent once the closing is sent (they do not move,
-    D-134; the office's correction moves them, D-220), the day's records before. The records are shown only while
-    the day runs: a new load reopened it, and the next send keeps them."""
+    D-134; the office's correction moves them, D-220), the day's records before. The records are shown again whenever
+    the driver is about to send again, since they are what the new send will keep: a new load reopened the day, or
+    the office asked for a justification. A day whose records moved is corrected by the office, not sent again
+    (D-220); its phone shows the records as they are now."""
     closing = closing_of(driver_day)
-    as_sent = closing is not None and closing.status != DayClosingStatus.REOPENED
+    as_sent = closing is not None and (
+        closing.status == DayClosingStatus.APPROVED
+        or (closing.status == DayClosingStatus.SUBMITTED and not changed_since_sent(closing))
+    )
     summary = closing.summary if closing is not None and as_sent else day_summary(organization, driver_day)
     return {"summary": summary, "closing": closing}
 
