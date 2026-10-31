@@ -10,6 +10,18 @@
   </div>
 </div>
 
+{% if lines|length > 1 or lines.0.due_on %}
+<h2>Moyens de paiement</h2>
+<table class="lines">
+  <thead><tr><th>Moyen</th><th>Numéro</th><th>Banque</th><th>Échéance</th><th class="r">Montant</th></tr></thead>
+  <tbody>
+    {% for line in lines %}
+    <tr><td>{{ line.method_label }}</td><td class="num">{{ line.number }}</td><td>{{ line.bank }}</td><td class="num">{% if line.due_on %}{{ line.due_on|date:"d/m/Y" }}{% endif %}</td><td class="r num">{{ line.amount|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 <div class="totals num" style="margin-bottom: 6mm">
   <div class="grand"><span>Montant reçu</span><span>{{ payment.amount|money }} DT</span></div>
 </div>
