@@ -33,7 +33,7 @@ export function todayInput(): string {
 /** The means a customer may settle with, in the order the forms offer them (`mixed` names a règlement only). */
 export const CUSTOMER_PAYMENT_METHODS: CustomerPaymentMethodEnum[] = ["cash", "cheque", "bill", "transfer", "card"];
 
-/** A cheque or a traite: an effet with a number, a bank and an échéance, followed by the treasury (D-196). */
+/** A cheque or a traite: an effet with a number, a bank and an échéance, followed by the treasury (D-197). */
 export function isInstrumentMethod(method: CustomerPaymentMethodEnum): boolean {
   return method === "cheque" || method === "bill";
 }

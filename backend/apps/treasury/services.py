@@ -1,4 +1,4 @@
-"""Every write of the treasury: banks, effets (cheques and traites) and their moves (D-196)."""
+"""Every write of the treasury: banks, effets (cheques and traites) and their moves (D-197)."""
 
 import datetime as dt
 from collections.abc import Sequence
@@ -52,7 +52,7 @@ DEFAULT_BANKS = (
     ("POSTE", "La Poste Tunisienne"),
 )
 
-# The furthest an échéance may be from the day the effet is handed over (provisional, D-196).
+# The furthest an échéance may be from the day the effet is handed over (provisional, D-197).
 MAX_DUE_DAYS = 365
 
 # The moves an effet may make (T04 writes most of them; T01 only cancels).

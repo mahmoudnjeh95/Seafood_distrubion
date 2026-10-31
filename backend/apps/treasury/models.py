@@ -1,4 +1,4 @@
-"""Treasury: banks, cheques and traites (effets) and their life (D-196, P9-T01).
+"""Treasury: banks, cheques and traites (effets) and their life (D-197, P9-T01).
 
 An effet is written by the règlement that holds it (a customer payment line, later a supplier payment line) through
 `services.register_instrument`; this app never reads the règlement's tables, it keeps the règlement's number.
@@ -77,7 +77,7 @@ class Instrument(OrganizationScopedModel, TimeStampedModel):
     direction = models.CharField(max_length=10, choices=InstrumentDirection.choices)
     kind = models.CharField(max_length=10, choices=InstrumentKind.choices)
     number = models.CharField(max_length=50)
-    # Empty only for a cheque taken over from a payment recorded before D-196 ("à compléter").
+    # Empty only for a cheque taken over from a payment recorded before D-197 ("à compléter").
     bank = models.ForeignKey(Bank, null=True, blank=True, on_delete=models.PROTECT, related_name="instruments")
     # The person or company whose name signs it (tireur); for an issued effet, ours.
     drawer = models.CharField(max_length=150, blank=True)

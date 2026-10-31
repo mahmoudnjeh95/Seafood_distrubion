@@ -23,7 +23,7 @@ import { fieldErrors } from "../lib/errors";
 import { CUSTOMER_PAYMENT_METHODS, isInstrumentMethod, lineErrors, refreshAfterPayment, todayInput } from "./shared";
 
 /** Register money received from a customer, by one means: it settles their oldest open sales first; the rest is
- * credit. A cheque or a traite asks its number, bank and échéance (D-196). */
+ * credit. A cheque or a traite asks its number, bank and échéance (D-197). */
 export function PaymentDialog({
   customer,
   owed,

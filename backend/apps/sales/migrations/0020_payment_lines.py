@@ -9,12 +9,12 @@ import datetime as dt
 from django.utils import timezone
 
 # A cheque received within this many days before the migration goes to the portfolio for the office to follow;
-# an older one is taken as cashed (D-196).
+# an older one is taken as cashed (D-197).
 RECENT_CHEQUE_DAYS = 30
 
 
 def add_lines(apps, schema_editor):
-    """Every payment recorded before D-196 gets its one line; a cheque gets its effet in the treasury, bank empty
+    """Every payment recorded before D-197 gets its one line; a cheque gets its effet in the treasury, bank empty
     ("à compléter"): in portfolio when recent, taken as cashed when older, cancelled when the payment was voided."""
     CustomerPayment = apps.get_model("sales", "CustomerPayment")
     CustomerPaymentLine = apps.get_model("sales", "CustomerPaymentLine")

@@ -7,5 +7,5 @@ class TreasuryConfig(AppConfig):
     verbose_name = "Trésorerie"
 
     def ready(self) -> None:
-        # A new organization gets the list of Tunisian banks (D-196).
+        # A new organization gets the list of Tunisian banks (D-197).
         from . import signals  # noqa: F401

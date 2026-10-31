@@ -935,7 +935,7 @@ export const ListCustomerPaymentsResponse = zod.object({
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
   "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
-}).describe('The cheque or traite of a payment line, as the treasury follows it (D-196).'),zod.null()])
+}).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
   "reference": zod.string(),
@@ -1040,7 +1040,7 @@ export const CreateCustomerPaymentResponse = zod.object({
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
   "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
-}).describe('The cheque or traite of a payment line, as the treasury follows it (D-196).'),zod.null()])
+}).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
   "reference": zod.string(),
@@ -1112,7 +1112,7 @@ export const GetCustomerPaymentResponse = zod.object({
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
   "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
-}).describe('The cheque or traite of a payment line, as the treasury follows it (D-196).'),zod.null()])
+}).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
   "reference": zod.string(),
@@ -1197,7 +1197,7 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
   "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
-}).describe('The cheque or traite of a payment line, as the treasury follows it (D-196).'),zod.null()])
+}).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
   "reference": zod.string(),
@@ -1278,7 +1278,7 @@ export const VoidCustomerPaymentResponse = zod.object({
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
   "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
-}).describe('The cheque or traite of a payment line, as the treasury follows it (D-196).'),zod.null()])
+}).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
   "reference": zod.string(),

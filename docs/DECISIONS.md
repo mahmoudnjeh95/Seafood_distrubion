@@ -2824,7 +2824,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 **D-196 · "Transferts" is a side-menu entry under the driver's day (owner list 2026-10-31, item 14)** · accepted · 2026-10-31
 - Loading a truck belongs to the driver's day, so "Transferts" sits in the Marchandises group right under "Camions du
   jour" and "Journées chauffeurs", and is no longer a tab of Stock. The URLs stay `/stock/transferts…`, so old links work.
-**D-196 · Règlements with several means over several invoices, and a Trésorerie that follows every cheque and traite (Phase 9, P9-T01)** · accepted (provisional parts marked) · 2026-10-31
+**D-197 · Règlements with several means over several invoices, and a Trésorerie that follows every cheque and traite (Phase 9, P9-T01)** · accepted (provisional parts marked) · 2026-10-31
 - Owner request (2026-10-31): a customer settles several invoices at once with some cash, three traites and three cheques of
   different due days; the same for what we pay suppliers; and a treasury module that follows the payments. Plan in
   `docs/phases/09-treasury.md` (T01 to T07).

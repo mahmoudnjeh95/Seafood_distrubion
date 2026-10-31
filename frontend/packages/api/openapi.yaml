@@ -15255,7 +15255,7 @@ components:
     InstrumentRef:
       type: object
       description: The cheque or traite of a payment line, as the treasury follows
-        it (D-196).
+        it (D-197).
       properties:
         id:
           type: integer

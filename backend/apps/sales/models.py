@@ -905,7 +905,7 @@ def certificate_path(certificate: "WithholdingCertificate", filename: str) -> st
 
 
 class CustomerPaymentMethod(models.TextChoices):
-    """How a customer settles after the sale (D-196): the sale's methods, the traite, and `mixed` for a
+    """How a customer settles after the sale (D-197): the sale's methods, the traite, and `mixed` for a
     règlement whose lines use several of them."""
 
     CASH = "cash", _("Espèces")
@@ -925,7 +925,7 @@ INSTRUMENT_METHODS = frozenset({CustomerPaymentMethod.CHEQUE, CustomerPaymentMet
 class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
     """A règlement: money a customer paid after the sale, `RG-0001`... per organization.
 
-    It holds one or more lines (`CustomerPaymentLine`: some cash, cheques, traites...; D-196) whose sum is
+    It holds one or more lines (`CustomerPaymentLine`: some cash, cheques, traites...; D-197) whose sum is
     `amount`, and is allocated to one or more sales (`PaymentAllocation`); what is not allocated stays as the
     customer's credit and lowers their balance all the same. Never edited or deleted: a mistake is voided
     (reason, who, when) and typed again. What a customer paid on the spot, at the sale, stays on the sale
@@ -976,7 +976,7 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
 
 
 class CustomerPaymentLine(OrganizationScopedModel):
-    """One means of payment inside a règlement: some cash, a cheque, a traite, a transfer, a card (D-196).
+    """One means of payment inside a règlement: some cash, a cheque, a traite, a transfer, a card (D-197).
 
     A cheque or a traite is an effet of the treasury (`instrument`), followed there until the bank pays it.
     Written once with its règlement, never changed.

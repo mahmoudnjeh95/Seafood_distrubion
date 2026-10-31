@@ -1,4 +1,4 @@
-"""Customer payments (règlements with several lines, D-196), balances, ageing and withholding certificates
+"""Customer payments (règlements with several lines, D-197), balances, ageing and withholding certificates
 (P2-T06, D-062, D-063)."""
 
 from decimal import Decimal
@@ -27,7 +27,7 @@ class CustomerPaymentAllocationSerializer(serializers.Serializer[Any]):
 
 
 class InstrumentRefSerializer(serializers.Serializer[Any]):
-    """The cheque or traite of a payment line, as the treasury follows it (D-196)."""
+    """The cheque or traite of a payment line, as the treasury follows it (D-197)."""
 
     id = serializers.IntegerField(read_only=True)
     kind = serializers.ChoiceField(choices=treasury.INSTRUMENT_KIND_CHOICES, read_only=True)
@@ -166,7 +166,7 @@ class AllocateWriteSerializer(serializers.Serializer[Any]):
 
 class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     customer = serializers.IntegerField(min_value=1)
-    # The means of payment (D-196). Without them, `amount` and `method` (and `reference`) make the one line.
+    # The means of payment (D-197). Without them, `amount` and `method` (and `reference`) make the one line.
     lines = CustomerPaymentLineWriteSerializer(many=True, required=False, allow_null=True, default=None)
     # With `lines`, optional: when sent it must equal their sum.
     amount = serializers.CharField(required=False, allow_null=True, default=None)

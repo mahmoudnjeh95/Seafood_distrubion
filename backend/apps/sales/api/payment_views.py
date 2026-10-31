@@ -1,4 +1,4 @@
-"""Customer payments (règlements with several lines, D-196), balances, ageing and withholding certificates
+"""Customer payments (règlements with several lines, D-197), balances, ageing and withholding certificates
 (P2-T06, D-062, D-063).
 
 Office data: the owner and the manager write, the accountant reads, drivers get 403 (collecting money on the

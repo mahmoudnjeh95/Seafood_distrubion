@@ -1,4 +1,4 @@
-"""A règlement with several means (cash, cheques, traites...) spread over several invoices (D-196, P9-T01)."""
+"""A règlement with several means (cash, cheques, traites...) spread over several invoices (D-197, P9-T01)."""
 
 import datetime as dt
 from decimal import Decimal

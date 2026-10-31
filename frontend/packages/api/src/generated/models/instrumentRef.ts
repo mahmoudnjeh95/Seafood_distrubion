@@ -8,7 +8,7 @@ import type { InstrumentKindEnum } from './instrumentKindEnum';
 import type { InstrumentStatusEnum } from './instrumentStatusEnum';
 
 /**
- * The cheque or traite of a payment line, as the treasury follows it (D-196).
+ * The cheque or traite of a payment line, as the treasury follows it (D-197).
  */
 export interface InstrumentRef {
   readonly id: number;

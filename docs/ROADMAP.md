@@ -16,7 +16,7 @@ hands early instead of at the very end. Detailed tasks are in `docs/phases/`.
 | | **Milestone B** | **First month closed and partners paid from the app** | |
 | 7 | [Reporting & dashboards](phases/07-reporting.md) | Dashboards, reports, Excel/PDF exports, alerts | none |
 | 8 | [Scale & integrations](phases/08-scale.md) | Multi-company (confirmed goal), TTN e-invoicing (on hold), accounting export, customer portal | Q18 |
-| 9 | [Règlements & Trésorerie](phases/09-treasury.md) | Règlements with several means (cash, cheques, traites) over several invoices, portfolio of effets, bank and cash accounts, échéancier (D-196, owner 2026-10-31) | Q29 (provisional answers) |
+| 9 | [Règlements & Trésorerie](phases/09-treasury.md) | Règlements with several means (cash, cheques, traites) over several invoices, portfolio of effets, bank and cash accounts, échéancier (D-197, owner 2026-10-31) | Q29 (provisional answers) |
 
 ## Why this order
 

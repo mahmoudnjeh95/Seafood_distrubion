@@ -1,16 +1,16 @@
 # Project status
 
-_Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 built, D-196)_
+_Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 built, D-197)_
 
 ## Where we are
 
-- **Phase 9 · Règlements & Trésorerie (D-196, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
+- **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
   **P9-T01 done on branch `treasury-plan`** (awaits CI): new app `treasury` (banks seeded per organization, effets =
   cheques/traites with status history), customer règlement with several lines (`CustomerPaymentLine`, method `mixed`,
   Traite added), allocation by invoice, void cancels effets still in portfolio (refused once one moved on), data migration
   of old payments, `GET/POST /treasury/banks`, `PUT /treasury/banks/<id>`, `GET /treasury/instruments`; the existing
   payment window asks number, bank, échéance and drawer for a cheque or traite. API client regenerated.
-- **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat".
+- **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
 - **Recent work (2026-10-19 to 10-25), merged or awaiting merge, each to check on staging:** D-193 price floor override,
   D-192 Règlements fournisseurs (T16a–d, side menu), D-191 general cost by calendar day (provisional), D-190 payment in
   "Convertir en vente", D-189 UI units, D-188 site request → quote, site card alignment, D-187 Bilan des caisses.
@@ -27,7 +27,7 @@ _Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 bui
 ## Next step
 
 1. P9-T01: open the PR from `treasury-plan`, wait for green CI, rebase on `main` if another branch touched
-   `docs/STATUS.md`, `docs/DECISIONS.md` (renumber D-196 if taken; D-194 and D-195 went to logout and "Commande d'achat") or `sales` migrations (renumber `0020`), then merge.
+   `docs/STATUS.md`, `docs/DECISIONS.md` (renumber D-197 if taken; D-194 to D-196 went to logout, "Commande d'achat" and the Transferts menu) or `sales` migrations (renumber `0020`), then merge.
    On staging: a customer page → "Enregistrer un règlement" → Chèque, number, BIAT, échéance; the list shows its number;
    the same cheque again is refused; voiding it frees the number.
 2. **P9-T02** (next session, new branch from `main`): `SupplierPaymentLine`, `POST /supplier-payments` with `lines`,
@@ -39,7 +39,7 @@ _Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 bui
 
 ## Open owner decisions
 
-- Q29 (D-196, provisional): invoice paid when the effet is received or when cashed; the company's bank accounts; bank
+- Q29 (D-197, provisional): invoice paid when the effet is received or when cashed; the company's bank accounts; bank
   charges of an impayé; endorsing customer traites to suppliers.
 - Backups off-site and the private key (D-139); boxes opening balances (D-135); driver day cash handover (D-134);
   24-hour stale-price window (D-150), archived-record dropdowns (D-145), electricity bills (D-142); D-191 day rule.

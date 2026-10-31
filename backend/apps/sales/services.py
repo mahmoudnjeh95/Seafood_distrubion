@@ -2626,14 +2626,14 @@ MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
 
 
 class AllocationFields(TypedDict, total=False):
-    # One of the two: a sale (BL), or an invoice whose amount is spread over its BLs, oldest first (D-196).
+    # One of the two: a sale (BL), or an invoice whose amount is spread over its BLs, oldest first (D-197).
     sale: Sale
     invoice: Invoice
     amount: Number
 
 
 class PaymentLineFields(TypedDict, total=False):
-    """One means of payment of a règlement (D-196). A cheque or a traite also gives its number, bank, drawer
+    """One means of payment of a règlement (D-197). A cheque or a traite also gives its number, bank, drawer
     and échéance (`due_on`); other methods may give a reference."""
 
     method: str
@@ -2785,7 +2785,7 @@ def _plan_invoice(
     errors: dict[str, str],
     key: str,
 ) -> None:
-    """Spread `amount` over the open BLs of `invoice`, oldest first (D-196); an error on `key` when the invoice
+    """Spread `amount` over the open BLs of `invoice`, oldest first (D-197); an error on `key` when the invoice
     is not the customer's or owes less."""
     rows = sorted(
         (row for row in open_rows.values() if row.invoice_id == invoice.pk),
@@ -2890,7 +2890,7 @@ def record_customer_payment(
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
 ) -> CustomerPayment:
-    """Register a règlement received from a customer and allocate it (D-062, D-196).
+    """Register a règlement received from a customer and allocate it (D-062, D-197).
 
     `lines` gives its means (some cash, cheques, traites...): each cheque or traite becomes an effet of the
     treasury, in portfolio. Without `lines`, `amount`, `method` and `reference` make its one line (the driver

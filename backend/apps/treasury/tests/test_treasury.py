@@ -1,4 +1,4 @@
-"""Banks and effets (D-196, P9-T01)."""
+"""Banks and effets (D-197, P9-T01)."""
 
 import datetime as dt
 from decimal import Decimal

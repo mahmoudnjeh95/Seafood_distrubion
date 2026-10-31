@@ -1,4 +1,4 @@
-# Phase 9 · Règlements & Trésorerie (D-196)
+# Phase 9 · Règlements & Trésorerie (D-197)
 
 _Owner request of 2026-10-31._ A customer settles several invoices at once and pays with several means: some cash,
 three traites and three cheques, each with its own due date. The same for what we pay suppliers. Then every cheque
@@ -97,7 +97,7 @@ cash only on the phone (as today, D-133).
       due day, bank, party, kind; totals; overdue in red.
 - [ ] Remise en banque: tick effets, choose our bank account and the day → a bordereau (`BR-…`) with its PDF.
 - [ ] Encaissé (one or many, the day the bank credited); Impayé (day, reason, bank charges): the customer owes again
-      the amount (new record, D-196), charges as an expense "Frais financiers", the invoices owe again.
+      the amount (new record, D-197), charges as an expense "Frais financiers", the invoices owe again.
 - [ ] After an impayé: Restituer (paper given back), or replace it by a new règlement.
 - [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement (provisional: allowed
       for cheques and traites still in portfolio).
@@ -128,7 +128,7 @@ cash only on the phone (as today, D-133).
 - [ ] Supplier side: what we owe, and our effets not yet debited.
 - [ ] Rapprochement bancaire (import a bank statement and match it): backlog, only if the accountant asks.
 
-## Defaults chosen without the owner (provisional, D-196)
+## Defaults chosen without the owner (provisional, D-197)
 
 - Banks: the list of Tunisian banks is editable in Paramètres › Banques.
 - Drivers keep cash only on the phone; cheques and traites are entered at the office.

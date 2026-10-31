@@ -320,7 +320,7 @@ def test_another_company_sees_and_changes_nothing_of_this_one(seeded_company):
 
 
 # Lists that are never empty for a new company, and none of them holds the other company's rows: the expense
-# categories and the banks every company gets by default (D-196), its own member list, and the calendar of the last
+# categories and the banks every company gets by default (D-197), its own member list, and the calendar of the last
 # twelve months.
 OWN_DEFAULTS = {"/api/v1/expense-categories", "/api/v1/treasury/banks", "/api/v1/members", "/api/v1/months"}
 

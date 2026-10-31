@@ -1,4 +1,4 @@
-"""Read queries of the treasury: banks and effets (D-196)."""
+"""Read queries of the treasury: banks and effets (D-197)."""
 
 import datetime as dt
 
