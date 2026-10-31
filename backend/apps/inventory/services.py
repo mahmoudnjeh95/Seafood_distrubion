@@ -411,16 +411,17 @@ def post_fifo_movements(
     source: models.Model | None = None,
     client_uuid: uuid.UUID | None = None,
     occurred_at: dt.datetime | None = None,
-    prefer_batch_id: int | None = None,
+    picks: Sequence[tuple[int, Decimal]] = (),
     held_since_then: bool = False,
 ) -> list[StockMovement]:
     """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
 
     Used by transfers, sales and losses: nobody picks batches by hand (D-009) — except a sale line may ask
-    to take its kilos from one lot first (`prefer_batch_id`, D-121): that lot moves to the front of the
-    order, and if it is not enough the rest still comes from the other lots, oldest first, same as always
-    (never below zero). Every on-hand row of the product at both locations is locked first, in location
-    then batch order, the same order as `post_movement`, so two requests never wait for each other forever.
+    to take kilos from lots first (`picks`, `[(batch id, kg)]`, D-121, D-208): each picked lot gives the kilos
+    picked from it, and the rest still comes from the other lots, oldest first, same as always (never below
+    zero, a short lot topped up the same way). Every on-hand row of the product at both locations is locked
+    first, in location then batch order, the same order as `post_movement`, so two requests never wait for each
+    other forever.
     Refused as a whole (ValidationError per field) when the location holds less than asked in total. A
     `client_uuid` already used returns the movements it posted.
 
@@ -460,12 +461,10 @@ def post_fifo_movements(
         ),
         key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
     )
-    if prefer_batch_id is not None:
-        holdings = sorted(holdings, key=lambda row: row.batch_id != prefer_batch_id)
     limits = None
     if held_since_then and day < timezone.localdate():
         limits = selectors.least_held_since(organization, location_id=from_location.pk, product_id=product_id, day=day)
-    allocations = selectors.fifo_split(holdings, amount, limits)
+    allocations = selectors.picked_split(holdings, amount, picks, limits)
     if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
         available = sum((selectors.takeable(row, limits) for row in holdings), Decimal("0.000"))
         if limits is not None:

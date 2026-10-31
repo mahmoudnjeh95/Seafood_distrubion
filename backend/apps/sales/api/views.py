@@ -332,7 +332,15 @@ class SaleView(OfficeView):
                 except ObjectDoesNotExist:
                     errors[services.line_error_key(index, "batch")] = _("Lot inconnu.")
                     continue
-            lines.append({**line, "product": product, "batch": batch})
+            picks = []
+            for pick in line["picks"]:
+                try:
+                    pick_batch = inventory.batch_of(organization, pick["batch"])
+                except ObjectDoesNotExist:
+                    errors[services.line_error_key(index, "picks")] = _("Lot inconnu.")
+                    break
+                picks.append({"batch": pick_batch, "quantity": pick["quantity"]})
+            lines.append({**line, "product": product, "batch": batch, "picks": picks})
         if errors:
             raise ValidationError(errors)
         return {

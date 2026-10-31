@@ -588,6 +588,7 @@ export * from './saleDetailPaymentMethod';
 export * from './saleInvoiceRef';
 export * from './saleLine';
 export * from './saleLineBatch';
+export * from './saleLinePick';
 export * from './saleLineWrite';
 export * from './saleLocation';
 export * from './salePaymentMethod';

@@ -297,7 +297,7 @@ export function LinesGrid({
                     placeholder={blank ? t("admin.lines.productHint") : undefined}
                     value={line.product}
                     onValueChange={(product) =>
-                      setLine(line.key, { product, priceTouched: false, unit_price: "", batch: "" })
+                      setLine(line.key, { product, priceTouched: false, unit_price: "", batch: "", picks: [] })
                     }
                     onChosen={() => focusCell(row, "quantity")}
                     options={options}

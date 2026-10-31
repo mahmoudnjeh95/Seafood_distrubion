@@ -164,6 +164,27 @@ def test_line_errors_come_back_on_their_own_keys(api, organization, customer, co
     assert not Sale.objects.exists()
 
 
+def test_the_till_picks_several_lots_and_the_rest_comes_oldest_first(api, organization, customer, counter, crevette):
+    first = receive(organization, crevette, counter, "3")
+    second = receive(organization, crevette, counter, "10")
+    picks = [{"batch": second.pk, "quantity": "2"}]
+
+    response = create(
+        api,
+        counter,
+        [{"product": crevette.pk, "quantity": "4", "picks": picks}],
+        customer=customer.pk,
+        confirm_now=True,
+    )
+
+    assert response.status_code == 201
+    (line,) = response.json()["lines"]
+    assert [(row["batch"]["id"], row["quantity"]) for row in line["batches"]] == [
+        (second.pk, "2.000"),
+        (first.pk, "2.000"),
+    ]
+
+
 def test_a_draft_is_changed_confirmed_then_cancelled_with_a_reason(api, organization, customer, counter, crevette):
     receive(organization, crevette, counter, "10")
     draft = create(api, counter, [{"product": crevette.pk, "quantity": "1"}], customer=customer.pk).json()
