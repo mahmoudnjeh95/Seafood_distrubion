@@ -212,7 +212,7 @@ class MyCustomersView(APIView):
         responses=CustomerChoiceSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
-        """Active customers for a driver to sell to (name and city only, never what they owe: D-197): the ones
+        """Active customers for a driver to sell to (name and city only, never what they owe: D-207): the ones
         they sold to lately first, the walk-in customer last. Filter with `search`. At most 30 rows. When today's
         load of the driver's truck names clients, only those clients and the walk-in customer are listed (D-174)."""
         membership = membership_of(request)

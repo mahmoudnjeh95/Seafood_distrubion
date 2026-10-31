@@ -2824,8 +2824,45 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 **D-196 · "Transferts" is a side-menu entry under the driver's day (owner list 2026-10-31, item 14)** · accepted · 2026-10-31
 - Loading a truck belongs to the driver's day, so "Transferts" sits in the Marchandises group right under "Camions du
   jour" and "Journées chauffeurs", and is no longer a tab of Stock. The URLs stay `/stock/transferts…`, so old links work.
+**D-197 · Règlements with several means over several invoices, and a Trésorerie that follows every cheque and traite (Phase 9, P9-T01)** · accepted (provisional parts marked) · 2026-10-31
+- Owner request (2026-10-31): a customer settles several invoices at once with some cash, three traites and three cheques of
+  different due days; the same for what we pay suppliers; and a treasury module that follows the payments. Plan in
+  `docs/phases/09-treasury.md` (T01 to T07).
+- **Règlement = header + lines + allocations.** `CustomerPayment` stays the règlement (`RG-…`, customer, day, total, void);
+  `CustomerPaymentLine` holds each means (method, amount, reference, effet). `amount` is the sum of the lines; `method` is the
+  lines' method or `mixed` ("Plusieurs moyens"). Customer methods are `CustomerPaymentMethod` (the sale's four + `bill`
+  "Traite" + `mixed`); a sale paid on the spot keeps `SalePaymentMethod`. Allocation is per règlement, not per effet.
+- **Allocation by invoice.** An allocation row names a `sale` (BL) or an `invoice`; an invoice's amount is spread over its open
+  BLs oldest first (allocations stay per BL in the database, as D-062).
+- **New app `treasury`.** `Bank` (the Tunisian banks, seeded per organization, editable), `Instrument` (an effet: received or
+  issued, cheque or traite, number, bank, drawer, amount, issued day, due day, status, the customer or supplier, the
+  règlement's number) and `InstrumentEvent` (append-only status moves). Sales writes effets only through
+  `treasury.services.register_instrument`; treasury never imports sales (it keeps the règlement number as text). The
+  statuses and allowed moves are in `services.ALLOWED_MOVES`; T01 writes `portfolio` and `cancelled` only.
+- **Checks of an effet:** a cheque needs number and bank (no date: due the day received); a traite needs number, bank and a due
+  day not before the day received; a due day at most 365 days ahead (**provisional**); the same paper (kind, bank, number) of
+  the same customer is refused twice, also inside one règlement (a cancelled one may be typed again); a bank taken off the
+  list is refused.
+- **Voiding** a règlement cancels its effets still in the portfolio; refused once one moved on (at the bank, cashed, unpaid,
+  endorsed): T04 handles that paper's life (impayé = a new record, never an edit).
+- **Retenue à la source** is not a line: the invoice's certificate (D-063) already lowers what is owed.
+- **Old payments** (data migration `sales.0020`): each gets its one line; a cheque payment gets its effet with an empty bank
+  ("à compléter"), in the portfolio when received in the last 30 days, taken as cashed when older, cancelled when voided
+  (**provisional**: the office reviews the portfolio once T04 ships).
+- **API.** `POST /customer-payments` takes `lines` (1 to 50; errors on `lines.<i>.<field>`); without it, `amount` + `method` +
+  `reference` make the one line (driver app unchanged). With `lines`, an `amount` sent must equal their sum. Payments return
+  their `lines` with the effet and its status; search also finds an effet's number. `GET/POST /treasury/banks`,
+  `PUT /treasury/banks/<id>`, `GET /treasury/instruments` (direction, kind, statuses, party, due range, search). Office
+  roles as everywhere: owner/manager write, accountant reads, drivers 403.
+- **Office (T01, minimal):** the existing "Enregistrer un règlement" window asks number, bank, échéance and drawer for a cheque
+  or a traite and sends one line. The full multi-line page is T03. Receipt PDF lists the lines when there are several or an
+  effet.
+- **Defaults chosen without the owner (provisional, Q29):** banks editable in Paramètres › Banques (T03); drivers keep cash only
+  on the phone; driver cash moves to the Caisse at the approved day closing (T05); bank charges of an impayé or a deposit go to
+  expenses "Frais financiers"; the balance drops when an effet is received, with the encours shown next to it and checked
+  against the credit limit (T07).
 
-**D-197 · A driver never sees what a customer owes (owner list 2026-10-31, item 7)** · accepted · 2026-10-31
+**D-207 · A driver never sees what a customer owes (owner list 2026-10-31, item 7)** · accepted · 2026-10-31
 - Enforced on the server: `GET/POST /my-customers` no longer carries `owes`. The phone's "Encaisser" list shows the
   customer's name and city; the driver types the amount handed over (no pre-filled balance).
 - The credit-limit refusal, which named the balance and the limit, reads for a driver "Limite de crédit dépassée pour
