@@ -3209,7 +3209,7 @@ export const fr = {
         transfer: "Transfert",
         from: "Départ",
         to: "Arrivée",
-        date: "Jour",
+        date: "Date de fait",
         createdBy: "Préparé par",
         validatedBy: "Validé par",
         validatedAt: "Validé le",
