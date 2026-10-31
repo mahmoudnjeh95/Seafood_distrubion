@@ -444,15 +444,16 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             )}
             <Button
               disabled={count.isPending || data.changed_since_sent || officeCashValue === null}
-              onClick={() =>
+              onClick={() => {
+                if (officeCashValue === null) return;
                 count.mutate({
                   closingId: id,
                   data: {
                     office_counted_cash: officeCashValue,
                     office_counted_purchase_cash: hasPurchases ? officePurchaseValue : null,
                   },
-                })
-              }
+                });
+              }}
             >
               {t("admin.dayClosings.saveCount")}
             </Button>
