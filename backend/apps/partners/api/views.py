@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.http import Http404
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -214,9 +212,9 @@ class MyCustomersView(APIView):
         responses=CustomerChoiceSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
-        """Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
-        the walk-in customer last. Filter with `search`. At most 30 rows. When today's load of the driver's truck
-        names clients, only those clients and the walk-in customer are listed (D-174)."""
+        """Active customers for a driver to sell to (name and city only, never what they owe: D-197): the ones
+        they sold to lately first, the walk-in customer last. Filter with `search`. At most 30 rows. When today's
+        load of the driver's truck names clients, only those clients and the walk-in customer are listed (D-174)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         filters = CustomerFilterSerializer(data=request.query_params)
@@ -238,14 +236,12 @@ class MyCustomersView(APIView):
         recent = sales.recent_customer_ids(membership.organization, user_id=membership.user_id)
         rank = {customer_id: position for position, customer_id in enumerate(recent)}
         found.sort(key=lambda customer: (customer.is_walk_in, rank.get(customer.pk, len(rank)), customer.name))
-        owed = sales.owed_by_customer(membership.organization)
         rows = [
             {
                 "id": customer.pk,
                 "name": customer.name,
                 "city": customer.city,
                 "is_walk_in": customer.is_walk_in,
-                "owes": owed.get(customer.pk, Decimal("0.000")),
                 "on_load": customer.pk in loaded_for,
             }
             for customer in found[:30]
@@ -282,7 +278,6 @@ class MyCustomersView(APIView):
             "name": customer.name,
             "city": customer.city,
             "is_walk_in": False,
-            "owes": 0,
             "on_load": False,
         }
         return Response(CustomerChoiceSerializer(row).data, status=status.HTTP_201_CREATED)

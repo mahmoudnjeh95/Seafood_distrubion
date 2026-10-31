@@ -4604,8 +4604,6 @@ export const fr = {
     payment: {
       add: "Encaisser un règlement",
       who: "Qui vous donne de l'argent ?",
-      owes: "Doit {{amount}}",
-      owesNothing: "Ne doit rien",
       amount: "Montant reçu en espèces (DT)",
       save: "Enregistrer le règlement",
       saved: "Règlement enregistré.",

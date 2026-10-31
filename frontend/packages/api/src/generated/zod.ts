@@ -8465,9 +8465,9 @@ export const GetMyBoxDayResponse = zod.object({
 
 
 /**
- * Active customers for a driver to sell to (name and city only): the ones they sold to lately first,
- * the walk-in customer last. Filter with `search`. At most 30 rows. When today's load of the driver's truck
- * names clients, only those clients and the walk-in customer are listed (D-174).
+ * Active customers for a driver to sell to (name and city only, never what they owe: D-197): the ones
+ * they sold to lately first, the walk-in customer last. Filter with `search`. At most 30 rows. When today's
+ * load of the driver's truck names clients, only those clients and the walk-in customer are listed (D-174).
  */
 export const listMyCustomersQuerySearchDefault = ``;
 export const listMyCustomersQuerySearchMax = 100;
@@ -8480,7 +8480,6 @@ export const ListMyCustomersQueryParams = zod.object({
   "status": zod.enum(['active', 'archived', 'all']).default(listMyCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
 })
 
-export const listMyCustomersResponseOwesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyCustomersResponseOnLoadDefault = false;
 
 export const ListMyCustomersResponseItem = zod.object({
@@ -8488,7 +8487,6 @@ export const ListMyCustomersResponseItem = zod.object({
   "name": zod.string(),
   "city": zod.string(),
   "is_walk_in": zod.boolean(),
-  "owes": zod.stringFormat('decimal', listMyCustomersResponseOwesRegExp),
   "on_load": zod.boolean().default(listMyCustomersResponseOnLoadDefault)
 }).describe('The little a driver needs to pick a customer.')
 export const ListMyCustomersResponse = zod.array(ListMyCustomersResponseItem)
@@ -8514,7 +8512,6 @@ export const CreateMyCustomerBody = zod.object({
   "city": zod.string().max(createMyCustomerBodyCityMax).default(createMyCustomerBodyCityDefault)
 }).describe('What a driver types to add a customer: a name, and a phone and a city when they know them.')
 
-export const createMyCustomerResponseOwesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createMyCustomerResponseOnLoadDefault = false;
 
 export const CreateMyCustomerResponse = zod.object({
@@ -8522,7 +8519,6 @@ export const CreateMyCustomerResponse = zod.object({
   "name": zod.string(),
   "city": zod.string(),
   "is_walk_in": zod.boolean(),
-  "owes": zod.stringFormat('decimal', createMyCustomerResponseOwesRegExp),
   "on_load": zod.boolean().default(createMyCustomerResponseOnLoadDefault)
 }).describe('The little a driver needs to pick a customer.')
 
@@ -11306,7 +11302,7 @@ export const RestoreProductResponse = zod.object({
 
 
 /**
- * Purchase orders (bons d'achat), newest first, paginated, each with its lines (ordered, received
+ * Purchase orders (commandes d'achat), newest first, paginated, each with its lines (ordered, received
  * and remaining weight) and its receipts. Filter by supplier, status (`pending` = still waiting for
  * goods) or `search` (number, supplier's name).
  */
@@ -12534,7 +12530,7 @@ export const ListReceiptsResponse = zod.object({
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
  * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
- * against that bon d'achat: only its products, and only the part that arrived (partial receipts). With
+ * against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
  * `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
  */
 

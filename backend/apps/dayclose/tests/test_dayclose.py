@@ -20,6 +20,7 @@ from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners import services as partners
 from apps.sales import services as sales
 from apps.sales.models import Sale
+from apps.sales.receivables import customer_balance
 
 pytestmark = pytest.mark.django_db
 
@@ -409,8 +410,9 @@ def test_an_explained_or_exact_day_is_not_an_alert(day):
 
 def test_a_payment_collected_by_the_driver_counts_in_the_day_cash_and_is_recorded_once(day):
     sell(day, "5", "100.000")  # 140 DT, 40 left on credit
-    owed = {c["name"]: c["owes"] for c in day["api"].get(reverse("my-customers")).json()}
-    assert owed["Restaurant Le Port"] == "40.000"
+    listed = day["api"].get(reverse("my-customers")).json()
+    assert all("owes" not in c for c in listed)  # the driver never sees the balance (D-197)
+    assert customer_balance(day["customer"].organization, day["customer"].pk).balance == Decimal("40.000")
     body = {"customer": day["customer"].pk, "amount": "30.000", "method": "cash", "client_uuid": str(uuid4())}
 
     first = day["api"].post(reverse("my-payments"), body, format="json")
@@ -419,8 +421,7 @@ def test_a_payment_collected_by_the_driver_counts_in_the_day_cash_and_is_recorde
     assert first.status_code == 201
     assert again.json()["id"] == first.json()["id"]
     assert [p["amount"] for p in day["api"].get(reverse("my-payments")).json()] == ["30.000"]
-    owed = {c["name"]: c["owes"] for c in day["api"].get(reverse("my-customers")).json()}
-    assert owed["Restaurant Le Port"] == "10.000"
+    assert customer_balance(day["customer"].organization, day["customer"].pk).balance == Decimal("10.000")
     summary = day["api"].get(reverse("my-day-summary")).json()["summary"]
     assert (summary["payments_cash"], summary["expected_cash"]) == ("30.000", "180.000")  # 50 + 100 + 30
     assert (

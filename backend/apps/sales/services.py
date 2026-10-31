@@ -20,7 +20,7 @@ from apps.catalog import selectors as catalog
 from apps.core import audit
 from apps.core.clock import CLOCK_MARGIN
 from apps.core.images import reencoded_photo
-from apps.core.models import Organization, User
+from apps.core.models import Membership, Organization, Role, User
 from apps.core.money import Number, checked_amount, checked_quantity, line_total, money
 from apps.inventory import services as inventory
 from apps.partners import services as partners
@@ -1237,6 +1237,10 @@ class CreditApprovalRequired(ValidationError):
         self.over_by = over_by
 
 
+def _is_driver(user: User, organization: Organization) -> bool:
+    return Membership.objects.filter(user=user, organization=organization, role=Role.DRIVER, is_active=True).exists()
+
+
 def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool = False) -> None:
     """The customer's credit limit, checked at confirmation for every seller, drivers included (Q16, D-062).
 
@@ -1274,6 +1278,11 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
         "due": due,
         "limit": customer.credit_limit,
     }
+    if actor is not None and _is_driver(actor, sale.organization):
+        # A driver never reads what a customer owes (D-197): the refusal says what to do, not the balance.
+        message = _(
+            "Limite de crédit dépassée pour %(name)s : faites payer davantage sur place ou appelez le bureau."
+        ) % {"name": customer.name}
     if policy == CreditPolicy.WARN:
         sale.credit_status = CreditStatus.WARNED
         return

@@ -142,8 +142,6 @@ class CustomerChoiceSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(read_only=True)
     city = serializers.CharField(read_only=True)
     is_walk_in = serializers.BooleanField(read_only=True)
-    # What they owe now in DT ("0.000" when nothing).
-    owes = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # Loaded for today on the driver's truck (a BL made from the load, D-174): the list then holds only these
     # clients and the walk-in customer.
     on_load = serializers.BooleanField(read_only=True, default=False)

@@ -2824,3 +2824,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 **D-196 · "Transferts" is a side-menu entry under the driver's day (owner list 2026-10-31, item 14)** · accepted · 2026-10-31
 - Loading a truck belongs to the driver's day, so "Transferts" sits in the Marchandises group right under "Camions du
   jour" and "Journées chauffeurs", and is no longer a tab of Stock. The URLs stay `/stock/transferts…`, so old links work.
+
+**D-197 · A driver never sees what a customer owes (owner list 2026-10-31, item 7)** · accepted · 2026-10-31
+- Enforced on the server: `GET/POST /my-customers` no longer carries `owes`. The phone's "Encaisser" list shows the
+  customer's name and city; the driver types the amount handed over (no pre-filled balance).
+- The credit-limit refusal, which named the balance and the limit, reads for a driver "Limite de crédit dépassée pour
+  X : faites payer davantage sur place ou appelez le bureau." The office still gets the full message.
