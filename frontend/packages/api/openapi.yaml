@@ -2073,6 +2073,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExpenseCategory'
           description: ''
+    delete:
+      operationId: deleteExpenseCategory
+      description: Remove a category never used (owner only, D-205); a used one is
+        archived instead.
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - expense-categories
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/expenses:
     get:
       operationId: listExpenses
@@ -4761,8 +4778,9 @@ paths:
     post:
       operationId: addMyExpense
       description: |-
-        Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
-        of the day and waits for the office to approve it.
+        Enter an expense of today, with a photo of the receipt, paid with the day's cash, out of the driver's
+        pocket or by card (`paid_with`, D-205). It is a cost of the driver's truck of the day and waits for the
+        office to approve it.
       tags:
       - my-expenses
       requestBody:
@@ -12615,6 +12633,18 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        expenses_pocket:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        expenses_other:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         handed_over:
           type: string
           format: decimal
@@ -12730,6 +12760,8 @@ components:
       - expected_cash
       - expected_purchase_cash
       - expenses
+      - expenses_other
+      - expenses_pocket
       - expenses_total
       - handed_over
       - id
@@ -12883,6 +12915,18 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        expenses_pocket:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        expenses_other:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         handed_over:
           type: string
           format: decimal
@@ -12970,6 +13014,8 @@ components:
       - driver_name
       - expected_cash
       - expected_purchase_cash
+      - expenses_other
+      - expenses_pocket
       - expenses_total
       - handed_over
       - id
@@ -13240,6 +13286,18 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        expenses_pocket:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
+        expenses_other:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          default: '0.000'
         handed_over:
           type: string
           format: decimal
@@ -13307,6 +13365,8 @@ components:
       - driver_name
       - expected_cash
       - expected_purchase_cash
+      - expenses_other
+      - expenses_pocket
       - expenses_total
       - handed_over
       - on_credit
@@ -13984,8 +14044,12 @@ components:
         is_active:
           type: boolean
           readOnly: true
+        for_drivers:
+          type: boolean
+          readOnly: true
       required:
       - code
+      - for_drivers
       - id
       - is_active
       - name
@@ -14011,6 +14075,9 @@ components:
         name:
           type: string
           maxLength: 200
+        for_drivers:
+          type: boolean
+          default: false
       required:
       - name
     ExpenseDetail:
@@ -19454,6 +19521,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WebRequest'
+    PaidWithEnum:
+      enum:
+      - cash
+      - pocket
+      - card
+      type: string
+      description: |-
+        * `cash` - cash
+        * `pocket` - pocket
+        * `card` - card
     PartnerBalances:
       type: object
       description: 'The three balances of a partner, kept apart: never added together
@@ -19865,6 +19942,8 @@ components:
           type: string
           maxLength: 200
         is_active:
+          type: boolean
+        for_drivers:
           type: boolean
     PatchedLanguage:
       type: object
@@ -22391,12 +22470,21 @@ components:
         rejection_reason:
           type: string
           readOnly: true
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        paid_by_driver:
+          type: boolean
+          readOnly: true
       required:
       - amount
       - category_name
       - description
       - id
       - number
+      - paid_by_driver
+      - payment_method
       - rejection_reason
       - status
     RoadExpenseWrite:
@@ -22414,6 +22502,10 @@ components:
         receipt:
           type: string
           format: binary
+        paid_with:
+          allOf:
+          - $ref: '#/components/schemas/PaidWithEnum'
+          default: cash
         client_uuid:
           type: string
           format: uuid

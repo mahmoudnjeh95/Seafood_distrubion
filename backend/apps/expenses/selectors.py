@@ -398,8 +398,8 @@ ROAD_CATEGORY_CODES = ("fuel", "transport", "handling", "miscellaneous")
 
 
 def road_categories(organization: Organization) -> QuerySet[ExpenseCategory]:
-    """The categories a driver picks from, in the order of the default list."""
-    return categories_of(organization).filter(code__in=ROAD_CATEGORY_CODES)
+    """The categories a driver picks from, as the owner set them (D-205), in the order of the list."""
+    return categories_of(organization).filter(for_drivers=True)
 
 
 def road_expenses(organization: Organization, *, user_id: int, day: dt.date) -> QuerySet[Expense]:

@@ -2,6 +2,7 @@ import {
   type ExpenseCategory,
   type ExpenseStatusEnum,
   createExpenseCategory,
+  deleteExpenseCategory,
   updateExpenseCategory,
   useGetExpenseTotals,
   useListExpenseCategories,
@@ -48,7 +49,8 @@ import { canManageCategories, canWriteExpenses, EXPENSE_STATUSES, EXPENSE_TONES,
 const PAGE_SIZE = 50;
 const ALL = "all";
 
-/** One category of the owner's dialog: rename it, archive or restore it (a default one is never archived). */
+/** One category of the owner's dialog: rename it, offer it on the drivers' phones, archive or restore it, or remove
+ * one never used (D-205). A default one is never archived nor removed. */
 function CategoryRow({ category }: { category: ExpenseCategory }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -56,7 +58,8 @@ function CategoryRow({ category }: { category: ExpenseCategory }) {
   const [name, setName] = useState(category.name);
   const [error, setError] = useState("");
   const save = useMutation({
-    mutationFn: (body: { name?: string; is_active?: boolean }) => updateExpenseCategory(category.id, body),
+    mutationFn: (body: { name?: string; is_active?: boolean; for_drivers?: boolean }) =>
+      updateExpenseCategory(category.id, body),
     onSuccess: async () => {
       setError("");
       toast.success(t("admin.expenses.categories.saved"));
@@ -66,6 +69,14 @@ function CategoryRow({ category }: { category: ExpenseCategory }) {
       const fromServer = fieldErrors(failure);
       setError(fromServer.name ?? fromServer.is_active ?? t("admin.expenses.actionError"));
     },
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteExpenseCategory(category.id),
+    onSuccess: async () => {
+      toast.success(t("admin.expenses.categories.removed", { name: category.name }));
+      await refreshExpenses(queryClient);
+    },
+    onError: (failure) => setError(Object.values(fieldErrors(failure))[0] ?? t("admin.expenses.actionError")),
   });
   return (
     <li className="flex flex-wrap items-end gap-2">
@@ -88,9 +99,30 @@ function CategoryRow({ category }: { category: ExpenseCategory }) {
       >
         {t("admin.expenses.categories.rename")}
       </Button>
+      <label className="flex items-center gap-2 pb-2.5 text-[0.88rem]">
+        <input
+          type="checkbox"
+          className="size-4 accent-sea"
+          checked={category.for_drivers}
+          disabled={save.isPending}
+          onChange={(event) => save.mutate({ for_drivers: event.target.checked })}
+        />
+        {t("admin.expenses.categories.forDrivers")}
+      </label>
       {!category.code && (
         <Button disabled={save.isPending} onClick={() => save.mutate({ is_active: !category.is_active })}>
           {category.is_active ? t("admin.expenses.categories.archive") : t("admin.expenses.categories.restore")}
+        </Button>
+      )}
+      {!category.code && (
+        <Button
+          variant="ghost"
+          aria-label={t("admin.expenses.categories.remove", { name: category.name })}
+          title={t("admin.expenses.categories.remove", { name: category.name })}
+          disabled={remove.isPending}
+          onClick={() => remove.mutate()}
+        >
+          <Icon name="trash" />
         </Button>
       )}
     </li>
@@ -103,9 +135,10 @@ function CategoriesDialog({ onDone }: { onDone: () => void }) {
   const categories = useListExpenseCategories({ status: "all" });
   const newId = useId();
   const [name, setName] = useState("");
+  const [forDrivers, setForDrivers] = useState(false);
   const [error, setError] = useState("");
   const add = useMutation({
-    mutationFn: (value: string) => createExpenseCategory({ name: value }),
+    mutationFn: (value: string) => createExpenseCategory({ name: value, for_drivers: forDrivers }),
     onSuccess: async (created) => {
       setName("");
       setError("");
@@ -134,6 +167,15 @@ function CategoriesDialog({ onDone }: { onDone: () => void }) {
         <Field label={t("admin.expenses.categories.new")} htmlFor={newId} error={error} className="min-w-48 flex-1">
           <Input id={newId} value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
+        <label className="flex items-center gap-2 pb-2.5 text-[0.88rem]">
+          <input
+            type="checkbox"
+            className="size-4 accent-sea"
+            checked={forDrivers}
+            onChange={(event) => setForDrivers(event.target.checked)}
+          />
+          {t("admin.expenses.categories.forDrivers")}
+        </label>
         <Button type="submit" variant="primary" disabled={add.isPending}>
           <Icon name="plus" />
           {t("admin.expenses.categories.add")}

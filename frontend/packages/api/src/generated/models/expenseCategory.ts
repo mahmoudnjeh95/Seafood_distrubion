@@ -10,4 +10,5 @@ export interface ExpenseCategory {
   readonly code: string;
   readonly name: string;
   readonly is_active: boolean;
+  readonly for_drivers: boolean;
 }

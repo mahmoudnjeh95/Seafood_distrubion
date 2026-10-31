@@ -219,6 +219,38 @@ def test_a_driver_enters_a_road_expense_with_a_photo_and_it_waits_for_approval(o
     assert client_for(member(organization, Role.MANAGER)).get(reverse("my-expenses")).status_code == 403
 
 
+def test_the_owner_chooses_the_phone_categories_and_removes_an_unused_one(organization, actor, truck):
+    owner = client_for(member(organization, Role.OWNER))
+    driver = member(organization, Role.DRIVER)
+    fleet_services.assign_truck(
+        organization=organization, actor=actor, truck=truck, driver=driver.user, date=timezone.localdate()
+    )
+    api = client_for(driver)
+    tolls = owner.post(reverse("expense-category-list"), {"name": "Péage", "for_drivers": True}, format="json").json()
+    unused = owner.post(reverse("expense-category-list"), {"name": "Essai"}, format="json").json()
+    names = {c["name"] for c in api.get(reverse("my-expense-categories")).json()}
+    assert "Péage" in names
+    assert "Essai" not in names
+
+    # Paid out of the driver's pocket on a day started at 0 DT (D-205).
+    paid = api.post(
+        reverse("my-expenses"), {"category": tolls["id"], "amount": "3.500", "paid_with": "pocket"}, format="multipart"
+    )
+    assert paid.status_code == 201, paid.json()
+    assert (paid.json()["paid_by_driver"], paid.json()["payment_method"]) == (True, "cash")
+    card = api.post(
+        reverse("my-expenses"), {"category": tolls["id"], "amount": "2", "paid_with": "card"}, format="multipart"
+    )
+    assert (card.json()["paid_by_driver"], card.json()["payment_method"]) == (False, "other")
+
+    detail = lambda pk: reverse("expense-category-detail", args=[pk])  # noqa: E731
+    assert owner.delete(detail(unused["id"])).status_code == 204
+    assert owner.delete(detail(tolls["id"])).status_code == 400  # used: archive it instead
+    assert owner.delete(detail(category(organization, "rent").pk)).status_code == 400  # a default one stays
+    assert owner.patch(detail(tolls["id"]), {"for_drivers": False}, format="json").json()["for_drivers"] is False
+    assert "Péage" not in {c["name"] for c in api.get(reverse("my-expense-categories")).json()}
+
+
 def test_a_road_expense_sent_again_with_its_photo_after_the_office_decided_it_answers_with_it(
     organization, actor, truck
 ):

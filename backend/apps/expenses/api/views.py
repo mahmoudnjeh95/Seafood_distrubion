@@ -21,7 +21,7 @@ from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors as dayclose
 from apps.expenses import selectors, services
-from apps.expenses.models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory
+from apps.expenses.models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory, ExpensePaymentMethod
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 
@@ -101,7 +101,10 @@ class ExpenseCategoryListView(OfficeView):
         serializer = ExpenseCategoryWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         category = services.create_category(
-            organization=self.organization, actor=self.membership.user, name=serializer.validated_data["name"]
+            organization=self.organization,
+            actor=self.membership.user,
+            name=serializer.validated_data["name"],
+            for_drivers=serializer.validated_data["for_drivers"],
         )
         return Response(ExpenseCategorySerializer(category).data, status=status.HTTP_201_CREATED)
 
@@ -123,6 +126,17 @@ class ExpenseCategoryDetailView(OfficeView):
         serializer.is_valid(raise_exception=True)
         category = services.update_category(category=category, actor=self.membership.user, **serializer.validated_data)
         return Response(ExpenseCategorySerializer(category).data)
+
+    @extend_schema(operation_id="deleteExpenseCategory", responses={204: None})
+    def delete(self, request: Request, category_id: int) -> Response:
+        """Remove a category never used (owner only, D-205); a used one is archived instead."""
+        _require_owner(self.membership)
+        try:
+            category = selectors.category_of(self.organization, category_id)
+        except ExpenseCategory.DoesNotExist:
+            raise Http404 from None
+        services.delete_category(category=category, actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---- Expenses (P5-T01) ----
@@ -471,8 +485,9 @@ class MyRoadExpensesView(APIView):
         responses={201: RoadExpenseSerializer},
     )
     def post(self, request: Request) -> Response:
-        """Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
-        of the day and waits for the office to approve it."""
+        """Enter an expense of today, with a photo of the receipt, paid with the day's cash, out of the driver's
+        pocket or by card (`paid_with`, D-205). It is a cost of the driver's truck of the day and waits for the
+        office to approve it."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         organization = membership.organization
@@ -498,5 +513,7 @@ class MyRoadExpensesView(APIView):
             upload=data.get("receipt"),
             client_uuid=data["client_uuid"],
             made_at=made_at,
+            payment_method=ExpensePaymentMethod.OTHER if data["paid_with"] == "card" else ExpensePaymentMethod.CASH,
+            paid_by_driver=data["paid_with"] == "pocket",
         )
         return Response(RoadExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)

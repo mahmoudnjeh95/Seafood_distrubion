@@ -9,6 +9,10 @@ import { sendOrKeep } from "./sendOrKeep";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
 
+// How the driver paid (D-205): always offered, also on a day started at 0 DT.
+const PAID_WITH = ["cash", "pocket", "card"] as const;
+type PaidWith = (typeof PAID_WITH)[number];
+
 // "Dépense": what the driver paid on the road, in four taps and a photo of the receipt.
 export function ExpensePage() {
   const { t } = useTranslation();
@@ -20,6 +24,7 @@ export function ExpensePage() {
   const [category, setCategory] = useState<number | null>(null);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [paidWith, setPaidWith] = useState<PaidWith>("cash");
   const [photo, setPhoto] = useState<File | undefined>(undefined);
   const [uuid, setUuid] = useState(newUuid);
   const [error, setError] = useState("");
@@ -39,7 +44,7 @@ export function ExpensePage() {
     if (category === null || amountValue === null) return;
     setSaving(true);
     setError("");
-    const data = { category, amount: amountValue, description, receipt: photo, client_uuid: uuid };
+    const data = { category, amount: amountValue, description, receipt: photo, client_uuid: uuid, paid_with: paidWith };
     try {
       const outcome = await sendOrKeep(
         {
@@ -57,6 +62,7 @@ export function ExpensePage() {
       setCategory(null);
       setAmount("");
       setDescription("");
+      setPaidWith("cash");
       setPhoto(undefined);
       setUuid(newUuid());
       void queryClient.invalidateQueries();
@@ -99,6 +105,23 @@ export function ExpensePage() {
             onChange={(event) => setAmount(event.target.value)}
           />
         </div>
+        <div role="group" aria-label={t("truck.expense.paidWith")} className="space-y-1">
+          <p className="font-semibold">{t("truck.expense.paidWith")}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {PAID_WITH.map((value) => (
+              <Button
+                key={value}
+                variant={paidWith === value ? "primary" : "secondary"}
+                className="py-3"
+                aria-pressed={paidWith === value}
+                onClick={() => setPaidWith(value)}
+              >
+                {t(`truck.expense.paid.${value}`)}
+              </Button>
+            ))}
+          </div>
+          {paidWith === "pocket" ? <p className="text-sm text-ink-2">{t("truck.expense.pocketHint")}</p> : null}
+        </div>
         <div className="space-y-1">
           <label htmlFor="expense-note" className="font-semibold">
             {t("truck.expense.note")}
@@ -124,7 +147,10 @@ export function ExpensePage() {
           className="py-4 text-lg"
           disabled={!ready || saving}
           title={categories.data?.find((item) => item.id === category)?.name}
-          rows={[[t("truck.expense.amount"), formatMoney(amountValue ?? "0")]]}
+          rows={[
+            [t("truck.expense.amount"), formatMoney(amountValue ?? "0")],
+            [t("truck.expense.paidWith"), t(`truck.expense.paid.${paidWith}`)],
+          ]}
           onConfirm={() => void save()}
         >
           {t("truck.expense.save")}

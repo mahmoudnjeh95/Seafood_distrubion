@@ -238,6 +238,19 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <Line label={t("admin.dayClosings.other")} value={formatMoney(data.summary.other_payments)} />
             <Line label={t("admin.dayClosings.credit")} value={formatMoney(data.summary.on_credit)} />
             <Line label={t("admin.dayClosings.expenses")} value={formatMoney(data.summary.expenses_total)} />
+            {/* Not taken from the cash (D-205): paid out of the driver's pocket (owed back), or by card. */}
+            {Number(data.summary.expenses_pocket ?? "0") !== 0 && (
+              <Line
+                label={t("admin.dayClosings.expensesPocket")}
+                value={formatMoney(data.summary.expenses_pocket ?? "0")}
+              />
+            )}
+            {Number(data.summary.expenses_other ?? "0") !== 0 && (
+              <Line
+                label={t("admin.dayClosings.expensesOther")}
+                value={formatMoney(data.summary.expenses_other ?? "0")}
+              />
+            )}
             <Line label={t("admin.dayClosings.opening")} value={formatMoney(data.summary.opening_cash)} />
             {handedOver !== null && <Line label={t("admin.dayClosings.handedOver")} value={formatMoney(handedOver)} />}
             <Line label={t("admin.dayClosings.expected")} value={formatMoney(data.expected_cash)} />
