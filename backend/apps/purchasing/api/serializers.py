@@ -101,7 +101,7 @@ class OrderRefSerializer(serializers.Serializer[Any]):
 
 class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     supplier = RefSerializer(read_only=True)
-    # The bon d'achat this delivery is against, or null for goods that came without one.
+    # The commande d'achat this delivery is against, or null for goods that came without one.
     purchase_order = OrderRefSerializer(read_only=True, allow_null=True)
     location = ReceiptLocationSerializer(read_only=True)
     lines = ReceiptLineSerializer(many=True, read_only=True)
@@ -177,7 +177,7 @@ class FieldPurchasePaymentWriteSerializer(serializers.Serializer[Any]):
 class ReceiptWriteSerializer(serializers.Serializer[Any]):
     supplier = serializers.IntegerField(min_value=1)
     location = serializers.IntegerField(min_value=1)
-    # Deliver against this bon d'achat: its products only, as much of each as arrived (D-076).
+    # Deliver against this commande d'achat: its products only, as much of each as arrived (D-076).
     purchase_order = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     received_on = serializers.DateField()
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
@@ -238,7 +238,7 @@ class LastCostFilterSerializer(serializers.Serializer[Any]):
     supplier = serializers.IntegerField(min_value=1)
 
 
-# ---- Purchase orders, the "bon d'achat" (D-076) ----
+# ---- Purchase orders, the "commande d'achat" (D-076) ----
 
 
 class OrderReceiptRefSerializer(serializers.Serializer[Any]):

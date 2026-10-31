@@ -95,7 +95,7 @@ def _resolved(organization: Organization, data: dict[str, Any], *, is_owner: boo
         try:
             order = selectors.order_of(organization, data["purchase_order"])
         except PurchaseOrder.DoesNotExist:
-            errors["purchase_order"] = _("Bon d'achat inconnu.")
+            errors["purchase_order"] = _("Commande d'achat inconnue.")
     lines = []
     for index, line in enumerate(data["lines"]):
         try:
@@ -146,7 +146,7 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     def post(self, request: Request) -> Response:
         """Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that bon d'achat: only its products, and only the part that arrived (partial receipts). With
+        against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
         `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -219,7 +219,7 @@ class LastCostListView(PurchasingView):
         return Response(LastCostSerializer(batches, many=True).data)
 
 
-# ---- Purchase orders, the "bon d'achat" (D-076) ----
+# ---- Purchase orders, the "commande d'achat" (D-076) ----
 
 
 class OrderListView(PurchasingView, ListAPIView[PurchaseOrder]):
@@ -238,7 +238,7 @@ class OrderListView(PurchasingView, ListAPIView[PurchaseOrder]):
 
     @extend_schema(operation_id="listPurchaseOrders", parameters=[OrderFilterSerializer])
     def get(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """Purchase orders (bons d'achat), newest first, paginated, each with its lines (ordered, received
+        """Purchase orders (commandes d'achat), newest first, paginated, each with its lines (ordered, received
         and remaining weight) and its receipts. Filter by supplier, status (`pending` = still waiting for
         goods) or `search` (number, supplier's name)."""
         return super().get(request, *args, **kwargs)
