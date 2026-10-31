@@ -87,6 +87,7 @@ export function SupplierPaymentDetailPage() {
           <Fact label={t("admin.treasury.detail.createdBy")}>
             {payment.created_by || "—"} · {formatDateTime(payment.created_at)}
           </Fact>
+          {payment.reason && <Fact label={t("admin.treasury.form.reasonLabel")}>{payment.reason}</Fact>}
           {payment.notes && (
             <Fact label={t("admin.supplierPayments.form.notes")} wide>
               {payment.notes}

@@ -145,6 +145,7 @@ export function SupplierPaymentsPage() {
                 <Th>{t("admin.supplierPayments.columns.number")}</Th>
                 <Th>{t("admin.supplierPayments.columns.date")}</Th>
                 <Th>{t("admin.supplierPayments.columns.supplier")}</Th>
+                <Th className="max-[720px]:hidden">{t("admin.supplierPayments.columns.reason")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.treasury.list.means")}</Th>
                 <Th numeric>{t("admin.supplierPayments.columns.amount")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.supplierPayments.columns.invoices")}</Th>
@@ -172,6 +173,7 @@ export function SupplierPaymentsPage() {
                         {payment.supplier.name}
                       </Link>
                     </Td>
+                    <Td className="max-[720px]:hidden">{payment.reason}</Td>
                     <Td className="max-[720px]:hidden">
                       <MeansChips lines={payment.lines} methodLabel={methodLabel} />
                     </Td>
