@@ -24,9 +24,11 @@ from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity, line_total, money
 from apps.inventory import services as inventory
 from apps.partners import services as partners
+from apps.treasury import services as treasury
 
 from . import invoicing, receivables, selectors
 from .models import (
+    INSTRUMENT_METHODS,
     CreditNote,
     CreditNoteKind,
     CreditNoteLine,
@@ -35,6 +37,8 @@ from .models import (
     CreditPolicy,
     CreditStatus,
     CustomerPayment,
+    CustomerPaymentLine,
+    CustomerPaymentMethod,
     DeliveryStatus,
     DocumentCounter,
     FinanceSettings,
@@ -65,6 +69,7 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import Batch, StockLocation, Transfer
     from apps.partners.models import Customer
+    from apps.treasury.models import Bank
 
 # ---- Quotes (P2-T03, D-050) ----
 
@@ -2620,9 +2625,28 @@ PAYMENT_SERIES = "RG"
 MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
 
 
-class AllocationFields(TypedDict):
+class AllocationFields(TypedDict, total=False):
+    # One of the two: a sale (BL), or an invoice whose amount is spread over its BLs, oldest first (D-197).
     sale: Sale
+    invoice: Invoice
     amount: Number
+
+
+class PaymentLineFields(TypedDict, total=False):
+    """One means of payment of a règlement (D-197). A cheque or a traite also gives its number, bank, drawer
+    and échéance (`due_on`); other methods may give a reference."""
+
+    method: str
+    amount: Number
+    reference: str
+    number: str
+    bank: "Bank | None"
+    drawer: str
+    due_on: dt.date | None
+
+
+# At most this many lines in one règlement.
+MAX_PAYMENT_LINES = 50
 
 
 def refresh_sale_due(sale: Sale) -> None:
@@ -2656,11 +2680,21 @@ def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
         "method": payment.method,
         "received_on": payment.received_on.isoformat(),
         "reference": payment.reference,
+        "lines": [_line_snapshot(line) for line in payment.lines.select_related("instrument__bank").order_by("id")],
         "allocations": [
             {"sale": row.sale.number, "amount": str(row.amount)}
             for row in payment.allocations.select_related("sale").order_by("id")
         ],
     }
+
+
+def _line_snapshot(line: CustomerPaymentLine) -> dict[str, Any]:
+    row: dict[str, Any] = {"method": line.method, "amount": str(line.amount), "reference": line.reference}
+    if line.instrument is not None:
+        row["number"] = line.instrument.number
+        row["bank"] = line.instrument.bank.code if line.instrument.bank else ""
+        row["due_on"] = line.instrument.due_on.isoformat()
+    return row
 
 
 def _allocated_total(payment: CustomerPayment) -> Decimal:
@@ -2701,13 +2735,17 @@ def _allocate(
         taken: dict[int, Decimal] = {}
         for index, item in enumerate(requested):
             key = f"allocations.{index}.amount"
-            sale = item["sale"]
-            open_row = open_rows.get(sale.pk)
             try:
                 amount = checked_amount(item["amount"])
             except (ValueError, TypeError):
                 errors[key] = _("Indiquez un montant en DT, au millime près.")
                 continue
+            invoice = item.get("invoice")
+            if invoice is not None:
+                _plan_invoice(payment, invoice, amount, open_rows, taken, plan, errors, key)
+                continue
+            sale = item["sale"]
+            open_row = open_rows.get(sale.pk)
             if open_row is None or sale.organization_id != organization.pk or sale.customer_id != payment.customer_id:
                 errors[key] = _("Cette vente ne doit plus rien à ce client.")
             elif amount <= 0:
@@ -2737,14 +2775,114 @@ def _allocate(
     return rows
 
 
+def _plan_invoice(
+    payment: CustomerPayment,
+    invoice: Invoice,
+    amount: Decimal,
+    open_rows: Mapping[int, receivables.SaleReceivable],
+    taken: dict[int, Decimal],
+    plan: list[tuple[int, Decimal]],
+    errors: dict[str, str],
+    key: str,
+) -> None:
+    """Spread `amount` over the open BLs of `invoice`, oldest first (D-197); an error on `key` when the invoice
+    is not the customer's or owes less."""
+    rows = sorted(
+        (row for row in open_rows.values() if row.invoice_id == invoice.pk),
+        key=lambda row: (row.sold_at, row.sale_id),
+    )
+    left_by_row = [(row, row.outstanding - taken.get(row.sale_id, Decimal("0.000"))) for row in rows]
+    due = sum((left for _row, left in left_by_row), Decimal("0.000"))
+    if invoice.organization_id != payment.organization_id or invoice.customer_id != payment.customer_id or due <= 0:
+        errors[key] = _("Cette facture ne doit plus rien à ce client.")
+    elif amount <= 0:
+        errors[key] = _("Le montant doit être supérieur à zéro.")
+    elif amount > due:
+        errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {"number": invoice.number, "due": due}
+    else:
+        left = amount
+        for row, row_left in left_by_row:
+            if left <= 0:
+                break
+            part = min(left, row_left)
+            if part <= 0:
+                continue
+            taken[row.sale_id] = taken.get(row.sale_id, Decimal("0.000")) + part
+            plan.append((row.sale_id, part))
+            left -= part
+
+
+def _checked_payment_lines(
+    organization: Organization,
+    customer: "Customer",
+    received_on: dt.date,
+    lines: Sequence[PaymentLineFields],
+    errors: dict[str, str],
+) -> list[tuple[str, Decimal, PaymentLineFields]]:
+    """The règlement's lines with their amount checked; errors on `lines.<index>.<field>`."""
+    checked: list[tuple[str, Decimal, PaymentLineFields]] = []
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un moyen de paiement.")
+        return checked
+    if len(lines) > MAX_PAYMENT_LINES:
+        errors["lines"] = _("%(count)s moyens de paiement au plus par règlement.") % {"count": MAX_PAYMENT_LINES}
+        return checked
+    taken: list[tuple[str, int | None, str]] = []
+    for index, line in enumerate(lines):
+        method = line.get("method", "")
+        known = method in CustomerPaymentMethod.values and method != CustomerPaymentMethod.MIXED
+        if not known:
+            errors[line_error_key(index, "method")] = _("Mode de paiement inconnu.")
+        try:
+            value = checked_amount(line.get("amount", ""))
+            if value <= 0:
+                errors[line_error_key(index, "amount")] = _("Le montant doit être supérieur à zéro.")
+        except (ValueError, TypeError):
+            value = Decimal("0.000")
+            errors[line_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
+        if not known:
+            continue
+        if method in INSTRUMENT_METHODS:
+            bank = line.get("bank")
+            number = line.get("number", "")
+            found = treasury.instrument_errors(
+                organization=organization,
+                direction="received",
+                kind=method,
+                number=number,
+                bank=bank,
+                issued_on=received_on,
+                due_on=line.get("due_on"),
+                customer=customer,
+                taken=taken,
+            )
+            for field, message in found.items():
+                errors[line_error_key(index, field)] = message
+            taken.append((method, bank.pk if bank else None, number.strip()))
+        checked.append((method, value, line))
+    return checked
+
+
+def _header_reference(reference: str | None, checked: Sequence[tuple[str, Decimal, PaymentLineFields]]) -> str:
+    """The règlement's own reference, shown in its list: the one typed, else that of its only line (a transfer
+    reference, a cheque number); none for several lines, each keeping its own."""
+    if reference is None:
+        reference = ""
+        if len(checked) == 1:
+            line = checked[0][2]
+            reference = line.get("number", "") if checked[0][0] in INSTRUMENT_METHODS else line.get("reference", "")
+    return reference.strip()[:50]
+
+
 @transaction.atomic
 def record_customer_payment(
     *,
     organization: Organization,
     actor: User | None,
     customer: "Customer",
-    amount: Number,
-    method: str,
+    amount: Number | None = None,
+    method: str = "",
+    lines: Sequence[PaymentLineFields] | None = None,
     received_on: dt.date | None = None,
     reference: str = "",
     notes: str = "",
@@ -2752,9 +2890,12 @@ def record_customer_payment(
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
 ) -> CustomerPayment:
-    """Register money received from a customer and allocate it (D-062).
+    """Register a règlement received from a customer and allocate it (D-062, D-197).
 
-    A `client_uuid` already used returns that payment (the driver app retries).
+    `lines` gives its means (some cash, cheques, traites...): each cheque or traite becomes an effet of the
+    treasury, in portfolio. Without `lines`, `amount`, `method` and `reference` make its one line (the driver
+    app, the older form); with `lines`, an `amount` given must equal their sum. A `client_uuid` already used
+    returns that payment (the driver app retries).
 
     `allocations` None takes the customer's oldest open sales first; a list names the sales and amounts
     (empty keeps everything as credit). What is not allocated stays the customer's credit: their balance
@@ -2774,30 +2915,68 @@ def record_customer_payment(
     received_on = received_on or timezone.localtime(made_at or timezone.now()).date()
     if received_on > timezone.localdate():
         errors["received_on"] = _("Un règlement ne peut pas être daté dans le futur.")
-    try:
-        paid = checked_amount(amount)
-        if paid <= 0:
-            errors["amount"] = _("Le montant doit être supérieur à zéro.")
-    except (ValueError, TypeError):
-        paid = Decimal("0.000")
-        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
-    if method not in SalePaymentMethod.values:
-        errors["method"] = _("Mode de paiement inconnu.")
+    if lines is None:
+        # One line made of the single fields; its errors stay on `amount` and `method`.
+        single: dict[str, str] = {}
+        one_line: PaymentLineFields = {
+            "method": method,
+            "amount": amount if amount is not None else "",
+            "reference": reference,
+        }
+        checked = _checked_payment_lines(organization, customer, received_on, [one_line], single)
+        for key, message in single.items():
+            errors[key.removeprefix("lines.0.")] = message
+    else:
+        checked = _checked_payment_lines(organization, customer, received_on, lines, errors)
+        if amount is not None and not errors:
+            try:
+                if checked_amount(amount) != sum((value for _method, value, _line in checked), Decimal("0.000")):
+                    errors["amount"] = _("Le total ne correspond pas à la somme des moyens de paiement.")
+            except (ValueError, TypeError):
+                errors["amount"] = _("Indiquez un montant en DT, au millime près.")
     if errors:
         raise ValidationError(errors)
+    paid = sum((value for _method, value, _line in checked), Decimal("0.000"))
+    methods = {line_method for line_method, _value, _line in checked}
+    number = _next_number(organization, PAYMENT_SERIES)
     payment = CustomerPayment.objects.create(
         organization=organization,
-        number=_next_number(organization, PAYMENT_SERIES),
+        number=number,
         customer=customer,
         amount=paid,
-        method=method,
+        method=methods.pop() if len(methods) == 1 else CustomerPaymentMethod.MIXED,
         received_on=received_on,
         made_at=made_at,
-        reference=reference.strip()[:50],
+        reference=_header_reference(reference if lines is None else None, checked),
         notes=notes.strip(),
         created_by=actor,
         client_uuid=client_uuid,
     )
+    for line_method, value, line in checked:
+        instrument = None
+        if line_method in INSTRUMENT_METHODS:
+            instrument = treasury.register_instrument(
+                organization=organization,
+                actor=actor,
+                direction="received",
+                kind=line_method,
+                number=line.get("number", ""),
+                bank=line.get("bank"),
+                amount=value,
+                issued_on=received_on,
+                due_on=line.get("due_on"),
+                drawer=line.get("drawer", "") or customer.name,
+                customer=customer,
+                source_number=number,
+            )
+        CustomerPaymentLine.objects.create(
+            organization=organization,
+            payment=payment,
+            method=line_method,
+            amount=value,
+            reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
+            instrument=instrument,
+        )
     _allocate(payment, paid, allocations)
     audit.record(
         organization=organization,
@@ -2843,13 +3022,24 @@ def allocate_customer_payment(
 @transaction.atomic
 def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reason: str) -> CustomerPayment:
     """Cancel a payment typed by mistake: it stays, marked voided with who, when and why; its allocations
-    stop counting and the sales owe again. Never deleted."""
+    stop counting, the sales owe again and its cheques and traites are cancelled. Never deleted.
+
+    Refused once one of its effets moved on (at the bank, cashed, unpaid...): the effet's own life handles it.
+    """
     payment = _locked_payment(payment)
     if payment.voided_at is not None:
         raise ValidationError(_("Ce règlement est déjà annulé."))
     reason = reason.strip()[:255]
     if not reason:
         raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
+    instrument_ids = [pk for pk in payment.lines.values_list("instrument_id", flat=True) if pk is not None]
+    if instrument_ids:
+        treasury.cancel_instruments(
+            instrument_ids=instrument_ids,
+            actor=actor,
+            happened_on=timezone.localdate(),
+            note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
+        )
     sale_ids = list(payment.allocations.values_list("sale_id", flat=True))
     payment.voided_at = timezone.now()
     payment.voided_by = actor

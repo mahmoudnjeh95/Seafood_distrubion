@@ -14,6 +14,7 @@ from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import services
+from apps.treasury import selectors as treasury
 
 pytestmark = pytest.mark.django_db
 
@@ -84,7 +85,17 @@ def test_customer_pays_100_and_the_balance_shows_the_rest(api, setup):
     customer, sale = setup
     created = api.post(
         reverse("customer-payment-list"),
-        {"customer": customer.pk, "amount": "100.000", "method": "cheque", "reference": "CH-1"},
+        {
+            "customer": customer.pk,
+            "lines": [
+                {
+                    "method": "cheque",
+                    "amount": "100.000",
+                    "number": "CH-1",
+                    "bank": treasury.banks_of(customer.organization).get(code="BIAT").pk,
+                }
+            ],
+        },
         format="json",
     )
     assert created.status_code == 201, created.json()
@@ -92,6 +103,14 @@ def test_customer_pays_100_and_the_balance_shows_the_rest(api, setup):
     assert payment["number"] == "RG-0001"
     assert (payment["allocated_total"], payment["unallocated"]) == ("100.000", "0.000")
     assert payment["allocations"][0]["sale"]["number"] == sale.number
+    assert payment["method"] == "cheque"
+    [line] = payment["lines"]
+    assert (line["amount"], line["instrument"]["number"], line["instrument"]["bank_code"]) == (
+        "100.000",
+        "CH-1",
+        "BIAT",
+    )
+    assert line["instrument"]["status"] == "portfolio"
 
     balance = api.get(reverse("customer-balance", args=[customer.pk])).json()
     assert balance["balance"] == "110.000"
@@ -107,6 +126,8 @@ def test_customer_pays_100_and_the_balance_shows_the_rest(api, setup):
     assert voided.status_code == 200
     assert voided.json()["is_voided"] is True
     assert api.get(reverse("customer-balance", args=[customer.pk])).json()["balance"] == "210.000"
+    # Its cheque leaves the portfolio with it.
+    assert voided.json()["lines"][0]["instrument"]["status"] == "cancelled"
 
 
 def test_bad_allocation_is_reported_on_its_row(api, setup):

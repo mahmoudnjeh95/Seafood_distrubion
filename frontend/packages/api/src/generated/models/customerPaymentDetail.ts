@@ -5,8 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CustomerPaymentAllocation } from './customerPaymentAllocation';
+import type { CustomerPaymentLine } from './customerPaymentLine';
+import type { CustomerPaymentMethodEnum } from './customerPaymentMethodEnum';
 import type { QuoteCustomer } from './quoteCustomer';
-import type { SalePaymentMethodEnum } from './salePaymentMethodEnum';
 
 export interface CustomerPaymentDetail {
   readonly id: number;
@@ -14,7 +15,8 @@ export interface CustomerPaymentDetail {
   readonly customer: QuoteCustomer;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
-  readonly method: SalePaymentMethodEnum;
+  readonly method: CustomerPaymentMethodEnum;
+  readonly lines: readonly CustomerPaymentLine[];
   readonly received_on: string;
   readonly reference: string;
   readonly notes: string;
