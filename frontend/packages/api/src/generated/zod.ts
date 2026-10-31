@@ -2379,6 +2379,62 @@ export const RequestDayJustificationResponse = zod.object({
 
 
 /**
+ * Every active driver with the cash set for them on a day (today by default) and whether they started.
+ */
+export const ListDayFundsQueryParams = zod.object({
+  "date": zod.iso.date().optional()
+})
+
+export const listDayFundsResponseFundOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listDayFundsResponseFundOnePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDayFundsResponseItem = zod.object({
+  "driver": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "can_buy": zod.boolean(),
+  "fund": zod.union([zod.object({
+  "opening_cash": zod.stringFormat('decimal', listDayFundsResponseFundOneOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', listDayFundsResponseFundOnePurchaseFloatRegExp),
+  "set_at": zod.iso.datetime({"offset":true}),
+  "accepted_at": zod.iso.datetime({"offset":true}).nullable()
+}).describe('The cash the office set for a driver\'s day (D-203).'),zod.null()]),
+  "started": zod.boolean()
+}).describe('One driver on the office\'s "Fonds de caisse" list of a day.')
+export const ListDayFundsResponse = zod.array(ListDayFundsResponseItem)
+
+
+/**
+ * Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it.
+ */
+
+export const setDayFundBodyOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setDayFundBodyPurchaseFloatDefault = `0.000`;
+export const setDayFundBodyPurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetDayFundBody = zod.object({
+  "driver": zod.int().min(1),
+  "date": zod.iso.date(),
+  "opening_cash": zod.stringFormat('decimal', setDayFundBodyOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', setDayFundBodyPurchaseFloatRegExp).default(setDayFundBodyPurchaseFloatDefault)
+})
+
+export const setDayFundResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setDayFundResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetDayFundResponse = zod.object({
+  "opening_cash": zod.stringFormat('decimal', setDayFundResponseOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', setDayFundResponsePurchaseFloatRegExp),
+  "set_at": zod.iso.datetime({"offset":true}),
+  "accepted_at": zod.iso.datetime({"offset":true}).nullable()
+}).describe('The cash the office set for a driver\'s day (D-203).')
+
+
+/**
  * Days worked by day labourers, by day then name: a month for the calendar (`date_from`,
  * `date_to`, inclusive), or the days of one lot or one labourer. Each day is also an expense.
  */
@@ -8662,19 +8718,9 @@ export const GetMyDayResponse = zod.object({
 
 
 /**
- * Start the day on the driver's truck of the day, with the cash they start with. One day per date:
- * asking again returns it unchanged, also once its closing is sent.
+ * Accept the cash the office set for today and start the day with it (D-203), on the driver's truck of the
+ * day. Refused while the office has set nothing. One day per date: asking again returns it unchanged.
  */
-export const openMyDayBodyOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const openMyDayBodyPurchaseFloatDefault = `0.000`;
-export const openMyDayBodyPurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
-
-export const OpenMyDayBody = zod.object({
-  "opening_cash": zod.stringFormat('decimal', openMyDayBodyOpeningCashRegExp),
-  "purchase_float": zod.stringFormat('decimal', openMyDayBodyPurchaseFloatRegExp).default(openMyDayBodyPurchaseFloatDefault)
-})
-
 export const openMyDayResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const openMyDayResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -8887,6 +8933,21 @@ export const GetMyDaySummaryResponse = zod.object({
   "changed_since_sent": zod.boolean()
 }).describe('What the driver sees of their closing.'),zod.null()])
 })
+
+
+/**
+ * The cash the office set for the driver today, to accept before starting the day (D-203). 404: none yet.
+ */
+export const getMyDayFundResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyDayFundResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMyDayFundResponse = zod.object({
+  "opening_cash": zod.stringFormat('decimal', getMyDayFundResponseOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', getMyDayFundResponsePurchaseFloatRegExp),
+  "set_at": zod.iso.datetime({"offset":true}),
+  "accepted_at": zod.iso.datetime({"offset":true}).nullable()
+}).describe('The cash the office set for a driver\'s day (D-203).')
 
 
 /**

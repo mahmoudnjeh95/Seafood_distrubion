@@ -407,7 +407,11 @@ def test_a_driver_cannot_change_trucks_once_the_day_is_open(seeded_company):
     mine = TruckAssignment.objects.get(organization=seeded_company, driver__username="driver", date=today)
     other_truck = next(t for t in _ids(_login("owner"), "trucks", {}) if t != mine.truck_id)
 
-    assert driver.post("/api/v1/my-day", {"opening_cash": "50.000"}, format="json").status_code == 201
+    # The office sets the starting cash first; the driver accepts it (D-203).
+    owner = _login("owner")
+    fund = {"driver": mine.driver_id, "date": today.isoformat(), "opening_cash": "50.000"}
+    assert owner.put("/api/v1/day-funds", fund, format="json").status_code == 200
+    assert driver.post("/api/v1/my-day", format="json").status_code == 201
 
     swap = driver.post("/api/v1/truck-assignments", {"truck": other_truck}, format="json")
     assert swap.status_code in {400, 403}, swap.status_code
@@ -507,6 +511,8 @@ def _as(membership: Any) -> APIClient:
 def test_a_driver_cannot_take_the_truck_another_driver_started_the_day_on():
     """Driver A starts the day on their usual truck (no assignment needed). Driver B then "chose" that truck for
     the day: A was locked out of their own truck mid-day and B sold A's stock (D-141). Only the office moves it."""
+    from django.utils import timezone
+
     from apps.fleet import selectors as fleet
     from apps.fleet import services as fleet_services
 
@@ -519,7 +525,9 @@ def test_a_driver_cannot_take_the_truck_another_driver_started_the_day_on():
     )
     fleet_services.create_truck(organization=company, actor=None, name="Camion B", plate="2 TU 2", driver=second.user)
 
-    assert _as(first).post("/api/v1/my-day", {"opening_cash": "20.000"}, format="json").status_code == 201
+    fund = {"driver": first.user.pk, "date": timezone.localdate().isoformat(), "opening_cash": "20.000"}
+    assert _as(owner).put("/api/v1/day-funds", fund, format="json").status_code == 200  # D-203
+    assert _as(first).post("/api/v1/my-day", format="json").status_code == 201
 
     taken = _as(second).post("/api/v1/truck-assignments", {"truck": truck.pk}, format="json")
     assert taken.status_code == 400, taken.status_code

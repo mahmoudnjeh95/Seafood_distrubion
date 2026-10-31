@@ -10,13 +10,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Membership, Organization, Role
-from apps.core.permissions import IsDriver, membership_of
+from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.fleet import selectors, services
 from apps.fleet.models import Truck, TruckAssignment, TruckCondition
 
 from .permissions import AssignmentsOfficeOrOwnDriver, OwnTruckOrOffice
 from .serializers import (
-    DriverDayOpenSerializer,
+    DayFundRowSerializer,
+    DayFundSerializer,
+    DayFundWriteSerializer,
     DriverDaySerializer,
     LocationPingBatchSerializer,
     LocationPingSavedSerializer,
@@ -266,26 +268,74 @@ class MyDayView(APIView):
             raise Http404
         return Response(DriverDaySerializer(day).data)
 
-    @extend_schema(operation_id="openMyDay", request=DriverDayOpenSerializer, responses={201: DriverDaySerializer})
+    @extend_schema(operation_id="openMyDay", request=None, responses={201: DriverDaySerializer})
     def post(self, request: Request) -> Response:
-        """Start the day on the driver's truck of the day, with the cash they start with. One day per date:
-        asking again returns it unchanged, also once its closing is sent."""
+        """Accept the cash the office set for today and start the day with it (D-203), on the driver's truck of the
+        day. Refused while the office has set nothing. One day per date: asking again returns it unchanged."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
-        serializer = DriverDayOpenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
         truck = selectors.truck_of_driver(membership)
         if truck is None:
             raise exceptions.ValidationError(_("Choisissez d'abord votre camion."))
-        day = services.open_driver_day(
-            organization=membership.organization,
-            actor=membership.user,
-            truck=truck,
-            opening_cash=serializer.validated_data["opening_cash"],
-            purchase_float=serializer.validated_data["purchase_float"],
-            date=timezone.localdate(),
+        day = services.accept_day_fund(
+            organization=membership.organization, actor=membership.user, truck=truck, date=timezone.localdate()
         )
         return Response(DriverDaySerializer(day).data, status=status.HTTP_201_CREATED)
+
+
+class MyDayFundView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyDayFund", responses=DayFundSerializer)
+    def get(self, request: Request) -> Response:
+        """The cash the office set for the driver today, to accept before starting the day (D-203). 404: none yet."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        fund = selectors.day_fund_of(membership.organization, driver_id=membership.user_id)
+        if fund is None:
+            raise Http404
+        return Response(DayFundSerializer(fund).data)
+
+
+class DayFundListView(APIView):
+    permission_classes = (ReadOfficeWriteOwnerOrManager,)
+
+    @extend_schema(
+        operation_id="listDayFunds",
+        parameters=[TruckAssignmentFilterSerializer],
+        responses=DayFundRowSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Every active driver with the cash set for them on a day (today by default) and whether they started."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        filters = TruckAssignmentFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        day = filters.validated_data.get("date") or timezone.localdate()
+        return Response(DayFundRowSerializer(selectors.day_funds_on(membership.organization, day), many=True).data)
+
+    @extend_schema(operation_id="setDayFund", request=DayFundWriteSerializer, responses=DayFundSerializer)
+    def put(self, request: Request) -> Response:
+        """Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = DayFundWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        driver = Membership.objects.filter(
+            organization=membership.organization, user_id=data["driver"], role=Role.DRIVER
+        ).first()
+        if driver is None:
+            raise exceptions.ValidationError({"driver": _("Chauffeur inconnu.")})
+        fund = services.set_day_fund(
+            organization=membership.organization,
+            actor=membership.user,
+            driver=driver.user,
+            date=data["date"],
+            opening_cash=data["opening_cash"],
+            purchase_float=data["purchase_float"],
+        )
+        return Response(DayFundSerializer(fund).data)
 
 
 class MyPurchaseFloatView(APIView):

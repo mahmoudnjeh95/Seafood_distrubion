@@ -1222,6 +1222,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayClosingDetail'
           description: ''
+  /api/v1/day-funds:
+    get:
+      operationId: listDayFunds
+      description: Every active driver with the cash set for them on a day (today
+        by default) and whether they started.
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      tags:
+      - day-funds
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayFundRow'
+          description: ''
+    put:
+      operationId: setDayFund
+      description: Set the cash handed to a driver for a day (D-203); it changes until
+        the driver accepts it.
+      tags:
+      - day-funds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayFundWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayFundWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayFundWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayFund'
+          description: ''
   /api/v1/day-labour:
     get:
       operationId: listDayLabour
@@ -4362,22 +4413,10 @@ paths:
     post:
       operationId: openMyDay
       description: |-
-        Start the day on the driver's truck of the day, with the cash they start with. One day per date:
-        asking again returns it unchanged, also once its closing is sent.
+        Accept the cash the office set for today and start the day with it (D-203), on the driver's truck of the
+        day. Refused while the office has set nothing. One day per date: asking again returns it unchanged.
       tags:
       - my-day
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DriverDayOpen'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/DriverDayOpen'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/DriverDayOpen'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -4433,6 +4472,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-day/fund:
+    get:
+      operationId: getMyDayFund
+      description: 'The cash the office set for the driver today, to accept before
+        starting the day (D-203). 404: none yet.'
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayFund'
           description: ''
   /api/v1/my-day/locations:
     post:
@@ -12173,6 +12228,92 @@ components:
           default: ''
       required:
       - counted_cash
+    DayFund:
+      type: object
+      description: The cash the office set for a driver's day (D-203).
+      properties:
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        set_at:
+          type: string
+          format: date-time
+          readOnly: true
+        accepted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - accepted_at
+      - opening_cash
+      - purchase_float
+      - set_at
+    DayFundDriver:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    DayFundRow:
+      type: object
+      description: One driver on the office's "Fonds de caisse" list of a day.
+      properties:
+        driver:
+          allOf:
+          - $ref: '#/components/schemas/DayFundDriver'
+          readOnly: true
+        can_buy:
+          type: boolean
+          readOnly: true
+        fund:
+          allOf:
+          - $ref: '#/components/schemas/DayFund'
+          readOnly: true
+          nullable: true
+        started:
+          type: boolean
+          readOnly: true
+      required:
+      - can_buy
+      - driver
+      - fund
+      - started
+    DayFundWrite:
+      type: object
+      properties:
+        driver:
+          type: integer
+          minimum: 1
+        date:
+          type: string
+          format: date
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          default: '0.000'
+      required:
+      - date
+      - driver
+      - opening_cash
     DayLabourEntry:
       type: object
       description: A day worked, with the expense it is (one record, D-054).
@@ -13386,20 +13527,6 @@ components:
       - opening_cash
       - purchase_float
       - truck_name
-    DriverDayOpen:
-      type: object
-      properties:
-        opening_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-        purchase_float:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          default: '0.000'
-      required:
-      - opening_cash
     DriverRef:
       type: object
       properties:

@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.session import TruckRef
 
-from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
+from .models import DayFund, DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
 from .trail import distance_m, stops_of
 
 type TruckStatus = Literal["active", "archived", "all"]
@@ -151,6 +151,35 @@ def driver_day_of(membership: Membership, on: date_type | None = None) -> Driver
         .filter(driver_id=membership.user_id, date=on or timezone.localdate())
         .first()
     )
+
+
+def day_fund_of(organization: Organization, *, driver_id: int, on: date_type | None = None) -> DayFund | None:
+    """The cash the office set for this driver on that date (today by default), if any (D-203)."""
+    return (
+        DayFund.objects.for_organization(organization)
+        .filter(driver_id=driver_id, date=on or timezone.localdate())
+        .first()
+    )
+
+
+def day_funds_on(organization: Organization, day: date_type) -> list[dict[str, Any]]:
+    """Every active driver with the cash set for them on that day (or none yet) and whether their day started."""
+    funds = {fund.driver_id: fund for fund in DayFund.objects.for_organization(organization).filter(date=day)}
+    started = set(DriverDay.objects.for_organization(organization).filter(date=day).values_list("driver_id", flat=True))
+    members = (
+        Membership.objects.filter(organization=organization, role=Role.DRIVER, is_active=True)
+        .select_related("user")
+        .order_by("user__first_name", "user__username")
+    )
+    return [
+        {
+            "driver": member.user,
+            "can_buy": member.can_buy,
+            "fund": funds.get(member.user_id),
+            "started": member.user_id in started,
+        }
+        for member in members
+    ]
 
 
 def driver_days_of(organization: Organization, *, driver_id: int) -> QuerySet[DriverDay]:

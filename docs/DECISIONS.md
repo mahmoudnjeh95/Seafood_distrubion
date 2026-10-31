@@ -2916,3 +2916,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`apply_vat` error naming the products). A draft without VAT can still be prepared.
 - Provisional: the rule is per lot (what was really sold), not "the product was once bought with VAT"; the owner and
   the accountant confirm, and whether it should only warn instead of refusing.
+
+**D-203 · The office sets the driver's starting cash; the driver accepts it to start the day (owner list 2026-10-31, item 3)** · accepted · 2026-10-31
+- New `fleet.DayFund` (driver, date, `opening_cash`, `purchase_float`, `set_by`, `accepted_at`). The office types it in
+  "Camions du jour › Fonds de caisse du jour" (`GET/PUT /day-funds`); it changes freely until the driver accepts it.
+- The phone's "Ma journée" no longer has amount fields: it shows "Argent remis par le bureau" (`GET /my-day/fund`) and
+  "J'ai reçu cet argent : commencer ma journée" (confirm window). `POST /my-day` takes no body any more: it starts the day
+  with the fund's amounts and stamps `accepted_at`. With nothing set, it is refused ("appelez le bureau").
+- A driver who disagrees calls the office before accepting (no "contester" button, provisional). The purchase money can
+  still be raised during the day from the phone (D-158).
