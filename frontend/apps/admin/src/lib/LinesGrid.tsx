@@ -199,7 +199,6 @@ export function LinesGrid({
           <tr className="bg-surface-2">
             <Th className="w-10 border border-line text-center">{t("admin.lines.number")}</Th>
             <Th className="border border-line">{t("admin.lines.product")}</Th>
-            {extra && <Th className="w-52 border border-line">{extra.header}</Th>}
             <Th numeric className="w-28 border border-line">
               {t("admin.lines.quantity")}
             </Th>
@@ -221,6 +220,8 @@ export function LinesGrid({
                 {t("admin.lines.amount")}
               </Th>
             )}
+            {/* Last, after the figures: the kilos, price and stock keep their place in the row (D-201). */}
+            {extra && <Th className="w-52 border border-line">{extra.header}</Th>}
             <Th className="w-11 border border-line" />
           </tr>
         </thead>
@@ -330,12 +331,6 @@ export function LinesGrid({
                     </p>
                   )}
                 </td>
-                {extra && (
-                  <td className={CELL}>
-                    {extra.cell(line, (fields) => setLine(line.key, fields))}
-                    {message(errorOf(extra.field))}
-                  </td>
-                )}
                 {number("quantity", t("admin.lines.quantity"), line.quantity)}
                 {priced &&
                   number("unit_price", t("admin.lines.price"), price, line.discount_rate ? null : underMinimum)}
@@ -355,6 +350,12 @@ export function LinesGrid({
                 {priced && (
                   <td className={cn(CELL, CELL_TEXT, "num text-end font-semibold")}>
                     {amounts ? formatMoney(amounts.amount) : ""}
+                  </td>
+                )}
+                {extra && (
+                  <td className={CELL}>
+                    {extra.cell(line, (fields) => setLine(line.key, fields))}
+                    {message(errorOf(extra.field))}
                   </td>
                 )}
                 <td className={cn(CELL, "text-center align-middle")}>
