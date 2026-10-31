@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField
 
-
 # ---- Expenses (P5-T01, D-053) ----
 
 

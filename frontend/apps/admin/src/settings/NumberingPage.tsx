@@ -6,11 +6,7 @@ import { Fragment, useState } from "react";
 import { Link } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
-
-/** The next number as it reads with `prefix` typed: the server's "<prefix><separator><number>" with the new prefix. */
-export function nextWithPrefix(line: NumberLine, prefix: string): string {
-  return `${prefix}${line.next_number.slice(line.prefix.length)}`;
-}
+import { nextWithPrefix } from "./numbering";
 
 /** The prefix in front of the numbers and the number the next record gets. Owners and managers change it (D-223). */
 function NumberingForm({ lines }: { lines: NumberLine[] }) {

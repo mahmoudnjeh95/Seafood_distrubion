@@ -120,7 +120,8 @@ export const fr = {
       usersHint: "Ajouter un compte, changer son rôle, le désactiver ou réinitialiser son mot de passe.",
       usersOpen: "Gérer les utilisateurs",
       numbering: "Numérotation",
-      numberingHint: "Le préfixe des clients, fournisseurs, produits et documents : chacun reçoit son numéro tout seul.",
+      numberingHint:
+        "Le préfixe des clients, fournisseurs, produits et documents : chacun reçoit son numéro tout seul.",
       numberingOpen: "Modifier les préfixes",
     },
     // Numérotation (D-223): the prefix of each kind of number, set on Paramètres

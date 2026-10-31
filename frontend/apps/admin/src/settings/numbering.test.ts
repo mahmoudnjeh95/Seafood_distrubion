@@ -1,7 +1,7 @@
 import type { NumberLine } from "@frutti/api";
 import { expect, test } from "vitest";
 
-import { nextWithPrefix } from "./NumberingPage";
+import { nextWithPrefix } from "./numbering";
 
 const invoice: NumberLine = {
   kind: "invoice",
