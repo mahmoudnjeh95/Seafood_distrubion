@@ -116,7 +116,7 @@ export function DayFundsPanel({ canEdit }: { canEdit: boolean }) {
       <h2>{t("admin.dayFunds.title")}</h2>
       <p className="text-ink-2">{t("admin.dayFunds.intro")}</p>
       <div className="max-w-[220px]">
-        <Field label={t("admin.truckDay.date")} htmlFor={dateId}>
+        <Field label={t("admin.dayFunds.date")} htmlFor={dateId}>
           <Input
             id={dateId}
             type="date"
