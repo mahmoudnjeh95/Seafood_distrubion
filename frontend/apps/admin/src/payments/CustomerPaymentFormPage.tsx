@@ -32,6 +32,7 @@ import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { asTyped, compare, spread } from "../purchasing/allocation";
 import { ConfirmPaymentDialog } from "./ConfirmPaymentDialog";
+import { Figure } from "./Figure";
 import {
   describeLine,
   errorsByLine,
@@ -46,6 +47,7 @@ import { type OpenItem, openItems } from "./openItems";
 import { PaymentLinesEditor } from "./PaymentLinesEditor";
 import { canCollect, CUSTOMER_PAYMENT_METHODS, refreshAfterPayment, todayInput } from "./shared";
 import { TotalsBar } from "./TotalsBar";
+import { amountToPay } from "./toPay";
 
 type Line = PaymentLine<CustomerPaymentMethodEnum>;
 
@@ -99,6 +101,8 @@ export function CustomerPaymentFormPage() {
   const overAllocated = remaining.startsWith("-");
   const inPortfolio = sum((effets.data?.results ?? []).map((row) => row.amount));
   const owed = balance.data?.balance ?? "0.000";
+  // The same "Total à régler" as the customer's card (D-226).
+  const toPay = amountToPay(owed);
   const exposure = sum([owed, inPortfolio]);
 
   const problems = lineProblems(lines);
@@ -189,7 +193,7 @@ export function CustomerPaymentFormPage() {
           </Field>
           {chosen && balance.data && (
             <dl className="col-span-full grid grid-cols-5 gap-3 rounded-control bg-surface-2 p-3 max-[900px]:grid-cols-2">
-              <Figure label={t("admin.treasury.form.balance")} value={formatMoney(owed)} />
+              <Figure label={t("admin.treasury.form.toPay")} value={formatMoney(toPay)} />
               <Figure
                 label={t("admin.treasury.form.overdue")}
                 value={formatMoney(balance.data.overdue)}
@@ -258,9 +262,6 @@ export function CustomerPaymentFormPage() {
             <CardTitle className="mb-0">{t("admin.treasury.form.openItems")}</CardTitle>
             {items.length > 0 && (
               <div className="ms-auto flex gap-2">
-                <Button variant="ghost" onClick={() => setAllocations({})}>
-                  {t("admin.treasury.form.clear")}
-                </Button>
                 <Button
                   disabled={total === "0.000"}
                   onClick={() => {
@@ -273,7 +274,7 @@ export function CustomerPaymentFormPage() {
                     );
                   }}
                 >
-                  {t("admin.treasury.form.auto")}
+                  {t("admin.supplierPayments.form.spread")}
                 </Button>
               </div>
             )}
@@ -416,14 +417,5 @@ export function CustomerPaymentFormPage() {
         onConfirm={() => confirming && save.mutate(confirming)}
       />
     </>
-  );
-}
-
-function Figure({ label, value, bad = false }: { label: string; value: string; bad?: boolean }) {
-  return (
-    <div>
-      <dt className="text-[0.78rem] font-semibold text-ink-2">{label}</dt>
-      <dd className={cn("num font-bold", bad && "text-bad")}>{value}</dd>
-    </div>
   );
 }

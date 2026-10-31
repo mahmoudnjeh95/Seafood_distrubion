@@ -4,6 +4,7 @@ import { Button, Card, CardTitle, cn } from "@frutti/ui";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { amountToPay, creditHeld } from "../payments/toPay";
 import { compare } from "./allocation";
 
 function Line({ label, children, tone }: { label: string; children: ReactNode; tone?: "bad" | "warn" }) {
@@ -42,8 +43,15 @@ export function SupplierBalanceCard({ supplierId, canRecord }: { supplierId: num
       ) : (
         <div className="grid gap-x-8 gap-y-4 min-[720px]:grid-cols-[1fr_1.4fr]">
           <div className="flex flex-col gap-1">
-            <span className="text-[0.78rem] font-semibold text-ink-2">{t("admin.supplierBalance.balance")}</span>
-            <span className="num text-[1.6rem] font-bold">{formatMoney(data.balance)}</span>
+            <span className="text-[0.78rem] font-semibold text-ink-2">{t("admin.treasury.form.toPay")}</span>
+            <span className="num text-[1.6rem] font-bold" data-testid="supplier-to-pay">
+              {formatMoney(amountToPay(data.balance))}
+            </span>
+            {compare(creditHeld(data.balance), "0") > 0 && (
+              <span className="text-[0.85rem] text-ink-2">
+                {t("admin.supplierBalance.creditHeld", { amount: formatMoney(creditHeld(data.balance)) })}
+              </span>
+            )}
             <span className="text-[0.85rem] text-ink-2">{t("admin.supplierBalance.balanceHint")}</span>
             <div className="mt-2 flex flex-wrap gap-2">
               {canRecord && (

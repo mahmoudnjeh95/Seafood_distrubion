@@ -38,7 +38,6 @@ import { PdfButton } from "../lib/PdfButton";
 import { useDebounced } from "../lib/useDebounced";
 import { filterParams, isFiltered, type ListFilters, NO_FILTERS } from "./listFilters";
 import { MeansChips, PaymentListFilters, PaymentTotalsCard } from "./ListParts";
-import { PaymentDialog } from "./PaymentDialog";
 import { canCollect, refreshAfterPayment } from "./shared";
 
 const PAGE_SIZE = 50;
@@ -86,7 +85,6 @@ function VoidDialog({ payment, onClose }: { payment: CustomerPayment; onClose: (
 function AgeingCard({ canWrite }: { canWrite: boolean }) {
   const { t } = useTranslation();
   const ageing = useGetReceivablesAgeing();
-  const [paying, setPaying] = useState<{ id: number; name: string; owed: string } | null>(null);
   const data = ageing.data;
   return (
     <Card className="p-2">
@@ -125,11 +123,10 @@ function AgeingCard({ canWrite }: { canWrite: boolean }) {
                 </Td>
                 {canWrite && (
                   <Td>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setPaying({ id: row.customer.id, name: row.customer.name, owed: row.balance })}
-                    >
-                      {t("admin.payments.ageing.collect")}
+                    <Button variant="ghost" asChild>
+                      <Link to={`/reglements/nouveau?client=${row.customer.id}`}>
+                        {t("admin.payments.ageing.collect")}
+                      </Link>
                     </Button>
                   </Td>
                 )}
@@ -147,7 +144,6 @@ function AgeingCard({ canWrite }: { canWrite: boolean }) {
           </tbody>
         </Table>
       )}
-      {paying && <PaymentDialog customer={paying} owed={paying.owed} onClose={() => setPaying(null)} />}
     </Card>
   );
 }

@@ -1,19 +1,31 @@
-import { useGetCustomerBalance } from "@frutti/api";
+import { useGetCustomerBalance, useListInstruments } from "@frutti/api";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, Pill, Table, Td, Th } from "@frutti/ui";
-import { useState } from "react";
 import { Link } from "react-router";
 
-import { PaymentDialog } from "../payments/PaymentDialog";
+import { sum } from "../lib/decimal";
+import { Figure } from "../payments/Figure";
+import { openItems } from "../payments/openItems";
+import { amountToPay } from "../payments/toPay";
 
-/** What the customer owes: balance, ageing, open sales, account history, and the button to collect. */
+/** What the customer owes: "Total à régler" (the same number as the règlement form), what it is made of, ageing,
+ * open sales, account history, and the button to collect (D-226). */
 export function BalanceCard({ customer, canCollect }: { customer: { id: number; name: string }; canCollect: boolean }) {
   const { t } = useTranslation();
   const query = useGetCustomerBalance(customer.id);
-  const [paying, setPaying] = useState(false);
+  // The effets received and not yet cashed: the same query as the règlement form, for the encours (D-210).
+  const effets = useListInstruments(
+    { customer: customer.id, direction: "received", status: "portfolio,deposited", limit: 200 },
+    { query: { enabled: customer.id > 0 } },
+  );
   const data = query.data;
   if (!data) return <p className="text-ink-2">{t("common.loading")}</p>;
   const credit = Number(data.balance) < 0;
+  const toPay = amountToPay(data.balance);
+  const items = openItems(data.open_sales);
+  const invoiced = sum(items.filter((item) => item.kind === "invoice").map((item) => item.outstanding));
+  const uninvoiced = sum(items.filter((item) => item.kind === "sale").map((item) => item.outstanding));
+  const inPortfolio = sum((effets.data?.results ?? []).map((row) => row.amount));
 
   return (
     <>
@@ -24,12 +36,23 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
           <dl className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-6 gap-y-3">
             <div>
               <dt className="text-[0.78rem] font-semibold text-ink-2">
-                {t(credit ? "admin.payments.balance.creditHeld" : "admin.payments.balance.owes")}
+                {t(credit ? "admin.payments.balance.creditHeld" : "admin.treasury.form.toPay")}
               </dt>
               <dd className="num text-[1.4rem] font-bold" data-testid="customer-balance">
-                {formatMoney(credit ? data.credit : data.balance)}
+                {formatMoney(credit ? data.credit : toPay)}
               </dd>
             </div>
+            {!credit && (
+              <>
+                <Figure label={t("admin.payments.balance.invoicesOwed")} value={formatMoney(invoiced)} />
+                <Figure label={t("admin.payments.balance.salesOwed")} value={formatMoney(uninvoiced)} />
+                {Number(data.credit) > 0 && (
+                  <Figure label={t("admin.payments.balance.unallocatedCredit")} value={formatMoney(data.credit)} />
+                )}
+              </>
+            )}
+            <Figure label={t("admin.treasury.form.inPortfolio")} value={formatMoney(inPortfolio)} />
+            <Figure label={t("admin.treasury.form.exposure")} value={formatMoney(sum([toPay, inPortfolio]))} />
             <div>
               <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.payments.balance.available")}</dt>
               <dd className="num">{formatMoney(data.available_credit)}</dd>
@@ -53,11 +76,8 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
           </dl>
           {canCollect && (
             <div className="flex flex-wrap gap-2">
-              <Button asChild>
-                <Link to={`/reglements/nouveau?client=${customer.id}`}>{t("admin.treasury.form.detailed")}</Link>
-              </Button>
-              <Button variant="primary" onClick={() => setPaying(true)}>
-                {t("admin.payments.balance.collect")}
+              <Button variant="primary" asChild>
+                <Link to={`/reglements/nouveau?client=${customer.id}`}>{t("admin.payments.balance.collect")}</Link>
               </Button>
             </div>
           )}
@@ -138,13 +158,6 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
           </Table>
         )}
       </Card>
-      {paying && (
-        <PaymentDialog
-          customer={customer}
-          {...(Number(data.balance) > 0 ? { owed: data.balance } : {})}
-          onClose={() => setPaying(false)}
-        />
-      )}
     </>
   );
 }
