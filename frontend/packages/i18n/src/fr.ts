@@ -1054,6 +1054,7 @@ export const fr = {
     // ---- The cash handed to each driver for the day, accepted on the phone (D-203) ----
     dayFunds: {
       title: "Fonds de caisse du jour",
+      date: "Jour du fonds de caisse",
       intro:
         "Saisissez l'argent remis à chaque chauffeur pour sa journée. Le chauffeur l'accepte sur son téléphone, ce qui démarre sa journée ; ensuite il ne change plus.",
       noDrivers: "Aucun chauffeur actif.",
