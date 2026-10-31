@@ -15,7 +15,8 @@ export {
 export { EmptyState } from "./components/empty-state";
 export { type BellItem, NotificationBell } from "./components/notification-bell";
 export { Field, Input, Label } from "./components/input";
-export { MoneyInput, typeMoney } from "./components/money-input";
+export { MoneyInput } from "./components/money-input";
+export { typeMoney } from "./lib/type-money";
 export { Pill } from "./components/pill";
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/select";
 export { Table, Td, Th } from "./components/table";
