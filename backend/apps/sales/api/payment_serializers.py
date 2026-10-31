@@ -1,13 +1,16 @@
-"""Customer payments, balances, ageing and withholding certificates (P2-T06, D-062, D-063)."""
+"""Customer payments (règlements with several lines, D-197), balances, ageing and withholding certificates
+(P2-T06, D-062, D-063)."""
 
 from decimal import Decimal
 from typing import Any
 
+from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.sales.models import CustomerPayment, SalePaymentMethod
+from apps.sales.models import CustomerPayment, CustomerPaymentLine, CustomerPaymentMethod
+from apps.treasury import selectors as treasury
 
 from .serializers import InvoiceCertificateSerializer, QuoteCustomerSerializer, SaleRefSerializer, person_name
 
@@ -23,9 +26,35 @@ class CustomerPaymentAllocationSerializer(serializers.Serializer[Any]):
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
+class InstrumentRefSerializer(serializers.Serializer[Any]):
+    """The cheque or traite of a payment line, as the treasury follows it (D-197)."""
+
+    id = serializers.IntegerField(read_only=True)
+    kind = serializers.ChoiceField(choices=treasury.INSTRUMENT_KIND_CHOICES, read_only=True)
+    number = serializers.CharField(read_only=True)
+    bank_code = serializers.CharField(source="bank.code", read_only=True, default="")
+    bank_name = serializers.CharField(source="bank.name", read_only=True, default="")
+    drawer = serializers.CharField(read_only=True)
+    due_on = serializers.DateField(read_only=True)
+    status = serializers.ChoiceField(choices=treasury.INSTRUMENT_STATUS_CHOICES, read_only=True)
+
+
+class CustomerPaymentLineSerializer(serializers.ModelSerializer[CustomerPaymentLine]):
+    method = serializers.ChoiceField(choices=CustomerPaymentMethod.choices, read_only=True)
+    # The cheque or traite of the line, with its state in the treasury; null for cash, transfer, card.
+    instrument = InstrumentRefSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = CustomerPaymentLine
+        fields: tuple[str, ...] = ("id", "method", "amount", "reference", "instrument")
+        read_only_fields: tuple[str, ...] = fields
+
+
 class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
     customer = QuoteCustomerSerializer(read_only=True)
-    method = serializers.ChoiceField(choices=SalePaymentMethod.choices, read_only=True)
+    # `mixed` when the lines use several methods.
+    method = serializers.ChoiceField(choices=CustomerPaymentMethod.choices, read_only=True)
+    lines = CustomerPaymentLineSerializer(many=True, read_only=True)
     # The part settling sales, and what is left as the customer's credit (0 when voided).
     allocated_total = serializers.SerializerMethodField()
     unallocated = serializers.SerializerMethodField()
@@ -43,6 +72,7 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
             "customer",
             "amount",
             "method",
+            "lines",
             "received_on",
             "reference",
             "notes",
@@ -102,9 +132,30 @@ class CustomerPaymentDetailSerializer(CustomerPaymentSerializer):
 
 
 class CustomerAllocationWriteSerializer(serializers.Serializer[Any]):
-    sale = serializers.IntegerField(min_value=1)
+    # One of the two: a sale (BL), or an invoice whose amount is spread over its BLs, oldest first.
+    sale = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    invoice = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     # DT as a string ("100.000").
     amount = serializers.CharField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if (attrs["sale"] is None) == (attrs["invoice"] is None):
+            raise serializers.ValidationError({"amount": _("Indiquez une vente ou une facture.")})
+        return attrs
+
+
+class CustomerPaymentLineWriteSerializer(serializers.Serializer[Any]):
+    # `mixed` is refused by the service: it names a règlement, not a line.
+    method = serializers.ChoiceField(choices=CustomerPaymentMethod.choices)
+    # DT as a string ("500.000").
+    amount = serializers.CharField()
+    # A transfer or card reference.
+    reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
+    # A cheque or a traite: its number, bank, drawer (empty: the customer) and échéance.
+    number = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
+    bank = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+    drawer = serializers.CharField(required=False, allow_blank=True, default="", max_length=150)
+    due_on = serializers.DateField(required=False, allow_null=True, default=None)
 
 
 class AllocateWriteSerializer(serializers.Serializer[Any]):
@@ -115,8 +166,11 @@ class AllocateWriteSerializer(serializers.Serializer[Any]):
 
 class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     customer = serializers.IntegerField(min_value=1)
-    amount = serializers.CharField()
-    method = serializers.ChoiceField(choices=SalePaymentMethod.choices)
+    # The means of payment (D-197). Without them, `amount` and `method` (and `reference`) make the one line.
+    lines = CustomerPaymentLineWriteSerializer(many=True, required=False, allow_null=True, default=None)
+    # With `lines`, optional: when sent it must equal their sum.
+    amount = serializers.CharField(required=False, allow_null=True, default=None)
+    method = serializers.ChoiceField(choices=CustomerPaymentMethod.choices, required=False)
     # Empty: today.
     received_on = serializers.DateField(required=False, allow_null=True, default=None)
     reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)

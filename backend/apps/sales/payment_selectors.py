@@ -3,12 +3,19 @@
 import datetime as dt
 from decimal import Decimal
 
-from django.db.models import DecimalField, Prefetch, Q, QuerySet, Sum, Value
+from django.db.models import DecimalField, Exists, OuterRef, Prefetch, Q, QuerySet, Sum, Value
 from django.db.models.functions import Coalesce
 
 from apps.core.models import Organization
 
-from .models import CustomerPayment, Invoice, InvoiceStatus, PaymentAllocation, WithholdingCertificate
+from .models import (
+    CustomerPayment,
+    CustomerPaymentLine,
+    Invoice,
+    InvoiceStatus,
+    PaymentAllocation,
+    WithholdingCertificate,
+)
 
 
 def withholding_certificates_of(
@@ -73,12 +80,14 @@ def customer_payments_of(
     date_to: dt.date | None = None,
     search: str = "",
 ) -> QuerySet[CustomerPayment]:
-    """Payments (voided ones too), newest first, each with its customer, allocations (and their sales) and
-    `allocated_total`, the part of the payment settling sales (voided payments allocate nothing)."""
+    """Payments (voided ones too), newest first, each with its customer, lines (and their effets), allocations
+    (and their sales) and `allocated_total`, the part of the payment settling sales (voided payments allocate
+    nothing). `search` also finds the number or reference of one of its lines (a cheque, a traite)."""
     payments = (
         CustomerPayment.objects.for_organization(organization)
         .select_related("customer", "created_by", "voided_by")
         .prefetch_related(Prefetch("allocations", queryset=PaymentAllocation.objects.select_related("sale")))
+        .prefetch_related(Prefetch("lines", queryset=CustomerPaymentLine.objects.select_related("instrument__bank")))
         .annotate(
             allocated_total=Coalesce(
                 Sum("allocations__amount"),
@@ -100,6 +109,11 @@ def customer_payments_of(
             | Q(reference__icontains=search)
             | Q(customer__name__icontains=search)
             | Q(customer__reference__icontains=search)
+            | Exists(
+                CustomerPaymentLine.objects.filter(payment=OuterRef("pk")).filter(
+                    Q(reference__icontains=search) | Q(instrument__number__icontains=search)
+                )
+            )
         )
     return payments
 
