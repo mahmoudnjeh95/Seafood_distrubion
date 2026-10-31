@@ -59,11 +59,11 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
   await expect(quote).toContainText(/Remises\s*−9,000\sDT/);
   await expect(page.getByRole("button", { name: "Modifier" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Accepté par le client" }).click();
+  await page.getByRole("button", { name: "Marquer comme accepté" }).click();
 
   await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   await expect(page.getByRole("note")).toContainText("Convertir en vente");
-  await expect(page.getByRole("button", { name: "Accepté par le client" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Marquer comme accepté" })).toHaveCount(0);
 });
 
 test("a draft is saved, changed, sent, then refused with a reason", async ({ page }) => {
@@ -86,7 +86,7 @@ test("a draft is saved, changed, sent, then refused with a reason", async ({ pag
 
   await page.getByRole("button", { name: "Marquer comme envoyé" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ marqué comme envoyé/)).toBeVisible();
-  await page.getByRole("button", { name: "Refusé par le client" }).click();
+  await page.getByRole("button", { name: "Marquer comme refusé" }).click();
   await page.getByRole("dialog").getByLabel("Motif (facultatif)").fill("Trop cher cette semaine");
   await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le refus" }).click();
 

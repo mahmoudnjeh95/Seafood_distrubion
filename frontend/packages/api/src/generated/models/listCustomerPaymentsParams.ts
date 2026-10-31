@@ -4,6 +4,8 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ListCustomerPaymentsMethod } from './listCustomerPaymentsMethod';
+import type { ListCustomerPaymentsState } from './listCustomerPaymentsState';
 
 export type ListCustomerPaymentsParams = {
 /**
@@ -17,6 +19,16 @@ date_to?: string;
  */
 limit?: number;
 /**
+ * * `cash` - Espèces
+ * * `cheque` - Chèque
+ * * `bill` - Traite
+ * * `transfer` - Virement
+ * * `card` - Carte bancaire
+ * * `mixed` - Plusieurs moyens
+ * @minLength 1
+ */
+method?: ListCustomerPaymentsMethod;
+/**
  * L'index initial depuis lequel retourner les résultats.
  */
 offset?: number;
@@ -24,4 +36,11 @@ offset?: number;
  * @maxLength 100
  */
 search?: string;
+/**
+ * * `active` - active
+ * * `voided` - voided
+ * * `unallocated` - unallocated
+ * @minLength 1
+ */
+state?: ListCustomerPaymentsState;
 };

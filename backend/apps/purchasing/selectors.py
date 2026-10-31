@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal
 
 from django.db.models import (
+    Case,
     DecimalField,
     Exists,
     ExpressionWrapper,
@@ -17,6 +18,7 @@ from django.db.models import (
     Subquery,
     Sum,
     Value,
+    When,
 )
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -195,10 +197,11 @@ type InvoiceStatusFilter = Literal["draft", "posted", "partly_paid", "paid", "op
 
 
 def _sum_of_allocations(**match: Any) -> Coalesce:
-    """The sum of the allocations matching `match` (an OuterRef), as a subquery: no join, no duplicate rows."""
+    """The sum of the allocations matching `match` (an OuterRef), as a subquery: no join, no duplicate rows.
+    Those of a voided règlement count for nothing (D-211)."""
     group = next(iter(match))
     allocations = (
-        SupplierPaymentAllocation.objects.filter(**match)
+        SupplierPaymentAllocation.objects.filter(**match, payment__voided_at__isnull=True)
         .order_by()
         .values(group)
         .annotate(total=Sum("amount"))
@@ -221,7 +224,11 @@ def invoices_of(
     passed. `search` matches our number, the supplier's invoice number and the supplier's name.
     """
     links = SupplierInvoiceReceipt.objects.select_related("receipt").order_by("receipt__received_on", "receipt_id")
-    allocations = SupplierPaymentAllocation.objects.select_related("payment").order_by("payment__paid_on", "id")
+    allocations = (
+        SupplierPaymentAllocation.objects.filter(payment__voided_at__isnull=True)
+        .select_related("payment")
+        .order_by("payment__paid_on", "id")
+    )
     invoices = (
         SupplierInvoice.objects.for_organization(organization)
         .select_related("supplier", "created_by", "posted_by")
@@ -256,29 +263,61 @@ def open_invoices_of(organization: Organization, *, supplier_id: int) -> QuerySe
     return invoices_of(organization, supplier_id=supplier_id, status="open").order_by("due_date", "invoice_date", "id")
 
 
-def payments_of(
-    organization: Organization, *, supplier_id: int | None = None, search: str = "", unallocated: bool = False
-) -> QuerySet[SupplierPayment]:
-    """Supplier payments newest first, with their allocations, `allocated_amount` and `unallocated_amount`.
+type PaymentState = Literal["active", "voided", "unallocated"]
 
-    `unallocated` keeps the payments with a part not allocated to an invoice yet (advances).
-    `search` matches our number, the cheque or transfer reference (of any line) and the supplier's name.
+
+def payments_of(
+    organization: Organization,
+    *,
+    supplier_id: int | None = None,
+    search: str = "",
+    unallocated: bool = False,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    method: str | None = None,
+    state: PaymentState | None = None,
+) -> QuerySet[SupplierPayment]:
+    """Supplier payments newest first (voided ones too), with their lines, allocations, `allocated_amount` and
+    `unallocated_amount` (0 for a voided one: it allocates nothing and is no advance, D-211).
+
+    `unallocated` (or `state="unallocated"`) keeps the payments not voided with a part not allocated yet
+    (advances); `state` "active" or "voided" the others. `method` keeps those with a line of that means (or
+    "mixed": several means). Days paid are inclusive. `search` matches our number, the cheque or transfer
+    reference (of any line) and the supplier's name.
     """
     allocations = SupplierPaymentAllocation.objects.select_related("invoice").order_by("id")
     lines = SupplierPaymentLine.objects.select_related("instrument__bank").order_by("id")
     payments = (
         SupplierPayment.objects.for_organization(organization)
-        .select_related("supplier", "created_by")
+        .select_related("supplier", "created_by", "voided_by")
         .prefetch_related(Prefetch("allocations", queryset=allocations))
         .prefetch_related(Prefetch("lines", queryset=lines))
         .annotate(allocated_amount=_sum_of_allocations(payment=OuterRef("pk")))
-        .annotate(unallocated_amount=ExpressionWrapper(F("amount") - F("allocated_amount"), output_field=AMOUNT))
+        .annotate(
+            unallocated_amount=Case(
+                When(voided_at__isnull=False, then=Value(ZERO)),
+                default=ExpressionWrapper(F("amount") - F("allocated_amount"), output_field=AMOUNT),
+                output_field=AMOUNT,
+            )
+        )
         .order_by("-paid_on", "-id")
     )
     if supplier_id is not None:
         payments = payments.filter(supplier_id=supplier_id)
-    if unallocated:
+    if unallocated or state == "unallocated":
         payments = payments.filter(unallocated_amount__gt=0)
+    elif state == "active":
+        payments = payments.filter(voided_at__isnull=True)
+    elif state == "voided":
+        payments = payments.filter(voided_at__isnull=False)
+    if date_from is not None:
+        payments = payments.filter(paid_on__gte=date_from)
+    if date_to is not None:
+        payments = payments.filter(paid_on__lte=date_to)
+    if method == PaymentMethod.MIXED:
+        payments = payments.filter(method=PaymentMethod.MIXED)
+    elif method:
+        payments = payments.filter(Exists(SupplierPaymentLine.objects.filter(payment=OuterRef("pk"), method=method)))
     if search := search.strip():
         in_lines = SupplierPaymentLine.objects.filter(payment=OuterRef("pk")).filter(
             Q(reference__icontains=search) | Q(instrument__number__icontains=search)
@@ -293,8 +332,47 @@ def payments_of(
 
 
 def payment_of(organization: Organization, payment_id: int) -> SupplierPayment:
-    """One payment with its allocations. Raises SupplierPayment.DoesNotExist outside the organization."""
-    return payments_of(organization).get(pk=payment_id)
+    """One payment with its lines (and each effet's history), allocations. Raises SupplierPayment.DoesNotExist
+    outside the organization."""
+    return payments_of(organization).prefetch_related("lines__instrument__events__actor").get(pk=payment_id)
+
+
+@dataclass(frozen=True)
+class PaymentTotals:
+    """What a filtered list of règlements adds up to, voided ones left out; `by_method` from their lines."""
+
+    count: int
+    voided: int
+    total: Decimal
+    allocated: Decimal
+    unallocated: Decimal
+    by_method: dict[str, Decimal]
+
+
+def payment_totals(payments: QuerySet[SupplierPayment]) -> PaymentTotals:
+    """The totals of `payments` (a `payments_of` queryset, its filters applied)."""
+    live = payments.filter(voided_at__isnull=True)
+    rows = live.aggregate(total=Sum("amount"))
+    allocated = SupplierPaymentAllocation.objects.filter(payment__in=live.values("pk")).aggregate(total=Sum("amount"))[
+        "total"
+    ]
+    by_method = {
+        row["method"]: row["total"]
+        for row in SupplierPaymentLine.objects.filter(payment__in=live.values("pk"))
+        .values("method")
+        .annotate(total=Sum("amount"))
+        .order_by("method")
+    }
+    total = rows["total"] or ZERO
+    allocated = allocated or ZERO
+    return PaymentTotals(
+        count=live.count(),
+        voided=payments.filter(voided_at__isnull=False).count(),
+        total=total,
+        allocated=allocated,
+        unallocated=total - allocated,
+        by_method=by_method,
+    )
 
 
 @dataclass(frozen=True)
@@ -458,9 +536,11 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
     invoices = SupplierInvoice.objects.for_organization(organization).filter(supplier_id=supplier_id)
     posted = invoices.exclude(status=SupplierInvoiceStatus.DRAFT)
     drafts = invoices.filter(status=SupplierInvoiceStatus.DRAFT)
-    payments = SupplierPayment.objects.for_organization(organization).filter(supplier_id=supplier_id)
+    payments = SupplierPayment.objects.for_organization(organization).filter(
+        supplier_id=supplier_id, voided_at__isnull=True
+    )
     allocations = SupplierPaymentAllocation.objects.for_organization(organization).filter(
-        payment__supplier_id=supplier_id
+        payment__supplier_id=supplier_id, payment__voided_at__isnull=True
     )
     open_invoices = list(invoices_of(organization, supplier_id=supplier_id, status="open"))
     today = timezone.localdate()
@@ -489,7 +569,7 @@ def payments_by_day(organization: Organization, *, date_from: dt.date, date_to: 
     """Money paid to suppliers per day (`paid_on`), inclusive."""
     rows = (
         SupplierPayment.objects.for_organization(organization)
-        .filter(paid_on__gte=date_from, paid_on__lte=date_to)
+        .filter(paid_on__gte=date_from, paid_on__lte=date_to, voided_at__isnull=True)
         .values("paid_on")
         .annotate(total=Sum("amount"))
     )

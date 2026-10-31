@@ -3006,14 +3006,34 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The list and detail pages, the supplier void and paying several plan lines at once moved to P9-T03b.
 
 **D-212 · Several lots picked by hand on a counter-sale line (owner request, 2026-10-31)** · accepted · 2026-10-31
-- A counter-sale line may name several lots, each with the kilos to take from it: `SaleLinePick` (one row per line and
-  lot), written as `picks: [{batch, quantity}]` on `SaleLineWrite`. It replaces the single `batch` of D-121. Picks take
-  their kilos in the order given, each up to what it holds; what they leave over comes from the other lots, oldest
-  first (FIFO), and a picked lot short is topped up the same way. Stock never goes negative.
-- Refused on the line: picks asking more kilos than the line's weight, a lot picked twice, a lot of another product or
-  organization, a pick without kilos above zero.
-- Migration `0021_sale_line_picks` copies each old `requested_batch` into one pick of the line's full weight, then drops
-  the field. A draft's picks go with its lines; a confirmed sale keeps `SaleLineBatch` as before.
-- The till opens a dialog from the lot cell to choose the lots and their kilos; the cell shows the picks and warns when
-  a picked lot is short. Regular sale and BL screens still have no lot picker.
-- Provisional: the kilos the picks leave over come from the oldest lots only; the seller cannot pick the lot for that rest.
+- A counter-sale line may name several lots, each with the kilos to take from it: `SaleLinePick` (one row per line
+  and lot), written as `picks: [{batch, quantity}]` on `SaleLineWrite`. Picks take their kilos in the order given,
+  each up to what it holds; what they leave over comes from the other lots, oldest first (FIFO), and a picked lot
+  short is topped up the same way. Stock never goes negative.
+- A single `batch` (D-121, quote and sale forms) stays as it was: it is one pick of the line's whole weight.
+  `picks` take precedence when both are sent.
+- Refused on the line: picks asking more kilos than the line's weight, a lot picked twice, a lot of another product
+  or organization, a pick without kilos above zero.
+- Migration `0022_sale_line_picks` creates the table and copies each draft's single lot into one pick of the line's
+  whole weight, so a draft confirmed after the deploy still takes its lot. A confirmed sale keeps `SaleLineBatch`.
+- The till opens a dialog from the lot cell to choose the lots and their kilos; the cell shows the picks and warns
+  when a picked lot is short. Regular sale and BL screens still use the single lot picker (D-201).
+- Provisional: the kilos the picks leave over come from the oldest lots only; the seller cannot pick the lot for that
+  rest.
+
+**D-211 · A supplier règlement can be voided; the règlements lists filter, add up and export (Phase 9, P9-T03b)** · accepted · 2026-10-31
+- `SupplierPayment.voided_at/voided_by/void_reason`, `POST /supplier-payments/<id>/void` (owner, manager) with a
+  reason. Like the customer void: the règlement stays in the list, marked; its allocations stop counting (its
+  invoices go back to "validée" or "partiellement payée"), the D-192 plan lines it paid are planned again, its
+  cheques and traites are cancelled (their numbers are free again). Refused once one of them was debited or rejected,
+  and for money given at the port with a purchase (corrected on the purchase).
+- Every reader leaves voided règlements out: supplier balance, invoice paid amount and status, open invoices,
+  advances (and their automatic use), debts and "chèques à venir", statement, payments per day (cash flow report),
+  partner trade payable. An advance of a voided règlement is 0.
+- Both lists filter by days, means (a line of that means, or `mixed`) and state (`active`, `voided`,
+  `unallocated`); `GET …/totals` adds up the same filter (voided left out, counted apart) with what each means paid;
+  `GET …/export` gives the same rows as an Excel file. The Excel builder moved to `apps/core/xlsx.py` (the reports
+  use it too).
+- Each règlement has its page (`/reglements/<id>`, `/achats/paiements/<id>`): its means with each effet's state and
+  history, what it settled, the credit or advance left ("Affecter"), "Annuler" with a reason; the PDF receipt for a
+  customer. The supplier receipt PDF and paying several plan lines from "Règlements fournisseurs" move to P9-T03c.

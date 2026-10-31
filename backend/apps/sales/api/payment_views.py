@@ -12,9 +12,10 @@ from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.generics import ListAPIView
@@ -23,6 +24,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.api.pagination import PagedList
+from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.partners import selectors as partners
 from apps.sales import payment_selectors, receivables, selectors, services
 from apps.sales.models import CustomerPayment, Invoice, WithholdingCertificate
@@ -34,6 +36,7 @@ from .payment_serializers import (
     CustomerPaymentDetailSerializer,
     CustomerPaymentFilterSerializer,
     CustomerPaymentSerializer,
+    CustomerPaymentTotalsSerializer,
     CustomerPaymentWriteSerializer,
     ReceivablesAgeingSerializer,
     VoidWriteSerializer,
@@ -116,20 +119,13 @@ class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment])
     pagination_class = PagedList
 
     def get_queryset(self) -> QuerySet[CustomerPayment]:
-        filters = CustomerPaymentFilterSerializer(data=self.request.query_params)
-        filters.is_valid(raise_exception=True)
-        return payment_selectors.customer_payments_of(
-            self.organization,
-            customer_id=filters.validated_data.get("customer"),
-            date_from=filters.validated_data.get("date_from"),
-            date_to=filters.validated_data.get("date_to"),
-            search=filters.validated_data["search"],
-        )
+        return _filtered_payments(self.organization, self.request)
 
     @extend_schema(operation_id="listCustomerPayments", parameters=[CustomerPaymentFilterSerializer])
     def get(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Customer payments, newest first, paginated, voided ones included. Filter by customer, days
-        received (inclusive) or `search` (number, reference, customer)."""
+        received (inclusive), means (`mixed`: several), state (`active`, `voided`, `unallocated`) or `search`
+        (number, reference, cheque or traite number, customer)."""
         return super().get(request, *args, **kwargs)
 
     @extend_schema(
@@ -165,10 +161,105 @@ class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment])
         return self.answer(payment.pk, status_code=status.HTTP_201_CREATED)
 
 
+def _filtered_payments(organization: Any, request: Request) -> QuerySet[CustomerPayment]:
+    filters = CustomerPaymentFilterSerializer(data=request.query_params)
+    filters.is_valid(raise_exception=True)
+    data = filters.validated_data
+    return payment_selectors.customer_payments_of(
+        organization,
+        customer_id=data.get("customer"),
+        date_from=data.get("date_from"),
+        date_to=data.get("date_to"),
+        search=data["search"],
+        method=data.get("method"),
+        state=data.get("state"),
+    )
+
+
+class CustomerPaymentTotalsView(OfficeView):
+    @extend_schema(
+        operation_id="getCustomerPaymentTotals",
+        parameters=[CustomerPaymentFilterSerializer],
+        responses=CustomerPaymentTotalsSerializer,
+    )
+    def get(self, request: Request) -> Response:
+        """What the règlements of the same filters as the list add up to (voided ones left out): their count,
+        total, allocated, credit left, and what each means brought."""
+        totals = payment_selectors.customer_payment_totals(_filtered_payments(self.organization, request))
+        return Response(CustomerPaymentTotalsSerializer(totals).data)
+
+
+class CustomerPaymentExportView(OfficeView):
+    @extend_schema(
+        operation_id="exportCustomerPayments",
+        parameters=[CustomerPaymentFilterSerializer],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request) -> HttpResponse:
+        """The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked)."""
+        payments = list(_filtered_payments(self.organization, request)[:5000])
+        zero = Decimal("0.000")
+
+        def allocated(payment: CustomerPayment) -> Decimal:
+            return zero if payment.voided_at else getattr(payment, "allocated_total")  # noqa: B009
+
+        rows = [
+            [
+                payment.number,
+                payment.received_on,
+                payment.customer.name,
+                payment.get_method_display(),
+                ", ".join(_line_label(line) for line in payment.lines.all()),
+                payment.amount,
+                allocated(payment),
+                zero if payment.voided_at else payment.amount - allocated(payment),
+                _("Annulé") if payment.voided_at else "",
+            ]
+            for payment in payments
+        ]
+        live = [payment for payment in payments if payment.voided_at is None]
+        content = workbook_bytes(
+            title=_("Règlements clients"),
+            headers=[
+                _("N°"),
+                _("Date"),
+                _("Client"),
+                _("Mode"),
+                _("Moyens"),
+                _("Montant"),
+                _("Affecté"),
+                _("Crédit"),
+                _("État"),
+            ],
+            rows=rows,
+            totals=[
+                _("Total"),
+                "",
+                "",
+                "",
+                "",
+                sum((payment.amount for payment in live), zero),
+                sum((allocated(payment) for payment in live), zero),
+                sum((payment.amount - allocated(payment) for payment in live), zero),
+                "",
+            ],
+        )
+        return xlsx_response("reglements-clients", content)
+
+
+def _line_label(line: Any) -> str:
+    label = str(line.get_method_display())
+    if line.instrument is not None:
+        label += f" {line.instrument.number}"
+    elif line.reference:
+        label += f" {line.reference}"
+    return f"{label} ({line.amount})"
+
+
 class CustomerPaymentDetailView(CustomerPaymentView):
     @extend_schema(operation_id="getCustomerPayment", responses=CustomerPaymentDetailSerializer)
     def get(self, request: Request, payment_id: int) -> Response:
-        """One payment with the sales it settled."""
+        """One payment with its means (each effet with its history) and the sales it settled."""
         return self.answer(payment_id)
 
 

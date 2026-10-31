@@ -1,5 +1,8 @@
 import {
   type CustomerPayment,
+  type CustomerPaymentMethodEnum,
+  getExportCustomerPaymentsUrl,
+  useGetCustomerPaymentTotals,
   useGetReceivablesAgeing,
   useGetWithholdingSummary,
   useListCustomerPayments,
@@ -33,10 +36,13 @@ import { Link, useOutletContext } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { useDebounced } from "../lib/useDebounced";
+import { filterParams, isFiltered, type ListFilters, NO_FILTERS } from "./listFilters";
+import { MeansChips, PaymentListFilters, PaymentTotalsCard } from "./ListParts";
 import { PaymentDialog } from "./PaymentDialog";
 import { canCollect, refreshAfterPayment } from "./shared";
 
 const PAGE_SIZE = 50;
+const METHODS: readonly CustomerPaymentMethodEnum[] = ["cash", "cheque", "bill", "transfer", "card", "mixed"];
 
 function VoidDialog({ payment, onClose }: { payment: CustomerPayment; onClose: () => void }) {
   const { t } = useTranslation();
@@ -192,11 +198,15 @@ export function PaymentsPage() {
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [voiding, setVoiding] = useState<CustomerPayment | null>(null);
+  const [filters, setFilters] = useState<ListFilters<CustomerPaymentMethodEnum>>(NO_FILTERS);
   const query = useDebounced(search.trim());
+  const shared = { ...filterParams(filters), ...(query ? { search: query } : {}) };
   const payments = useListCustomerPayments(
-    { limit: PAGE_SIZE, offset, ...(query ? { search: query } : {}) },
+    { limit: PAGE_SIZE, offset, ...shared },
     { query: { placeholderData: keepPreviousData } },
   );
+  const totals = useGetCustomerPaymentTotals(shared, { query: { placeholderData: keepPreviousData } });
+  const methodLabel = (method: string) => t(`admin.sales.methods.${method as CustomerPaymentMethodEnum}`);
   const page = payments.data;
   const list = page?.results ?? [];
 
@@ -212,7 +222,7 @@ export function PaymentsPage() {
       <p className="text-ink-2">{t("admin.payments.intro")}</p>
       <AgeingCard canWrite={canWrite} />
       <WithholdingCard />
-      <Card className="filter-bar flex flex-wrap items-center gap-3 p-3">
+      <Card className="filter-bar flex flex-wrap items-end gap-3 p-3">
         <Input
           type="search"
           aria-label={t("admin.payments.search")}
@@ -224,16 +234,35 @@ export function PaymentsPage() {
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
+        <PaymentListFilters
+          filters={filters}
+          onChange={(next) => {
+            setFilters(next);
+            setOffset(0);
+          }}
+          methods={METHODS}
+          methodLabel={methodLabel}
+        />
         <span className="ms-auto text-[0.85rem] text-ink-2" aria-live="polite">
           {page && t("admin.payments.count", { count: page.count })}
         </span>
       </Card>
+      <PaymentTotalsCard
+        totals={totals.data}
+        methodLabel={methodLabel}
+        restLabel={t("admin.treasury.form.credit")}
+        exportUrl={getExportCustomerPaymentsUrl(shared)}
+      />
       {payments.isPending ? (
         <p className="text-ink-2">{t("common.loading")}</p>
       ) : list.length === 0 ? (
-        <EmptyState illustration="mix" title={t("admin.payments.empty")}>
-          {t("admin.payments.emptyBody")}
-        </EmptyState>
+        query || isFiltered(filters) ? (
+          <p className="text-ink-2">{t("admin.treasury.list.noMatch")}</p>
+        ) : (
+          <EmptyState illustration="mix" title={t("admin.payments.empty")}>
+            {t("admin.payments.emptyBody")}
+          </EmptyState>
+        )
       ) : (
         <Card className="p-2">
           <Table>
@@ -253,7 +282,9 @@ export function PaymentsPage() {
               {list.map((payment) => (
                 <tr key={payment.id}>
                   <Td className="num whitespace-nowrap font-semibold">
-                    {payment.number}
+                    <Link to={`/reglements/${payment.id}`} className="text-sea hover:underline">
+                      {payment.number}
+                    </Link>
                     {payment.is_voided && (
                       <Pill tone="bad" className="ms-2">
                         {t("admin.payments.voided")}
@@ -267,10 +298,7 @@ export function PaymentsPage() {
                     </Link>
                   </Td>
                   <Td>
-                    {t(`admin.sales.methods.${payment.method}`)}
-                    {payment.reference && (
-                      <span className="num block text-[0.8rem] text-ink-2">{payment.reference}</span>
-                    )}
+                    <MeansChips lines={payment.lines} methodLabel={methodLabel} />
                   </Td>
                   <Td numeric>{formatMoney(payment.amount)}</Td>
                   <Td numeric>{formatMoney(payment.remaining)}</Td>

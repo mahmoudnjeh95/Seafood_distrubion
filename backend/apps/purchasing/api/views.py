@@ -1,9 +1,11 @@
+from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils.translation import gettext as _
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import ListAPIView
@@ -15,6 +17,7 @@ from apps.catalog import selectors as catalog
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.purchasing import selectors, services
@@ -25,6 +28,7 @@ from apps.purchasing.models import (
     PurchaseOrder,
     SupplierInvoice,
     SupplierPayment,
+    SupplierPaymentLine,
     SupplierPaymentPlanLine,
 )
 from apps.treasury import selectors as treasury
@@ -44,6 +48,8 @@ from .serializers import (
     OrderSerializer,
     OrderWriteSerializer,
     PaymentAllocateSerializer,
+    PaymentTotalsSerializer,
+    PaymentVoidSerializer,
     PlanWriteSerializer,
     ReceiptFilterSerializer,
     ReceiptSerializer,
@@ -57,6 +63,7 @@ from .serializers import (
     SupplierInvoiceSerializer,
     SupplierInvoiceUpdateSerializer,
     SupplierInvoiceWriteSerializer,
+    SupplierPaymentDetailSerializer,
     SupplierPaymentFilterSerializer,
     SupplierPaymentSerializer,
     SupplierPaymentWriteSerializer,
@@ -552,20 +559,13 @@ class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
     pagination_class = PagedList
 
     def get_queryset(self) -> QuerySet[SupplierPayment]:
-        filters = SupplierPaymentFilterSerializer(data=self.request.query_params)
-        filters.is_valid(raise_exception=True)
-        return selectors.payments_of(
-            self.organization,
-            supplier_id=filters.validated_data.get("supplier"),
-            search=filters.validated_data["search"],
-            unallocated=filters.validated_data["unallocated"],
-        )
+        return _filtered_payments(self.organization, self.request)
 
     @extend_schema(operation_id="listSupplierPayments", parameters=[SupplierPaymentFilterSerializer])
     def get(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """Payments to suppliers, newest first, paginated, with the invoices each one settled and the part
-        not allocated yet. Filter by supplier, to payments with an unallocated part, or `search` (number,
-        cheque or transfer reference, supplier's name)."""
+        """Payments to suppliers, newest first, paginated (voided ones too), with their means, the invoices each
+        one settled and the part not allocated yet. Filter by supplier, days paid, means (`mixed`: several),
+        state (`active`, `voided`, `unallocated`) or `search` (number, cheque or transfer reference, supplier)."""
         return super().get(request, *args, **kwargs)
 
     @extend_schema(
@@ -606,6 +606,98 @@ class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
         )
 
 
+def _filtered_payments(organization: Organization, request: Request) -> QuerySet[SupplierPayment]:
+    filters = SupplierPaymentFilterSerializer(data=request.query_params)
+    filters.is_valid(raise_exception=True)
+    data = filters.validated_data
+    return selectors.payments_of(
+        organization,
+        supplier_id=data.get("supplier"),
+        search=data["search"],
+        unallocated=data["unallocated"],
+        date_from=data.get("date_from"),
+        date_to=data.get("date_to"),
+        method=data.get("method"),
+        state=data.get("state"),
+    )
+
+
+class SupplierPaymentTotalsView(PurchasingView):
+    @extend_schema(
+        operation_id="getSupplierPaymentTotals",
+        parameters=[SupplierPaymentFilterSerializer],
+        responses=PaymentTotalsSerializer,
+    )
+    def get(self, request: Request) -> Response:
+        """What the règlements of the same filters as the list add up to (voided ones left out): their count,
+        total, allocated, advance, and what each means paid."""
+        return Response(
+            PaymentTotalsSerializer(selectors.payment_totals(_filtered_payments(self.organization, request))).data
+        )
+
+
+class SupplierPaymentExportView(PurchasingView):
+    @extend_schema(
+        operation_id="exportSupplierPayments",
+        parameters=[SupplierPaymentFilterSerializer],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request) -> HttpResponse:
+        """The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked)."""
+        payments = list(_filtered_payments(self.organization, request)[:5000])
+        rows = [
+            [
+                payment.number,
+                payment.paid_on,
+                payment.supplier.name,
+                payment.get_method_display(),
+                ", ".join(_line_label(line) for line in payment.lines.all()),
+                payment.amount,
+                getattr(payment, "allocated_amount"),  # noqa: B009
+                getattr(payment, "unallocated_amount"),  # noqa: B009
+                _("Annulé") if payment.voided_at else "",
+            ]
+            for payment in payments
+        ]
+        live = [payment for payment in payments if payment.voided_at is None]
+        content = workbook_bytes(
+            title=_("Règlements fournisseurs"),
+            headers=[
+                _("N°"),
+                _("Date"),
+                _("Fournisseur"),
+                _("Mode"),
+                _("Moyens"),
+                _("Montant"),
+                _("Affecté"),
+                _("Avance"),
+                _("État"),
+            ],
+            rows=rows,
+            totals=[
+                _("Total"),
+                "",
+                "",
+                "",
+                "",
+                sum((payment.amount for payment in live), Decimal("0.000")),
+                sum((getattr(payment, "allocated_amount") for payment in live), Decimal("0.000")),  # noqa: B009
+                sum((getattr(payment, "unallocated_amount") for payment in live), Decimal("0.000")),  # noqa: B009
+                "",
+            ],
+        )
+        return xlsx_response("reglements-fournisseurs", content)
+
+
+def _line_label(line: SupplierPaymentLine) -> str:
+    label = str(line.get_method_display())
+    if line.instrument is not None:
+        label += f" {line.instrument.number}"
+    elif line.reference:
+        label += f" {line.reference}"
+    return f"{label} ({line.amount})"
+
+
 class PaymentView(PurchasingView):
     def _payment(self, payment_id: int) -> SupplierPayment:
         try:
@@ -615,9 +707,25 @@ class PaymentView(PurchasingView):
 
 
 class SupplierPaymentDetailView(PaymentView):
-    @extend_schema(operation_id="getSupplierPayment", responses=SupplierPaymentSerializer)
+    @extend_schema(operation_id="getSupplierPayment", responses=SupplierPaymentDetailSerializer)
     def get(self, request: Request, payment_id: int) -> Response:
-        return Response(SupplierPaymentSerializer(self._payment(payment_id)).data)
+        """One règlement: its means (each effet with its history), the invoices it settled, the advance left."""
+        return Response(SupplierPaymentDetailSerializer(self._payment(payment_id)).data)
+
+
+class SupplierPaymentVoidView(PaymentView):
+    @extend_schema(
+        operation_id="voidSupplierPayment", request=PaymentVoidSerializer, responses=SupplierPaymentDetailSerializer
+    )
+    def post(self, request: Request, payment_id: int) -> Response:
+        """Void a règlement typed by mistake (owner or manager), with its reason: it stays in the list, marked
+        voided; its invoices owe again, the plan lines it paid are planned again, its cheques and traites are
+        cancelled. Refused once one of them was debited, and for money given at the port with a purchase."""
+        payment = self._payment(payment_id)
+        serializer = PaymentVoidSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.void_payment(payment=payment, actor=self.membership.user, reason=serializer.validated_data["reason"])
+        return Response(SupplierPaymentDetailSerializer(self._payment(payment_id)).data)
 
 
 class SupplierPaymentAllocateView(PaymentView):

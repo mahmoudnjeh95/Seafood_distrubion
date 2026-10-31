@@ -93,13 +93,17 @@ cash only on the phone (as today, D-133).
 - [x] i18n FR. Vitest for the lines, the totals and "Répartir". E2E of the supplier payment updated.
 
 ### P9-T03b · Office: règlement lists, detail pages and the supplier void · M
-- [ ] Règlements clients / fournisseurs list pages: filters (party, dates, method, status, search), totals of the
-      filter, columns number, day, party, total, moyens (chips), affecté, avance, state; Excel export.
-- [ ] Règlement detail page: lines with each effet's state and history, affectation, avance left with "Affecter",
-      "Annuler" (reason), PDF reçu de règlement (lines and invoices), link to the customer statement.
-- [ ] Void a supplier règlement (D-208: none existed): reason, its allocations undone (invoice status back), its
-      plan lines open again, its effets cancelled; refused once an effet was debited. Every supplier balance, debt,
-      statement and report reads only the règlements not voided.
+- [x] Règlements clients / fournisseurs list pages (D-211): filters (search, days, means, state), totals of the
+      filter by means (voided left out), means as chips, voided marked, Excel export of the filter.
+- [x] Règlement detail pages (`/reglements/<id>`, `/achats/paiements/<id>`): lines with each effet's state and
+      history, what it settled, credit/advance left with "Affecter", "Annuler" (reason), PDF reçu (customer).
+- [x] Void a supplier règlement (D-211): allocations undone (invoice status back), plan lines open again, effets
+      cancelled; refused once an effet was debited or for port money. Every supplier balance, debt, statement and
+      report reads only the règlements not voided.
+- [x] Tests: void and its readers, list filters, totals, export, effet history (both sides); vitest for the filters.
+
+### P9-T03c · Supplier receipt PDF and several plan lines at once · S
+- [ ] PDF "reçu de paiement fournisseur" (lines, effets, invoices), button on the detail page.
 - [ ] "Payer" several plan lines at once from "Règlements fournisseurs" (the API takes `plan_lines`, D-208).
 
 ### P9-T04 · Portefeuille: the life of an effet · L

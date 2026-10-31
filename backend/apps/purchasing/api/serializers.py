@@ -491,6 +491,28 @@ class SupplierPaymentLineSerializer(serializers.ModelSerializer[SupplierPaymentL
         read_only_fields: tuple[str, ...] = fields
 
 
+class EffetEventSerializer(serializers.Serializer[Any]):
+    """One step in the life of an effet: issued, debited, rejected, cancelled..."""
+
+    from_status = serializers.CharField(read_only=True)
+    to_status = serializers.ChoiceField(choices=treasury.INSTRUMENT_STATUS_CHOICES, read_only=True)
+    happened_on = serializers.DateField(read_only=True)
+    note = serializers.CharField(read_only=True)
+    actor = serializers.SerializerMethodField()
+
+    def get_actor(self, event: Any) -> str:
+        return _name_of(event.actor)
+
+
+class IssuedInstrumentDetailSerializer(IssuedInstrumentSerializer):
+    # Oldest first.
+    events = EffetEventSerializer(many=True, read_only=True)
+
+
+class SupplierPaymentLineDetailSerializer(SupplierPaymentLineSerializer):
+    instrument = IssuedInstrumentDetailSerializer(read_only=True, allow_null=True)
+
+
 class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
     supplier = RefSerializer(read_only=True)
     # `mixed` when the lines use several methods.
@@ -501,6 +523,8 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
     unallocated_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     allocations = PaymentAllocationSerializer(many=True, read_only=True)
     created_by = serializers.SerializerMethodField()
+    is_voided = serializers.SerializerMethodField()
+    voided_by = serializers.SerializerMethodField()
 
     class Meta:
         model = SupplierPayment
@@ -520,11 +544,27 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
             "allocations",
             "created_by",
             "created_at",
+            "is_voided",
+            "voided_at",
+            "voided_by",
+            "void_reason",
         )
         read_only_fields = fields
 
     def get_created_by(self, payment: SupplierPayment) -> str:
         return _name_of(payment.created_by)
+
+    def get_is_voided(self, payment: SupplierPayment) -> bool:
+        return payment.voided_at is not None
+
+    def get_voided_by(self, payment: SupplierPayment) -> str:
+        return _name_of(payment.voided_by)
+
+
+class SupplierPaymentDetailSerializer(SupplierPaymentSerializer):
+    """One règlement with the history of each of its effets."""
+
+    lines = SupplierPaymentLineDetailSerializer(many=True, read_only=True)
 
 
 class AllocationWriteSerializer(serializers.Serializer[Any]):
@@ -578,6 +618,29 @@ class SupplierPaymentFilterSerializer(serializers.Serializer[Any]):
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
     # Only payments with a part not allocated to an invoice yet.
     unallocated = serializers.BooleanField(required=False, default=False)
+    # Days paid, inclusive.
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    # Those with a line of this means; `mixed`: those with several means.
+    method = serializers.ChoiceField(choices=PaymentMethod.choices, required=False)
+    # `active` (not voided), `voided`, or `unallocated` (an advance left).
+    state = serializers.ChoiceField(choices=["active", "voided", "unallocated"], required=False)
+
+
+class PaymentTotalsSerializer(serializers.Serializer[Any]):
+    """The totals of the filtered règlements, voided ones left out (their number is in `voided`)."""
+
+    count = serializers.IntegerField(read_only=True)
+    voided = serializers.IntegerField(read_only=True)
+    total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    allocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    unallocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Paid by each means, from the lines ({"cash": "500.000", "cheque": ...}).
+    by_method = serializers.DictField(child=serializers.DecimalField(max_digits=14, decimal_places=3), read_only=True)
+
+
+class PaymentVoidSerializer(serializers.Serializer[Any]):
+    reason = serializers.CharField(allow_blank=True, max_length=255)
 
 
 class SupplierBalanceSerializer(serializers.Serializer[Any]):

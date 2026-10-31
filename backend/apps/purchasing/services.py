@@ -861,7 +861,9 @@ def allocation_error_key(index: int, field: str) -> str:
 
 
 def _paid_on(invoice: SupplierInvoice) -> Decimal:
-    paid = SupplierPaymentAllocation.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    paid = SupplierPaymentAllocation.objects.filter(invoice=invoice, payment__voided_at__isnull=True).aggregate(
+        total=Sum("amount")
+    )["total"]
     return paid if paid is not None else Decimal("0.000")
 
 
@@ -1260,6 +1262,8 @@ def allocate_payment(
 ) -> SupplierPayment:
     """Allocate the part of a payment not allocated yet (an advance) to posted invoices of its supplier."""
     payment = SupplierPayment.objects.select_for_update().select_related("supplier", "organization").get(pk=payment.pk)
+    if payment.voided_at is not None:
+        raise ValidationError(_("Ce règlement est annulé."))
     errors: dict[str, str] = {}
     if not allocations:
         errors["allocations"] = _("Choisissez au moins une facture.")
@@ -1277,6 +1281,65 @@ def allocate_payment(
         target=payment,
         before=before,
         after=_payment_snapshot(payment),
+    )
+    return payment
+
+
+def _invoice_status_from_payments(invoice: SupplierInvoice) -> str:
+    paid = _paid_on(invoice)
+    if paid >= invoice.total:
+        return SupplierInvoiceStatus.PAID
+    return SupplierInvoiceStatus.PARTLY_PAID if paid > 0 else SupplierInvoiceStatus.POSTED
+
+
+@transaction.atomic
+def void_payment(*, payment: SupplierPayment, actor: User | None, reason: str) -> SupplierPayment:
+    """Cancel a supplier règlement typed by mistake (D-211): it stays, marked voided with who, when and why. Its
+    allocations stop counting (its invoices owe again), the plan lines it paid are planned again and its cheques
+    and traites are cancelled. Never deleted.
+
+    Refused once one of our effets moved on (debited, rejected: the bank handled it), and for the money given at
+    the port with a purchase (corrected on the purchase, D-176).
+    """
+    payment = SupplierPayment.objects.select_for_update().select_related("organization", "supplier").get(pk=payment.pk)
+    if payment.voided_at is not None:
+        raise ValidationError(_("Ce règlement est déjà annulé."))
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
+    if FieldPurchasePayment.objects.filter(supplier_payment=payment).exists():
+        raise ValidationError(_("Ce règlement vient d'un achat terrain : corrigez l'achat."))
+    instrument_ids = [
+        pk for pk in SupplierPaymentLine.objects.filter(payment=payment).values_list("instrument_id", flat=True) if pk
+    ]
+    if instrument_ids:
+        treasury.cancel_instruments(
+            instrument_ids=instrument_ids,
+            actor=actor,
+            happened_on=timezone.localdate(),
+            note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
+        )
+    invoice_ids = sorted(
+        set(SupplierPaymentAllocation.objects.filter(payment=payment).values_list("invoice_id", flat=True))
+    )
+    payment.voided_at = timezone.now()
+    payment.voided_by = actor
+    payment.void_reason = reason
+    payment.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
+    for invoice in SupplierInvoice.objects.select_for_update().filter(pk__in=invoice_ids).order_by("id"):
+        status = _invoice_status_from_payments(invoice)
+        if status != invoice.status:
+            invoice.status = status
+            invoice.save(update_fields=["status", "updated_at"])
+    reopened = SupplierPaymentPlanLine.objects.filter(payment=payment, status=PlanLineStatus.PAID).update(
+        status=PlanLineStatus.OPEN, payment=None, updated_at=timezone.now()
+    )
+    audit.record(
+        organization=payment.organization,
+        actor=actor,
+        action="supplier_payment.voided",
+        target=payment,
+        after={"reason": reason, "amount": str(payment.amount), "plan_lines_reopened": reopened},
     )
     return payment
 
