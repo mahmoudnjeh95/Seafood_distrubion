@@ -1,9 +1,10 @@
 """Reusable read queries of customer payments and withholding certificates (P2-T06, D-062, D-063)."""
 
 import datetime as dt
+from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db.models import DecimalField, Exists, OuterRef, Prefetch, Q, QuerySet, Sum, Value
+from django.db.models import DecimalField, Exists, F, OuterRef, Prefetch, Q, QuerySet, Sum, Value
 from django.db.models.functions import Coalesce
 
 from apps.core.models import Organization
@@ -11,6 +12,7 @@ from apps.core.models import Organization
 from .models import (
     CustomerPayment,
     CustomerPaymentLine,
+    CustomerPaymentMethod,
     Invoice,
     InvoiceStatus,
     PaymentAllocation,
@@ -79,6 +81,8 @@ def customer_payments_of(
     date_from: dt.date | None = None,
     date_to: dt.date | None = None,
     search: str = "",
+    method: str | None = None,
+    state: str | None = None,
 ) -> QuerySet[CustomerPayment]:
     """Payments (voided ones too), newest first, each with its customer, lines (and their effets), allocations
     (and their sales) and `allocated_total`, the part of the payment settling sales (voided payments allocate
@@ -103,6 +107,16 @@ def customer_payments_of(
         payments = payments.filter(received_on__gte=date_from)
     if date_to is not None:
         payments = payments.filter(received_on__lte=date_to)
+    if method == CustomerPaymentMethod.MIXED:
+        payments = payments.filter(method=CustomerPaymentMethod.MIXED)
+    elif method:
+        payments = payments.filter(Exists(CustomerPaymentLine.objects.filter(payment=OuterRef("pk"), method=method)))
+    if state == "active":
+        payments = payments.filter(voided_at__isnull=True)
+    elif state == "voided":
+        payments = payments.filter(voided_at__isnull=False)
+    elif state == "unallocated":
+        payments = payments.filter(voided_at__isnull=True, amount__gt=F("allocated_total"))
     if search := search.strip():
         payments = payments.filter(
             Q(number__icontains=search)
@@ -119,5 +133,43 @@ def customer_payments_of(
 
 
 def customer_payment_of(organization: Organization, payment_id: int) -> CustomerPayment:
-    """One payment with its allocations. Raises CustomerPayment.DoesNotExist outside the organization."""
-    return customer_payments_of(organization).get(pk=payment_id)
+    """One payment with its allocations and each effet's history. Raises CustomerPayment.DoesNotExist outside the
+    organization."""
+    return customer_payments_of(organization).prefetch_related("lines__instrument__events__actor").get(pk=payment_id)
+
+
+@dataclass(frozen=True)
+class CustomerPaymentTotals:
+    """What a filtered list of règlements adds up to, voided ones left out; `by_method` from their lines."""
+
+    count: int
+    voided: int
+    total: Decimal
+    allocated: Decimal
+    unallocated: Decimal
+    by_method: dict[str, Decimal]
+
+
+def customer_payment_totals(payments: QuerySet[CustomerPayment]) -> CustomerPaymentTotals:
+    """The totals of `payments` (a `customer_payments_of` queryset, its filters applied)."""
+    ids = payments.filter(voided_at__isnull=True).values("pk")
+    live = CustomerPayment.objects.filter(pk__in=ids)
+    total = live.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+    allocated = PaymentAllocation.objects.filter(payment__in=ids).aggregate(total=Sum("amount"))["total"] or Decimal(
+        "0.000"
+    )
+    by_method = {
+        row["method"]: row["total"]
+        for row in CustomerPaymentLine.objects.filter(payment__in=ids)
+        .values("method")
+        .annotate(total=Sum("amount"))
+        .order_by("method")
+    }
+    return CustomerPaymentTotals(
+        count=live.count(),
+        voided=payments.filter(voided_at__isnull=False).count(),
+        total=total,
+        allocated=allocated,
+        unallocated=total - allocated,
+        by_method=by_method,
+    )

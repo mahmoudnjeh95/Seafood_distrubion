@@ -29,4 +29,9 @@ export interface SupplierPayment {
   readonly allocations: readonly PaymentAllocation[];
   readonly created_by: string;
   readonly created_at: string;
+  readonly is_voided: boolean;
+  /** @nullable */
+  readonly voided_at: string | null;
+  readonly voided_by: string;
+  readonly void_reason: string;
 }

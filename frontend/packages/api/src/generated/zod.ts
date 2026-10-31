@@ -876,7 +876,8 @@ export const GetCreditNoteResponse = zod.object({
 
 /**
  * Customer payments, newest first, paginated, voided ones included. Filter by customer, days
- * received (inclusive) or `search` (number, reference, customer).
+ * received (inclusive), means (`mixed`: several), state (`active`, `voided`, `unallocated`) or `search`
+ * (number, reference, cheque or traite number, customer).
  */
 
 export const listCustomerPaymentsQuerySearchDefault = ``;
@@ -889,8 +890,10 @@ export const ListCustomerPaymentsQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
-  "search": zod.string().max(listCustomerPaymentsQuerySearchMax).default(listCustomerPaymentsQuerySearchDefault)
+  "search": zod.string().max(listCustomerPaymentsQuerySearchMax).default(listCustomerPaymentsQuerySearchDefault),
+  "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated')
 })
 
 export const listCustomerPaymentsResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1039,7 +1042,14 @@ export const CreateCustomerPaymentResponse = zod.object({
   "bank_name": zod.string().default(createCustomerPaymentResponseLinesItemInstrumentOneBankNameDefault),
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
-  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of a received effet: in portfolio, at the bank, cashed, unpaid, cancelled...'))
 }).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
@@ -1063,11 +1073,11 @@ export const CreateCustomerPaymentResponse = zod.object({
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
   "amount": zod.stringFormat('decimal', createCustomerPaymentResponseAllocationsItemAmountRegExp)
 }))
-})
+}).describe('One règlement with the sales it settled and the history of each of its effets.')
 
 
 /**
- * One payment with the sales it settled.
+ * One payment with its means (each effet with its history) and the sales it settled.
  */
 export const GetCustomerPaymentParams = zod.object({
   "payment_id": zod.int()
@@ -1111,7 +1121,14 @@ export const GetCustomerPaymentResponse = zod.object({
   "bank_name": zod.string().default(getCustomerPaymentResponseLinesItemInstrumentOneBankNameDefault),
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
-  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of a received effet: in portfolio, at the bank, cashed, unpaid, cancelled...'))
 }).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
@@ -1135,7 +1152,7 @@ export const GetCustomerPaymentResponse = zod.object({
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
   "amount": zod.stringFormat('decimal', getCustomerPaymentResponseAllocationsItemAmountRegExp)
 }))
-})
+}).describe('One règlement with the sales it settled and the history of each of its effets.')
 
 
 /**
@@ -1196,7 +1213,14 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "bank_name": zod.string().default(allocateCustomerPaymentResponseLinesItemInstrumentOneBankNameDefault),
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
-  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of a received effet: in portfolio, at the bank, cashed, unpaid, cancelled...'))
 }).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
@@ -1220,7 +1244,7 @@ export const AllocateCustomerPaymentResponse = zod.object({
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
   "amount": zod.stringFormat('decimal', allocateCustomerPaymentResponseAllocationsItemAmountRegExp)
 }))
-})
+}).describe('One règlement with the sales it settled and the history of each of its effets.')
 
 
 /**
@@ -1277,7 +1301,14 @@ export const VoidCustomerPaymentResponse = zod.object({
   "bank_name": zod.string().default(voidCustomerPaymentResponseLinesItemInstrumentOneBankNameDefault),
   "drawer": zod.string(),
   "due_on": zod.iso.date(),
-  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of a received effet: in portfolio, at the bank, cashed, unpaid, cancelled...'))
 }).describe('The cheque or traite of a payment line, as the treasury follows it (D-197).'),zod.null()])
 })),
   "received_on": zod.iso.date(),
@@ -1301,7 +1332,63 @@ export const VoidCustomerPaymentResponse = zod.object({
 }).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
   "amount": zod.stringFormat('decimal', voidCustomerPaymentResponseAllocationsItemAmountRegExp)
 }))
+}).describe('One règlement with the sales it settled and the history of each of its effets.')
+
+
+/**
+ * The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked).
+ */
+
+export const exportCustomerPaymentsQuerySearchDefault = ``;
+export const exportCustomerPaymentsQuerySearchMax = 100;
+
+
+
+export const ExportCustomerPaymentsQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
+  "search": zod.string().max(exportCustomerPaymentsQuerySearchMax).default(exportCustomerPaymentsQuerySearchDefault),
+  "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated')
 })
+
+export const ExportCustomerPaymentsResponse = zod.unknown()
+
+
+/**
+ * What the règlements of the same filters as the list add up to (voided ones left out): their count,
+ * total, allocated, credit left, and what each means brought.
+ */
+
+export const getCustomerPaymentTotalsQuerySearchDefault = ``;
+export const getCustomerPaymentTotalsQuerySearchMax = 100;
+
+
+
+export const GetCustomerPaymentTotalsQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
+  "search": zod.string().max(getCustomerPaymentTotalsQuerySearchMax).default(getCustomerPaymentTotalsQuerySearchDefault),
+  "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated')
+})
+
+export const getCustomerPaymentTotalsResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentTotalsResponseAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentTotalsResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerPaymentTotalsResponseByMethodRegExpOne = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetCustomerPaymentTotalsResponse = zod.object({
+  "count": zod.int(),
+  "voided": zod.int(),
+  "total": zod.stringFormat('decimal', getCustomerPaymentTotalsResponseTotalRegExp),
+  "allocated": zod.stringFormat('decimal', getCustomerPaymentTotalsResponseAllocatedRegExp),
+  "unallocated": zod.stringFormat('decimal', getCustomerPaymentTotalsResponseUnallocatedRegExp),
+  "by_method": zod.record(zod.string(), zod.stringFormat('decimal', getCustomerPaymentTotalsResponseByMethodRegExpOne))
+}).describe('The totals of the filtered règlements, voided ones left out (their number is in `voided`).')
 
 
 /**
@@ -16411,9 +16498,9 @@ export const PostSupplierInvoiceResponse = zod.object({
 
 
 /**
- * Payments to suppliers, newest first, paginated, with the invoices each one settled and the part
- * not allocated yet. Filter by supplier, to payments with an unallocated part, or `search` (number,
- * cheque or transfer reference, supplier's name).
+ * Payments to suppliers, newest first, paginated (voided ones too), with their means, the invoices each
+ * one settled and the part not allocated yet. Filter by supplier, days paid, means (`mixed`: several),
+ * state (`active`, `voided`, `unallocated`) or `search` (number, cheque or transfer reference, supplier).
  */
 export const listSupplierPaymentsQuerySearchDefault = ``;
 export const listSupplierPaymentsQuerySearchMax = 100;
@@ -16422,9 +16509,13 @@ export const listSupplierPaymentsQuerySearchMax = 100;
 export const listSupplierPaymentsQueryUnallocatedDefault = false;
 
 export const ListSupplierPaymentsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
   "search": zod.string().max(listSupplierPaymentsQuerySearchMax).default(listSupplierPaymentsQuerySearchDefault),
+  "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
   "supplier": zod.int().min(1).optional(),
   "unallocated": zod.boolean().default(listSupplierPaymentsQueryUnallocatedDefault)
 })
@@ -16485,7 +16576,11 @@ export const ListSupplierPaymentsResponse = zod.object({
   "created_at": zod.iso.datetime({"offset":true})
 })),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
 }))
 })
 
@@ -16590,10 +16685,17 @@ export const RecordSupplierPaymentResponse = zod.object({
   "created_at": zod.iso.datetime({"offset":true})
 })),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
 })
 
 
+/**
+ * One règlement: its means (each effet with its history), the invoices it settled, the advance left.
+ */
 export const GetSupplierPaymentParams = zod.object({
   "payment_id": zod.int()
 })
@@ -16633,7 +16735,14 @@ export const GetSupplierPaymentResponse = zod.object({
   "bank_code": zod.string().default(getSupplierPaymentResponseLinesItemInstrumentOneBankCodeDefault),
   "bank_name": zod.string().default(getSupplierPaymentResponseLinesItemInstrumentOneBankNameDefault),
   "due_on": zod.iso.date(),
-  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé')
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of an effet: issued, debited, rejected, cancelled...'))
 }).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()])
 })),
   "allocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseAllocatedAmountRegExp),
@@ -16650,8 +16759,12 @@ export const GetSupplierPaymentResponse = zod.object({
   "created_at": zod.iso.datetime({"offset":true})
 })),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
-})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
+}).describe('One règlement with the history of each of its effets.')
 
 
 /**
@@ -16723,8 +16836,154 @@ export const AllocateSupplierPaymentResponse = zod.object({
   "created_at": zod.iso.datetime({"offset":true})
 })),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
 })
+
+
+/**
+ * Void a règlement typed by mistake (owner or manager), with its reason: it stays in the list, marked
+ * voided; its invoices owe again, the plan lines it paid are planned again, its cheques and traites are
+ * cancelled. Refused once one of them was debited, and for money given at the port with a purchase.
+ */
+export const VoidSupplierPaymentParams = zod.object({
+  "payment_id": zod.int()
+})
+
+export const voidSupplierPaymentBodyReasonMax = 255;
+
+
+
+export const VoidSupplierPaymentBody = zod.object({
+  "reason": zod.string().max(voidSupplierPaymentBodyReasonMax)
+})
+
+export const voidSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidSupplierPaymentResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidSupplierPaymentResponseLinesItemInstrumentOneBankCodeDefault = ``;
+export const voidSupplierPaymentResponseLinesItemInstrumentOneBankNameDefault = ``;
+export const voidSupplierPaymentResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidSupplierPaymentResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const voidSupplierPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const VoidSupplierPaymentResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', voidSupplierPaymentResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', voidSupplierPaymentResponseLinesItemAmountRegExp),
+  "reference": zod.string(),
+  "instrument": zod.union([zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank_code": zod.string().default(voidSupplierPaymentResponseLinesItemInstrumentOneBankCodeDefault),
+  "bank_name": zod.string().default(voidSupplierPaymentResponseLinesItemInstrumentOneBankNameDefault),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of an effet: issued, debited, rejected, cancelled...'))
+}).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()])
+})),
+  "allocated_amount": zod.stringFormat('decimal', voidSupplierPaymentResponseAllocatedAmountRegExp),
+  "unallocated_amount": zod.stringFormat('decimal', voidSupplierPaymentResponseUnallocatedAmountRegExp),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date()
+}),
+  "amount": zod.stringFormat('decimal', voidSupplierPaymentResponseAllocationsItemAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
+}).describe('One règlement with the history of each of its effets.')
+
+
+/**
+ * The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked).
+ */
+export const exportSupplierPaymentsQuerySearchDefault = ``;
+export const exportSupplierPaymentsQuerySearchMax = 100;
+
+
+export const exportSupplierPaymentsQueryUnallocatedDefault = false;
+
+export const ExportSupplierPaymentsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "search": zod.string().max(exportSupplierPaymentsQuerySearchMax).default(exportSupplierPaymentsQuerySearchDefault),
+  "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
+  "supplier": zod.int().min(1).optional(),
+  "unallocated": zod.boolean().default(exportSupplierPaymentsQueryUnallocatedDefault)
+})
+
+export const ExportSupplierPaymentsResponse = zod.unknown()
+
+
+/**
+ * What the règlements of the same filters as the list add up to (voided ones left out): their count,
+ * total, allocated, advance, and what each means paid.
+ */
+export const getSupplierPaymentTotalsQuerySearchDefault = ``;
+export const getSupplierPaymentTotalsQuerySearchMax = 100;
+
+
+export const getSupplierPaymentTotalsQueryUnallocatedDefault = false;
+
+export const GetSupplierPaymentTotalsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "search": zod.string().max(getSupplierPaymentTotalsQuerySearchMax).default(getSupplierPaymentTotalsQuerySearchDefault),
+  "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
+  "supplier": zod.int().min(1).optional(),
+  "unallocated": zod.boolean().default(getSupplierPaymentTotalsQueryUnallocatedDefault)
+})
+
+export const getSupplierPaymentTotalsResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierPaymentTotalsResponseAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierPaymentTotalsResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierPaymentTotalsResponseByMethodRegExpOne = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierPaymentTotalsResponse = zod.object({
+  "count": zod.int(),
+  "voided": zod.int(),
+  "total": zod.stringFormat('decimal', getSupplierPaymentTotalsResponseTotalRegExp),
+  "allocated": zod.stringFormat('decimal', getSupplierPaymentTotalsResponseAllocatedRegExp),
+  "unallocated": zod.stringFormat('decimal', getSupplierPaymentTotalsResponseUnallocatedRegExp),
+  "by_method": zod.record(zod.string(), zod.stringFormat('decimal', getSupplierPaymentTotalsResponseByMethodRegExpOne))
+}).describe('The totals of the filtered règlements, voided ones left out (their number is in `voided`).')
 
 
 /**

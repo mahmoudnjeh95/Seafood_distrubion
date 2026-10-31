@@ -3004,3 +3004,20 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   means. The supplier form moved to the same editor: its single "Montant / Mode" fields are gone.
 - Banques: a page under Finance (`/tresorerie/banques`), where T04 adds the Portefeuille. Owner and manager write.
 - The list and detail pages, the supplier void and paying several plan lines at once moved to P9-T03b.
+
+**D-211 · A supplier règlement can be voided; the règlements lists filter, add up and export (Phase 9, P9-T03b)** · accepted · 2026-10-31
+- `SupplierPayment.voided_at/voided_by/void_reason`, `POST /supplier-payments/<id>/void` (owner, manager) with a
+  reason. Like the customer void: the règlement stays in the list, marked; its allocations stop counting (its
+  invoices go back to "validée" or "partiellement payée"), the D-192 plan lines it paid are planned again, its
+  cheques and traites are cancelled (their numbers are free again). Refused once one of them was debited or rejected,
+  and for money given at the port with a purchase (corrected on the purchase).
+- Every reader leaves voided règlements out: supplier balance, invoice paid amount and status, open invoices,
+  advances (and their automatic use), debts and "chèques à venir", statement, payments per day (cash flow report),
+  partner trade payable. An advance of a voided règlement is 0.
+- Both lists filter by days, means (a line of that means, or `mixed`) and state (`active`, `voided`,
+  `unallocated`); `GET …/totals` adds up the same filter (voided left out, counted apart) with what each means paid;
+  `GET …/export` gives the same rows as an Excel file. The Excel builder moved to `apps/core/xlsx.py` (the reports
+  use it too).
+- Each règlement has its page (`/reglements/<id>`, `/achats/paiements/<id>`): its means with each effet's state and
+  history, what it settled, the credit or advance left ("Affecter"), "Annuler" with a reason; the PDF receipt for a
+  customer. The supplier receipt PDF and paying several plan lines from "Règlements fournisseurs" move to P9-T03c.

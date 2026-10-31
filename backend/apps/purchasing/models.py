@@ -280,7 +280,8 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     """Money paid to a supplier, allocated to their posted invoices: all of it, part of it or none (D-043).
 
     The part not allocated yet is an advance: it already lowers the supplier balance and can be allocated
-    to a later invoice. A recorded payment is never edited.
+    to a later invoice. A recorded payment is never edited; a mistake is voided (D-211), and every balance,
+    debt, statement and report reads only the règlements not voided.
     """
 
     # "RF-0001", "RF-0002"... per organization ("règlement fournisseur").
@@ -298,6 +299,13 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # A règlement typed by mistake is voided, never deleted (D-211): it stays in the list, its allocations stop
+    # counting, its invoices owe again and its effets are cancelled.
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    void_reason = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ["-paid_on", "-id"]

@@ -672,7 +672,8 @@ paths:
       operationId: listCustomerPayments
       description: |-
         Customer payments, newest first, paginated, voided ones included. Filter by customer, days
-        received (inclusive) or `search` (number, reference, customer).
+        received (inclusive), means (`mixed`: several), state (`active`, `voided`, `unallocated`) or `search`
+        (number, reference, cheque or traite number, customer).
       parameters:
       - in: query
         name: customer
@@ -695,6 +696,25 @@ paths:
         description: Nombre de résultats à retourner par page.
         schema:
           type: integer
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - cheque
+          - bill
+          - transfer
+          - card
+          - mixed
+          type: string
+          minLength: 1
+        description: |-
+          * `cash` - Espèces
+          * `cheque` - Chèque
+          * `bill` - Traite
+          * `transfer` - Virement
+          * `card` - Carte bancaire
+          * `mixed` - Plusieurs moyens
       - name: offset
         required: false
         in: query
@@ -707,6 +727,19 @@ paths:
           type: string
           default: ''
           maxLength: 100
+      - in: query
+        name: state
+        schema:
+          enum:
+          - active
+          - voided
+          - unallocated
+          type: string
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `voided` - voided
+          * `unallocated` - unallocated
       tags:
       - customer-payments
       security:
@@ -752,7 +785,8 @@ paths:
   /api/v1/customer-payments/{payment_id}:
     get:
       operationId: getCustomerPayment
-      description: One payment with the sales it settled.
+      description: One payment with its means (each effet with its history) and the
+        sales it settled.
       parameters:
       - in: path
         name: payment_id
@@ -838,6 +872,148 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
+  /api/v1/customer-payments/export:
+    get:
+      operationId: exportCustomerPayments
+      description: The règlements of the same filters as the list, as an Excel file
+        (one row each, voided ones marked).
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - cheque
+          - bill
+          - transfer
+          - card
+          - mixed
+          type: string
+          minLength: 1
+        description: |-
+          * `cash` - Espèces
+          * `cheque` - Chèque
+          * `bill` - Traite
+          * `transfer` - Virement
+          * `card` - Carte bancaire
+          * `mixed` - Plusieurs moyens
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: state
+        schema:
+          enum:
+          - active
+          - voided
+          - unallocated
+          type: string
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `voided` - voided
+          * `unallocated` - unallocated
+      tags:
+      - customer-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/customer-payments/totals:
+    get:
+      operationId: getCustomerPaymentTotals
+      description: |-
+        What the règlements of the same filters as the list add up to (voided ones left out): their count,
+        total, allocated, credit left, and what each means brought.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - cheque
+          - bill
+          - transfer
+          - card
+          - mixed
+          type: string
+          minLength: 1
+        description: |-
+          * `cash` - Espèces
+          * `cheque` - Chèque
+          * `bill` - Traite
+          * `transfer` - Virement
+          * `card` - Carte bancaire
+          * `mixed` - Plusieurs moyens
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: state
+        schema:
+          enum:
+          - active
+          - voided
+          - unallocated
+          type: string
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `voided` - voided
+          * `unallocated` - unallocated
+      tags:
+      - customer-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentTotals'
           description: ''
   /api/v1/customers:
     get:
@@ -8391,16 +8567,45 @@ paths:
     get:
       operationId: listSupplierPayments
       description: |-
-        Payments to suppliers, newest first, paginated, with the invoices each one settled and the part
-        not allocated yet. Filter by supplier, to payments with an unallocated part, or `search` (number,
-        cheque or transfer reference, supplier's name).
+        Payments to suppliers, newest first, paginated (voided ones too), with their means, the invoices each
+        one settled and the part not allocated yet. Filter by supplier, days paid, means (`mixed`: several),
+        state (`active`, `voided`, `unallocated`) or `search` (number, cheque or transfer reference, supplier).
       parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
       - name: limit
         required: false
         in: query
         description: Nombre de résultats à retourner par page.
         schema:
           type: integer
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - cheque
+          - transfer
+          - bill
+          - other
+          - mixed
+          type: string
+          minLength: 1
+        description: |-
+          * `cash` - Espèces
+          * `cheque` - Chèque
+          * `transfer` - Virement
+          * `bill` - Traite
+          * `other` - Autre
+          * `mixed` - Plusieurs moyens
       - name: offset
         required: false
         in: query
@@ -8413,6 +8618,19 @@ paths:
           type: string
           default: ''
           maxLength: 100
+      - in: query
+        name: state
+        schema:
+          enum:
+          - active
+          - voided
+          - unallocated
+          type: string
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `voided` - voided
+          * `unallocated` - unallocated
       - in: query
         name: supplier
         schema:
@@ -8468,6 +8686,8 @@ paths:
   /api/v1/supplier-payments/{payment_id}:
     get:
       operationId: getSupplierPayment
+      description: 'One règlement: its means (each effet with its history), the invoices
+        it settled, the advance left.'
       parameters:
       - in: path
         name: payment_id
@@ -8483,7 +8703,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SupplierPayment'
+                $ref: '#/components/schemas/SupplierPaymentDetail'
           description: ''
   /api/v1/supplier-payments/{payment_id}/allocations:
     post:
@@ -8518,6 +8738,194 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SupplierPayment'
+          description: ''
+  /api/v1/supplier-payments/{payment_id}/void:
+    post:
+      operationId: voidSupplierPayment
+      description: |-
+        Void a règlement typed by mistake (owner or manager), with its reason: it stays in the list, marked
+        voided; its invoices owe again, the plan lines it paid are planned again, its cheques and traites are
+        cancelled. Refused once one of them was debited, and for money given at the port with a purchase.
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentVoid'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentVoid'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentVoid'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierPaymentDetail'
+          description: ''
+  /api/v1/supplier-payments/export:
+    get:
+      operationId: exportSupplierPayments
+      description: The règlements of the same filters as the list, as an Excel file
+        (one row each, voided ones marked).
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - cheque
+          - transfer
+          - bill
+          - other
+          - mixed
+          type: string
+          minLength: 1
+        description: |-
+          * `cash` - Espèces
+          * `cheque` - Chèque
+          * `transfer` - Virement
+          * `bill` - Traite
+          * `other` - Autre
+          * `mixed` - Plusieurs moyens
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: state
+        schema:
+          enum:
+          - active
+          - voided
+          - unallocated
+          type: string
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `voided` - voided
+          * `unallocated` - unallocated
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: unallocated
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - supplier-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/supplier-payments/totals:
+    get:
+      operationId: getSupplierPaymentTotals
+      description: |-
+        What the règlements of the same filters as the list add up to (voided ones left out): their count,
+        total, allocated, advance, and what each means paid.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - cheque
+          - transfer
+          - bill
+          - other
+          - mixed
+          type: string
+          minLength: 1
+        description: |-
+          * `cash` - Espèces
+          * `cheque` - Chèque
+          * `transfer` - Virement
+          * `bill` - Traite
+          * `other` - Autre
+          * `mixed` - Plusieurs moyens
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: state
+        schema:
+          enum:
+          - active
+          - voided
+          - unallocated
+          type: string
+          minLength: 1
+        description: |-
+          * `active` - active
+          * `voided` - voided
+          * `unallocated` - unallocated
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: unallocated
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - supplier-payments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTotals'
           description: ''
   /api/v1/supplier-plan-lines/{line_id}:
     delete:
@@ -11674,6 +12082,8 @@ components:
       - sale
     CustomerPaymentDetail:
       type: object
+      description: One règlement with the sales it settled and the history of each
+        of its effets.
       properties:
         id:
           type: integer
@@ -11697,7 +12107,7 @@ components:
         lines:
           type: array
           items:
-            $ref: '#/components/schemas/CustomerPaymentLine'
+            $ref: '#/components/schemas/CustomerPaymentLineDetail'
           readOnly: true
         received_on:
           type: string
@@ -11799,6 +12209,35 @@ components:
       - instrument
       - method
       - reference
+    CustomerPaymentLineDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/CustomerPaymentMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        instrument:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentDetail'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - id
+      - instrument
+      - method
+      - reference
     CustomerPaymentLineWrite:
       type: object
       properties:
@@ -11845,6 +12284,46 @@ components:
         * `transfer` - Virement
         * `card` - Carte bancaire
         * `mixed` - Plusieurs moyens
+    CustomerPaymentTotals:
+      type: object
+      description: The totals of the filtered règlements, voided ones left out (their
+        number is in `voided`).
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        voided:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        allocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        by_method:
+          type: object
+          additionalProperties:
+            type: string
+            format: decimal
+            pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - allocated
+      - by_method
+      - count
+      - total
+      - unallocated
+      - voided
     CustomerPaymentWrite:
       type: object
       properties:
@@ -13761,6 +14240,33 @@ components:
       - not_sent
       type: string
       description: '* `not_sent` - Non transmise'
+    EffetEvent:
+      type: object
+      description: 'One step in the life of an effet: issued, debited, rejected, cancelled...'
+      properties:
+        from_status:
+          type: string
+          readOnly: true
+        to_status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+        happened_on:
+          type: string
+          format: date
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        actor:
+          type: string
+          readOnly: true
+      required:
+      - actor
+      - from_status
+      - happened_on
+      - note
+      - to_status
     ElectricityBill:
       type: object
       properties:
@@ -15655,6 +16161,55 @@ components:
       - source_number
       - status
       - supplier
+    InstrumentDetail:
+      type: object
+      description: The cheque or traite of a payment line, as the treasury follows
+        it (D-197).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentKindEnum'
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank_code:
+          type: string
+          readOnly: true
+          default: ''
+        bank_name:
+          type: string
+          readOnly: true
+          default: ''
+        drawer:
+          type: string
+          readOnly: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceivedEffetEvent'
+          readOnly: true
+      required:
+      - bank_code
+      - bank_name
+      - drawer
+      - due_on
+      - events
+      - id
+      - kind
+      - number
+      - status
     InstrumentDirectionEnum:
       enum:
       - received
@@ -16563,6 +17118,51 @@ components:
       - bank_code
       - bank_name
       - due_on
+      - id
+      - kind
+      - number
+      - status
+    IssuedInstrumentDetail:
+      type: object
+      description: Our cheque or traite of a payment line, as the treasury follows
+        it until the bank debits it (D-208).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentKindEnum'
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank_code:
+          type: string
+          readOnly: true
+          default: ''
+        bank_name:
+          type: string
+          readOnly: true
+          default: ''
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffetEvent'
+          readOnly: true
+      required:
+      - bank_code
+      - bank_name
+      - due_on
+      - events
       - id
       - kind
       - number
@@ -20398,6 +20998,54 @@ components:
         * `cash` - Comptant
         * `days` - À N jours
         * `month_end` - Fin de mois
+    PaymentTotals:
+      type: object
+      description: The totals of the filtered règlements, voided ones left out (their
+        number is in `voided`).
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        voided:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        allocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        by_method:
+          type: object
+          additionalProperties:
+            type: string
+            format: decimal
+            pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - allocated
+      - by_method
+      - count
+      - total
+      - unallocated
+      - voided
+    PaymentVoid:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - reason
     PayrollSummary:
       type: object
       properties:
@@ -22098,6 +22746,34 @@ components:
       - total_credit
       - total_overdue
       - totals
+    ReceivedEffetEvent:
+      type: object
+      description: 'One step in the life of a received effet: in portfolio, at the
+        bank, cashed, unpaid, cancelled...'
+      properties:
+        from_status:
+          type: string
+          readOnly: true
+        to_status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+        happened_on:
+          type: string
+          format: date
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        actor:
+          type: string
+          readOnly: true
+      required:
+      - actor
+      - from_status
+      - happened_on
+      - note
+      - to_status
     RecordPayment:
       type: object
       description: The part of one payment that settled the salary.
@@ -25741,6 +26417,20 @@ components:
           type: string
           format: date-time
           readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        voided_by:
+          type: string
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
       required:
       - allocated_amount
       - allocations
@@ -25749,6 +26439,7 @@ components:
       - created_at
       - created_by
       - id
+      - is_voided
       - lines
       - method
       - notes
@@ -25757,6 +26448,108 @@ components:
       - reference
       - supplier
       - unallocated_amount
+      - void_reason
+      - voided_at
+      - voided_by
+    SupplierPaymentDetail:
+      type: object
+      description: One règlement with the history of each of its effets.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SupplierPaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        cash_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierPaymentLineDetail'
+          readOnly: true
+        allocated_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unallocated_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentAllocation'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        voided_by:
+          type: string
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+      required:
+      - allocated_amount
+      - allocations
+      - amount
+      - cash_on
+      - created_at
+      - created_by
+      - id
+      - is_voided
+      - lines
+      - method
+      - notes
+      - number
+      - paid_on
+      - reference
+      - supplier
+      - unallocated_amount
+      - void_reason
+      - voided_at
+      - voided_by
     SupplierPaymentLine:
       type: object
       properties:
@@ -25778,6 +26571,35 @@ components:
         instrument:
           allOf:
           - $ref: '#/components/schemas/IssuedInstrument'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - id
+      - instrument
+      - method
+      - reference
+    SupplierPaymentLineDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        instrument:
+          allOf:
+          - $ref: '#/components/schemas/IssuedInstrumentDetail'
           readOnly: true
           nullable: true
       required:
