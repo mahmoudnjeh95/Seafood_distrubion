@@ -18701,7 +18701,7 @@ export const getListPurchaseOrdersUrl = (params?: ListPurchaseOrdersParams,) => 
 }
 
 /**
- * Purchase orders (bons d'achat), newest first, paginated, each with its lines (ordered, received
+ * Purchase orders (commandes d'achat), newest first, paginated, each with its lines (ordered, received
  * and remaining weight) and its receipts. Filter by supplier, status (`pending` = still waiting for
  * goods) or `search` (number, supplier's name).
  */
@@ -19930,7 +19930,7 @@ export const getCreateReceiptUrl = () => {
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
  * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
- * against that bon d'achat: only its products, and only the part that arrived (partial receipts). With
+ * against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
  * `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
  */
 export const createReceipt = async (receiptWrite: ReceiptWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
