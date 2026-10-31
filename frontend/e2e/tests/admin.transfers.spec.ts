@@ -10,8 +10,7 @@ const COLD_ROOMS = "Chambres froides (toutes)";
 
 async function openTransfers(page: Page) {
   await page.goto("/");
-  await page.getByRole("link", { name: "Stock" }).click();
-  await page.getByRole("navigation", { name: "Rubriques du stock" }).getByRole("link", { name: "Transferts" }).click();
+  await page.getByRole("navigation", { name: "Modules" }).getByRole("link", { name: "Transferts" }).click();
   await expect(page.getByRole("heading", { name: "Transferts", level: 1 })).toBeVisible();
 }
 

@@ -415,6 +415,7 @@ export const fr = {
       stock: "Stock frigo & camions",
       truckDay: "Camions du jour",
       dayClosings: "Journées chauffeurs",
+      transfers: "Transferts",
       reports: "Rapports",
       purchases: "Achats",
       suppliers: "Fournisseurs",

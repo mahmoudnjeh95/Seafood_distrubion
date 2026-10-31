@@ -116,6 +116,8 @@ function useNav(): AdminNavGroup[] {
         { to: "/stock", label: t("admin.nav.stock"), icon: "box" },
         { to: "/camions", label: t("admin.nav.truckDay"), icon: "truck" },
         { to: "/journees", label: t("admin.nav.dayClosings"), icon: "calcheck" },
+        // Loading a truck is part of the driver's day, so its transfers sit here, not under Stock (D-196).
+        { to: "/stock/transferts", label: t("admin.nav.transfers"), icon: "truck" },
         { to: "/produits", label: t("admin.nav.products"), icon: "snow" },
         { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
         { to: "/achats/reglements", label: t("admin.nav.supplierSettlements"), icon: "cash" },

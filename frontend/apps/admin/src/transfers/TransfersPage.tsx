@@ -6,7 +6,6 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
-import { StockTabs } from "../lib/StockTabs";
 import { useDebounced } from "../lib/useDebounced";
 import { canRecordTransfers, KIND_ICONS, STATUS_TONES } from "./shared";
 
@@ -59,7 +58,6 @@ export function TransfersPage() {
           </Button>
         )}
       </PageHeader>
-      <StockTabs />
 
       {!canRecord && <p className="text-ink-2">{t("admin.transfers.readOnly")}</p>}
 

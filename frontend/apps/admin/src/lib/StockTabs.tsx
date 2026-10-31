@@ -5,7 +5,6 @@ import { NavLink } from "react-router";
 // The stock module's sections, under the one "Stock" entry of the menu (the prototype's navigation).
 const TABS = [
   { to: "/stock", label: "admin.stockTabs.places", end: true },
-  { to: "/stock/transferts", label: "admin.stockTabs.transfers", end: false },
   { to: "/stock/caisses", label: "admin.stockTabs.boxes", end: false },
   { to: "/stock/pertes", label: "admin.stockTabs.losses", end: false },
   { to: "/stock/mouvements", label: "admin.stockTabs.movements", end: false },

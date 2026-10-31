@@ -2820,3 +2820,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Every French label, message and the document-kind choice say "Commande d'achat" (feminine agreement fixed).
 - Numbers keep their "BA-" prefix: issued numbers never change, and one series stays readable. Codes, URLs
   (`/achats/commandes`) and the API (`purchase_order`) are unchanged.
+
+**D-196 · "Transferts" is a side-menu entry under the driver's day (owner list 2026-10-31, item 14)** · accepted · 2026-10-31
+- Loading a truck belongs to the driver's day, so "Transferts" sits in the Marchandises group right under "Camions du
+  jour" and "Journées chauffeurs", and is no longer a tab of Stock. The URLs stay `/stock/transferts…`, so old links work.
