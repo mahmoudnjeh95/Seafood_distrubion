@@ -35,15 +35,17 @@ CI deploys automatically after every green push to `main`, once these GitHub sec
   whose public key is added to `~debian/.ssh/authorized_keys` on the server.
 
 **Where the deploy runs (D-209, 2026-10-31).** Work happens on `mahmoudnjeh95/Seafood_distrubion` (PRs, CI).
-The organisation copy `SmartToolsAgro/SmartFeesh` follows it and is **the only repo that deploys**: after every
-merge, push `main` there as a fast-forward (`git remote add org https://github.com/SmartToolsAgro/SmartFeesh.git`
-once, then `git push org origin/main:refs/heads/main`); its CI tests again and deploys. Staging does not change
-until that push. Only one repo may hold the secrets: two deploys at once overload the shared server (#216).
+Both repos deploy staging. The personal repo deploys after every green push to `main`, as before. The organisation
+copy `SmartToolsAgro/SmartFeesh` deploys only when `main` is pushed there, which is done **only when the owner asks**:
+a fast-forward (`git remote add org https://github.com/SmartToolsAgro/SmartFeesh.git` once, then
+`git push org origin/main:refs/heads/main`); its CI tests again and deploys. Push only after the personal repo's
+deploy of the same commit has finished: two deploys at once overload the shared server (#216). Never re-run an
+old SmartFeesh deploy job: it puts that older commit back on staging.
 
 The SmartFeesh key (`frutti-ci-deploy-smartfeesh`) is in `~debian/.ssh/authorized_keys` with the `restrict`
 option (no tunnels, no terminal); the file before it is `authorized_keys.bak-before-smartfeesh`. The first key
 (`frutti-ci-deploy`, 2026-10-10, previous file `authorized_keys.bak-before-frutti-ci`) belongs to the personal
-repo; it is revoked by deleting its line on the server and the two secrets of the personal repo.
+repo and stays.
 To revoke a key, delete its line and the GitHub secret. Limit to keep in mind: the deploy runs uploaded code
 with sudo, so whoever holds the secret is effectively root on a server shared with other clients. The real
 fix is a separate server, or a server that pulls only code already on `main` from GitHub.
