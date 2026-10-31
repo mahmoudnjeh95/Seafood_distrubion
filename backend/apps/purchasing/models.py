@@ -30,6 +30,8 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     received_on = models.DateField()
     # The supplier's delivery note or invoice number, as printed on their paper.
     supplier_reference = models.CharField(max_length=50, blank=True)
+    # Bought with VAT: its lots are sold with VAT on the invoice (D-202).
+    with_vat = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

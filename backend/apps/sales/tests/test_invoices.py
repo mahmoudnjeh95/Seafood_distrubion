@@ -11,12 +11,12 @@ from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
 from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
 from apps.inventory import services as stock
-from apps.inventory.models import MovementKind
+from apps.inventory.models import Batch, MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners import services as partners
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import selectors, services
-from apps.sales.models import CreditNoteKind, FinanceSettings, Invoice, InvoiceStatus, SaleStatus
+from apps.sales.models import CreditNoteKind, FinanceSettings, Invoice, InvoiceStatus, SaleLineBatch, SaleStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -219,6 +219,19 @@ def test_an_invoice_without_vat(sale, actor):
     assert invoice.vat_lines.count() == 0
     assert invoice.vat_total == D("0.000")
     assert invoice.total_incl_tax == D("456.000")
+
+
+def test_goods_bought_with_vat_are_never_invoiced_without_it(sale, actor):
+    Batch.objects.filter(pk__in=SaleLineBatch.objects.filter(line__sale=sale).values("batch")).update(
+        bought_with_vat=True
+    )
+    draft = services.create_invoice(sale=sale, actor=actor, apply_vat=False)
+
+    with pytest.raises(ValidationError) as refused:
+        services.issue_invoice(invoice=draft, actor=actor)
+
+    assert "TVA" in refused.value.message_dict["apply_vat"][0]
+    assert services.issue_invoice(invoice=services.update_invoice(invoice=draft, actor=actor), actor=actor).number
 
 
 def test_typed_values_are_flagged_and_audited(sale, actor):

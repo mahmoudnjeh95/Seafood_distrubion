@@ -1323,6 +1323,8 @@ export const fr = {
     },
     // D-139 · the grid a quote, a sale and the counter sale are typed in
     lines: {
+      vatHint:
+        "Acheté avec TVA : {{products}}. Ce devis ou cette vente porte la TVA, et sa facture ne peut pas être émise sans TVA.",
       row: "Ligne {{number}}",
       number: "N°",
       product: "Produit",
@@ -2038,6 +2040,7 @@ export const fr = {
         supplierReference: "N° du bon de livraison ou de la facture",
         duplicateReference:
           "Ce numéro est déjà sur la réception {{number}} de ce fournisseur : vérifiez qu'il ne s'agit pas d'un doublon.",
+        withVat: "Achat avec TVA",
         notes: "Notes",
         lines: "Produits reçus",
         lineNumber: "Produit {{number}}",

@@ -63,6 +63,7 @@ from .serializers import (
     TransferWriteSerializer,
     TruckDayFilterSerializer,
     TruckDaySerializer,
+    VatProductsSerializer,
 )
 
 
@@ -220,6 +221,13 @@ class ProductBatchesView(OfficeView):
         """The lots of one product in every cold room, oldest first: to pick one on a quote or a sale (D-201)."""
         rows = selectors.product_batches(self.organization, product_id=product_id)
         return Response(LocationBatchSerializer(rows, many=True).data)
+
+
+class VatProductsView(OfficeView):
+    @extend_schema(operation_id="listVatProducts", responses=VatProductsSerializer)
+    def get(self, request: Request) -> Response:
+        """The ids of the products with kilos in stock bought with VAT: the quote and sale forms flag them (D-202)."""
+        return Response(VatProductsSerializer({"products": selectors.vat_product_ids(self.organization)}).data)
 
 
 # ---- Transfers (P1-T09) ----

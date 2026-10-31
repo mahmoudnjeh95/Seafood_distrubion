@@ -107,6 +107,12 @@ class LocationStockSerializer(serializers.Serializer[Any]):
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
+class VatProductsSerializer(serializers.Serializer[Any]):
+    """The products with kilos in stock bought with VAT (D-202)."""
+
+    products = serializers.ListField(child=serializers.IntegerField(), read_only=True)
+
+
 class LocationBatchSerializer(serializers.Serializer[Any]):
     """One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).
 

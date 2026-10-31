@@ -231,6 +231,17 @@ def product_batches(organization: Organization, *, product_id: int) -> QuerySet[
     )
 
 
+def vat_product_ids(organization: Organization) -> list[int]:
+    """The products with kilos in stock from a lot bought with VAT: a quote or a sale of them carries VAT (D-202)."""
+    return sorted(
+        set(
+            StockOnHand.objects.for_organization(organization)
+            .filter(quantity__gt=0, batch__bought_with_vat=True)
+            .values_list("product_id", flat=True)
+        )
+    )
+
+
 def takeable(row: StockOnHand, limits: Mapping[int, Decimal] | None = None) -> Decimal:
     """What can be taken from one on-hand row: all of it, or at most its lot's limit when `limits` is given
     (a lot without a limit gives nothing)."""

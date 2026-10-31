@@ -18,6 +18,7 @@ export interface Receipt {
   readonly purchase_order: OrderRef | null;
   readonly received_on: string;
   readonly supplier_reference: string;
+  readonly with_vat: boolean;
   readonly notes: string;
   readonly lines: readonly ReceiptLine[];
   readonly has_differences: boolean;

@@ -2869,3 +2869,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   BL leaves from another place, the lot is not there and FIFO applies (the lot is a preference, as in D-121).
 - Sale and quote lines now return `requested_batch`, so a draft reopens with its lots.
 - Not done: the driver's phone sale (the truck's lots); ask the owner if it is wanted.
+
+**D-202 · Goods bought with VAT are sold with VAT (owner list 2026-10-31, item 10)** · provisional · 2026-10-31
+- "Nouvelle réception" has "Achat avec TVA" (`GoodsReceipt.with_vat`); each lot of that receipt keeps it
+  (`Batch.bought_with_vat`). A port purchase is without VAT for now.
+- Quote and sale forms show "Acheté avec TVA : <produits>…" when a row's product has kilos in stock bought with VAT
+  (`GET /inventory/vat-products`). Quotes and BL carry no VAT detail themselves (D-057): the rule bites on the invoice.
+- Issuing an invoice without VAT is refused when one of its BL took kilos from a lot bought with VAT
+  (`apply_vat` error naming the products). A draft without VAT can still be prepared.
+- Provisional: the rule is per lot (what was really sold), not "the product was once bought with VAT"; the owner and
+  the accountant confirm, and whether it should only warn instead of refusing.

@@ -9097,6 +9097,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Truck'
           description: ''
+  /api/v1/vat-products:
+    get:
+      operationId: listVatProducts
+      description: 'The ids of the products with kilos in stock bought with VAT: the
+        quote and sale forms flag them (D-202).'
+      tags:
+      - vat-products
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VatProducts'
+          description: ''
   /api/v1/web-requests:
     get:
       operationId: listWebRequests
@@ -20861,6 +20877,9 @@ components:
         supplier_reference:
           type: string
           readOnly: true
+        with_vat:
+          type: boolean
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -20910,6 +20929,7 @@ components:
       - received_on
       - supplier
       - supplier_reference
+      - with_vat
     ReceiptBatch:
       type: object
       properties:
@@ -21069,6 +21089,9 @@ components:
           type: string
           default: ''
           maxLength: 50
+        with_vat:
+          type: boolean
+          default: false
         notes:
           type: string
           default: ''
@@ -25656,6 +25679,17 @@ components:
       - language
       - last_name
       - username
+    VatProducts:
+      type: object
+      description: The products with kilos in stock bought with VAT (D-202).
+      properties:
+        products:
+          type: array
+          items:
+            type: integer
+          readOnly: true
+      required:
+      - products
     VoidWrite:
       type: object
       properties:

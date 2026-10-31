@@ -22,6 +22,7 @@ export interface ReceiptWrite {
   received_on: string;
   /** @maxLength 50 */
   supplier_reference?: string;
+  with_vat?: boolean;
   notes?: string;
   lines: ReceiptLineWrite[];
   boxes?: ReceiptWriteBoxes;

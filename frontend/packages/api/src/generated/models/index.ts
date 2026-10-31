@@ -635,6 +635,7 @@ export * from './truckWrite';
 export * from './unpaidSalaries';
 export * from './unread';
 export * from './user';
+export * from './vatProducts';
 export * from './voidWrite';
 export * from './webRequest';
 export * from './webRequestKindEnum';

@@ -330,6 +330,7 @@ import type {
   TruckWrite,
   UnpaidSalaries,
   Unread,
+  VatProducts,
   VoidWrite,
   WebRequest,
   WebRequestStatus,
@@ -29351,6 +29352,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRestoreTruckMutationOptions(options), queryClient);
     }
+
+export const getListVatProductsUrl = () => {
+
+
+
+
+  return `/api/v1/vat-products`
+}
+
+/**
+ * The ids of the products with kilos in stock bought with VAT: the quote and sale forms flag them (D-202).
+ */
+export const listVatProducts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<VatProducts> => {
+
+  return apiFetch<VatProducts>(getListVatProductsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVatProductsQueryKey = () => {
+    return [
+    `/api/v1/vat-products`
+    ] as const;
+    }
+
+
+export const getListVatProductsQueryOptions = <TData = Awaited<ReturnType<typeof listVatProducts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatProducts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVatProductsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVatProducts>>> = ({ signal }) => listVatProducts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVatProducts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListVatProductsQueryResult = NonNullable<Awaited<ReturnType<typeof listVatProducts>>>
+export type ListVatProductsQueryError = unknown
+
+
+export function useListVatProducts<TData = Awaited<ReturnType<typeof listVatProducts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatProducts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVatProducts>>,
+          TError,
+          Awaited<ReturnType<typeof listVatProducts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVatProducts<TData = Awaited<ReturnType<typeof listVatProducts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatProducts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVatProducts>>,
+          TError,
+          Awaited<ReturnType<typeof listVatProducts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVatProducts<TData = Awaited<ReturnType<typeof listVatProducts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatProducts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListVatProducts<TData = Awaited<ReturnType<typeof listVatProducts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatProducts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListVatProductsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListWebRequestsUrl = (params?: ListWebRequestsParams,) => {
   const normalizedParams = new URLSearchParams();

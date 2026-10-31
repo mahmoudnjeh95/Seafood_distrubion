@@ -2289,6 +2289,25 @@ def record_invoice_receivable(invoice: Invoice) -> None:
     refresh_invoice_sales(invoice)
 
 
+def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
+    """Goods bought with VAT are sold with VAT (D-202): an invoice without VAT is refused when one of its BL took
+    kilos from a lot bought with VAT, and the message names the products."""
+    names = sorted(
+        set(
+            SaleLineBatch.objects.filter(line__sale__in=sales, batch__bought_with_vat=True).values_list(
+                "line__product__name", flat=True
+            )
+        )
+    )
+    if names:
+        raise ValidationError(
+            {
+                "apply_vat": _("Achetés avec TVA, ces produits se facturent avec TVA : %(products)s.")
+                % {"products": ", ".join(names)}
+            }
+        )
+
+
 @transaction.atomic
 def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     """Number and freeze a draft, all in one transaction.
@@ -2306,6 +2325,8 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     _compute(invoice, version, _stored_overrides(invoice))
     if invoice.lines.count() == 0:
         raise ValidationError(_("Cette facture n'a aucune ligne."))
+    if not invoice.apply_vat:
+        _refuse_no_vat_on_vat_lots(sales)
     customer = invoice.customer
     today = timezone.localdate()
     invoice.seller_name = version.legal_name or invoice.organization.name
