@@ -754,18 +754,29 @@ class DayPurchases:
     other: Decimal
 
 
-def purchases_paid_between(
+def purchases_made_between(
     organization: Organization, *, buyer_id: int, start: dt.datetime, end: dt.datetime
-) -> DayPurchases:
-    """A driver's purchases made in [start, end) (by the phone's time, else when they were recorded) and the money
-    given at the port for them. A refused purchase counts for nothing: no money was owed for it."""
-    purchases = [
+) -> list[FieldPurchase]:
+    """A driver's purchases made in [start, end) (by the phone's time, else when they were recorded), refused ones
+    included: their status says so, and the office sees them on the driver's day (D-212)."""
+    return [
         purchase
         for purchase in field_purchases_of(organization, buyer_id=buyer_id)
-        .exclude(status=FieldPurchaseStatus.REFUSED)
         # Recorded at or after the moment it was made: nothing recorded before `start` can fall in the span.
         .filter(created_at__gte=start)
         if start <= (purchase.made_at or purchase.created_at) < end
+    ]
+
+
+def purchases_paid_between(
+    organization: Organization, *, buyer_id: int, start: dt.datetime, end: dt.datetime
+) -> DayPurchases:
+    """A driver's purchases made in [start, end) and the money given at the port for them. A refused purchase
+    counts for nothing: no money was owed for it."""
+    purchases = [
+        purchase
+        for purchase in purchases_made_between(organization, buyer_id=buyer_id, start=start, end=end)
+        if purchase.status != FieldPurchaseStatus.REFUSED
     ]
     payments = [payment for purchase in purchases for payment in purchase.payments.all()]
     return DayPurchases(

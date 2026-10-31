@@ -9,6 +9,8 @@ _Last updated: 2026-10-31 (P9-T03a merged, D-210; P9-T03b lists, detail pages, s
   Répartir, Banques). **P9-T03b on branch `payment-lists`** (awaits CI, D-211): supplier règlement void (migration
   `purchasing/0014`, every reader skips voided), list filters + totals + Excel for both, detail pages with effet
   history.
+- **D-212 (fix, branch `truck-purchase-stock`, awaits CI):** a driver's port purchase goes to the driver's truck (was: first
+  cold room); "Journées des chauffeurs" lists the day's purchases with their status until the office checks them.
 - **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
 - **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
   customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
@@ -31,6 +33,9 @@ _Last updated: 2026-10-31 (P9-T03a merged, D-210; P9-T03b lists, detail pages, s
 
 ## Next step
 
+0a. D-212: PR from `truck-purchase-stock`, wait for green CI, merge. On staging: as a driver with can-buy, send a port
+   purchase from the phone; in the office, "Journées des chauffeurs" shows it "À valider au bureau" and the place is the
+   truck; validate it, then the truck's stock holds the kilos.
 0. Owner list: merge #220 → #230 in order as CI goes green, then on staging: Camions du jour › Fonds de caisse (set,
    then accept on the phone), close a day with an office count, a "Nouvelle facture" with two BL, an Achat terrain
    validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"

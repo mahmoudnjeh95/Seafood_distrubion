@@ -7,6 +7,7 @@
 import type { DayClosingState } from './dayClosingState';
 import type { DayOverviewExpense } from './dayOverviewExpense';
 import type { DayOverviewPayment } from './dayOverviewPayment';
+import type { DayOverviewPurchase } from './dayOverviewPurchase';
 import type { DayOverviewSale } from './dayOverviewSale';
 import type { DayProduct } from './dayProduct';
 import type { PhaseEnum } from './phaseEnum';
@@ -68,4 +69,5 @@ export interface DayOverviewDetail {
   readonly deliveries: readonly DayOverviewSale[];
   readonly payments: readonly DayOverviewPayment[];
   readonly expenses: readonly DayOverviewExpense[];
+  readonly purchases: readonly DayOverviewPurchase[];
 }

@@ -323,3 +323,31 @@ def test_a_closing_without_purchases_needs_no_second_count(setup):
     # The 1 000 DT given for purchases and not counted back: a gap the office sees.
     assert closed.json()["closing"]["purchase_difference"] == "-1000.000"
     assert Decimal(closed.json()["closing"]["difference"]) == 0
+
+
+def test_a_purchase_sent_from_the_phone_goes_to_the_drivers_truck(setup):
+    """D-212: the goods are on the driver's truck, not in a cold room, unless the office chooses another place."""
+    assert send(setup).status_code == 201
+    purchase = FieldPurchase.objects.get()
+    assert purchase.location == setup["truck"].location
+
+
+def test_the_office_sees_the_purchase_on_the_drivers_day_until_it_is_checked(setup):
+    """D-212: the purchase is on the day in "Journées des chauffeurs", to check, with its total and cash."""
+    sent = send(setup)
+    assert sent.status_code == 201
+    rows = setup["owner"].get(reverse("day-overview-list")).json()
+    assert rows[0]["purchases_count"] == 1
+    assert rows[0]["purchases_total"] == "750.000"
+    detail = setup["owner"].get(reverse("day-overview-detail", args=[rows[0]["id"]])).json()
+    assert detail["purchases"] == [
+        {
+            "id": sent.json()["id"],
+            "number": sent.json()["number"],
+            "supplier_name": "Pêcheur Hamdi",
+            "status": "submitted",
+            "total": "750.000",
+            "cash": "600.000",
+            "made_at": detail["purchases"][0]["made_at"],
+        }
+    ]
