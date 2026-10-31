@@ -527,8 +527,8 @@ class PeriodDays:
 
     unsent_count: int  # past days whose closing the driver has not sent (never, or reopened and not sent again)
     unsent_cash: Decimal  # what those days should have in hand
-    difference_count: int  # sent days the office has not approved whose count is not what the records say
-    difference_amount: Decimal  # counted - expected on those days, the sales cash and the purchase money together
+    difference_count: int  # sent days the office has not approved, counted, whose count is not what the records say
+    difference_amount: Decimal  # office count - expected on those days, the sales cash and the purchase money together
 
 
 def period_days(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> PeriodDays:
@@ -547,24 +547,26 @@ def period_days(organization: Organization, *, date_from: dt.date, date_to: dt.d
     sent = (
         closings_of(organization, date_from=date_from, date_to=date_to)
         .exclude(status__in=_NOT_WITH_THE_OFFICE)
-        .exclude(difference=0, purchase_difference=0)
+        .filter(office_counted_cash__isnull=False)
+        .exclude(office_difference=0, office_purchase_difference=0)
     )
     return PeriodDays(
         unsent_count=unsent_count,
         unsent_cash=unsent_cash,
         difference_count=len(sent),
-        difference_amount=sum((row.difference + row.purchase_difference for row in sent), ZERO),
+        difference_amount=sum((row.office_difference + row.office_purchase_difference for row in sent), ZERO),
     )
 
 
 def unexplained_cash_differences(organization: Organization) -> list[CashDifference]:
-    """Driver days not approved yet whose counted cash is not what the records say and that nobody explained:
-    the driver left no note, or the office asked for a justification and has not got it. Newest first. Not a
-    reopened day: its difference is that of the send a new load undid, and its next count is still to come."""
+    """Driver days not approved yet whose cash the office counted, not what the records say, and that nobody
+    explained: the driver left no note, or the office asked for a justification and has not got it. Newest first.
+    Not a reopened day: its gap is that of the send a new load undid, and its next count is still to come."""
     rows = (
         closings_of(organization)
         .exclude(status__in=_NOT_WITH_THE_OFFICE)
-        .exclude(difference=0, purchase_difference=0)
+        .filter(office_counted_cash__isnull=False)
+        .exclude(office_difference=0, office_purchase_difference=0)
         .filter(Q(driver_note="") | Q(status=DayClosingStatus.JUSTIFICATION))
         .order_by("-driver_day__date", "-id")
     )
@@ -577,7 +579,7 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
                 or row.driver_day.driver.username
             ),
             # Both boxes: the sales cash and the purchase money (D-158).
-            difference=row.difference + row.purchase_difference,
+            difference=row.office_difference + row.office_purchase_difference,
         )
         for row in rows
     ]

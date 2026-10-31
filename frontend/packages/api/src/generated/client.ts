@@ -58,6 +58,7 @@ import type {
   CustomerWrite,
   Dashboard,
   DayClosingApprove,
+  DayClosingCount,
   DayClosingDetail,
   DayClosingRow,
   DayClosingWrite,
@@ -73,8 +74,11 @@ import type {
   DayOverviewRow,
   DayRoute,
   Deliver,
+  Deposit,
+  DepositWrite,
   DocumentList,
   DriverDay,
+  EffetReject,
   ElectricityBill,
   ElectricityBillWrite,
   EmailDraft,
@@ -113,6 +117,7 @@ import type {
   GetCustomerStatementPdfParams,
   GetDocumentPdfParams,
   GetExpenseTotalsParams,
+  GetInstrumentTotalsParams,
   GetLossesReportParams,
   GetLotCostsParams,
   GetMonthResultReportParams,
@@ -127,6 +132,9 @@ import type {
   Health,
   ImportReport,
   ImportUpload,
+  Instrument,
+  InstrumentBatch,
+  InstrumentTotals,
   InvoiceChoices,
   InvoiceCreate,
   InvoiceDetail,
@@ -144,6 +152,7 @@ import type {
   ListDayLabourParams,
   ListDayLabourersParams,
   ListDayOverviewParams,
+  ListDepositsParams,
   ListDocumentsParams,
   ListEmployeesParams,
   ListExpenseCategoriesParams,
@@ -228,6 +237,7 @@ import type {
   PaginatedCountList,
   PaginatedCreditNoteList,
   PaginatedCustomerPaymentList,
+  PaginatedDepositList,
   PaginatedDifferenceLineList,
   PaginatedExpenseList,
   PaginatedFieldPurchaseListList,
@@ -348,6 +358,7 @@ import type {
   TruckDay,
   TruckWrite,
   UnpaidSalaries,
+  UnpaidWrite,
   Unread,
   VatProducts,
   VoidWrite,
@@ -2602,6 +2613,94 @@ export function useGetCreditNote<TData = Awaited<ReturnType<typeof getCreditNote
 
 
 
+export const getRecordUnpaidEffetUrl = (instrumentId: number,) => {
+
+
+
+
+  return `/api/v1/customer-effets/${instrumentId}/unpaid`
+}
+
+/**
+ * The bank refused this customer cheque or traite (owner or manager): it becomes "Impayé", the customer
+ * owes its amount again (the sales its règlement settled owe again beyond its credit), the bank's charges
+ * become an expense "Frais financiers" and the office is told (D-217). Answers with the règlement.
+ */
+export const recordUnpaidEffet = async (instrumentId: number,
+    unpaidWrite: UnpaidWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerPaymentDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerPaymentDetail>(getRecordUnpaidEffetUrl(instrumentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(unpaidWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordUnpaidEffetMutationKey = () => ['recordUnpaidEffet'] as const;
+
+export const getRecordUnpaidEffetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordUnpaidEffet>>, TError,RecordUnpaidEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordUnpaidEffet>>, TError,RecordUnpaidEffetMutationVariables, TContext> => {
+
+const mutationKey = getRecordUnpaidEffetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordUnpaidEffet>>, RecordUnpaidEffetMutationVariables> = (props) => {
+          const {instrumentId,data} = props ?? {};
+
+          return  recordUnpaidEffet(instrumentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordUnpaidEffetMutationResult = NonNullable<Awaited<ReturnType<typeof recordUnpaidEffet>>>
+    export type RecordUnpaidEffetMutationBody = UnpaidWrite
+    export type RecordUnpaidEffetMutationError = unknown
+    export type RecordUnpaidEffetMutationVariables = {instrumentId: number;data: UnpaidWrite}
+
+    export const useRecordUnpaidEffet = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordUnpaidEffet>>, TError,RecordUnpaidEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordUnpaidEffet>>,
+        TError,
+        RecordUnpaidEffetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordUnpaidEffetMutationOptions(options), queryClient);
+    }
+
 export const getListCustomerPaymentsUrl = (params?: ListCustomerPaymentsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -4290,9 +4389,9 @@ export const getApproveDayClosingUrl = (closingId: number,) => {
 }
 
 /**
- * Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
- * the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
- * the send: the driver sends it again first.
+ * Approve the day (owner or manager): it is locked. The cash the office counted (D-213) is kept by the count
+ * endpoint, or sent here; a gap with what the driver should hold needs a `note`. Refused for a day a new load
+ * reopened, or whose records changed since the send: the driver sends it again first.
  */
 export const approveDayClosing = async (closingId: number,
     dayClosingApprove?: DayClosingApprove, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
@@ -4367,6 +4466,94 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getApproveDayClosingMutationOptions(options), queryClient);
+    }
+
+export const getCountDayClosingUrl = (closingId: number,) => {
+
+
+
+
+  return `/api/v1/day-closings/${closingId}/count`
+}
+
+/**
+ * The office counts the cash the driver hands over (owner or manager, D-213), before the approval: the gap
+ * with what the driver should hold shows at once. Refused once approved, or while the records changed since
+ * the send.
+ */
+export const countDayClosing = async (closingId: number,
+    dayClosingCount: DayClosingCount, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayClosingDetail>(getCountDayClosingUrl(closingId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayClosingCount)
+  }
+);}
+
+
+
+
+
+export const getCountDayClosingMutationKey = () => ['countDayClosing'] as const;
+
+export const getCountDayClosingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countDayClosing>>, TError,CountDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof countDayClosing>>, TError,CountDayClosingMutationVariables, TContext> => {
+
+const mutationKey = getCountDayClosingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof countDayClosing>>, CountDayClosingMutationVariables> = (props) => {
+          const {closingId,data} = props ?? {};
+
+          return  countDayClosing(closingId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CountDayClosingMutationResult = NonNullable<Awaited<ReturnType<typeof countDayClosing>>>
+    export type CountDayClosingMutationBody = DayClosingCount
+    export type CountDayClosingMutationError = unknown
+    export type CountDayClosingMutationVariables = {closingId: number;data: DayClosingCount}
+
+    export const useCountDayClosing = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countDayClosing>>, TError,CountDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof countDayClosing>>,
+        TError,
+        CountDayClosingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCountDayClosingMutationOptions(options), queryClient);
     }
 
 export const getRequestDayJustificationUrl = (closingId: number,) => {
@@ -14705,11 +14892,11 @@ export const getCloseMyDayUrl = () => {
 }
 
 /**
- * Send the end of the day with the cash counted and an optional note: the day is closed until a load
- * validated that date opens it again. Sent again after the office asked for a justification, after such
- * a load, or when the day's records changed since the send.
+ * Send the end of the day with an optional note: the day is closed until a load validated that date opens
+ * it again. The driver sees what they should hold; the office counts the cash (D-213). Sent again after the
+ * office asked for a justification, after such a load, or when the day's records changed since the send.
  */
-export const closeMyDay = async (dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+export const closeMyDay = async (dayClosingWrite?: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -14768,9 +14955,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CloseMyDayMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyDay>>>
-    export type CloseMyDayMutationBody = DayClosingWrite
+    export type CloseMyDayMutationBody = DayClosingWrite | undefined
     export type CloseMyDayMutationError = unknown
-    export type CloseMyDayMutationVariables = {data: DayClosingWrite}
+    export type CloseMyDayMutationVariables = {data?: DayClosingWrite}
 
     export const useCloseMyDay = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyDay>>, TError,CloseMyDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -15361,7 +15548,7 @@ export const getCloseMyPastDayUrl = (dayId: number,) => {
  * justification, or a day left open.
  */
 export const closeMyPastDay = async (dayId: number,
-    dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+    dayClosingWrite?: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -15420,9 +15607,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CloseMyPastDayMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyPastDay>>>
-    export type CloseMyPastDayMutationBody = DayClosingWrite
+    export type CloseMyPastDayMutationBody = DayClosingWrite | undefined
     export type CloseMyPastDayMutationError = unknown
-    export type CloseMyPastDayMutationVariables = {dayId: number;data: DayClosingWrite}
+    export type CloseMyPastDayMutationVariables = {dayId: number;data?: DayClosingWrite}
 
     export const useCloseMyPastDay = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyPastDay>>, TError,CloseMyPastDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -26908,6 +27095,94 @@ export function useGetSupplierDebts<TData = Awaited<ReturnType<typeof getSupplie
 
 
 
+export const getRejectIssuedEffetUrl = (instrumentId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-effets/${instrumentId}/reject`
+}
+
+/**
+ * Our bank refused to pay this cheque or traite (owner or manager): it becomes "Rejeté" and the supplier is
+ * owed its amount again (the invoices its règlement settled owe again beyond its advance, D-218). Answers
+ * with the règlement.
+ */
+export const rejectIssuedEffet = async (instrumentId: number,
+    effetReject: EffetReject, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierPaymentDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SupplierPaymentDetail>(getRejectIssuedEffetUrl(instrumentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(effetReject)
+  }
+);}
+
+
+
+
+
+export const getRejectIssuedEffetMutationKey = () => ['rejectIssuedEffet'] as const;
+
+export const getRejectIssuedEffetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectIssuedEffet>>, TError,RejectIssuedEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectIssuedEffet>>, TError,RejectIssuedEffetMutationVariables, TContext> => {
+
+const mutationKey = getRejectIssuedEffetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectIssuedEffet>>, RejectIssuedEffetMutationVariables> = (props) => {
+          const {instrumentId,data} = props ?? {};
+
+          return  rejectIssuedEffet(instrumentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectIssuedEffetMutationResult = NonNullable<Awaited<ReturnType<typeof rejectIssuedEffet>>>
+    export type RejectIssuedEffetMutationBody = EffetReject
+    export type RejectIssuedEffetMutationError = unknown
+    export type RejectIssuedEffetMutationVariables = {instrumentId: number;data: EffetReject}
+
+    export const useRejectIssuedEffet = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectIssuedEffet>>, TError,RejectIssuedEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectIssuedEffet>>,
+        TError,
+        RejectIssuedEffetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectIssuedEffetMutationOptions(options), queryClient);
+    }
+
 export const getListSupplierInvoicesUrl = (params?: ListSupplierInvoicesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -29955,6 +30230,295 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateBankMutationOptions(options), queryClient);
     }
 
+export const getListDepositsUrl = (params?: ListDepositsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/deposits?${stringifiedParams}` : `/api/v1/treasury/deposits`
+}
+
+/**
+ * Bordereaux de remise en banque, newest first, paginated, each with its effets.
+ */
+export const listDeposits = async (params?: ListDepositsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedDepositList> => {
+
+  return apiFetch<PaginatedDepositList>(getListDepositsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDepositsQueryKey = (params?: ListDepositsParams,) => {
+    return [
+    `/api/v1/treasury/deposits`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDepositsQueryOptions = <TData = Awaited<ReturnType<typeof listDeposits>>, TError = unknown>(params?: ListDepositsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeposits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDepositsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDeposits>>> = ({ signal }) => listDeposits(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDeposits>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDepositsQueryResult = NonNullable<Awaited<ReturnType<typeof listDeposits>>>
+export type ListDepositsQueryError = unknown
+
+
+export function useListDeposits<TData = Awaited<ReturnType<typeof listDeposits>>, TError = unknown>(
+ params: undefined |  ListDepositsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeposits>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDeposits>>,
+          TError,
+          Awaited<ReturnType<typeof listDeposits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDeposits<TData = Awaited<ReturnType<typeof listDeposits>>, TError = unknown>(
+ params?: ListDepositsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeposits>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDeposits>>,
+          TError,
+          Awaited<ReturnType<typeof listDeposits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDeposits<TData = Awaited<ReturnType<typeof listDeposits>>, TError = unknown>(
+ params?: ListDepositsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeposits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDeposits<TData = Awaited<ReturnType<typeof listDeposits>>, TError = unknown>(
+ params?: ListDepositsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDeposits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDepositsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDepositUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/deposits`
+}
+
+/**
+ * Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
+ * them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+ */
+export const createDeposit = async (depositWrite: DepositWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Deposit> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Deposit>(getCreateDepositUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(depositWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateDepositMutationKey = () => ['createDeposit'] as const;
+
+export const getCreateDepositMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDeposit>>, TError,CreateDepositMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDeposit>>, TError,CreateDepositMutationVariables, TContext> => {
+
+const mutationKey = getCreateDepositMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDeposit>>, CreateDepositMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDeposit(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDepositMutationResult = NonNullable<Awaited<ReturnType<typeof createDeposit>>>
+    export type CreateDepositMutationBody = DepositWrite
+    export type CreateDepositMutationError = unknown
+    export type CreateDepositMutationVariables = {data: DepositWrite}
+
+    export const useCreateDeposit = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDeposit>>, TError,CreateDepositMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createDeposit>>,
+        TError,
+        CreateDepositMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateDepositMutationOptions(options), queryClient);
+    }
+
+export const getGetDepositUrl = (depositId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/deposits/${depositId}`
+}
+
+/**
+ * One bordereau with its effets.
+ */
+export const getDeposit = async (depositId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Deposit> => {
+
+  return apiFetch<Deposit>(getGetDepositUrl(depositId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDepositQueryKey = (depositId: number,) => {
+    return [
+    `/api/v1/treasury/deposits/${depositId}`
+    ] as const;
+    }
+
+
+export const getGetDepositQueryOptions = <TData = Awaited<ReturnType<typeof getDeposit>>, TError = unknown>(depositId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeposit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDepositQueryKey(depositId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeposit>>> = ({ signal }) => getDeposit(depositId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: depositId !== null && depositId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeposit>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDepositQueryResult = NonNullable<Awaited<ReturnType<typeof getDeposit>>>
+export type GetDepositQueryError = unknown
+
+
+export function useGetDeposit<TData = Awaited<ReturnType<typeof getDeposit>>, TError = unknown>(
+ depositId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeposit>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDeposit>>,
+          TError,
+          Awaited<ReturnType<typeof getDeposit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDeposit<TData = Awaited<ReturnType<typeof getDeposit>>, TError = unknown>(
+ depositId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeposit>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDeposit>>,
+          TError,
+          Awaited<ReturnType<typeof getDeposit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDeposit<TData = Awaited<ReturnType<typeof getDeposit>>, TError = unknown>(
+ depositId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeposit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDeposit<TData = Awaited<ReturnType<typeof getDeposit>>, TError = unknown>(
+ depositId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeposit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDepositQueryOptions(depositId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListInstrumentsUrl = (params?: ListInstrumentsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -29972,8 +30536,8 @@ export const getListInstrumentsUrl = (params?: ListInstrumentsParams,) => {
 
 /**
  * Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
- * status (comma separated), customer, supplier, due days (inclusive) or `search` (number, drawer, règlement,
- * party).
+ * status (comma separated), customer, supplier, bank, bordereau, due days (inclusive) or `search` (number,
+ * drawer, règlement, party).
  */
 export const listInstruments = async (params?: ListInstrumentsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedInstrumentList> => {
 
@@ -30061,6 +30625,452 @@ export function useListInstruments<TData = Awaited<ReturnType<typeof listInstrum
 
 
 
+
+export const getCashInstrumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/instruments/cash`
+}
+
+/**
+ * Received effets the bank credited on `day`: at the bank, or cashed at its counter from the portfolio.
+ */
+export const cashInstruments = async (instrumentBatch: InstrumentBatch, options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Instrument[]>(getCashInstrumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(instrumentBatch)
+  }
+);}
+
+
+
+
+
+export const getCashInstrumentsMutationKey = () => ['cashInstruments'] as const;
+
+export const getCashInstrumentsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cashInstruments>>, TError,CashInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cashInstruments>>, TError,CashInstrumentsMutationVariables, TContext> => {
+
+const mutationKey = getCashInstrumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cashInstruments>>, CashInstrumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  cashInstruments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CashInstrumentsMutationResult = NonNullable<Awaited<ReturnType<typeof cashInstruments>>>
+    export type CashInstrumentsMutationBody = InstrumentBatch
+    export type CashInstrumentsMutationError = unknown
+    export type CashInstrumentsMutationVariables = {data: InstrumentBatch}
+
+    export const useCashInstruments = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cashInstruments>>, TError,CashInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cashInstruments>>,
+        TError,
+        CashInstrumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCashInstrumentsMutationOptions(options), queryClient);
+    }
+
+export const getDebitInstrumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/instruments/debit`
+}
+
+/**
+ * Our cheques and traites the bank paid on `day`.
+ */
+export const debitInstruments = async (instrumentBatch: InstrumentBatch, options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Instrument[]>(getDebitInstrumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(instrumentBatch)
+  }
+);}
+
+
+
+
+
+export const getDebitInstrumentsMutationKey = () => ['debitInstruments'] as const;
+
+export const getDebitInstrumentsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof debitInstruments>>, TError,DebitInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof debitInstruments>>, TError,DebitInstrumentsMutationVariables, TContext> => {
+
+const mutationKey = getDebitInstrumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof debitInstruments>>, DebitInstrumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  debitInstruments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DebitInstrumentsMutationResult = NonNullable<Awaited<ReturnType<typeof debitInstruments>>>
+    export type DebitInstrumentsMutationBody = InstrumentBatch
+    export type DebitInstrumentsMutationError = unknown
+    export type DebitInstrumentsMutationVariables = {data: InstrumentBatch}
+
+    export const useDebitInstruments = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof debitInstruments>>, TError,DebitInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof debitInstruments>>,
+        TError,
+        DebitInstrumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDebitInstrumentsMutationOptions(options), queryClient);
+    }
+
+export const getReturnInstrumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/instruments/return`
+}
+
+/**
+ * Unpaid effets given back to the customer on `day` ("Restitué").
+ */
+export const returnInstruments = async (instrumentBatch: InstrumentBatch, options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Instrument[]>(getReturnInstrumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(instrumentBatch)
+  }
+);}
+
+
+
+
+
+export const getReturnInstrumentsMutationKey = () => ['returnInstruments'] as const;
+
+export const getReturnInstrumentsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnInstruments>>, TError,ReturnInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof returnInstruments>>, TError,ReturnInstrumentsMutationVariables, TContext> => {
+
+const mutationKey = getReturnInstrumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnInstruments>>, ReturnInstrumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  returnInstruments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReturnInstrumentsMutationResult = NonNullable<Awaited<ReturnType<typeof returnInstruments>>>
+    export type ReturnInstrumentsMutationBody = InstrumentBatch
+    export type ReturnInstrumentsMutationError = unknown
+    export type ReturnInstrumentsMutationVariables = {data: InstrumentBatch}
+
+    export const useReturnInstruments = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnInstruments>>, TError,ReturnInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof returnInstruments>>,
+        TError,
+        ReturnInstrumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReturnInstrumentsMutationOptions(options), queryClient);
+    }
+
+export const getGetInstrumentTotalsUrl = (params?: GetInstrumentTotalsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/instruments/totals?${stringifiedParams}` : `/api/v1/treasury/instruments/totals`
+}
+
+/**
+ * The count and amount of the effets of the same filters as the list, by status, and those late (échéance
+ * passed while still in portfolio, at the bank or issued).
+ */
+export const getInstrumentTotals = async (params?: GetInstrumentTotalsParams, options?: Parameters<typeof apiFetch>[1]): Promise<InstrumentTotals> => {
+
+  return apiFetch<InstrumentTotals>(getGetInstrumentTotalsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInstrumentTotalsQueryKey = (params?: GetInstrumentTotalsParams,) => {
+    return [
+    `/api/v1/treasury/instruments/totals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetInstrumentTotalsQueryOptions = <TData = Awaited<ReturnType<typeof getInstrumentTotals>>, TError = unknown>(params?: GetInstrumentTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInstrumentTotals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInstrumentTotalsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInstrumentTotals>>> = ({ signal }) => getInstrumentTotals(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInstrumentTotals>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetInstrumentTotalsQueryResult = NonNullable<Awaited<ReturnType<typeof getInstrumentTotals>>>
+export type GetInstrumentTotalsQueryError = unknown
+
+
+export function useGetInstrumentTotals<TData = Awaited<ReturnType<typeof getInstrumentTotals>>, TError = unknown>(
+ params: undefined |  GetInstrumentTotalsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInstrumentTotals>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInstrumentTotals>>,
+          TError,
+          Awaited<ReturnType<typeof getInstrumentTotals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInstrumentTotals<TData = Awaited<ReturnType<typeof getInstrumentTotals>>, TError = unknown>(
+ params?: GetInstrumentTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInstrumentTotals>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInstrumentTotals>>,
+          TError,
+          Awaited<ReturnType<typeof getInstrumentTotals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInstrumentTotals<TData = Awaited<ReturnType<typeof getInstrumentTotals>>, TError = unknown>(
+ params?: GetInstrumentTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInstrumentTotals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetInstrumentTotals<TData = Awaited<ReturnType<typeof getInstrumentTotals>>, TError = unknown>(
+ params?: GetInstrumentTotalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInstrumentTotals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetInstrumentTotalsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getWithdrawInstrumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/instruments/withdraw`
+}
+
+/**
+ * Effets taken back from the bank before it cashed them: in portfolio again.
+ */
+export const withdrawInstruments = async (instrumentBatch: InstrumentBatch, options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Instrument[]>(getWithdrawInstrumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(instrumentBatch)
+  }
+);}
+
+
+
+
+
+export const getWithdrawInstrumentsMutationKey = () => ['withdrawInstruments'] as const;
+
+export const getWithdrawInstrumentsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawInstruments>>, TError,WithdrawInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawInstruments>>, TError,WithdrawInstrumentsMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawInstrumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawInstruments>>, WithdrawInstrumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  withdrawInstruments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawInstrumentsMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawInstruments>>>
+    export type WithdrawInstrumentsMutationBody = InstrumentBatch
+    export type WithdrawInstrumentsMutationError = unknown
+    export type WithdrawInstrumentsMutationVariables = {data: InstrumentBatch}
+
+    export const useWithdrawInstruments = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawInstruments>>, TError,WithdrawInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawInstruments>>,
+        TError,
+        WithdrawInstrumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawInstrumentsMutationOptions(options), queryClient);
+    }
 
 export const getListTruckAssignmentsUrl = (params?: ListTruckAssignmentsParams,) => {
   const normalizedParams = new URLSearchParams();

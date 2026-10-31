@@ -39,6 +39,7 @@ from .payment_serializers import (
     CustomerPaymentTotalsSerializer,
     CustomerPaymentWriteSerializer,
     ReceivablesAgeingSerializer,
+    UnpaidWriteSerializer,
     VoidWriteSerializer,
     WithholdingCertificateSerializer,
     WithholdingCertificateWriteSerializer,
@@ -254,6 +255,28 @@ def _line_label(line: Any) -> str:
     elif line.reference:
         label += f" {line.reference}"
     return f"{label} ({line.amount})"
+
+
+class CustomerEffetUnpaidView(CustomerPaymentView):
+    @extend_schema(
+        operation_id="recordUnpaidEffet", request=UnpaidWriteSerializer, responses=CustomerPaymentDetailSerializer
+    )
+    def post(self, request: Request, instrument_id: int) -> Response:
+        """The bank refused this customer cheque or traite (owner or manager): it becomes "Impayé", the customer
+        owes its amount again (the sales its règlement settled owe again beyond its credit), the bank's charges
+        become an expense "Frais financiers" and the office is told (D-217). Answers with the règlement."""
+        serializer = UnpaidWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        unpaid = services.record_unpaid_effet(
+            organization=self.organization,
+            actor=self.membership.user,
+            instrument_id=instrument_id,
+            unpaid_on=data["unpaid_on"],
+            reason=data["reason"],
+            bank_charges=data["bank_charges"],
+        )
+        return self.answer(unpaid.payment_id)
 
 
 class CustomerPaymentDetailView(CustomerPaymentView):

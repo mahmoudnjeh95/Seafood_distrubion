@@ -291,17 +291,22 @@ def test_a_refused_purchase_gives_its_money_back(setup):
     assert summary(setup)["expected_purchase_cash"] == "1000.000"
 
 
-def test_the_closing_counts_the_purchase_money_apart(setup):
+def office_count(setup, closing_id: int, **counts: str):
+    return setup["owner"].post(reverse("day-closing-count", args=[closing_id]), counts, format="json")
+
+
+def test_the_closing_shows_the_purchase_money_and_the_office_counts_it_apart(setup):
     send(setup)
-    closed = setup["api"].post(
-        reverse("my-day-closing"), {"counted_cash": "50", "counted_purchase_cash": "390"}, format="json"
-    )
+    closed = setup["api"].post(reverse("my-day-closing"), {}, format="json")
     assert closed.status_code == 201, closed.json()
     closing = closed.json()["closing"]
     assert closing["expected_purchase_cash"] == "400.000"
-    assert closing["counted_purchase_cash"] == "390.000"
-    assert closing["purchase_difference"] == "-10.000"
-    assert closing["difference"] == "0.000"
+    assert "counted_purchase_cash" not in closing
+    # The office counts it when the driver is back (D-213): 390 counted, 10 short.
+    counted = office_count(setup, closing["id"], office_counted_cash="50", office_counted_purchase_cash="390")
+    assert counted.status_code == 200, counted.json()
+    assert counted.json()["office_purchase_difference"] == "-10.000"
+    assert counted.json()["office_difference"] == "0.000"
     # Bought after the day was sent: refused, as an expense would be.
     late = send(setup)
     assert late.status_code == 403
@@ -312,17 +317,25 @@ def test_the_purchase_money_can_be_typed_again_while_the_day_runs(setup):
     assert changed.status_code == 200
     assert changed.json()["purchase_float"] == "1500.000"
     assert summary(setup)["expected_purchase_cash"] == "1500.000"
-    setup["api"].post(reverse("my-day-closing"), {"counted_cash": "50", "counted_purchase_cash": "1500"}, format="json")
+    setup["api"].post(reverse("my-day-closing"), {}, format="json")
     after = setup["api"].put(reverse("my-purchase-float"), {"purchase_float": "2000"}, format="json")
     assert after.status_code == 400
 
 
-def test_a_closing_without_purchases_needs_no_second_count(setup):
-    closed = setup["api"].post(reverse("my-day-closing"), {"counted_cash": "50"}, format="json")
+def test_a_day_with_purchase_money_left_is_approved_only_once_that_money_is_counted(setup):
+    closed = setup["api"].post(reverse("my-day-closing"), {}, format="json")
     assert closed.status_code == 201
-    # The 1 000 DT given for purchases and not counted back: a gap the office sees.
-    assert closed.json()["closing"]["purchase_difference"] == "-1000.000"
-    assert Decimal(closed.json()["closing"]["difference"]) == 0
+    closing_id = closed.json()["closing"]["id"]
+    counted = office_count(setup, closing_id, office_counted_cash="50")
+    assert counted.status_code == 200, counted.json()
+    # The 1 000 DT given for purchases and not counted yet: the office has to count it first.
+    refused = setup["owner"].post(reverse("day-closing-approve", args=[closing_id]), {}, format="json")
+    assert refused.status_code == 400
+    approved = setup["owner"].post(
+        reverse("day-closing-approve", args=[closing_id]), {"office_counted_purchase_cash": "1000"}, format="json"
+    )
+    assert approved.status_code == 200, approved.json()
+    assert (approved.json()["status"], approved.json()["office_purchase_difference"]) == ("approved", "0.000")
 
 
 def test_a_purchase_sent_from_the_phone_goes_to_the_drivers_truck(setup):

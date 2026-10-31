@@ -41,6 +41,8 @@ from .models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
+    RejectedEffet,
+    RejectedRelease,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -210,6 +212,21 @@ def _sum_of_allocations(**match: Any) -> Coalesce:
     return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
 
 
+def _sum_of_releases(**match: Any) -> Coalesce:
+    """The sum of what rejected effets took back (`RejectedRelease`) matching `match`, as a subquery (D-218)."""
+    group = next(iter(match))
+    releases = (
+        RejectedRelease.objects.filter(**match).order_by().values(group).annotate(total=Sum("amount")).values("total")
+    )
+    return Coalesce(Subquery(releases, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
+
+
+def _sum_of_rejected(**match: Any) -> Coalesce:
+    group = next(iter(match))
+    rows = RejectedEffet.objects.filter(**match).order_by().values(group).annotate(total=Sum("amount")).values("total")
+    return Coalesce(Subquery(rows, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
+
+
 def invoices_of(
     organization: Organization,
     *,
@@ -234,7 +251,12 @@ def invoices_of(
         .select_related("supplier", "created_by", "posted_by")
         .prefetch_related(Prefetch("receipt_links", queryset=links))
         .prefetch_related(Prefetch("allocations", queryset=allocations))
-        .annotate(paid_amount=_sum_of_allocations(invoice=OuterRef("pk")))
+        .annotate(
+            paid_amount=ExpressionWrapper(
+                _sum_of_allocations(invoice=OuterRef("pk")) - _sum_of_releases(invoice=OuterRef("pk")),
+                output_field=AMOUNT,
+            )
+        )
         .annotate(outstanding=ExpressionWrapper(F("total") - F("paid_amount"), output_field=AMOUNT))
         .order_by("-invoice_date", "-id")
     )
@@ -292,11 +314,19 @@ def payments_of(
         .select_related("supplier", "created_by", "voided_by")
         .prefetch_related(Prefetch("allocations", queryset=allocations))
         .prefetch_related(Prefetch("lines", queryset=lines))
-        .annotate(allocated_amount=_sum_of_allocations(payment=OuterRef("pk")))
+        .annotate(
+            allocated_amount=ExpressionWrapper(
+                _sum_of_allocations(payment=OuterRef("pk")) - _sum_of_releases(rejected__payment=OuterRef("pk")),
+                output_field=AMOUNT,
+            ),
+            rejected_amount=_sum_of_rejected(payment=OuterRef("pk")),
+        )
         .annotate(
             unallocated_amount=Case(
                 When(voided_at__isnull=False, then=Value(ZERO)),
-                default=ExpressionWrapper(F("amount") - F("allocated_amount"), output_field=AMOUNT),
+                default=ExpressionWrapper(
+                    F("amount") - F("rejected_amount") - F("allocated_amount"), output_field=AMOUNT
+                ),
                 output_field=AMOUNT,
             )
         )
@@ -334,7 +364,11 @@ def payments_of(
 def payment_of(organization: Organization, payment_id: int) -> SupplierPayment:
     """One payment with its lines (and each effet's history), allocations. Raises SupplierPayment.DoesNotExist
     outside the organization."""
-    return payments_of(organization).prefetch_related("lines__instrument__events__actor").get(pk=payment_id)
+    return (
+        payments_of(organization)
+        .prefetch_related("lines__instrument__events__actor", "lines__rejected")
+        .get(pk=payment_id)
+    )
 
 
 @dataclass(frozen=True)
@@ -356,6 +390,10 @@ def payment_totals(payments: QuerySet[SupplierPayment]) -> PaymentTotals:
     allocated = SupplierPaymentAllocation.objects.filter(payment__in=live.values("pk")).aggregate(total=Sum("amount"))[
         "total"
     ]
+    released = RejectedRelease.objects.filter(rejected__payment__in=live.values("pk")).aggregate(total=Sum("amount"))[
+        "total"
+    ]
+    rejected = RejectedEffet.objects.filter(payment__in=live.values("pk")).aggregate(total=Sum("amount"))["total"]
     by_method = {
         row["method"]: row["total"]
         for row in SupplierPaymentLine.objects.filter(payment__in=live.values("pk"))
@@ -364,13 +402,13 @@ def payment_totals(payments: QuerySet[SupplierPayment]) -> PaymentTotals:
         .order_by("method")
     }
     total = rows["total"] or ZERO
-    allocated = allocated or ZERO
+    allocated = (allocated or ZERO) - (released or ZERO)
     return PaymentTotals(
         count=live.count(),
         voided=payments.filter(voided_at__isnull=False).count(),
         total=total,
         allocated=allocated,
-        unallocated=total - allocated,
+        unallocated=total - (rejected or ZERO) - allocated,
         by_method=by_method,
     )
 
@@ -547,14 +585,19 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
     late = [invoice for invoice in open_invoices if invoice.due_date < today]
     uninvoiced = list(receipts_of(organization, supplier_id=supplier_id, uninvoiced=True))
     invoiced = _total(posted, "total")
-    paid = _total(payments, "amount")
+    # A rejected effet of ours was never paid: the supplier is owed it again (D-218).
+    rejected = _total(RejectedEffet.objects.for_organization(organization).filter(supplier_id=supplier_id), "amount")
+    released = _total(
+        RejectedRelease.objects.for_organization(organization).filter(rejected__supplier_id=supplier_id), "amount"
+    )
+    paid = _total(payments, "amount") - rejected
     return SupplierBalance(
         supplier_id=supplier_id,
         invoiced=invoiced,
         paid=paid,
         balance=invoiced - paid,
         outstanding=sum((getattr(invoice, "outstanding") for invoice in open_invoices), ZERO),  # noqa: B009
-        unallocated=paid - _total(allocations, "amount"),
+        unallocated=paid - (_total(allocations, "amount") - released),
         overdue=sum((getattr(invoice, "outstanding") for invoice in late), ZERO),  # noqa: B009
         open_invoices=len(open_invoices),
         overdue_invoices=len(late),
@@ -894,8 +937,8 @@ def supplier_debts(organization: Organization, *, today: dt.date | None = None) 
             instrument__isnull=False,
             instrument__due_on__gte=today - dt.timedelta(days=CHEQUES_SINCE_DAYS),
         )
-        # A cancelled effet was never handed over: its règlement was voided.
-        .exclude(instrument__status="cancelled")
+        # A cancelled effet was never handed over (its règlement was voided); a rejected one is owed again.
+        .exclude(instrument__status__in=("cancelled", "rejected"))
         .select_related("payment__supplier", "instrument")
         .order_by("instrument__due_on", "id")
         if line.instrument is not None

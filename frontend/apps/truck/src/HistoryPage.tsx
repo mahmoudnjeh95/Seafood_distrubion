@@ -15,10 +15,6 @@ const TONES = {
   approved: "text-good",
 } as const;
 
-function signed(value: string): string {
-  return `${Number(value) > 0 ? "+" : ""}${formatMoney(value)}`;
-}
-
 function DayStatus({ row }: { row: MyDayRow }) {
   const { t } = useTranslation();
   if (row.closing === null) {
@@ -58,11 +54,8 @@ export function HistoryPage() {
             </p>
             <p className="text-sm text-ink-2">{row.truck_name}</p>
             {row.closing === null ? null : (
-              <p className="flex justify-between gap-3">
-                <span>{t("truck.history.counted", { amount: formatMoney(row.closing.counted_cash) })}</span>
-                <span className="font-semibold">
-                  {t("truck.history.gap", { amount: signed(row.closing.difference) })}
-                </span>
+              <p className="text-ink-2">
+                {t("truck.history.expected", { amount: formatMoney(row.closing.expected_cash) })}
               </p>
             )}
           </Card>
@@ -110,9 +103,7 @@ export function HistoryDayPage() {
           data={day.data}
           sending={send.isPending}
           error={error}
-          onSend={(counted, note, countedPurchase) =>
-            send.mutate({ dayId: id, data: { counted_cash: counted, note, counted_purchase_cash: countedPurchase } })
-          }
+          onSend={(note) => send.mutate({ dayId: id, data: { note } })}
         />
       )}
     </div>

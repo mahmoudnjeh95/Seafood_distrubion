@@ -509,8 +509,32 @@ class IssuedInstrumentDetailSerializer(IssuedInstrumentSerializer):
     events = EffetEventSerializer(many=True, read_only=True)
 
 
+class RejectedEffetSerializer(serializers.Serializer[Any]):
+    """The rejet of a line (D-218): when and why."""
+
+    rejected_on = serializers.DateField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
 class SupplierPaymentLineDetailSerializer(SupplierPaymentLineSerializer):
     instrument = IssuedInstrumentDetailSerializer(read_only=True, allow_null=True)
+    # Set once our bank refused its cheque or traite.
+    rejected = serializers.SerializerMethodField()
+
+    class Meta(SupplierPaymentLineSerializer.Meta):
+        fields = (*SupplierPaymentLineSerializer.Meta.fields, "rejected")
+        read_only_fields = fields
+
+    @extend_schema_field(RejectedEffetSerializer(allow_null=True))
+    def get_rejected(self, line: SupplierPaymentLine) -> dict[str, Any] | None:
+        rejected = getattr(line, "rejected", None)
+        return RejectedEffetSerializer(rejected).data if rejected is not None else None
+
+
+class EffetRejectSerializer(serializers.Serializer[Any]):
+    rejected_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
 
 
 class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):

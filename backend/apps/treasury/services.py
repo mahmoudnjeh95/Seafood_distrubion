@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.core import audit
@@ -16,11 +17,13 @@ from apps.core.money import Number, checked_amount
 from .models import (
     FIRST_STATUS,
     Bank,
+    Deposit,
     Instrument,
     InstrumentDirection,
     InstrumentEvent,
     InstrumentKind,
     InstrumentStatus,
+    TreasuryCounter,
 )
 
 if TYPE_CHECKING:
@@ -63,6 +66,8 @@ ALLOWED_MOVES: dict[str, frozenset[str]] = {
     InstrumentStatus.DEPOSITED: frozenset(
         {InstrumentStatus.CASHED, InstrumentStatus.UNPAID, InstrumentStatus.PORTFOLIO}
     ),
+    # The bank may take back a cheque it had credited (D-217).
+    InstrumentStatus.CASHED: frozenset({InstrumentStatus.UNPAID}),
     InstrumentStatus.UNPAID: frozenset({InstrumentStatus.RETURNED, InstrumentStatus.PORTFOLIO}),
     InstrumentStatus.ISSUED: frozenset(
         {InstrumentStatus.DEBITED, InstrumentStatus.REJECTED, InstrumentStatus.CANCELLED}
@@ -330,3 +335,224 @@ def cancel_instruments(
     check_cancellable(instrument_ids)
     for instrument in locked_instruments(instrument_ids):
         _move(instrument, to_status=InstrumentStatus.CANCELLED, happened_on=happened_on, actor=actor, note=note)
+
+
+# ---- The portfolio: remise en banque, encaissé, débité (P9-T04a, D-216) ----
+
+DEPOSIT_PREFIX = "RB"
+# The effets one action may move at once.
+MAX_BATCH = 200
+
+
+def _next_number(organization: Organization, kind: str, prefix: str, day: dt.date) -> str:
+    """ "RB-2026-0001": numbered per organization and year, the counter locked while the number is taken."""
+    TreasuryCounter.objects.get_or_create(organization=organization, kind=kind, year=day.year)
+    counter = TreasuryCounter.objects.select_for_update().get(organization=organization, kind=kind, year=day.year)
+    counter.last_number += 1
+    counter.save(update_fields=["last_number"])
+    return f"{prefix}-{day.year}-{counter.last_number:04d}"
+
+
+def _batch(
+    organization: Organization,
+    instrument_ids: Sequence[int],
+    *,
+    direction: str,
+    statuses: frozenset[str],
+    happened_on: dt.date | None,
+) -> list[Instrument]:
+    """The effets named, locked, once checked: all of the organization, of `direction`, in one of `statuses`; and
+    a day not in the future. Every problem comes back at once."""
+    errors: dict[str, str] = {}
+    ids = list(dict.fromkeys(instrument_ids))
+    if not ids:
+        errors["instruments"] = _("Choisissez au moins un effet.")
+    elif len(ids) > MAX_BATCH:
+        errors["instruments"] = _("%(count)s effets au plus à la fois.") % {"count": MAX_BATCH}
+    if happened_on is None:
+        errors["day"] = _("Indiquez le jour.")
+    elif happened_on > timezone.localdate():
+        errors["day"] = _("Le jour ne peut pas être dans le futur.")
+    if errors:
+        raise ValidationError(errors)
+    rows = [row for row in locked_instruments(ids) if row.organization_id == organization.pk]
+    if len(rows) != len(ids):
+        raise ValidationError({"instruments": _("Effet inconnu.")})
+    wrong = [row for row in rows if row.direction != direction or row.status not in statuses]
+    if wrong:
+        row = wrong[0]
+        raise ValidationError(
+            {
+                "instruments": _("%(instrument)s (%(source)s) est « %(status)s » : il ne peut pas faire ce pas.")
+                % {"instrument": row, "source": row.source_number, "status": row.get_status_display()}
+            }
+        )
+    return rows
+
+
+def _record(
+    organization: Organization, actor: User | None, action: str, rows: Sequence[Instrument], **after: Any
+) -> None:
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action=action,
+        target=rows[0],
+        after={"instruments": [f"{row} ({row.source_number})" for row in rows], **after},
+    )
+
+
+@transaction.atomic
+def deposit_instruments(
+    *,
+    organization: Organization,
+    actor: User | None,
+    instrument_ids: Sequence[int],
+    bank: Bank | None,
+    deposited_on: dt.date | None,
+    notes: str = "",
+) -> Deposit:
+    """Hand received effets in portfolio to one of our banks on one day: a bordereau "RB-…" holding them, each
+    effet "Remis en banque". Its PDF lists them for the bank."""
+    if bank is None or bank.organization_id != organization.pk or not bank.is_active:
+        raise ValidationError({"bank": _("Choisissez la banque.")})
+    rows = _batch(
+        organization,
+        instrument_ids,
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.PORTFOLIO}),
+        happened_on=deposited_on,
+    )
+    assert deposited_on is not None  # checked by _batch
+    deposit = Deposit.objects.create(
+        organization=organization,
+        number=_next_number(organization, "deposit", DEPOSIT_PREFIX, deposited_on),
+        bank=bank,
+        deposited_on=deposited_on,
+        notes=notes.strip()[:255],
+        created_by=actor,
+    )
+    for row in rows:
+        _move(row, to_status=InstrumentStatus.DEPOSITED, happened_on=deposited_on, actor=actor, note=deposit.number)
+        row.deposit = deposit
+        row.save(update_fields=["deposit", "updated_at"])
+    _record(organization, actor, "treasury.deposited", rows, deposit=deposit.number, bank=bank.code)
+    return deposit
+
+
+@transaction.atomic
+def cash_instruments(
+    *, organization: Organization, actor: User | None, instrument_ids: Sequence[int], cashed_on: dt.date | None
+) -> list[Instrument]:
+    """The bank credited these received effets (at the bank, or cashed at its counter straight from the portfolio)."""
+    rows = _batch(
+        organization,
+        instrument_ids,
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.DEPOSITED, InstrumentStatus.PORTFOLIO}),
+        happened_on=cashed_on,
+    )
+    assert cashed_on is not None
+    for row in rows:
+        _move(row, to_status=InstrumentStatus.CASHED, happened_on=cashed_on, actor=actor)
+    _record(organization, actor, "treasury.cashed", rows, day=cashed_on.isoformat())
+    return rows
+
+
+@transaction.atomic
+def withdraw_instruments(
+    *,
+    organization: Organization,
+    actor: User | None,
+    instrument_ids: Sequence[int],
+    withdrawn_on: dt.date | None,
+    note: str = "",
+) -> list[Instrument]:
+    """Take effets back from the bank before it cashed them: they are in portfolio again (their bordereau keeps them
+    listed, with this step in their history)."""
+    rows = _batch(
+        organization,
+        instrument_ids,
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.DEPOSITED}),
+        happened_on=withdrawn_on,
+    )
+    assert withdrawn_on is not None
+    for row in rows:
+        _move(row, to_status=InstrumentStatus.PORTFOLIO, happened_on=withdrawn_on, actor=actor, note=note)
+    _record(organization, actor, "treasury.withdrawn", rows, day=withdrawn_on.isoformat())
+    return rows
+
+
+@transaction.atomic
+def debit_instruments(
+    *, organization: Organization, actor: User | None, instrument_ids: Sequence[int], debited_on: dt.date | None
+) -> list[Instrument]:
+    """Our bank paid these cheques and traites we gave: they are done."""
+    rows = _batch(
+        organization,
+        instrument_ids,
+        direction=InstrumentDirection.ISSUED,
+        statuses=frozenset({InstrumentStatus.ISSUED}),
+        happened_on=debited_on,
+    )
+    assert debited_on is not None
+    for row in rows:
+        _move(row, to_status=InstrumentStatus.DEBITED, happened_on=debited_on, actor=actor)
+    _record(organization, actor, "treasury.debited", rows, day=debited_on.isoformat())
+    return rows
+
+
+def mark_unpaid(
+    *, organization: Organization, actor: User | None, instrument_id: int, unpaid_on: dt.date | None, note: str
+) -> Instrument:
+    """The bank refused a received effet (at the bank, or taken back after crediting it): "Impayé". Called by the
+    règlement's app, which raises the customer's balance again in the same transaction (D-217)."""
+    rows = _batch(
+        organization,
+        [instrument_id],
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.DEPOSITED, InstrumentStatus.CASHED}),
+        happened_on=unpaid_on,
+    )
+    assert unpaid_on is not None
+    _move(rows[0], to_status=InstrumentStatus.UNPAID, happened_on=unpaid_on, actor=actor, note=note)
+    _record(organization, actor, "treasury.unpaid", rows, day=unpaid_on.isoformat(), reason=note)
+    return rows[0]
+
+
+@transaction.atomic
+def return_instruments(
+    *, organization: Organization, actor: User | None, instrument_ids: Sequence[int], returned_on: dt.date | None
+) -> list[Instrument]:
+    """Unpaid effets given back to the customer ("Restitué"): the paper leaves the portfolio for good."""
+    rows = _batch(
+        organization,
+        instrument_ids,
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.UNPAID}),
+        happened_on=returned_on,
+    )
+    assert returned_on is not None
+    for row in rows:
+        _move(row, to_status=InstrumentStatus.RETURNED, happened_on=returned_on, actor=actor)
+    _record(organization, actor, "treasury.returned", rows, day=returned_on.isoformat())
+    return rows
+
+
+def mark_rejected(
+    *, organization: Organization, actor: User | None, instrument_id: int, rejected_on: dt.date | None, note: str
+) -> Instrument:
+    """Our bank refused to pay one of our cheques or traites: "Rejeté". Called by the règlement's app, which owes the
+    supplier again in the same transaction (D-218)."""
+    rows = _batch(
+        organization,
+        [instrument_id],
+        direction=InstrumentDirection.ISSUED,
+        statuses=frozenset({InstrumentStatus.ISSUED}),
+        happened_on=rejected_on,
+    )
+    assert rejected_on is not None
+    _move(rows[0], to_status=InstrumentStatus.REJECTED, happened_on=rejected_on, actor=actor, note=note)
+    _record(organization, actor, "treasury.rejected", rows, day=rejected_on.isoformat(), reason=note)
+    return rows[0]

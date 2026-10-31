@@ -129,8 +129,6 @@ test("the answer to the office's question waits for the phone's sales too", () =
     id: 1,
     status: "justification",
     expected_cash: "76.000",
-    counted_cash: "70.000",
-    difference: "-6.000",
     driver_note: "",
     review_note: "Il manque 6 DT",
     submitted_at: "2026-10-13T12:00:00Z",
@@ -148,8 +146,6 @@ test("a day already sent shows no form and no waiting notice", () => {
     id: 1,
     status: "submitted",
     expected_cash: "76.000",
-    counted_cash: "76.000",
-    difference: "0.000",
     driver_note: "",
     review_note: "",
     submitted_at: "2026-10-13T12:00:00Z",
@@ -166,24 +162,30 @@ const sentClosing = {
   id: 1,
   status: "submitted",
   expected_cash: "76.000",
-  counted_cash: "76.000",
-  difference: "0.000",
   driver_note: "",
   review_note: "",
   submitted_at: "2026-10-13T12:00:00Z",
   changed_since_sent: false,
 } as NonNullable<MyDaySummary["closing"]>;
 
-test("a day a new load reopened is counted and sent again, less the cash already handed over (D-134)", () => {
+test("a day a new load reopened is sent again, and the cash already handed over is shown (D-134)", () => {
   const reopened = { ...sentClosing, status: "reopened" as const };
 
   const html = markup(day([product], reopened, { handed_over: "76.000", expected_cash: "28.000" }));
 
   expect(html).toContain("Journée rouverte : le camion a été rechargé");
   expect(html).toMatch(/Déjà remis au bureau<\/span><span>76,000\sDT/);
-  expect(html).toContain("comptez seulement l&#x27;argent que vous avez maintenant");
+  expect(html).toContain("seul l&#x27;argent qui vous reste dans la caisse est compté");
   expect(html).toContain("Envoyer ma journée au bureau");
   expect(html).not.toContain("Journée envoyée au bureau");
+});
+
+test("the driver is not asked to count the cash: the day shows what they should hold (D-213)", () => {
+  const html = markup(day([product]));
+
+  expect(html).not.toContain('id="counted-cash"');
+  expect(html).toContain("Argent attendu dans la caisse");
+  expect(html).toContain("Envoyer ma journée au bureau");
 });
 
 test("a day never reopened shows no cash handed over", () => {

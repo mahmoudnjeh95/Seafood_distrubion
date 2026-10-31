@@ -1048,6 +1048,54 @@ class PaymentAllocation(OrganizationScopedModel):
         return f"{self.payment} -> {self.sale} · {self.amount}"
 
 
+class UnpaidEffet(OrganizationScopedModel):
+    """A customer cheque or traite the bank refused (impayé, D-217): the customer owes its amount again.
+
+    A new record, never an edit of the règlement: the règlement keeps its amount and its line; this row adds the
+    amount back to the customer balance, and `UnpaidRelease` rows take back what the règlement had settled on sales
+    (beyond its credit left), so those sales owe again. The bank's charges become an expense "Frais financiers".
+    """
+
+    payment = models.ForeignKey(CustomerPayment, on_delete=models.PROTECT, related_name="unpaid_effets")
+    line = models.OneToOneField(CustomerPaymentLine, on_delete=models.PROTECT, related_name="unpaid")
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="unpaid_effets")
+    amount = MoneyField()
+    unpaid_on = models.DateField()
+    reason = models.CharField(max_length=255)
+    bank_charges = MoneyField(default=0)
+    # The expense number of the bank charges ("DEP-…"), when there were charges.
+    expense_number = models.CharField(max_length=30, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-unpaid_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="unpaid_effet_amount_positive"),
+            models.CheckConstraint(condition=models.Q(bank_charges__gte=0), name="unpaid_effet_charges_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.payment} · impayé {self.amount}"
+
+
+class UnpaidRelease(OrganizationScopedModel):
+    """The part of a règlement's allocation to one sale that an impayé took back: that sale owes it again."""
+
+    unpaid = models.ForeignKey(UnpaidEffet, on_delete=models.PROTECT, related_name="releases")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="unpaid_releases")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["unpaid", "id"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="unpaid_release_amount_positive")]
+
+    def __str__(self) -> str:
+        return f"{self.unpaid} -> {self.sale} · {self.amount}"
+
+
 class WithholdingCertificate(OrganizationScopedModel, TimeStampedModel):
     """The certificate (retenue à la source) a customer gives for what they withheld on an issued invoice:
     its number, date and file, and the amount really withheld (D-063).

@@ -9,6 +9,7 @@
  * * `sale` - sale
  * * `on_spot` - on_spot
  * * `payment` - payment
+ * * `unpaid` - unpaid
  */
 export type HistoryEntryKindEnum = typeof HistoryEntryKindEnum[keyof typeof HistoryEntryKindEnum];
 
@@ -17,4 +18,5 @@ export const HistoryEntryKindEnum = {
   sale: 'sale',
   on_spot: 'on_spot',
   payment: 'payment',
+  unpaid: 'unpaid',
 } as const;

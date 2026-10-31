@@ -6,6 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { EmailButton } from "../lib/EmailButton";
+import { PdfButton } from "../lib/PdfButton";
 import { statusTone } from "../payments/listFilters";
 import { EffetHistory, VoidReasonDialog } from "../payments/ListParts";
 import { canRecordReceipts } from "../receipts/shared";
@@ -39,6 +41,8 @@ export function SupplierPaymentDetailPage() {
   return (
     <>
       <PageHeader eyebrow={t("admin.supplierPayments.title")} title={payment.number}>
+        <PdfButton kind="supplier_receipt" id={payment.id} />
+        <EmailButton kind="supplier_receipt" id={payment.id} />
         {payment.is_voided ? (
           <Pill tone="bad">{t("admin.payments.voided")}</Pill>
         ) : (
@@ -117,6 +121,14 @@ export function SupplierPaymentDetailPage() {
                       </span>
                       <div className="mt-1">
                         <EffetHistory events={line.instrument.events} />
+                        {line.rejected && (
+                          <p className="mt-1 text-[0.85rem] font-semibold text-bad">
+                            {t("admin.treasury.detail.rejected", {
+                              day: formatDate(line.rejected.rejected_on),
+                              reason: line.rejected.reason,
+                            })}
+                          </p>
+                        )}
                       </div>
                     </>
                   ) : (

@@ -13,12 +13,21 @@ export interface DayReopening {
   readonly status: DayClosingStatusEnum;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly counted_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly difference: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly counted_purchase_cash: string;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly counted_cash: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly difference: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly counted_purchase_cash: string | null;
   readonly driver_note: string;
   readonly submitted_at: string;
   readonly reviewed_by_name: string;

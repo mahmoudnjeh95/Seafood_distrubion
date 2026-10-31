@@ -242,8 +242,13 @@ function DayDialog({ id }: { id: number }) {
               )}
               {d.closing && (
                 <>
-                  <MoneyLine label={t(`${k}.counted`)} value={formatMoney(d.closing.counted_cash)} />
-                  <MoneyLine label={t(`${k}.difference`)} value={formatMoney(d.closing.difference)} />
+                  <MoneyLine
+                    label={t(`${k}.officeCounted`)}
+                    value={d.closing.office_counted_cash === null ? "—" : formatMoney(d.closing.office_counted_cash)}
+                  />
+                  {d.closing.office_counted_cash === null ? null : (
+                    <MoneyLine label={t(`${k}.officeGap`)} value={formatMoney(d.closing.office_difference)} />
+                  )}
                   {d.closing.driver_note && (
                     <p className="pt-1 text-[0.85rem] text-ink-2">
                       {t(`${k}.driverNote`)} : {d.closing.driver_note}

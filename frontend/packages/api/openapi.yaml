@@ -667,6 +667,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/customer-effets/{instrument_id}/unpaid:
+    post:
+      operationId: recordUnpaidEffet
+      description: |-
+        The bank refused this customer cheque or traite (owner or manager): it becomes "Impayé", the customer
+        owes its amount again (the sales its règlement settled owe again beyond its credit), the bank's charges
+        become an expense "Frais financiers" and the office is told (D-217). Answers with the règlement.
+      parameters:
+      - in: path
+        name: instrument_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-effets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnpaidWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UnpaidWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UnpaidWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
   /api/v1/customer-payments:
     get:
       operationId: listCustomerPayments
@@ -1345,9 +1381,9 @@ paths:
     post:
       operationId: approveDayClosing
       description: |-
-        Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
-        the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
-        the send: the driver sends it again first.
+        Approve the day (owner or manager): it is locked. The cash the office counted (D-213) is kept by the count
+        endpoint, or sent here; a gap with what the driver should hold needs a `note`. Refused for a day a new load
+        reopened, or whose records changed since the send: the driver sends it again first.
       parameters:
       - in: path
         name: closing_id
@@ -1367,6 +1403,42 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/DayClosingApprove'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
+  /api/v1/day-closings/{closing_id}/count:
+    post:
+      operationId: countDayClosing
+      description: |-
+        The office counts the cash the driver hands over (owner or manager, D-213), before the approval: the gap
+        with what the driver should hold shows at once. Refused once approved, or while the records changed since
+        the send.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingCount'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingCount'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingCount'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -4697,9 +4769,9 @@ paths:
     post:
       operationId: closeMyDay
       description: |-
-        Send the end of the day with the cash counted and an optional note: the day is closed until a load
-        validated that date opens it again. Sent again after the office asked for a justification, after such
-        a load, or when the day's records changed since the send.
+        Send the end of the day with an optional note: the day is closed until a load validated that date opens
+        it again. The driver sees what they should hold; the office counts the cash (D-213). Sent again after the
+        office asked for a justification, after such a load, or when the day's records changed since the send.
       tags:
       - my-day-closing
       requestBody:
@@ -4713,7 +4785,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/DayClosingWrite'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -4879,7 +4950,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/DayClosingWrite'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -8342,6 +8412,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierDebts'
           description: ''
+  /api/v1/supplier-effets/{instrument_id}/reject:
+    post:
+      operationId: rejectIssuedEffet
+      description: |-
+        Our bank refused to pay this cheque or traite (owner or manager): it becomes "Rejeté" and the supplier is
+        owed its amount again (the invoices its règlement settled owe again beyond its advance, D-218). Answers
+        with the règlement.
+      parameters:
+      - in: path
+        name: instrument_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-effets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffetReject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EffetReject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EffetReject'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierPaymentDetail'
+          description: ''
   /api/v1/supplier-invoices:
     get:
       operationId: listSupplierInvoices
@@ -9519,16 +9625,104 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bank'
           description: ''
+  /api/v1/treasury/deposits:
+    get:
+      operationId: listDeposits
+      description: Bordereaux de remise en banque, newest first, paginated, each with
+        its effets.
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDepositList'
+          description: ''
+    post:
+      operationId: createDeposit
+      description: |-
+        Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
+        them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DepositWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DepositWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+          description: ''
+  /api/v1/treasury/deposits/{deposit_id}:
+    get:
+      operationId: getDeposit
+      description: One bordereau with its effets.
+      parameters:
+      - in: path
+        name: deposit_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+          description: ''
   /api/v1/treasury/instruments:
     get:
       operationId: listInstruments
       description: |-
         Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
-        status (comma separated), customer, supplier, due days (inclusive) or `search` (number, drawer, règlement,
-        party).
+        status (comma separated), customer, supplier, bank, bordereau, due days (inclusive) or `search` (number,
+        drawer, règlement, party).
       parameters:
       - in: query
+        name: bank
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
         name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: deposit
         schema:
           type: integer
           minimum: 1
@@ -9603,6 +9797,206 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedInstrumentList'
+          description: ''
+  /api/v1/treasury/instruments/cash:
+    post:
+      operationId: cashInstruments
+      description: 'Received effets the bank credited on `day`: at the bank, or cashed
+        at its counter from the portfolio.'
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
+  /api/v1/treasury/instruments/debit:
+    post:
+      operationId: debitInstruments
+      description: Our cheques and traites the bank paid on `day`.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
+  /api/v1/treasury/instruments/return:
+    post:
+      operationId: returnInstruments
+      description: Unpaid effets given back to the customer on `day` ("Restitué").
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
+  /api/v1/treasury/instruments/totals:
+    get:
+      operationId: getInstrumentTotals
+      description: |-
+        The count and amount of the effets of the same filters as the list, by status, and those late (échéance
+        passed while still in portfolio, at the bank or issued).
+      parameters:
+      - in: query
+        name: bank
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: deposit
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: direction
+        schema:
+          enum:
+          - received
+          - issued
+          type: string
+          minLength: 1
+        description: |-
+          * `received` - Reçu
+          * `issued` - Émis
+      - in: query
+        name: due_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: due_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - cheque
+          - bill
+          type: string
+          minLength: 1
+        description: |-
+          * `cheque` - Chèque
+          * `bill` - Traite
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          type: string
+          default: ''
+          maxLength: 200
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstrumentTotals'
+          description: ''
+  /api/v1/treasury/instruments/withdraw:
+    post:
+      operationId: withdrawInstruments
+      description: 'Effets taken back from the bank before it cashed them: in portfolio
+        again.'
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
           description: ''
   /api/v1/truck-assignments:
     get:
@@ -12232,12 +12626,18 @@ components:
           - $ref: '#/components/schemas/InstrumentDetail'
           readOnly: true
           nullable: true
+        unpaid:
+          allOf:
+          - $ref: '#/components/schemas/UnpaidEffet'
+          nullable: true
+          readOnly: true
       required:
       - amount
       - id
       - instrument
       - method
       - reference
+      - unpaid
     CustomerPaymentLineWrite:
       type: object
       properties:
@@ -12559,6 +12959,20 @@ components:
           type: string
           default: ''
           maxLength: 300
+    DayClosingCount:
+      type: object
+      properties:
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - office_counted_cash
     DayClosingDetail:
       type: object
       properties:
@@ -12584,27 +12998,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
-        counted_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        difference:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
         expected_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        counted_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12621,17 +13015,15 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
-        office_gap:
+        office_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
-        office_purchase_gap:
+        office_purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
         driver_note:
           type: string
@@ -12671,10 +13063,7 @@ components:
       required:
       - changed_since_sent
       - changes_since_sent
-      - counted_cash
-      - counted_purchase_cash
       - date
-      - difference
       - driver_name
       - driver_note
       - expected_cash
@@ -12682,9 +13071,8 @@ components:
       - id
       - office_counted_cash
       - office_counted_purchase_cash
-      - office_gap
-      - office_purchase_gap
-      - purchase_difference
+      - office_difference
+      - office_purchase_difference
       - reopenings
       - review_note
       - reviewed_at
@@ -12692,6 +13080,76 @@ components:
       - status
       - submitted_at
       - summary
+      - truck_name
+    DayClosingOffice:
+      type: object
+      description: 'A driver''s closing as the office reads it in the day overview:
+        the driver''s note, and the office''s count.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        office_purchase_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+      required:
+      - date
+      - driver_name
+      - driver_note
+      - expected_cash
+      - expected_purchase_cash
+      - id
+      - office_counted_cash
+      - office_counted_purchase_cash
+      - office_difference
+      - office_purchase_difference
+      - status
       - truck_name
     DayClosingRow:
       type: object
@@ -12718,27 +13176,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
-        counted_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        difference:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
         expected_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        counted_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12755,37 +13193,32 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
-        office_gap:
+        office_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
-        office_purchase_gap:
+        office_purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
       required:
-      - counted_cash
-      - counted_purchase_cash
       - date
-      - difference
       - driver_name
       - expected_cash
       - expected_purchase_cash
       - id
       - office_counted_cash
       - office_counted_purchase_cash
-      - office_gap
-      - office_purchase_gap
-      - purchase_difference
+      - office_difference
+      - office_purchase_difference
       - status
       - truck_name
     DayClosingState:
       type: object
-      description: What the driver sees of their closing.
+      description: 'What the driver sees of their closing: what they should hold.
+        The office counts the cash (D-213).'
       properties:
         id:
           type: integer
@@ -12799,27 +13232,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
-        counted_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        difference:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
         expected_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        counted_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12839,14 +13252,10 @@ components:
           readOnly: true
       required:
       - changed_since_sent
-      - counted_cash
-      - counted_purchase_cash
-      - difference
       - driver_note
       - expected_cash
       - expected_purchase_cash
       - id
-      - purchase_difference
       - review_note
       - status
       - submitted_at
@@ -12865,16 +13274,9 @@ components:
     DayClosingWrite:
       type: object
       properties:
-        counted_cash:
-          type: string
-        counted_purchase_cash:
-          type: string
-          default: '0'
         note:
           type: string
           default: ''
-      required:
-      - counted_cash
     DayFund:
       type: object
       description: The cash the office set for a driver's day (D-203).
@@ -13269,7 +13671,7 @@ components:
           nullable: true
         closing:
           allOf:
-          - $ref: '#/components/schemas/DayClosingState'
+          - $ref: '#/components/schemas/DayClosingOffice'
           readOnly: true
           nullable: true
         sales:
@@ -13767,16 +14169,19 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+          nullable: true
         difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+          nullable: true
         counted_purchase_cash:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+          nullable: true
         driver_note:
           type: string
           readOnly: true
@@ -14072,6 +14477,98 @@ components:
         * `delivered` - Livré
         * `partial` - Livré en partie
         * `cancelled` - Non livré
+    Deposit:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank:
+          allOf:
+          - $ref: '#/components/schemas/Bank'
+          readOnly: true
+        deposited_on:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        effets_count:
+          type: integer
+          readOnly: true
+        effets_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        instruments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Instrument'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bank
+      - created_at
+      - created_by
+      - deposited_on
+      - effets_count
+      - effets_total
+      - id
+      - instruments
+      - notes
+      - number
+    DepositRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        deposited_on:
+          type: string
+          format: date
+          readOnly: true
+      required:
+      - deposited_on
+      - id
+      - number
+    DepositWrite:
+      type: object
+      properties:
+        instruments:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 200
+        bank:
+          type: integer
+          minimum: 1
+          nullable: true
+        deposited_on:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - instruments
     DifferenceLine:
       type: object
       properties:
@@ -14323,6 +14820,18 @@ components:
       - happened_on
       - note
       - to_status
+    EffetReject:
+      type: object
+      properties:
+        rejected_on:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - reason
     ElectricityBill:
       type: object
       properties:
@@ -16001,11 +16510,13 @@ components:
       - sale
       - on_spot
       - payment
+      - unpaid
       type: string
       description: |-
         * `sale` - sale
         * `on_spot` - on_spot
         * `payment` - payment
+        * `unpaid` - unpaid
     IllustrationEnum:
       enum:
       - shrimp
@@ -16197,6 +16708,11 @@ components:
         notes:
           type: string
           readOnly: true
+        deposit:
+          allOf:
+          - $ref: '#/components/schemas/DepositRef'
+          readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -16206,6 +16722,7 @@ components:
       - bank
       - created_at
       - customer
+      - deposit
       - direction
       - drawer
       - due_on
@@ -16217,6 +16734,26 @@ components:
       - source_number
       - status
       - supplier
+    InstrumentBatch:
+      type: object
+      description: Several effets moved at once, on one day.
+      properties:
+        instruments:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 200
+        day:
+          type: string
+          format: date
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - instruments
     InstrumentDetail:
       type: object
       description: The cheque or traite of a payment line, as the treasury follows
@@ -16349,6 +16886,38 @@ components:
         * `debited` - Débité
         * `rejected` - Rejeté
         * `cancelled` - Annulé
+    InstrumentTotals:
+      type: object
+      description: The count and amount of the filtered effets, by status, and those
+        late (échéance passed, not done).
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        by_status:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/StatusTotal'
+          readOnly: true
+        overdue_count:
+          type: integer
+          readOnly: true
+        overdue_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - by_status
+      - count
+      - overdue_count
+      - overdue_total
+      - total
     Invoice:
       type: object
       properties:
@@ -19954,6 +20523,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CustomerPayment'
+    PaginatedDepositList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deposit'
     PaginatedDifferenceLineList:
       type: object
       required:
@@ -22948,6 +23540,26 @@ components:
       - id
       - name
       - reference
+    RejectedEffet:
+      type: object
+      description: 'The rejet of a line (D-218): when and why.'
+      properties:
+        rejected_on:
+          type: string
+          format: date
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - reason
+      - rejected_on
     ReopenLot:
       type: object
       properties:
@@ -25690,6 +26302,20 @@ components:
       - rows
       - total_quantity
       - total_value
+    StatusTotal:
+      type: object
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - count
+      - total
     StockCheckHealth:
       type: object
       properties:
@@ -26673,12 +27299,18 @@ components:
           - $ref: '#/components/schemas/IssuedInstrumentDetail'
           readOnly: true
           nullable: true
+        rejected:
+          allOf:
+          - $ref: '#/components/schemas/RejectedEffet'
+          nullable: true
+          readOnly: true
       required:
       - amount
       - id
       - instrument
       - method
       - reference
+      - rejected
     SupplierPaymentLineWrite:
       type: object
       description: One means of the règlement (D-208). Our cheque or traite gives
@@ -27572,6 +28204,37 @@ components:
       required:
       - name
       - plate
+    UnpaidEffet:
+      type: object
+      description: 'The impayé of a line (D-217): when, why, the bank''s charges and
+        their expense.'
+      properties:
+        unpaid_on:
+          type: string
+          format: date
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        bank_charges:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - bank_charges
+      - expense_number
+      - reason
+      - unpaid_on
     UnpaidSalaries:
       type: object
       properties:
@@ -27587,6 +28250,21 @@ components:
       required:
       - rows
       - total
+    UnpaidWrite:
+      type: object
+      properties:
+        unpaid_on:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+          maxLength: 255
+        bank_charges:
+          type: string
+          default: '0'
+      required:
+      - reason
     Unread:
       type: object
       properties:

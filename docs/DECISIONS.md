@@ -3038,6 +3038,26 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   history, what it settled, the credit or advance left ("Affecter"), "Annuler" with a reason; the PDF receipt for a
   customer. The supplier receipt PDF and paying several plan lines from "Règlements fournisseurs" move to P9-T03c.
 
+**D-213 · Only the office counts the driver's cash; the driver sees what they should hold (owner request 2026-10-31)** · accepted, provisional points marked · 2026-10-31
+- The owner's rule: the cash the driver hands over is counted at the office, not on the phone. The driver's closing
+  (`POST my-day-closing`, `my-past-day-closing`) takes only an optional `note`; the phone shows "Argent attendu dans
+  la caisse" and the purchase money expected, and never a count field, a gap or a difference. The send still closes
+  the day (D-134).
+- The office counts in the closing window (`POST /day-closings/<id>/count`, owner or manager, `record_office_count`,
+  while the day is sent and not approved): the sales cash, and the purchase money when some is expected. The gap is
+  `office − expected` (`office_difference`, `office_purchase_difference`, stored; 0 until counted). "Enregistrer le
+  comptage" saves it before the review; "Approuver" needs the sales count (and the purchase count when purchase money is
+  expected), and a gap needs a note (the review note). The approval may still send the counts, as before.
+- `DayClosing.counted_cash`, `counted_purchase_cash`, `difference` and `purchase_difference` are empty for every send
+  since this change (migration 0008 makes them nullable); the sends made before keep the driver's figures, and the API
+  no longer shows them. `DayReopening` keeps the cash the office counted at the send a new load undid (the driver's own
+  count for an older send), so `handed_over` stays the cash that went to the office.
+- The office notification for a sent day no longer carries a gap; the admin's day overview shows the office count and
+  its gap once counted; `unexplained_cash_differences` and the monthly check read the office gap of counted days.
+- Provisional: a day can be reopened before the office counted it, and then nothing counts as handed over (the driver
+  still holds the cash until the next count); the owner may prefer the count to be required at the send instead.
+  Purchase money is counted only when expected (no purchase money = no purchase count needed).
+
 **D-214 · A port purchase by a driver goes on the driver's truck, and shows on the day until the office checks it (changes D-176, D-158)** · accepted · 2026-10-31
 - **Owner report (2026-10-31):** "when the driver pays for a product it should be in his stock", and the purchase did
   not appear in "Journées des chauffeurs" in the office app, although it needs the office's validation.
@@ -3052,3 +3072,54 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the purchases' total and count (refused ones excluded from the count, as in the money).
 - Provisional: the card shows no "to check" count yet; the status in the dialog is the only sign.
 - Existing purchases sent before this change keep no place (the form still defaults them to the first cold room).
+**D-215 · Supplier payment receipt PDF; several plan lines paid by one règlement (Phase 9, P9-T03c)** · accepted · 2026-10-31
+- A new document kind `supplier_receipt` ("Paiement fournisseur N° RF-…"): the shared header with the supplier as
+  the party, the means (number, bank, échéance of each effet), the invoices settled and the advance left; "ANNULÉ"
+  on a voided one. PDF and e-mail buttons on the règlement's page. Rendered by `apps/purchasing/printing.py`.
+- "Règlements fournisseurs": open plan lines get a tick box (one supplier at a time) and a bar "N lignes choisies ·
+  total — Payer la sélection". The payment form then shows one means per plan line (its method, amount, reference,
+  cashing day) and each amount on its invoice, and sends `plan_lines`; each line becomes `paid` (D-208).
+
+**D-216 · The portfolio: remise en banque with a bordereau, encaissé, retirer, débité (Phase 9, P9-T04a)** · accepted (provisional parts marked) · 2026-10-31
+- Trésorerie › Portefeuille (`/tresorerie/portefeuille`, side menu Finance › Portefeuille): every cheque and traite by
+  where it stands, in tabs; filters (search, kind, bank, due days), totals of the filter with those late (échéance
+  passed while in portfolio, at the bank or issued), a tick box per effet and the steps of the tab.
+- A remise en banque is a `treasury.Deposit` "RB-2026-0001" (per organization and year, `TreasuryCounter`): the bank
+  and the day, the effets in portfolio it takes ("Remis en banque", `Instrument.deposit`), a PDF bordereau (document
+  kind `bank_deposit`) listing them with their total, opened right after. Provisional: the bank is picked from the
+  banks list until T05 adds our bank accounts.
+- Encaissé: from the bank, or straight from the portfolio (cashed at the bank's counter). Retirer de la banque brings
+  an effet back to the portfolio; its bordereau keeps it listed and its history shows the step. Our effets: Débité.
+  No balance moves on these steps (the règlement already counted, Q29); the impayé and the rejet come with P9-T04b.
+- API: `GET/POST /treasury/deposits`, `GET /treasury/deposits/<id>`, `POST /treasury/instruments/cash|withdraw|debit`
+  (`instruments`, `day`), `GET /treasury/instruments/totals`; filters `bank` and `deposit` on the list. Owner and
+  manager write, the accountant reads. Each step is an `InstrumentEvent` and an audit entry; at most 200 effets at once.
+
+**D-217 · An impayé is a new record: the customer owes again, the sales owe again beyond the credit (Phase 9, P9-T04b)** · accepted (provisional parts marked) · 2026-10-31
+- "Impayé" on a customer cheque or traite at the bank, or already credited (the bank may take it back): the effet
+  becomes "Impayé" and `sales.UnpaidEffet` (day, reason, amount, bank charges) is written. The règlement is never
+  edited: it keeps its amount and lines.
+- The customer balance adds the impayé back. Its règlement's credit left (not allocated) absorbs it first; the rest is
+  taken back from the sales it settled, newest allocation first (`UnpaidRelease` rows), so those sales owe again
+  (`amount_due` refreshed). The règlement then has less to allocate, and it can no longer be voided.
+- The bank's charges, when given, become an approved expense "Frais financiers" paid by transfer on the impayé's day
+  (provisional, Q29: re-invoicing them to the customer is not done). The office gets a notification `effet_unpaid`;
+  the account history, the customer page and the statement PDF show the line "Effet impayé".
+- After an impayé the paper is "Restitué" to the customer (`POST /treasury/instruments/return`); the customer pays
+  with a new règlement. Re-presenting the same paper to the bank is not offered (it would need the impayé undone).
+- API: `POST /customer-effets/<instrument_id>/unpaid` (`unpaid_on`, `reason`, `bank_charges`), owner or manager; the
+  règlement's detail shows each line's `unpaid`. Endorsing to a supplier and our effets rejected move to P9-T04c.
+
+**D-218 · Our rejected effet is a new record: the supplier is owed again, its invoices owe again beyond the advance (Phase 9, P9-T04c)** · accepted · 2026-10-31
+- "Rejeté par la banque" on one of our cheques or traites still issued: the effet becomes "Rejeté" and
+  `purchasing.RejectedEffet` (day, reason, amount) is written; the règlement is never edited.
+- What was paid to the supplier leaves out the rejected amount: the règlement's advance left absorbs it first, then what
+  it settled on invoices is taken back, newest allocation first (`RejectedRelease`), and those invoices go back to
+  "partiellement payée" or "validée". The supplier balance, the invoice paid amount, advances and their automatic use,
+  the règlements list and totals, and the supplier statement ("Effet rejeté") all read it. "Chèques et traites à venir"
+  leaves rejected effets out. A règlement with a rejected effet can no longer be voided.
+- We pay the supplier again with a new règlement. Re-presenting the same paper is not offered.
+- API `POST /supplier-effets/<instrument_id>/reject` (`rejected_on`, `reason`), owner or manager; the règlement's
+  detail shows each line's `rejected`.
+- Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
+
