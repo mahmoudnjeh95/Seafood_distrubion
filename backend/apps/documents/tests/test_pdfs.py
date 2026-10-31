@@ -469,3 +469,29 @@ def test_the_real_renderer_makes_a_pdf(organization, invoice, monkeypatch):
 
     assert pdf.startswith(b"%PDF")
     assert len(pdf) > 2000
+
+
+# ---- by e-mail (D-206) ----
+
+
+def test_an_invoice_goes_by_email_with_its_pdf_from_the_company_address(api, organization, invoice, mailoutbox):
+    invoice.customer.email = "corail@example.tn"
+    invoice.customer.save()
+    email_url = reverse("document-email", args=["invoice", invoice.pk])
+
+    draft = api.get(email_url).json()
+    assert draft["to"] == "corail@example.tn"
+    assert draft["subject"] == f"Facture {invoice.number} - {organization.name}"
+    assert invoice.number in draft["body"]
+
+    sent = api.post(email_url, {"to": [draft["to"]], "subject": draft["subject"], "body": draft["body"]}, format="json")
+    assert sent.status_code == 204
+    (message,) = mailoutbox
+    assert message.to == ["corail@example.tn"]
+    assert message.subject == draft["subject"]
+    assert organization.name in message.from_email
+    (attachment,) = message.attachments
+    assert attachment[0].endswith(".pdf")
+    assert attachment[2] == "application/pdf"
+    assert api.get(email_url).json()["sent"][0]["to"] == "corail@example.tn"
+    assert api.post(email_url, {"to": [], "subject": "x", "body": ""}, format="json").status_code == 400

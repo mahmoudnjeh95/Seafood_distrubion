@@ -11,6 +11,12 @@ _Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 bui
   of old payments, `GET/POST /treasury/banks`, `PUT /treasury/banks/<id>`, `GET /treasury/instruments`; the existing
   payment window asks number, bank, échéance and drawer for a cheque or traite. API client regenerated.
 - **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
+- **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
+  customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
+  #224 D-200 "Nouvelle facture" from ticked BL/BR, Achat terrain makes no invoice · #225 D-201 lot picker on quotes and
+  sales (sales migration 0021) · #226 D-202 bought with VAT → invoiced with VAT · #227 D-203 starting cash set by the
+  office, accepted on the phone · #228 D-204 office cash count at closing · #229 D-205 expense categories for both apps,
+  phone "Payé avec" · #230 D-206 e-mail any PDF. Provisional choices are marked in DECISIONS (D-202, D-204, D-205, D-206).
 - **Recent work (2026-10-19 to 10-25), merged or awaiting merge, each to check on staging:** D-193 price floor override,
   D-192 Règlements fournisseurs (T16a–d, side menu), D-191 general cost by calendar day (provisional), D-190 payment in
   "Convertir en vente", D-189 UI units, D-188 site request → quote, site card alignment, D-187 Bilan des caisses.
@@ -26,6 +32,11 @@ _Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 bui
 
 ## Next step
 
+0. Owner list: merge #220 → #230 in order as CI goes green, then on staging: Camions du jour › Fonds de caisse (set,
+   then accept on the phone), close a day with an office count, a "Nouvelle facture" with two BL, an Achat terrain
+   validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
+   → invoice without VAT refused. **Owner action for D-206:** put the company SMTP account in the server `.env`
+   (`EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) and redeploy.
 1. P9-T01: open the PR from `treasury-plan`, wait for green CI, rebase on `main` if another branch touched
    `docs/STATUS.md`, `docs/DECISIONS.md` (renumber D-197 if taken; D-194 to D-196 went to logout, "Commande d'achat" and the Transferts menu) or `sales` migrations (renumber `0020`), then merge.
    On staging: a customer page → "Enregistrer un règlement" → Chèque, number, BIAT, échéance; the list shows its number;

@@ -1654,6 +1654,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/DocumentList'
           description: ''
+  /api/v1/documents/{kind}/{object_id}/email:
+    get:
+      operationId: getDocumentEmailDraft
+      description: |-
+        What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+        the document and the company, a short message; and the last times it was sent.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: object_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - documents
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailDraft'
+          description: ''
+    post:
+      operationId: sendDocumentEmail
+      description: Send the document's PDF by e-mail from the company address (D-206).
+        Office roles that may read it.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: object_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmailWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmailWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/documents/{kind}/{object_id}/pdf:
     get:
       operationId: getDocumentPdf
@@ -13780,6 +13842,47 @@ components:
       required:
       - amount
       - month
+    EmailDraft:
+      type: object
+      properties:
+        to:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        sent:
+          type: array
+          items:
+            $ref: '#/components/schemas/SentEmailRow'
+          readOnly: true
+      required:
+      - body
+      - sent
+      - subject
+      - to
+    EmailWrite:
+      type: object
+      properties:
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+          maxItems: 10
+        subject:
+          type: string
+          maxLength: 255
+        body:
+          type: string
+          maxLength: 5000
+      required:
+      - body
+      - subject
+      - to
     Employee:
       type: object
       properties:
@@ -24087,6 +24190,27 @@ components:
         * `day` - day
         * `week` - week
         * `month` - month
+    SentEmailRow:
+      type: object
+      properties:
+        to:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        sent_at:
+          type: string
+          format: date-time
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+      required:
+      - error
+      - sent_at
+      - subject
+      - to
     Session:
       type: object
       description: 'Who is logged in and what they may do: the answer of `/me` and

@@ -3090,6 +3090,53 @@ export const ListDocumentsResponse = zod.object({
 
 
 /**
+ * What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+ * the document and the company, a short message; and the last times it was sent.
+ */
+export const GetDocumentEmailDraftParams = zod.object({
+  "kind": zod.string(),
+  "object_id": zod.int()
+})
+
+export const GetDocumentEmailDraftResponse = zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "sent": zod.array(zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "sent_at": zod.iso.datetime({"offset":true}),
+  "error": zod.string()
+}))
+})
+
+
+/**
+ * Send the document's PDF by e-mail from the company address (D-206). Office roles that may read it.
+ */
+export const SendDocumentEmailParams = zod.object({
+  "kind": zod.string(),
+  "object_id": zod.int()
+})
+
+export const sendDocumentEmailBodyToMax = 10;
+
+export const sendDocumentEmailBodySubjectMax = 255;
+
+export const sendDocumentEmailBodyBodyMax = 5000;
+
+
+
+export const SendDocumentEmailBody = zod.object({
+  "to": zod.array(zod.email()).max(sendDocumentEmailBodyToMax),
+  "subject": zod.string().max(sendDocumentEmailBodySubjectMax),
+  "body": zod.string().max(sendDocumentEmailBodyBodyMax)
+})
+
+export const SendDocumentEmailResponse = zod.void()
+
+
+/**
  * The PDF of a quote (`quote`), invoice (`invoice`), credit note (`credit_note`) or customer payment
  * receipt (`receipt`). 200 is the file; 202 `pending` means it is being made (ask again in a second);
  * 500 `failed` means the last attempt failed (`?retry=1` tries again). Office data: drivers get 403.

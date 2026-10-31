@@ -2946,3 +2946,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   0 DT. "Ma poche" sets `Expense.paid_by_driver` (owed back to the driver); "Carte" records payment method "other".
   Only "La caisse" lowers the cash the driver should hold. The day summary adds `expenses_pocket` and
   `expenses_other`, shown in the office's closing window.
+
+**D-206 · Any document PDF can be e-mailed from the company address (owner list 2026-10-31, item 9)** · provisional · 2026-10-31
+- Every "PDF" button of the office app has an "E-mail" button beside it (quote, invoice, credit note, receipt, BL,
+  partner statement). The window proposes the customer's (or partner's) address, the subject "<Document> <numéro> -
+  <Société>" and a short French message; all three can be changed. The PDF goes as an attachment.
+- `GET/POST /documents/<kind>/<id>/email`; the same roles as the PDF read the draft, owner/manager send. Every send is
+  kept (`documents.SentEmail`, also a failed one with its reason) and the window lists the last five.
+- Sent with Django's SMTP backend from `DEFAULT_FROM_EMAIL` (shown with the company name; replies come back to it).
+  Settings come from the environment (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`,
+  `EMAIL_USE_TLS/SSL`, `DEFAULT_FROM_EMAIL`), passed by `deploy/compose.staging.yml`. Without `EMAIL_HOST` a
+  production server refuses to send with a clear message; development prints the message in the console.
+- **Owner action:** the company mailbox and its SMTP account (provider, user, app password) go into the server's `.env`.
+- Not covered yet: the customer and supplier statements of the reports (their PDFs are made by another endpoint).
