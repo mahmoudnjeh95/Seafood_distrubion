@@ -58,6 +58,7 @@ import type {
   CustomerWrite,
   Dashboard,
   DayClosingApprove,
+  DayClosingCount,
   DayClosingDetail,
   DayClosingRow,
   DayClosingWrite,
@@ -4290,9 +4291,9 @@ export const getApproveDayClosingUrl = (closingId: number,) => {
 }
 
 /**
- * Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
- * the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
- * the send: the driver sends it again first.
+ * Approve the day (owner or manager): it is locked. The cash the office counted (D-213) is kept by the count
+ * endpoint, or sent here; a gap with what the driver should hold needs a `note`. Refused for a day a new load
+ * reopened, or whose records changed since the send: the driver sends it again first.
  */
 export const approveDayClosing = async (closingId: number,
     dayClosingApprove?: DayClosingApprove, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
@@ -4367,6 +4368,94 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getApproveDayClosingMutationOptions(options), queryClient);
+    }
+
+export const getCountDayClosingUrl = (closingId: number,) => {
+
+
+
+
+  return `/api/v1/day-closings/${closingId}/count`
+}
+
+/**
+ * The office counts the cash the driver hands over (owner or manager, D-213), before the approval: the gap
+ * with what the driver should hold shows at once. Refused once approved, or while the records changed since
+ * the send.
+ */
+export const countDayClosing = async (closingId: number,
+    dayClosingCount: DayClosingCount, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayClosingDetail>(getCountDayClosingUrl(closingId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayClosingCount)
+  }
+);}
+
+
+
+
+
+export const getCountDayClosingMutationKey = () => ['countDayClosing'] as const;
+
+export const getCountDayClosingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countDayClosing>>, TError,CountDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof countDayClosing>>, TError,CountDayClosingMutationVariables, TContext> => {
+
+const mutationKey = getCountDayClosingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof countDayClosing>>, CountDayClosingMutationVariables> = (props) => {
+          const {closingId,data} = props ?? {};
+
+          return  countDayClosing(closingId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CountDayClosingMutationResult = NonNullable<Awaited<ReturnType<typeof countDayClosing>>>
+    export type CountDayClosingMutationBody = DayClosingCount
+    export type CountDayClosingMutationError = unknown
+    export type CountDayClosingMutationVariables = {closingId: number;data: DayClosingCount}
+
+    export const useCountDayClosing = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countDayClosing>>, TError,CountDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof countDayClosing>>,
+        TError,
+        CountDayClosingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCountDayClosingMutationOptions(options), queryClient);
     }
 
 export const getRequestDayJustificationUrl = (closingId: number,) => {
@@ -14705,11 +14794,11 @@ export const getCloseMyDayUrl = () => {
 }
 
 /**
- * Send the end of the day with the cash counted and an optional note: the day is closed until a load
- * validated that date opens it again. Sent again after the office asked for a justification, after such
- * a load, or when the day's records changed since the send.
+ * Send the end of the day with an optional note: the day is closed until a load validated that date opens
+ * it again. The driver sees what they should hold; the office counts the cash (D-213). Sent again after the
+ * office asked for a justification, after such a load, or when the day's records changed since the send.
  */
-export const closeMyDay = async (dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+export const closeMyDay = async (dayClosingWrite?: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -14768,9 +14857,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CloseMyDayMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyDay>>>
-    export type CloseMyDayMutationBody = DayClosingWrite
+    export type CloseMyDayMutationBody = DayClosingWrite | undefined
     export type CloseMyDayMutationError = unknown
-    export type CloseMyDayMutationVariables = {data: DayClosingWrite}
+    export type CloseMyDayMutationVariables = {data?: DayClosingWrite}
 
     export const useCloseMyDay = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyDay>>, TError,CloseMyDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -15361,7 +15450,7 @@ export const getCloseMyPastDayUrl = (dayId: number,) => {
  * justification, or a day left open.
  */
 export const closeMyPastDay = async (dayId: number,
-    dayClosingWrite: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
+    dayClosingWrite?: DayClosingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MyDaySummary> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -15420,9 +15509,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CloseMyPastDayMutationResult = NonNullable<Awaited<ReturnType<typeof closeMyPastDay>>>
-    export type CloseMyPastDayMutationBody = DayClosingWrite
+    export type CloseMyPastDayMutationBody = DayClosingWrite | undefined
     export type CloseMyPastDayMutationError = unknown
-    export type CloseMyPastDayMutationVariables = {dayId: number;data: DayClosingWrite}
+    export type CloseMyPastDayMutationVariables = {dayId: number;data?: DayClosingWrite}
 
     export const useCloseMyPastDay = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMyPastDay>>, TError,CloseMyPastDayMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

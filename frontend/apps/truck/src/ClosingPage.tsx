@@ -8,9 +8,10 @@ import { Link } from "react-router";
 import { DayReport } from "./DayReport";
 import { sendError } from "./sendError";
 
-// "Clôture": the day in a few lines, the cash counted, and one button to send it to the office (the figures, the
-// wait for the phone's unsent sales and the form are in DayReport, shared with the history). Sending closes the
-// day; it opens again when the office loads the truck again that date (D-134).
+// "Clôture": the day in a few lines, what the driver should hold, and one button to send it to the office (the
+// figures, the wait for the phone's unsent sales and the form are in DayReport, shared with the history). The office
+// counts the cash when the driver is back (D-213). Sending closes the day; it opens again when the office loads the
+// truck again that date (D-134).
 export function ClosingPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -53,9 +54,7 @@ export function ClosingPage() {
         data={day.data}
         sending={send.isPending}
         error={error}
-        onSend={(counted, note, countedPurchase) =>
-          send.mutate({ data: { counted_cash: counted, note, counted_purchase_cash: countedPurchase } })
-        }
+        onSend={(note) => send.mutate({ data: { note } })}
       />
       {closed ? (
         <Card>
