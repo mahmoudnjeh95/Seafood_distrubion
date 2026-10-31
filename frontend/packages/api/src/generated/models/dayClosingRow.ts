@@ -15,15 +15,7 @@ export interface DayClosingRow {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_cash: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly counted_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly difference: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_purchase_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly counted_purchase_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly purchase_difference: string;
   /**
      * @nullable
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -34,14 +26,8 @@ export interface DayClosingRow {
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
   readonly office_counted_purchase_cash: string | null;
-  /**
-     * @nullable
-     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
-     */
-  readonly office_gap: string | null;
-  /**
-     * @nullable
-     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
-     */
-  readonly office_purchase_gap: string | null;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly office_difference: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly office_purchase_difference: string;
 }

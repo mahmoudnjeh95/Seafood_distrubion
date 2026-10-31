@@ -5,6 +5,7 @@ import {
   type DayReopening,
   type DaySummary,
   useApproveDayClosing,
+  useCountDayClosing,
   useGetDayClosing,
   useListDayClosings,
   useListSyncProblems,
@@ -48,6 +49,15 @@ import { DaysOverview } from "./DaysOverview";
 
 const STATUSES = ["submitted", "justification", "reopened", "approved"] as const;
 const TONES = { submitted: "warn", justification: "bad", reopened: "sea", approved: "good" } as const;
+
+/** The office's count, or a dash before the office counted (D-213). */
+function countedOrDash(value: string | null): string {
+  return value === null ? "—" : formatMoney(value);
+}
+
+function gapOrDash(value: string | null): string {
+  return value === null ? "—" : signed(value);
+}
 
 function signed(value: string): string {
   return `${Number(value) > 0 ? "+" : ""}${formatMoney(value)}`;
@@ -111,7 +121,7 @@ function Reopenings({ reopened, sends }: { reopened: boolean; sends: readonly Da
                 <Th>{t("admin.dayClosings.reopened.sentAt")}</Th>
                 <Th>{t("admin.dayClosings.reopened.was")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.expected")}</Th>
-                <Th className="text-end">{t("admin.dayClosings.counted")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.officeCounted")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.difference")}</Th>
                 <Th>{t("admin.dayClosings.reopened.load")}</Th>
               </tr>
@@ -126,8 +136,8 @@ function Reopenings({ reopened, sends }: { reopened: boolean; sends: readonly Da
                       : t(`admin.dayClosings.statuses.${send.status}`)}
                   </Td>
                   <Td className="num text-end">{formatMoney(send.expected_cash)}</Td>
-                  <Td className="num text-end font-semibold">{formatMoney(send.counted_cash)}</Td>
-                  <Td className="num text-end">{signed(send.difference)}</Td>
+                  <Td className="num text-end font-semibold">{countedOrDash(send.counted_cash)}</Td>
+                  <Td className="num text-end">{gapOrDash(send.difference)}</Td>
                   <Td>
                     {send.load_number} · {formatDateTime(send.reopened_at)}
                   </Td>
@@ -181,7 +191,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const closing = useGetDayClosing(id);
   const [reason, setReason] = useState("");
   const [asking, setAsking] = useState(false);
-  // The cash the office counts when the driver hands it over (D-204), and why it differs, if it does.
+  // The cash the office counts when the driver hands it over (D-213), and why it differs, if it does.
   const [officeCash, setOfficeCash] = useState("");
   const [officePurchase, setOfficePurchase] = useState("");
   const [gapNote, setGapNote] = useState("");
@@ -194,6 +204,15 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
         toast.success(t("admin.dayClosings.approved"));
         refresh();
         onDone();
+      },
+      onError: (failure) => toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.dayClosings.error")),
+    },
+  });
+  const count = useCountDayClosing({
+    mutation: {
+      onSuccess: () => {
+        toast.success(t("admin.dayClosings.countSaved"));
+        refresh();
       },
       onError: (failure) => toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.dayClosings.error")),
     },
@@ -214,13 +233,18 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
     data !== undefined && (data.summary.purchases_count > 0 || Number(data.summary.purchase_float) !== 0);
   const officeCashValue = parseDecimalInput(officeCash.trim(), 3);
   const officePurchaseValue = hasPurchases ? parseDecimalInput(officePurchase.trim() || "0", 3) : null;
-  // Office count - driver count, in millimes so no float adds up money.
-  const gapOf = (office: string | null, driver: string | undefined) =>
-    office === null || driver === undefined ? 0 : Math.round(Number(office) * 1000) - Math.round(Number(driver) * 1000);
-  const officeGap = gapOf(officeCashValue, data?.counted_cash);
-  const officePurchaseGap = gapOf(officePurchaseValue, data?.counted_purchase_cash);
+  // What the office counted: the figures typed now, else the ones already saved by the count.
+  const cashCounted = officeCashValue ?? data?.office_counted_cash ?? null;
+  const purchaseCounted = hasPurchases ? (officePurchaseValue ?? data?.office_counted_purchase_cash ?? null) : null;
+  // Office count - what the driver should hold, in millimes so no float adds up money.
+  const gapOf = (office: string | null, expected: string | undefined) =>
+    office === null || expected === undefined
+      ? 0
+      : Math.round(Number(office) * 1000) - Math.round(Number(expected) * 1000);
+  const officeGap = gapOf(cashCounted, data?.expected_cash);
+  const officePurchaseGap = gapOf(purchaseCounted, data?.expected_purchase_cash);
   const gapToExplain = officeGap !== 0 || officePurchaseGap !== 0;
-  const readyToApprove = officeCashValue !== null && (!gapToExplain || gapNote.trim() !== "");
+  const readyToApprove = cashCounted !== null && (!gapToExplain || gapNote.trim() !== "");
   return (
     <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none">
       <DialogTitle>{data ? `${data.truck_name} · ${formatDate(data.date)}` : t("common.loading")}</DialogTitle>
@@ -254,12 +278,10 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <Line label={t("admin.dayClosings.opening")} value={formatMoney(data.summary.opening_cash)} />
             {handedOver !== null && <Line label={t("admin.dayClosings.handedOver")} value={formatMoney(handedOver)} />}
             <Line label={t("admin.dayClosings.expected")} value={formatMoney(data.expected_cash)} />
-            <Line label={t("admin.dayClosings.counted")} value={formatMoney(data.counted_cash)} />
-            <Line label={t("admin.dayClosings.difference")} value={signed(data.difference)} />
             {data.office_counted_cash !== null && (
               <>
                 <Line label={t("admin.dayClosings.officeCounted")} value={formatMoney(data.office_counted_cash)} />
-                <Line label={t("admin.dayClosings.officeGap")} value={signed(data.office_gap ?? "0")} />
+                <Line label={t("admin.dayClosings.officeGap")} value={signed(data.office_difference)} />
               </>
             )}
           </div>
@@ -287,8 +309,14 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                 label={t("admin.dayClosings.purchases.expected")}
                 value={formatMoney(data.expected_purchase_cash)}
               />
-              <Line label={t("admin.dayClosings.purchases.counted")} value={formatMoney(data.counted_purchase_cash)} />
-              <Line label={t("admin.dayClosings.purchases.difference")} value={signed(data.purchase_difference)} />
+              <Line
+                label={t("admin.dayClosings.purchases.counted")}
+                value={countedOrDash(data.office_counted_purchase_cash)}
+              />
+              <Line
+                label={t("admin.dayClosings.purchases.difference")}
+                value={signed(data.office_purchase_difference)}
+              />
             </div>
           )}
           <ChangesSinceSent changes={data.changes_since_sent} />
@@ -368,7 +396,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                 <p className={cn("font-semibold", officeGap === 0 ? "text-good" : "text-bad")}>
                   {t("admin.dayClosings.officeGapLive", {
                     office: formatMoney(officeCashValue),
-                    driver: formatMoney(data.counted_cash),
+                    expected: formatMoney(data.expected_cash),
                     gap: signed((officeGap / 1000).toFixed(3)),
                   })}
                 </p>
@@ -414,6 +442,20 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             ) : (
               <Button onClick={() => setAsking(true)}>{t("admin.dayClosings.askWhy")}</Button>
             )}
+            <Button
+              disabled={count.isPending || data.changed_since_sent || officeCashValue === null}
+              onClick={() =>
+                count.mutate({
+                  closingId: id,
+                  data: {
+                    office_counted_cash: officeCashValue,
+                    office_counted_purchase_cash: hasPurchases ? officePurchaseValue : null,
+                  },
+                })
+              }
+            >
+              {t("admin.dayClosings.saveCount")}
+            </Button>
             <Button
               variant="primary"
               disabled={approve.isPending || data.changed_since_sent || !readyToApprove}
@@ -612,7 +654,7 @@ function ClosingsList() {
                 <Th>{t("admin.dayClosings.truck")}</Th>
                 <Th>{t("admin.dayClosings.driver")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.expected")}</Th>
-                <Th className="text-end">{t("admin.dayClosings.counted")}</Th>
+                <Th className="text-end">{t("admin.dayClosings.officeCounted")}</Th>
                 <Th className="text-end">{t("admin.dayClosings.difference")}</Th>
                 <Th>{t("admin.dayClosings.status")}</Th>
               </tr>
@@ -628,8 +670,8 @@ function ClosingsList() {
                   <Td>{row.truck_name}</Td>
                   <Td>{row.driver_name}</Td>
                   <Td className="num text-end">{formatMoney(row.expected_cash)}</Td>
-                  <Td className="num text-end">{formatMoney(row.counted_cash)}</Td>
-                  <Td className="num text-end">{signed(row.difference)}</Td>
+                  <Td className="num text-end">{countedOrDash(row.office_counted_cash)}</Td>
+                  <Td className="num text-end">{gapOrDash(row.office_difference)}</Td>
                   <Td>
                     <Pill tone={TONES[row.status]}>{t(`admin.dayClosings.statuses.${row.status}`)}</Pill>
                   </Td>

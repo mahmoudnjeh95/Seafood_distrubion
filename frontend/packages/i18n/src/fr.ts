@@ -59,8 +59,8 @@ export const fr = {
     kinds: {
       // Told to the office
       day_started: "{{driver}} a commencé sa journée sur {{truck}}",
-      day_sent: "{{driver}} a envoyé sa clôture du {{date}} (écart {{difference}})",
-      day_resent: "{{driver}} a renvoyé sa clôture du {{date}} (écart {{difference}})",
+      day_sent: "{{driver}} a envoyé sa clôture du {{date}}",
+      day_resent: "{{driver}} a renvoyé sa clôture du {{date}}",
       sale_confirmed: "{{driver}} a enregistré la vente {{number}} : {{customer}}, {{total}}",
       credit_requested: "{{driver}} demande un crédit pour la vente {{number}} : {{customer}}, {{total}}",
       payment_recorded: "{{driver}} a encaissé {{amount}} de {{customer}}",
@@ -896,8 +896,8 @@ export const fr = {
         purchases: "Payé pour des achats au port",
         owed: "Avancé par le chauffeur, à lui rembourser",
         expected: "Doit avoir en main",
-        counted: "Compté à l'envoi",
-        difference: "Écart",
+        officeCounted: "Compté par le bureau",
+        officeGap: "Écart bureau / attendu",
         deliveries: "Livraisons du camion",
         deliveriesEmpty: "Aucun bon de livraison préparé pour ce camion ce jour-là.",
         delivered: "Livré",
@@ -926,14 +926,16 @@ export const fr = {
       expensesOther: "Dépenses payées par carte",
       officeCount: "Comptage du bureau",
       officeCountHint:
-        "Comptez l'argent remis par le chauffeur avant d'approuver. Un écart avec son comptage demande une explication.",
+        "Comptez l'argent remis par le chauffeur avant d'approuver. Un écart avec ce qu'il doit avoir demande une explication.",
       officeCash: "Argent compté par le bureau (DT)",
       officePurchase: "Argent des achats compté (DT)",
-      officeGapLive: "Bureau {{office}} · chauffeur {{driver}} · écart {{gap}}",
+      officeGapLive: "Bureau {{office}} · doit avoir {{expected}} · écart {{gap}}",
       officePurchaseGapLive: "Écart sur l'argent des achats : {{gap}}",
-      gapNote: "Expliquez l'écart entre le bureau et le chauffeur",
+      gapNote: "Expliquez l'écart avec ce que le chauffeur doit avoir",
+      saveCount: "Enregistrer le comptage",
+      countSaved: "Comptage enregistré",
       officeCounted: "Compté par le bureau",
-      officeGap: "Écart bureau / chauffeur",
+      officeGap: "Écart bureau / attendu",
       statusFilter: "Filtrer par état",
       all: "Toutes",
       statuses: {
@@ -961,7 +963,6 @@ export const fr = {
       opening: "Caisse au départ",
       handedOver: "Déjà remis au bureau",
       expected: "Attendu",
-      counted: "Compté",
       difference: "Écart",
       // Purchases at the port and their money, counted apart from the sales cash (D-158).
       purchases: {
@@ -4784,9 +4785,6 @@ export const fr = {
       closingFromSales: "Payé avec l'argent des ventes",
       closingOwed: "Avancé de votre poche, le bureau vous le rembourse",
       closingExpected: "Argent des achats qui doit rester",
-      counted: "Argent des achats compté (DT)",
-      gap: "Écart sur l'argent des achats : {{amount}}",
-      countedWas: "Argent des achats compté : {{amount}}",
     },
     expense: {
       add: "Ajouter une dépense",
@@ -4890,8 +4888,6 @@ export const fr = {
       left: "Reste",
       unexplained:
         "Écart de {{kg}} : le stock du camion ne correspond pas aux ventes, pertes et transferts de la journée. Prévenez le bureau.",
-      counted: "Argent compté dans la caisse (DT)",
-      gap: "Écart avec l'argent attendu : {{amount}}",
       note: "Un mot pour le bureau (facultatif)",
       send: "Envoyer ma journée au bureau",
       sent: "Journée envoyée au bureau",
@@ -4905,13 +4901,12 @@ export const fr = {
       waitSession: "Votre session a expiré : reconnectez-vous pour envoyer.",
       waitRetrying: "L'envoi se fait tout seul, dès que possible.",
       retrySend: "Réessayer l'envoi",
-      countedWas: "Argent compté : {{amount}}",
       changed:
         "Les chiffres de la journée ont changé depuis l'envoi (une vente arrivée après, une correction du bureau). Recomptez la caisse et renvoyez la journée.",
       // A new load opened the sent day again (D-134).
       reopened: "Journée rouverte : le camion a été rechargé. Vendez, puis renvoyez la journée à la fin.",
       handedOverHint:
-        "Vous avez déjà remis {{amount}} au bureau : comptez seulement l'argent que vous avez maintenant.",
+        "Vous avez déjà remis {{amount}} au bureau : seul l'argent qui vous reste dans la caisse est compté.",
       closedBody: "La journée est clôturée. Elle rouvre quand le bureau recharge votre camion.",
       approved: "Journée approuvée par le bureau",
       asked: "Le bureau demande : {{reason}}",
@@ -4933,8 +4928,7 @@ export const fr = {
         reopened: "Rouverte",
         approved: "Approuvée",
       },
-      counted: "Compté : {{amount}}",
-      gap: "Écart : {{amount}}",
+      expected: "Attendu : {{amount}}",
       ended: "Journée clôturée et envoyée au bureau",
       endedBody: "Elle rouvre quand le bureau recharge votre camion.",
       refresh: "Vérifier si le camion est rechargé",

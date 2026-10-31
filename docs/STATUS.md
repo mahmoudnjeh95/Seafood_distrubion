@@ -1,9 +1,13 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T03a merged, D-210; P9-T03b lists, detail pages, supplier void built, D-211)_
+_Last updated: 2026-10-31 (D-213: the office alone counts the driver's cash; branch `driver-cash-office-count`)_
 
 ## Where we are
 
+- **Driver's cash (owner request 2026-10-31, D-213), on branch `driver-cash-office-count`, PR not yet open:** the phone no
+  longer asks the driver to count the cash or the purchase money; it shows what they should hold, and only the office
+  counts (`POST /day-closings/<id>/count`, "Enregistrer le comptage" in the closing window). The gap is office − expected;
+  the driver never sees it. Migration `dayclose.0008`; the API client is regenerated.
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
   **Merged:** T01 (#223, D-197), T02 (#231, D-208), T03a (#234, D-210: "Nouveau règlement" pages, lines editor,
   Répartir, Banques). **P9-T03b on branch `payment-lists`** (awaits CI, D-211): supplier règlement void (migration
@@ -31,6 +35,9 @@ _Last updated: 2026-10-31 (P9-T03a merged, D-210; P9-T03b lists, detail pages, s
 
 ## Next step
 
+0. **D-213 PR:** rebase on main, open it, wait for green CI (dayclose tests were updated but not run locally), merge, then
+   on staging: close a day on the phone (no count field, expected shown), count it in Clôtures à vérifier, enter a gap
+   with a note, approve; check the day overview shows the office count.
 0. Owner list: merge #220 → #230 in order as CI goes green, then on staging: Camions du jour › Fonds de caisse (set,
    then accept on the phone), close a day with an office count, a "Nouvelle facture" with two BL, an Achat terrain
    validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"

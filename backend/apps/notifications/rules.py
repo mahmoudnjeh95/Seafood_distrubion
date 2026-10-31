@@ -64,7 +64,8 @@ def _day_opened(entry: AuditLog) -> None:
 def _day_sent(entry: AuditLog) -> None:
     closing = cast("DayClosing", entry.target)
     kind = "day_sent" if entry.action == "day_closing.submitted" else "day_resent"
-    params = {"date": closing.driver_day.date.isoformat(), "difference": _amount(closing.difference)}
+    # The office counts the cash when the driver is back (D-213): the send says only that the day came.
+    params = {"date": closing.driver_day.date.isoformat()}
     _office(entry, kind, params, "/journees")
 
 

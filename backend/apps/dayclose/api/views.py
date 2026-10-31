@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from .serializers import (
     DayClosingApproveSerializer,
+    DayClosingCountSerializer,
     DayClosingDetailSerializer,
     DayClosingFilterSerializer,
     DayClosingRowSerializer,
@@ -69,9 +70,9 @@ class MyDayClosingView(APIView):
         operation_id="closeMyDay", request=DayClosingWriteSerializer, responses={201: MyDaySummarySerializer}
     )
     def post(self, request: Request) -> Response:
-        """Send the end of the day with the cash counted and an optional note: the day is closed until a load
-        validated that date opens it again. Sent again after the office asked for a justification, after such
-        a load, or when the day's records changed since the send."""
+        """Send the end of the day with an optional note: the day is closed until a load validated that date opens
+        it again. The driver sees what they should hold; the office counts the cash (D-213). Sent again after the
+        office asked for a justification, after such a load, or when the day's records changed since the send."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         serializer = DayClosingWriteSerializer(data=request.data)
@@ -82,8 +83,6 @@ class MyDayClosingView(APIView):
         services.submit_day_closing(
             driver_day=driver_day,
             actor=membership.user,
-            counted_cash=serializer.validated_data["counted_cash"],
-            counted_purchase_cash=serializer.validated_data["counted_purchase_cash"] or "0",
             note=serializer.validated_data["note"],
         )
         return Response(MyDaySummarySerializer(_my_day_answer(membership)).data, status=status.HTTP_201_CREATED)
@@ -130,8 +129,6 @@ class MyPastDayClosingView(APIView):
         services.submit_day_closing(
             driver_day=driver_day,
             actor=membership.user,
-            counted_cash=serializer.validated_data["counted_cash"],
-            counted_purchase_cash=serializer.validated_data["counted_purchase_cash"] or "0",
             note=serializer.validated_data["note"],
         )
         driver_day = _my_past_day(membership, day_id)
@@ -248,12 +245,28 @@ class DayClosingApproveView(DayClosingView):
         operation_id="approveDayClosing", request=DayClosingApproveSerializer, responses=DayClosingDetailSerializer
     )
     def post(self, request: Request, closing_id: int) -> Response:
-        """Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
-        the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
-        the send: the driver sends it again first."""
+        """Approve the day (owner or manager): it is locked. The cash the office counted (D-213) is kept by the count
+        endpoint, or sent here; a gap with what the driver should hold needs a `note`. Refused for a day a new load
+        reopened, or whose records changed since the send: the driver sends it again first."""
         serializer = DayClosingApproveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         services.approve_day_closing(
+            closing=self.closing(closing_id), actor=self.membership.user, **serializer.validated_data
+        )
+        return self.answer(closing_id)
+
+
+class DayClosingCountView(DayClosingView):
+    @extend_schema(
+        operation_id="countDayClosing", request=DayClosingCountSerializer, responses=DayClosingDetailSerializer
+    )
+    def post(self, request: Request, closing_id: int) -> Response:
+        """The office counts the cash the driver hands over (owner or manager, D-213), before the approval: the gap
+        with what the driver should hold shows at once. Refused once approved, or while the records changed since
+        the send."""
+        serializer = DayClosingCountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.record_office_count(
             closing=self.closing(closing_id), actor=self.membership.user, **serializer.validated_data
         )
         return self.answer(closing_id)

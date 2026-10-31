@@ -7,7 +7,7 @@
 import type { DayClosingStatusEnum } from './dayClosingStatusEnum';
 
 /**
- * What the driver sees of their closing.
+ * What the driver sees of their closing: what they should hold. The office counts the cash (D-213).
  */
 export interface DayClosingState {
   readonly id: number;
@@ -15,15 +15,7 @@ export interface DayClosingState {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_cash: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly counted_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly difference: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly expected_purchase_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly counted_purchase_cash: string;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  readonly purchase_difference: string;
   readonly driver_note: string;
   readonly review_note: string;
   readonly submitted_at: string;

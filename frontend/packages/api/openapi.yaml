@@ -1345,9 +1345,9 @@ paths:
     post:
       operationId: approveDayClosing
       description: |-
-        Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
-        the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
-        the send: the driver sends it again first.
+        Approve the day (owner or manager): it is locked. The cash the office counted (D-213) is kept by the count
+        endpoint, or sent here; a gap with what the driver should hold needs a `note`. Refused for a day a new load
+        reopened, or whose records changed since the send: the driver sends it again first.
       parameters:
       - in: path
         name: closing_id
@@ -1367,6 +1367,42 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/DayClosingApprove'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
+  /api/v1/day-closings/{closing_id}/count:
+    post:
+      operationId: countDayClosing
+      description: |-
+        The office counts the cash the driver hands over (owner or manager, D-213), before the approval: the gap
+        with what the driver should hold shows at once. Refused once approved, or while the records changed since
+        the send.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingCount'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingCount'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingCount'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -4697,9 +4733,9 @@ paths:
     post:
       operationId: closeMyDay
       description: |-
-        Send the end of the day with the cash counted and an optional note: the day is closed until a load
-        validated that date opens it again. Sent again after the office asked for a justification, after such
-        a load, or when the day's records changed since the send.
+        Send the end of the day with an optional note: the day is closed until a load validated that date opens
+        it again. The driver sees what they should hold; the office counts the cash (D-213). Sent again after the
+        office asked for a justification, after such a load, or when the day's records changed since the send.
       tags:
       - my-day-closing
       requestBody:
@@ -4713,7 +4749,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/DayClosingWrite'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -4879,7 +4914,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/DayClosingWrite'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -12559,6 +12593,20 @@ components:
           type: string
           default: ''
           maxLength: 300
+    DayClosingCount:
+      type: object
+      properties:
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - office_counted_cash
     DayClosingDetail:
       type: object
       properties:
@@ -12584,27 +12632,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
-        counted_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        difference:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
         expected_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        counted_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12621,17 +12649,15 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
-        office_gap:
+        office_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
-        office_purchase_gap:
+        office_purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
         driver_note:
           type: string
@@ -12671,10 +12697,7 @@ components:
       required:
       - changed_since_sent
       - changes_since_sent
-      - counted_cash
-      - counted_purchase_cash
       - date
-      - difference
       - driver_name
       - driver_note
       - expected_cash
@@ -12682,9 +12705,8 @@ components:
       - id
       - office_counted_cash
       - office_counted_purchase_cash
-      - office_gap
-      - office_purchase_gap
-      - purchase_difference
+      - office_difference
+      - office_purchase_difference
       - reopenings
       - review_note
       - reviewed_at
@@ -12692,6 +12714,76 @@ components:
       - status
       - submitted_at
       - summary
+      - truck_name
+    DayClosingOffice:
+      type: object
+      description: 'A driver''s closing as the office reads it in the day overview:
+        the driver''s note, and the office''s count.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        truck_name:
+          type: string
+          readOnly: true
+        driver_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/DayClosingStatusEnum'
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expected_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        office_purchase_difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        driver_note:
+          type: string
+          readOnly: true
+      required:
+      - date
+      - driver_name
+      - driver_note
+      - expected_cash
+      - expected_purchase_cash
+      - id
+      - office_counted_cash
+      - office_counted_purchase_cash
+      - office_difference
+      - office_purchase_difference
+      - status
       - truck_name
     DayClosingRow:
       type: object
@@ -12718,27 +12810,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
-        counted_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        difference:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
         expected_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        counted_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12755,37 +12827,32 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
-        office_gap:
+        office_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
-        office_purchase_gap:
+        office_purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          nullable: true
           readOnly: true
       required:
-      - counted_cash
-      - counted_purchase_cash
       - date
-      - difference
       - driver_name
       - expected_cash
       - expected_purchase_cash
       - id
       - office_counted_cash
       - office_counted_purchase_cash
-      - office_gap
-      - office_purchase_gap
-      - purchase_difference
+      - office_difference
+      - office_purchase_difference
       - status
       - truck_name
     DayClosingState:
       type: object
-      description: What the driver sees of their closing.
+      description: 'What the driver sees of their closing: what they should hold.
+        The office counts the cash (D-213).'
       properties:
         id:
           type: integer
@@ -12799,27 +12866,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
-        counted_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        difference:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
         expected_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        counted_purchase_cash:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-          readOnly: true
-        purchase_difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -12839,14 +12886,10 @@ components:
           readOnly: true
       required:
       - changed_since_sent
-      - counted_cash
-      - counted_purchase_cash
-      - difference
       - driver_note
       - expected_cash
       - expected_purchase_cash
       - id
-      - purchase_difference
       - review_note
       - status
       - submitted_at
@@ -12865,16 +12908,9 @@ components:
     DayClosingWrite:
       type: object
       properties:
-        counted_cash:
-          type: string
-        counted_purchase_cash:
-          type: string
-          default: '0'
         note:
           type: string
           default: ''
-      required:
-      - counted_cash
     DayFund:
       type: object
       description: The cash the office set for a driver's day (D-203).
@@ -13269,7 +13305,7 @@ components:
           nullable: true
         closing:
           allOf:
-          - $ref: '#/components/schemas/DayClosingState'
+          - $ref: '#/components/schemas/DayClosingOffice'
           readOnly: true
           nullable: true
         sales:
@@ -13711,16 +13747,19 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+          nullable: true
         difference:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+          nullable: true
         counted_purchase_cash:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+          nullable: true
         driver_note:
           type: string
           readOnly: true

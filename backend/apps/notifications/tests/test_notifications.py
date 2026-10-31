@@ -148,10 +148,10 @@ def test_a_load_tells_the_driver_and_a_sale_from_the_truck_tells_the_office(day)
 
 def test_the_day_sent_and_its_review_go_both_ways(day):
     load(day)
-    assert day["api"].post(reverse("my-day-closing"), {"counted_cash": "40.000"}, format="json").status_code == 201
+    assert day["api"].post(reverse("my-day-closing"), {}, format="json").status_code == 201
 
     sent = told(day["manager"])["results"][0]
-    assert (sent["kind"], sent["params"]["difference"]) == ("day_sent", "-10.000")
+    assert (sent["kind"], sent["params"]) == ("day_sent", {"date": sent["params"]["date"]})
 
     closing = day["owner"].get(reverse("day-closing-list")).json()[0]
     asked = day["owner"].post(

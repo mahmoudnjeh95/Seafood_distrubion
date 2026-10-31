@@ -65,7 +65,7 @@ class DaySummarySerializer(serializers.Serializer[Any]):
 
 
 class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
-    """What the driver sees of their closing."""
+    """What the driver sees of their closing: what they should hold. The office counts the cash (D-213)."""
 
     # The driver worked after sending: the day must be sent again (D-132).
     changed_since_sent = serializers.SerializerMethodField()
@@ -76,11 +76,7 @@ class DayClosingStateSerializer(serializers.ModelSerializer[DayClosing]):
             "id",
             "status",
             "expected_cash",
-            "counted_cash",
-            "difference",
             "expected_purchase_cash",
-            "counted_purchase_cash",
-            "purchase_difference",
             "driver_note",
             "review_note",
             "submitted_at",
@@ -98,10 +94,7 @@ class MyDaySummarySerializer(serializers.Serializer[Any]):
 
 
 class DayClosingWriteSerializer(serializers.Serializer[Any]):
-    # The cash in the driver's hands, in DT as a string ("250.500").
-    counted_cash = serializers.CharField(allow_blank=True)
-    # The purchase money left, counted apart (D-158); "0" for a driver who did not buy.
-    counted_purchase_cash = serializers.CharField(required=False, allow_blank=True, default="0")
+    # Not asked for the cash: the office counts it (D-213).
     note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -123,9 +116,6 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
     truck_name = serializers.CharField(source="driver_day.truck.location.name", read_only=True)
     driver_name = serializers.SerializerMethodField()
     status = serializers.ChoiceField(choices=DayClosingStatus.choices, read_only=True)
-    # Office count - driver count (D-204); null until the office counted at approval.
-    office_gap = serializers.SerializerMethodField()
-    office_purchase_gap = serializers.SerializerMethodField()
 
     class Meta:
         model = DayClosing
@@ -136,34 +126,26 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
             "driver_name",
             "status",
             "expected_cash",
-            "counted_cash",
-            "difference",
             "expected_purchase_cash",
-            "counted_purchase_cash",
-            "purchase_difference",
+            # What the office counted, and the gap with what the driver should hold (D-213); null until counted.
             "office_counted_cash",
             "office_counted_purchase_cash",
-            "office_gap",
-            "office_purchase_gap",
+            "office_difference",
+            "office_purchase_difference",
         )
         read_only_fields = fields
-
-    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
-    def get_office_gap(self, closing: DayClosing) -> str | None:
-        """Office count - driver count of the sales cash (D-204); null until the office counted."""
-        if closing.office_counted_cash is None:
-            return None
-        return str(closing.office_counted_cash - closing.counted_cash)
-
-    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
-    def get_office_purchase_gap(self, closing: DayClosing) -> str | None:
-        if closing.office_counted_purchase_cash is None:
-            return None
-        return str(closing.office_counted_purchase_cash - closing.counted_purchase_cash)
 
     def get_driver_name(self, closing: DayClosing) -> str:
         driver = closing.driver_day.driver
         return f"{driver.first_name} {driver.last_name}".strip() or driver.username
+
+
+class DayClosingOfficeSerializer(DayClosingRowSerializer):
+    """A driver's closing as the office reads it in the day overview: the driver's note, and the office's count."""
+
+    class Meta(DayClosingRowSerializer.Meta):
+        fields: tuple[str, ...] = (*DayClosingRowSerializer.Meta.fields, "driver_note")
+        read_only_fields = fields
 
 
 class ChangedFigureSerializer(serializers.Serializer[Any]):
@@ -258,15 +240,23 @@ class DayClosingFilterSerializer(serializers.Serializer[Any]):
     date_to = serializers.DateField(required=False)
 
 
+class DayClosingCountSerializer(serializers.Serializer[Any]):
+    # What the office counted when the driver handed the cash over (D-213).
+    office_counted_cash = serializers.DecimalField(max_digits=14, decimal_places=3)
+    office_counted_purchase_cash = serializers.DecimalField(
+        max_digits=14, decimal_places=3, required=False, allow_null=True, default=None
+    )
+
+
 class DayClosingApproveSerializer(serializers.Serializer[Any]):
-    # What the office counted when the driver handed the cash over (D-204).
+    # The counts may be sent with the approval, or saved before by the count (D-213).
     office_counted_cash = serializers.DecimalField(
         max_digits=14, decimal_places=3, required=False, allow_null=True, default=None
     )
     office_counted_purchase_cash = serializers.DecimalField(
         max_digits=14, decimal_places=3, required=False, allow_null=True, default=None
     )
-    # Needed when the office count differs from the driver's.
+    # Needed when the office count differs from what the driver should hold.
     note = serializers.CharField(required=False, allow_blank=True, default="", max_length=300)
 
 
@@ -363,7 +353,7 @@ class DayOverviewExpenseSerializer(serializers.Serializer[Any]):
 
 
 class DayOverviewDetailSerializer(DayOverviewRowSerializer):
-    closing = DayClosingStateSerializer(read_only=True, allow_null=True)
+    closing = DayClosingOfficeSerializer(read_only=True, allow_null=True)
     sales = DayOverviewSaleSerializer(many=True, read_only=True)
     deliveries = DayOverviewSaleSerializer(many=True, read_only=True)
     payments = DayOverviewPaymentSerializer(many=True, read_only=True)

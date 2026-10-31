@@ -228,8 +228,8 @@ def test_a_time_in_the_future_is_refused(loaded, ahead):
 
 
 def approve(road, day):
-    closing = services.submit_day_closing(driver_day=road[day], actor=road["driver"].user, counted_cash="50.000")
-    return services.approve_day_closing(closing=closing, actor=road["actor"])
+    closing = services.submit_day_closing(driver_day=road[day], actor=road["driver"].user)
+    return services.approve_day_closing(closing=closing, actor=road["actor"], office_counted_cash=Decimal("50.000"))
 
 
 def test_a_sale_of_a_day_the_office_approved_is_refused_in_plain_words(loaded):
@@ -249,7 +249,7 @@ def test_a_sale_of_a_day_the_office_approved_is_refused_in_plain_words(loaded):
 def test_a_late_sale_enters_a_day_sent_but_not_approved_and_an_earlier_day_than_an_approved_one(loaded):
     """Only the sale's own day counts: sent to the office but not approved, it still takes the sale; and
     today being approved does not close yesterday."""
-    services.submit_day_closing(driver_day=loaded[YESTERDAY], actor=loaded["driver"].user, counted_cash="50.000")
+    services.submit_day_closing(driver_day=loaded[YESTERDAY], actor=loaded["driver"].user)
     approve(loaded, TODAY)
 
     late = sell(loaded, "3", made_at=at(YESTERDAY, 15), paid="84.000")

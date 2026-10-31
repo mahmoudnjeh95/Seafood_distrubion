@@ -3021,3 +3021,23 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Each règlement has its page (`/reglements/<id>`, `/achats/paiements/<id>`): its means with each effet's state and
   history, what it settled, the credit or advance left ("Affecter"), "Annuler" with a reason; the PDF receipt for a
   customer. The supplier receipt PDF and paying several plan lines from "Règlements fournisseurs" move to P9-T03c.
+
+**D-213 · Only the office counts the driver's cash; the driver sees what they should hold (owner request 2026-10-31)** · accepted, provisional points marked · 2026-10-31
+- The owner's rule: the cash the driver hands over is counted at the office, not on the phone. The driver's closing
+  (`POST my-day-closing`, `my-past-day-closing`) takes only an optional `note`; the phone shows "Argent attendu dans
+  la caisse" and the purchase money expected, and never a count field, a gap or a difference. The send still closes
+  the day (D-134).
+- The office counts in the closing window (`POST /day-closings/<id>/count`, owner or manager, `record_office_count`,
+  while the day is sent and not approved): the sales cash, and the purchase money when some is expected. The gap is
+  `office − expected` (`office_difference`, `office_purchase_difference`, stored; 0 until counted). "Enregistrer le
+  comptage" saves it before the review; "Approuver" needs the sales count (and the purchase count when purchase money is
+  expected), and a gap needs a note (the review note). The approval may still send the counts, as before.
+- `DayClosing.counted_cash`, `counted_purchase_cash`, `difference` and `purchase_difference` are empty for every send
+  since this change (migration 0008 makes them nullable); the sends made before keep the driver's figures, and the API
+  no longer shows them. `DayReopening` keeps the cash the office counted at the send a new load undid (the driver's own
+  count for an older send), so `handed_over` stays the cash that went to the office.
+- The office notification for a sent day no longer carries a gap; the admin's day overview shows the office count and
+  its gap once counted; `unexplained_cash_differences` and the monthly check read the office gap of counted days.
+- Provisional: a day can be reopened before the office counted it, and then nothing counts as handed over (the driver
+  still holds the cash until the next count); the owner may prefer the count to be required at the send instead.
+  Purchase money is counted only when expected (no purchase money = no purchase count needed).

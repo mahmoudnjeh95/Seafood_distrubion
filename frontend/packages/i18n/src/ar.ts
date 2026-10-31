@@ -246,7 +246,6 @@ export const ar: PartialTranslation = {
       closingExpected: "مال المشتريات الذي يجب أن يبقى",
       counted: "مال المشتريات الباقي (د.ت)",
       gap: "الفارق في مال المشتريات: {{amount}}",
-      countedWas: "مال المشتريات المعدود: {{amount}}",
     },
     expense: {
       add: "إضافة مصروف",
@@ -376,12 +375,11 @@ export const ar: PartialTranslation = {
       waitSession: "انتهت جلستك: سجّل الدخول من جديد لتتمكن من الإرسال.",
       waitRetrying: "يُرسل الإرسال وحده في أقرب وقت.",
       retrySend: "إعادة محاولة الإرسال",
-      countedWas: "المبلغ المعدود: {{amount}}",
       changed: "تغيّرت أرقام اليوم بعد الإرسال (بيع وصل لاحقًا، تصحيح من المكتب). أعد عدّ الصندوق وأرسل اليوم من جديد.",
       // A new load opened the sent day again (D-134). Provisional like the rest (D-103).
       reopened: "أُعيد فتح اليوم: شُحنت الشاحنة من جديد. بِع، ثم أرسل اليوم من جديد في آخره.",
       handedOver: "ما سلّمته للمكتب من قبل",
-      handedOverHint: "سلّمت للمكتب {{amount}} من قبل: عُدّ فقط المال الذي معك الآن.",
+      handedOverHint: "سلّمت للمكتب {{amount}} من قبل: يُعدّ فقط المال الذي بقي في الصندوق.",
       closedBody: "أُغلق اليوم. يُعاد فتحه عندما يشحن المكتب شاحنتك من جديد.",
       approved: "وافق المكتب على اليوم",
       asked: "يسأل المكتب: {{reason}}",

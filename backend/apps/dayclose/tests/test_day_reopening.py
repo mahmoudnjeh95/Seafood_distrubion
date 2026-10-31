@@ -136,8 +136,20 @@ def sell(road, kg, paid="0", *, made_at=None):
     return road["api"].post(reverse("sale-list"), body, format="json")
 
 
-def close(road, counted):
-    return road["api"].post(reverse("my-day-closing"), {"counted_cash": counted}, format="json")
+def close(road, counted=None):
+    """The driver sends the day; the office then counts `counted` when given (D-213)."""
+    sent = road["api"].post(reverse("my-day-closing"), {}, format="json")
+    if counted is not None and sent.status_code == 201:
+        assert count(road, counted).status_code == 200
+    return sent
+
+
+def count(road, counted):
+    return road["office"].post(
+        reverse("day-closing-count", args=[office_row(road)["id"]]),
+        {"office_counted_cash": counted},
+        format="json",
+    )
 
 
 def driver_day(road):
@@ -229,7 +241,11 @@ def test_a_load_validated_that_date_opens_the_sent_day_again(road, clock):
 
     assert resent.status_code == 201
     closing = resent.json()["closing"]
-    assert (closing["status"], closing["expected_cash"], closing["difference"]) == ("submitted", "56.000", "0.000")
+    assert (closing["status"], closing["expected_cash"], closing["office_difference"]) == (
+        "submitted",
+        "56.000",
+        "0.000",
+    )
     assert timezone.localtime(driver_day(road).ended_at) == at(18)
     assert sell(road, "1", "28.000").status_code == 403  # closed again
 
@@ -302,7 +318,10 @@ def test_an_approved_day_is_reopened_by_a_load_and_its_approval_stays_on_record(
     morning_sent(road, clock, counted="140.000")
     row = office_row(road)
     clock(at(12, 30))
-    assert road["office"].post(reverse("day-closing-approve", args=[row["id"]])).json()["status"] == "approved"
+    approved = road["office"].post(
+        reverse("day-closing-approve", args=[row["id"]]), {"note": "Il manque 10 DT"}, format="json"
+    )
+    assert approved.json()["status"] == "approved"
 
     clock(at(13))
     transfer = load(road, "4")
@@ -316,7 +335,7 @@ def test_an_approved_day_is_reopened_by_a_load_and_its_approval_stays_on_record(
         "expected_cash": "150.000",
         "counted_cash": "140.000",
         "difference": "-10.000",
-        "counted_purchase_cash": "0.000",
+        "counted_purchase_cash": None,
         "driver_note": "",
         "submitted_at": timezone.localtime(at(12)).isoformat(),
         "reviewed_by_name": f"{office.first_name} {office.last_name}".strip() or office.username,
@@ -473,7 +492,7 @@ def test_a_sale_made_before_the_closing_and_received_after_it_counts_on_that_day
     assert close(road, "178.000").status_code == 201
 
     detail = office_detail(road)
-    assert (detail["status"], detail["difference"], detail["changes_since_sent"]) == ("submitted", "0.000", [])
+    assert (detail["status"], detail["office_difference"], detail["changes_since_sent"]) == ("submitted", "0.000", [])
     assert timezone.localtime(driver_day(road).ended_at) == at(12)  # sent again, the day still ends at its first send
     approved = road["office"].post(reverse("day-closing-approve", args=[detail["id"]])).json()
     assert (approved["status"], approved["expected_cash"]) == ("approved", "178.000")
@@ -508,15 +527,16 @@ def test_the_day_sent_again_after_a_justification_takes_the_late_sale(road, cloc
 
     clock(at(16))
     resent = road["api"].post(
-        reverse("my-past-day-closing", args=[day_id]), {"counted_cash": "178.000", "note": "Vente hors réseau"}
+        reverse("my-past-day-closing", args=[day_id]), {"note": "Vente hors réseau"}, format="json"
     )
-
     assert resent.status_code == 201
+    assert count(road, "178.000").status_code == 200
+
     summary = resent.json()["summary"]
     assert (summary["sales_count"], summary["expected_cash"]) == (2, "178.000")
     assert (summary["products"][0]["sold"], summary["products"][0]["remaining"]) == ("6.000", "9.000")
     detail = office_detail(road)
-    assert (detail["status"], detail["difference"], detail["changes_since_sent"]) == ("submitted", "0.000", [])
+    assert (detail["status"], detail["office_difference"], detail["changes_since_sent"]) == ("submitted", "0.000", [])
     assert timezone.localtime(driver_day(road).ended_at) == at(12)
 
 
