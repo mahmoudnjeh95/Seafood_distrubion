@@ -950,7 +950,11 @@ def update_account(
 ) -> TreasuryAccount:
     """Rename an account, give its bank and RIB, its opening, take it off the lists, or make it the default of its
     kind. Its movements never change."""
-    account = TreasuryAccount.objects.select_for_update().select_related("organization", "bank").get(pk=account.pk)
+    account = (
+        TreasuryAccount.objects.select_for_update(of=("self",))
+        .select_related("organization", "bank")
+        .get(pk=account.pk)
+    )
     before = _account_snapshot(account)
     fields = _checked_account(
         account.organization,
