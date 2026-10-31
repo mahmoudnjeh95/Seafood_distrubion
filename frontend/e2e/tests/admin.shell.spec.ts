@@ -30,6 +30,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Stock frigo & camions",
     "Camions du jour",
     "Journées chauffeurs",
+    "Transferts",
     "Produits",
     "Achats",
     "Règlements fournisseurs",

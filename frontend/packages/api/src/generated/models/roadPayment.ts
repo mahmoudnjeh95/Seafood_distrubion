@@ -4,7 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
-import type { SalePaymentMethodEnum } from './salePaymentMethodEnum';
+import type { CustomerPaymentMethodEnum } from './customerPaymentMethodEnum';
 
 export interface RoadPayment {
   readonly id: number;
@@ -12,5 +12,5 @@ export interface RoadPayment {
   readonly customer_name: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
-  readonly method: SalePaymentMethodEnum;
+  readonly method: CustomerPaymentMethodEnum;
 }
