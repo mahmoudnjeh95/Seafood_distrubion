@@ -141,6 +141,10 @@ class InstrumentBatchView(OfficeView):
             rows = services.cash_instruments(
                 organization=organization, actor=actor, instrument_ids=ids, cashed_on=data["day"]
             )
+        elif self.step == "return":
+            rows = services.return_instruments(
+                organization=organization, actor=actor, instrument_ids=ids, returned_on=data["day"]
+            )
         elif self.step == "debit":
             rows = services.debit_instruments(
                 organization=organization, actor=actor, instrument_ids=ids, debited_on=data["day"]
@@ -172,6 +176,17 @@ class InstrumentWithdrawView(InstrumentBatchView):
     )
     def post(self, request: Request) -> Response:
         """Effets taken back from the bank before it cashed them: in portfolio again."""
+        return super().post(request)
+
+
+class InstrumentReturnView(InstrumentBatchView):
+    step = "return"
+
+    @extend_schema(
+        operation_id="returnInstruments", request=InstrumentBatchSerializer, responses=InstrumentSerializer(many=True)
+    )
+    def post(self, request: Request) -> Response:
+        """Unpaid effets given back to the customer on `day` ("Restitué")."""
         return super().post(request)
 
 

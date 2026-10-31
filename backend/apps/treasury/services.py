@@ -66,6 +66,8 @@ ALLOWED_MOVES: dict[str, frozenset[str]] = {
     InstrumentStatus.DEPOSITED: frozenset(
         {InstrumentStatus.CASHED, InstrumentStatus.UNPAID, InstrumentStatus.PORTFOLIO}
     ),
+    # The bank may take back a cheque it had credited (D-217).
+    InstrumentStatus.CASHED: frozenset({InstrumentStatus.UNPAID}),
     InstrumentStatus.UNPAID: frozenset({InstrumentStatus.RETURNED, InstrumentStatus.PORTFOLIO}),
     InstrumentStatus.ISSUED: frozenset(
         {InstrumentStatus.DEBITED, InstrumentStatus.REJECTED, InstrumentStatus.CANCELLED}
@@ -498,4 +500,41 @@ def debit_instruments(
     for row in rows:
         _move(row, to_status=InstrumentStatus.DEBITED, happened_on=debited_on, actor=actor)
     _record(organization, actor, "treasury.debited", rows, day=debited_on.isoformat())
+    return rows
+
+
+def mark_unpaid(
+    *, organization: Organization, actor: User | None, instrument_id: int, unpaid_on: dt.date | None, note: str
+) -> Instrument:
+    """The bank refused a received effet (at the bank, or taken back after crediting it): "Impayé". Called by the
+    règlement's app, which raises the customer's balance again in the same transaction (D-217)."""
+    rows = _batch(
+        organization,
+        [instrument_id],
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.DEPOSITED, InstrumentStatus.CASHED}),
+        happened_on=unpaid_on,
+    )
+    assert unpaid_on is not None
+    _move(rows[0], to_status=InstrumentStatus.UNPAID, happened_on=unpaid_on, actor=actor, note=note)
+    _record(organization, actor, "treasury.unpaid", rows, day=unpaid_on.isoformat(), reason=note)
+    return rows[0]
+
+
+@transaction.atomic
+def return_instruments(
+    *, organization: Organization, actor: User | None, instrument_ids: Sequence[int], returned_on: dt.date | None
+) -> list[Instrument]:
+    """Unpaid effets given back to the customer ("Restitué"): the paper leaves the portfolio for good."""
+    rows = _batch(
+        organization,
+        instrument_ids,
+        direction=InstrumentDirection.RECEIVED,
+        statuses=frozenset({InstrumentStatus.UNPAID}),
+        happened_on=returned_on,
+    )
+    assert returned_on is not None
+    for row in rows:
+        _move(row, to_status=InstrumentStatus.RETURNED, happened_on=returned_on, actor=actor)
+    _record(organization, actor, "treasury.returned", rows, day=returned_on.isoformat())
     return rows

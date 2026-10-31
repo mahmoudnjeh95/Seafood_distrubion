@@ -53,6 +53,15 @@ def tell_driver(
     )
 
 
+def tell_office_of(
+    *, organization: Organization, actor: User | None, kind: str, params: dict[str, Any], link: str = ""
+) -> Notification:
+    """Something the whole office must know, whoever recorded it (an impayé, D-217)."""
+    return Notification.objects.create(
+        organization=organization, audience=Audience.OFFICE, actor=actor, kind=kind, params=params, link=link
+    )
+
+
 def tell_office_from_site(
     *, organization: Organization, kind: str, params: dict[str, Any], link: str = ""
 ) -> Notification:

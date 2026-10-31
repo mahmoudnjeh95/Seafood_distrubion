@@ -129,6 +129,15 @@ export function CustomerPaymentDetailPage() {
                       </span>
                       <div className="mt-1">
                         <EffetHistory events={line.instrument.events} />
+                        {line.unpaid && (
+                          <p className="mt-1 text-[0.85rem] font-semibold text-bad">
+                            {t("admin.treasury.detail.unpaid", {
+                              day: formatDate(line.unpaid.unpaid_on),
+                              reason: line.unpaid.reason,
+                              charges: formatMoney(line.unpaid.bank_charges),
+                            })}
+                          </p>
+                        )}
                       </div>
                     </>
                   ) : (

@@ -1,6 +1,8 @@
 import {
   cashInstruments,
   createDeposit,
+  recordUnpaidEffet,
+  returnInstruments,
   debitInstruments,
   type Instrument,
   type InstrumentKindEnum,
@@ -52,13 +54,14 @@ import { type PortfolioTab, TABS, TAB_QUERY, waitingLate } from "./portfolio";
 
 const PAGE_SIZE = 100;
 
-type Step = "deposit" | "cash" | "withdraw" | "debit";
+type Step = "deposit" | "cash" | "withdraw" | "debit" | "unpaid" | "return";
 
 /** The actions each tab offers on the ticked effets. */
 const STEPS: Record<PortfolioTab, Step[]> = {
   toRemit: ["deposit", "cash"],
-  atBank: ["cash", "withdraw"],
-  cashed: [],
+  atBank: ["cash", "unpaid", "withdraw"],
+  cashed: ["unpaid"],
+  unpaid: ["return"],
   issued: ["debit"],
   debited: [],
   deposits: [],
@@ -413,6 +416,7 @@ function StepDialog({
   const [day, setDay] = useState(todayInput);
   const [bank, setBank] = useState("");
   const [notes, setNotes] = useState("");
+  const [charges, setCharges] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const ids = effets.map((row) => row.id);
@@ -430,10 +434,20 @@ function StepDialog({
         });
         toast.success(t("admin.treasury.portfolio.deposited", { number: deposit.number }));
         void openPdf("bank_deposit", deposit.id);
+      } else if (step === "unpaid") {
+        const only = effets[0];
+        if (!only || effets.length > 1) throw new Error(t("admin.treasury.portfolio.unpaidOne"));
+        await recordUnpaidEffet(only.id, {
+          unpaid_on: day,
+          reason: notes.trim(),
+          bank_charges: charges.trim().replace(",", "."),
+        });
+        toast.success(t("admin.treasury.portfolio.done.unpaid", { count: 1 }));
       } else {
         const body = { instruments: ids, day, note: notes.trim() };
         if (step === "cash") await cashInstruments(body);
         else if (step === "withdraw") await withdrawInstruments(body);
+        else if (step === "return") await returnInstruments(body);
         else await debitInstruments(body);
         toast.success(t(`admin.treasury.portfolio.done.${step}`, { count: ids.length }));
       }
@@ -443,9 +457,15 @@ function StepDialog({
       onDone();
     } catch (failure) {
       const found = fieldErrors(failure);
+      if (failure instanceof Error && Object.keys(found).length === 0 && !("status" in failure)) {
+        setError(failure.message);
+        return;
+      }
       setError(
         found.bank ??
           found.day ??
+          found.reason ??
+          found.bank_charges ??
           found.deposited_on ??
           found.instruments ??
           Object.values(found)[0] ??
@@ -492,6 +512,33 @@ function StepDialog({
               onChange={(event) => setDay(event.target.value)}
             />
           </Field>
+          {step === "unpaid" && (
+            <>
+              <Field
+                label={t("admin.treasury.portfolio.unpaidReason")}
+                htmlFor={`${id}-reason`}
+                className="col-span-full"
+              >
+                <Input
+                  id={`${id}-reason`}
+                  value={notes}
+                  maxLength={255}
+                  placeholder={t("admin.treasury.portfolio.unpaidReasonHint")}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </Field>
+              <Field label={t("admin.treasury.portfolio.bankCharges")} htmlFor={`${id}-charges`}>
+                <Input
+                  id={`${id}-charges`}
+                  inputMode="decimal"
+                  value={charges}
+                  onChange={(event) => setCharges(event.target.value)}
+                  className="num text-end"
+                />
+              </Field>
+              <p className="col-span-full text-[0.85rem] text-ink-2">{t("admin.treasury.portfolio.unpaidBody")}</p>
+            </>
+          )}
           {(step === "deposit" || step === "withdraw") && (
             <Field label={t("admin.supplierPayments.form.notes")} htmlFor={`${id}-notes`} className="col-span-full">
               <Input

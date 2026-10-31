@@ -22,7 +22,10 @@ from apps.core.clock import CLOCK_MARGIN
 from apps.core.images import reencoded_photo
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.money import Number, checked_amount, checked_quantity, display_money, line_total, money
+from apps.expenses import selectors as expenses_selectors
+from apps.expenses import services as expenses
 from apps.inventory import services as inventory
+from apps.notifications import services as notifications
 from apps.partners import services as partners
 from apps.treasury import services as treasury
 
@@ -61,6 +64,8 @@ from .models import (
     SaleRevision,
     SaleRevisionKind,
     SaleStatus,
+    UnpaidEffet,
+    UnpaidRelease,
     WithholdingCertificate,
 )
 
@@ -2792,7 +2797,14 @@ def _line_snapshot(line: CustomerPaymentLine) -> dict[str, Any]:
 
 
 def _allocated_total(payment: CustomerPayment) -> Decimal:
-    return payment.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+    """What the payment settles on sales now: its allocations less what its impayés took back (D-217)."""
+    allocated = payment.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+    released = UnpaidRelease.objects.filter(unpaid__payment=payment).aggregate(total=Sum("amount"))["total"]
+    return allocated - (released or Decimal("0.000"))
+
+
+def _unpaid_total(payment: CustomerPayment) -> Decimal:
+    return UnpaidEffet.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
 
 
 def _allocate(
@@ -3102,7 +3114,7 @@ def allocate_customer_payment(
     payment = _locked_payment(payment)
     if payment.voided_at is not None:
         raise ValidationError(_("Ce règlement est annulé."))
-    left = payment.amount - _allocated_total(payment)
+    left = payment.amount - _unpaid_total(payment) - _allocated_total(payment)
     if left <= 0:
         raise ValidationError(_("Ce règlement est déjà entièrement affecté."))
     rows = _allocate(payment, left, allocations)
@@ -3311,3 +3323,128 @@ def void_withholding_certificate(
         after={"reason": reason, **_certificate_snapshot(certificate)},
     )
     return certificate
+
+
+# ---- Impayés: a customer effet the bank refused (P9-T04b, D-217) ----
+
+# The expense category of the bank's charges (expenses.DEFAULT_CATEGORIES).
+BANK_CHARGES_CATEGORY = "financial"
+
+
+@transaction.atomic
+def record_unpaid_effet(
+    *,
+    organization: Organization,
+    actor: User | None,
+    instrument_id: int,
+    unpaid_on: dt.date | None,
+    reason: str,
+    bank_charges: Number = "0",
+) -> UnpaidEffet:
+    """The bank refused a customer's cheque or traite: the customer owes its amount again (D-217).
+
+    A new record, the règlement untouched: `UnpaidEffet` adds the amount back to the balance; what the règlement
+    had settled on sales beyond its credit left is taken back, newest allocation first (`UnpaidRelease`), so those
+    sales owe again. The effet becomes "Impayé" in the treasury; the bank's charges are an approved expense
+    "Frais financiers"; the office is told.
+    """
+    errors: dict[str, str] = {}
+    reason = " ".join(reason.split())[:255]
+    if not reason:
+        errors["reason"] = _("Indiquez le motif du rejet (sans provision, signature...).")
+    try:
+        charges = checked_amount(bank_charges or "0")
+        if charges < 0:
+            errors["bank_charges"] = _("Les frais ne peuvent pas être négatifs.")
+    except (ValueError, TypeError):
+        charges = Decimal("0.000")
+        errors["bank_charges"] = _("Indiquez un montant en DT, au millime près.")
+    line = (
+        CustomerPaymentLine.objects.select_related("payment", "payment__customer", "instrument")
+        .filter(organization=organization, instrument_id=instrument_id)
+        .first()
+    )
+    if line is None:
+        errors["instrument"] = _("Cet effet n'est pas celui d'un règlement client.")
+    if errors:
+        raise ValidationError(errors)
+    assert line is not None
+    payment = _locked_payment(line.payment)
+    if payment.voided_at is not None:
+        raise ValidationError({"instrument": _("Ce règlement est annulé.")})
+    treasury.mark_unpaid(
+        organization=organization, actor=actor, instrument_id=instrument_id, unpaid_on=unpaid_on, note=reason
+    )
+    assert unpaid_on is not None  # checked by the treasury
+    free = payment.amount - _unpaid_total(payment) - _allocated_total(payment)
+    to_release = max(line.amount - max(free, Decimal("0.000")), Decimal("0.000"))
+    unpaid = UnpaidEffet.objects.create(
+        organization=organization,
+        payment=payment,
+        line=line,
+        customer=payment.customer,
+        amount=line.amount,
+        unpaid_on=unpaid_on,
+        reason=reason,
+        bank_charges=charges,
+        created_by=actor,
+    )
+    # Each sale's part still settled by this règlement, the newest allocation first.
+    net: dict[int, Decimal] = {}
+    for allocation in payment.allocations.order_by("-id"):
+        net[allocation.sale_id] = net.get(allocation.sale_id, Decimal("0.000")) + allocation.amount
+    for row in UnpaidRelease.objects.filter(unpaid__payment=payment).values("sale_id").annotate(total=Sum("amount")):
+        net[row["sale_id"]] = net.get(row["sale_id"], Decimal("0.000")) - row["total"]
+    released: dict[int, Decimal] = {}
+    for sale_id, settled in net.items():
+        if to_release <= 0:
+            break
+        part = min(settled, to_release)
+        if part <= 0:
+            continue
+        UnpaidRelease.objects.create(organization=organization, unpaid=unpaid, sale_id=sale_id, amount=part)
+        released[sale_id] = part
+        to_release -= part
+    touched = list(released)
+    for sale in Sale.objects.filter(pk__in=touched).select_related("organization").order_by("id"):
+        refresh_sale_due(sale)
+    if charges > 0:
+        expense = expenses.create_expense(
+            organization=organization,
+            actor=actor,
+            spent_on=unpaid_on,
+            category=expenses_selectors.category_by_code(organization, BANK_CHARGES_CATEGORY),
+            amount=charges,
+            payment_method="transfer",
+            description=_("Frais d'impayé %(effet)s (%(number)s)")
+            % {"effet": line.instrument or "", "number": payment.number},
+            payee=line.instrument.bank.code if line.instrument and line.instrument.bank else "",
+            approve=True,
+        )
+        unpaid.expense_number = expense.number
+        unpaid.save(update_fields=["expense_number"])
+    notifications.tell_office_of(
+        organization=organization,
+        actor=actor,
+        kind="effet_unpaid",
+        params={
+            "customer": payment.customer.name,
+            "number": line.instrument.number if line.instrument else "",
+            "amount": str(line.amount),
+        },
+        link=f"/reglements/{payment.pk}",
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer_payment.unpaid",
+        target=payment,
+        after={
+            "effet": str(line.instrument),
+            "amount": str(line.amount),
+            "reason": reason,
+            "bank_charges": str(charges),
+            "released": {str(sale_id): str(amount) for sale_id, amount in released.items()},
+        },
+    )
+    return unpaid

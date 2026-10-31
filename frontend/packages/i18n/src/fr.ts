@@ -58,6 +58,7 @@ export const fr = {
     unknown: "Nouvelle notification",
     kinds: {
       // Told to the office
+      effet_unpaid: "Impayé : {{number}} de {{customer}}, {{amount}}",
       day_started: "{{driver}} a commencé sa journée sur {{truck}}",
       day_sent: "{{driver}} a envoyé sa clôture du {{date}}",
       day_resent: "{{driver}} a renvoyé sa clôture du {{date}}",
@@ -1717,7 +1718,7 @@ export const fr = {
         noHistory: "Aucune vente ni règlement pour ce client.",
         entry: "Opération",
         runningBalance: "Solde",
-        kinds: { sale: "Vente", on_spot: "Payé sur place", payment: "Règlement" },
+        kinds: { sale: "Vente", on_spot: "Payé sur place", payment: "Règlement", unpaid: "Effet impayé" },
       },
       policy: {
         label: "Au-delà de la limite de crédit d'un client",
@@ -2744,6 +2745,7 @@ export const fr = {
           toRemit: "À remettre",
           atBank: "En banque",
           cashed: "Encaissés",
+          unpaid: "Impayés",
           issued: "Émis (à débiter)",
           debited: "Débités",
           deposits: "Bordereaux",
@@ -2760,6 +2762,7 @@ export const fr = {
           toRemit: "Les chèques et traites reçus des clients arrivent ici jusqu'à leur remise en banque.",
           atBank: "Rien n'est en banque en ce moment.",
           cashed: "Aucun effet encaissé pour ces filtres.",
+          unpaid: "Aucun impayé : tant mieux.",
           issued: "Nos chèques et traites attendent ici leur débit.",
           debited: "Aucun effet débité pour ces filtres.",
           deposits: "",
@@ -2775,13 +2778,23 @@ export const fr = {
           cash: "Encaissé",
           withdraw: "Retirer de la banque",
           debit: "Débité",
+          unpaid: "Impayé",
+          return: "Restituer au client",
         },
         days: {
           deposit: "Jour de la remise",
           cash: "Jour où la banque a crédité",
           withdraw: "Jour du retrait",
           debit: "Jour du débit",
+          unpaid: "Jour du rejet par la banque",
+          return: "Jour de la restitution",
         },
+        unpaidReason: "Motif du rejet",
+        unpaidReasonHint: "Sans provision, signature non conforme…",
+        bankCharges: "Frais bancaires (DT)",
+        unpaidOne: "Un impayé se déclare effet par effet : cochez-en un seul.",
+        unpaidBody:
+          "Le client redoit ce montant : ses ventes réglées par ce règlement redeviennent dues au-delà de son crédit, les frais deviennent une charge « Frais financiers ».",
         ourBank: "Notre banque",
         deposited: "Bordereau {{number}} créé.",
         done: {
@@ -2791,6 +2804,10 @@ export const fr = {
           withdraw_other: "{{count}} effets revenus au portefeuille.",
           debit_one: "{{count}} effet débité.",
           debit_other: "{{count}} effets débités.",
+          unpaid_one: "Impayé enregistré : le client redoit le montant.",
+          unpaid_other: "Impayé enregistré : le client redoit le montant.",
+          return_one: "{{count}} effet restitué.",
+          return_other: "{{count}} effets restitués.",
         },
         error: "L'opération a échoué. Réessayez.",
         columns: {
@@ -2849,6 +2866,7 @@ export const fr = {
         allocateCredit: "Affecter le crédit",
         allocated: "Crédit affecté aux ventes les plus anciennes.",
         allocateError: "L'affectation a échoué.",
+        unpaid: "Impayé le {{day}} : {{reason}} · frais {{charges}}",
       },
       banks: {
         title: "Banques",

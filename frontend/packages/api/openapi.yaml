@@ -667,6 +667,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/customer-effets/{instrument_id}/unpaid:
+    post:
+      operationId: recordUnpaidEffet
+      description: |-
+        The bank refused this customer cheque or traite (owner or manager): it becomes "Impayé", the customer
+        owes its amount again (the sales its règlement settled owe again beyond its credit), the bank's charges
+        become an expense "Frais financiers" and the office is told (D-217). Answers with the règlement.
+      parameters:
+      - in: path
+        name: instrument_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-effets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnpaidWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UnpaidWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UnpaidWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPaymentDetail'
+          description: ''
   /api/v1/customer-payments:
     get:
       operationId: listCustomerPayments
@@ -9785,6 +9821,35 @@ paths:
                 items:
                   $ref: '#/components/schemas/Instrument'
           description: ''
+  /api/v1/treasury/instruments/return:
+    post:
+      operationId: returnInstruments
+      description: Unpaid effets given back to the customer on `day` ("Restitué").
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
   /api/v1/treasury/instruments/totals:
     get:
       operationId: getInstrumentTotals
@@ -12525,12 +12590,18 @@ components:
           - $ref: '#/components/schemas/InstrumentDetail'
           readOnly: true
           nullable: true
+        unpaid:
+          allOf:
+          - $ref: '#/components/schemas/UnpaidEffet'
+          nullable: true
+          readOnly: true
       required:
       - amount
       - id
       - instrument
       - method
       - reference
+      - unpaid
     CustomerPaymentLineWrite:
       type: object
       properties:
@@ -16335,11 +16406,13 @@ components:
       - sale
       - on_spot
       - payment
+      - unpaid
       type: string
       description: |-
         * `sale` - sale
         * `on_spot` - on_spot
         * `payment` - payment
+        * `unpaid` - unpaid
     IllustrationEnum:
       enum:
       - shrimp
@@ -28001,6 +28074,37 @@ components:
       required:
       - name
       - plate
+    UnpaidEffet:
+      type: object
+      description: 'The impayé of a line (D-217): when, why, the bank''s charges and
+        their expense.'
+      properties:
+        unpaid_on:
+          type: string
+          format: date
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        bank_charges:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - bank_charges
+      - expense_number
+      - reason
+      - unpaid_on
     UnpaidSalaries:
       type: object
       properties:
@@ -28016,6 +28120,21 @@ components:
       required:
       - rows
       - total
+    UnpaidWrite:
+      type: object
+      properties:
+        unpaid_on:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+          maxLength: 255
+        bank_charges:
+          type: string
+          default: '0'
+      required:
+      - reason
     Unread:
       type: object
       properties:

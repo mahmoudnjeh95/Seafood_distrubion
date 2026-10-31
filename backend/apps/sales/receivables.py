@@ -30,6 +30,8 @@ from .models import (
     PaymentAllocation,
     Sale,
     SaleStatus,
+    UnpaidEffet,
+    UnpaidRelease,
     WithholdingCertificate,
 )
 
@@ -166,6 +168,9 @@ def sale_receivables(
         .values("sale_id")
         .annotate(total=Sum("amount"))
     }
+    # What an impayé took back from a règlement's allocations: those sales owe it again (D-217).
+    for release in UnpaidRelease.objects.filter(sale_id__in=ids).values("sale_id").annotate(total=Sum("amount")):
+        allocated[release["sale_id"]] = allocated.get(release["sale_id"], ZERO) - release["total"]
     shares: dict[tuple[int, int], Decimal] = {}
     for invoice in invoices.values():
         part = invoice.net_to_pay - credited.get(invoice.pk, ZERO)
@@ -257,6 +262,12 @@ def customer_balances(
         entry(agg["customer_id"]).balance -= agg["total"]
     for agg in CustomerPayment.objects.filter(payments_filter).values("customer_id").annotate(total=Sum("amount")):
         entry(agg["customer_id"]).balance -= agg["total"]
+    # A cheque or traite the bank refused: the customer owes it again (D-217).
+    unpaid_filter = Q(organization=organization)
+    if customer_id is not None:
+        unpaid_filter &= Q(customer_id=customer_id)
+    for agg in UnpaidEffet.objects.filter(unpaid_filter).values("customer_id").annotate(total=Sum("amount")):
+        entry(agg["customer_id"]).balance += agg["total"]
     for item in result.values():
         item.credit = max(item.open_total - item.balance, ZERO)
     if customer_id is not None:
@@ -324,7 +335,21 @@ def customer_history(organization: Organization, customer_id: int) -> list[Histo
                 voided=payment.voided_at is not None,
             )
         )
-    kind_order = {"sale": 0, "on_spot": 1, "payment": 2}
+    for unpaid in UnpaidEffet.objects.filter(organization=organization, customer_id=customer_id).select_related(
+        "line__instrument"
+    ):
+        entries.append(
+            HistoryEntry(
+                "unpaid",
+                unpaid.unpaid_on,
+                unpaid.created_at,
+                unpaid.line.instrument.number if unpaid.line.instrument else "",
+                unpaid.payment_id,
+                unpaid.amount,
+                method=unpaid.line.method,
+            )
+        )
+    kind_order = {"sale": 0, "on_spot": 1, "payment": 2, "unpaid": 3}
     entries.sort(key=lambda entry: (entry.day, kind_order[entry.kind], entry.at, entry.object_id))
     running = ZERO
     result: list[HistoryEntry] = []

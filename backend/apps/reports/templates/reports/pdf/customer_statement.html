@@ -100,7 +100,7 @@
       {% for row in ledger %}
       <tr{% if row.entry.voided %} class="voided"{% endif %}>
         <td class="num">{{ row.entry.day|day }}</td>
-        <td>{% if row.entry.kind == "sale" %}Vente{% elif row.entry.kind == "on_spot" %}Payé à la vente{% else %}Règlement{% if row.entry.voided %} (annulé){% endif %}{% endif %}{% if row.entry.method %} · {{ row.entry.method }}{% endif %}</td>
+        <td>{% if row.entry.kind == "sale" %}Vente{% elif row.entry.kind == "on_spot" %}Payé à la vente{% elif row.entry.kind == "unpaid" %}Effet impayé{% else %}Règlement{% if row.entry.voided %} (annulé){% endif %}{% endif %}{% if row.entry.method %} · {{ row.entry.method }}{% endif %}</td>
         <td class="num">{{ row.entry.number }}</td>
         <td class="r num">{{ row.debit|money }}</td>
         <td class="r num">{{ row.credit|money }}</td>

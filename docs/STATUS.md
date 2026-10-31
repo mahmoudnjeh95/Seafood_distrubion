@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T03c merged, D-215; P9-T04a portfolio built, D-216)_
+_Last updated: 2026-10-31 (P9-T04a merged, D-216; P9-T04b impayé built, D-217)_
 
 ## Where we are
 
@@ -8,9 +8,10 @@ _Last updated: 2026-10-31 (P9-T03c merged, D-215; P9-T04a portfolio built, D-216
   **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app · T02 (#231, D-208) supplier lines,
   our effets issued · T03a (#234, D-210) "Nouveau règlement" pages, Répartir, Banques · T03b (#237, D-211) lists with
   filters/totals/Excel, detail pages, supplier void · T03c (#240, D-215) supplier receipt PDF, several plan lines paid
-  at once. **P9-T04a on branch `portfolio`** (awaits CI, D-216): Trésorerie › Portefeuille (tabs, filters, totals,
-  late in red), remise en banque with its bordereau `RB-…` and PDF, encaissé, retirer, débité (migrations
-  `treasury/0002`, `documents/0006`).
+  at once · T04a (#241, D-216) Portefeuille, remise en banque with bordereau PDF, encaissé, retirer, débité.
+  **P9-T04b on branch `effet-unpaid`** (awaits CI, D-217): impayé of a customer effet (`sales.UnpaidEffet`,
+  `UnpaidRelease`, migration `sales/0023`): the customer and the sales owe again, bank charges as an expense, office
+  notification; Restituer; Portefeuille tab Impayés.
 - **Other work merged 2026-10-31 (other sessions):** D-194 to D-207 (owner list, PRs #217–#230), D-212 counter sale on
   several lots (#235), D-213 the office alone counts the driver's cash (#239). D-214 (#238, truck purchase stock) is
   still open in another session; the next free decision number is D-217.
@@ -27,13 +28,11 @@ _Last updated: 2026-10-31 (P9-T03c merged, D-215; P9-T04a portfolio built, D-216
 
 ## Next step
 
-1. P9-T04a: PR from `portfolio`, green CI (e2e: the side menu lists Portefeuille), fetch and rebase (renumber D-216,
-   `treasury/0002`, `documents/0006` if taken), merge. On staging: Finance › Portefeuille › À remettre, tick two
-   cheques → Remettre en banque (BIAT, today) → the bordereau PDF opens; En banque → Encaissé; Émis → Débité.
-2. **P9-T04b** (new branch from `main`): impayé (the customer owes again, bank charges as "Frais financiers"),
-   restituer, endosser a customer effet to a supplier, our effet rejeté (the supplier is owed again), owner
-   notification on an impayé. Read `apps/sales/receivables.py` first: an impayé must raise the customer balance with
-   a new record, never by editing the règlement.
+1. P9-T04b: PR from `effet-unpaid`, green CI, fetch and rebase (renumber D-217, `sales/0023` if taken), merge. On
+   staging: a customer cheque → Portefeuille › remise en banque → En banque, tick it → Impayé (motif, 5 DT de
+   frais) → the customer page shows "Effet impayé" and the balance up; Charges has the 5 DT; Impayés → Restituer.
+2. **P9-T04c** (new branch from `main`): endorse a customer effet to a supplier (a supplier payment line), our effet
+   rejeté (the supplier is owed again, like the impayé).
 3. Then T05 accounts (caisse, banks, driver cash), T06 échéancier and alerts, T07 reports.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 

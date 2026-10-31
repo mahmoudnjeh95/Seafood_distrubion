@@ -6,6 +6,7 @@
  */
 import type { CustomerPaymentMethodEnum } from './customerPaymentMethodEnum';
 import type { InstrumentDetail } from './instrumentDetail';
+import type { UnpaidEffet } from './unpaidEffet';
 
 export interface CustomerPaymentLineDetail {
   readonly id: number;
@@ -14,4 +15,5 @@ export interface CustomerPaymentLineDetail {
   readonly amount: string;
   readonly reference: string;
   readonly instrument: InstrumentDetail | null;
+  readonly unpaid: UnpaidEffet | null;
 }
