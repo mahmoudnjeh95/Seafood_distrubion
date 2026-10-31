@@ -29,6 +29,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
+import { sum } from "../lib/decimal";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import { PlanDialog } from "./PlanDialog";
 import { refreshPurchasing } from "./shared";
@@ -68,6 +69,25 @@ export function SupplierSettlementsPage() {
   const type = TYPES.find((one) => one === params.get("type"));
   const supplierId = Number(params.get("fournisseur")) || undefined;
   const [editing, setEditing] = useState<SettlementRow | null>(null);
+  // Plan lines ticked to be paid by one règlement (D-215): all of one supplier.
+  const [selected, setSelected] = useState<Record<number, { supplier: number; amount: string }>>({});
+  const chosen = Object.entries(selected);
+  const chosenSupplier = chosen[0]?.[1].supplier;
+  const toggle = (row: SettlementRow, line: PlanLine) =>
+    setSelected((current) => {
+      const next = { ...current };
+      if (next[line.id]) delete next[line.id];
+      else next[line.id] = { supplier: row.supplier.id, amount: line.amount };
+      return next;
+    });
+  const paySelected = () => {
+    if (chosenSupplier === undefined) return;
+    const query = new URLSearchParams({
+      fournisseur: String(chosenSupplier),
+      lignes: chosen.map(([id]) => id).join(","),
+    });
+    void navigate(`/achats/paiements/nouveau?${query.toString()}`);
+  };
   const today = todayInTunis();
 
   const suppliers = useListSuppliers({ status: "all" });
@@ -255,6 +275,19 @@ export function SupplierSettlementsPage() {
                   <ul className="flex flex-col gap-2 border-t border-line pt-2">
                     {open.map((line) => (
                       <li key={line.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.88rem]">
+                        {canEdit && (
+                          <input
+                            type="checkbox"
+                            aria-label={t("admin.supplierSettlements.select", {
+                              amount: formatMoney(line.amount),
+                              number: row.field_purchase_number ?? row.number,
+                            })}
+                            checked={Boolean(selected[line.id])}
+                            disabled={chosenSupplier !== undefined && chosenSupplier !== row.supplier.id}
+                            onChange={() => toggle(row, line)}
+                            className="size-4 accent-coral"
+                          />
+                        )}
                         <span className="num font-semibold">{formatMoney(line.amount)}</span>
                         <span>{t(`admin.supplierPayments.method.${line.method}`)}</span>
                         {line.reference && <span className="num text-ink-2">{line.reference}</span>}
@@ -299,6 +332,26 @@ export function SupplierSettlementsPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {chosen.length > 0 && (
+        <div
+          className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-3 shadow-md"
+          aria-live="polite"
+        >
+          <span className="font-semibold">
+            {t("admin.supplierSettlements.selection", {
+              count: chosen.length,
+              amount: formatMoney(sum(chosen.map(([, line]) => line.amount))),
+            })}
+          </span>
+          <Button variant="ghost" className="ms-auto" onClick={() => setSelected({})}>
+            {t("admin.supplierSettlements.clearSelection")}
+          </Button>
+          <Button variant="primary" onClick={paySelected}>
+            {t("admin.supplierSettlements.paySelection")}
+          </Button>
         </div>
       )}
 

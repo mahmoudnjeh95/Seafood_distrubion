@@ -4,6 +4,7 @@ import {
   type SupplierPaymentWrite,
   useListBanks,
   useListSupplierInvoices,
+  useListSupplierSettlements,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -102,6 +103,46 @@ export function SupplierPaymentFormPage() {
   const [invoiceErrors, setInvoiceErrors] = useState<Record<number, string>>({});
   const [confirming, setConfirming] = useState<SupplierPaymentWrite | null>(null);
 
+  // From "Règlements fournisseurs" with several plan lines ticked (`?fournisseur=3&lignes=4,7`, D-215): one règlement
+  // pays them all, a line of means per plan line, each amount on its invoice.
+  const planLineIds = useMemo(
+    () =>
+      (params.get("lignes") ?? "")
+        .split(",")
+        .map((part) => idFrom(part))
+        .filter((value): value is number => value !== null),
+    [params],
+  );
+  const plans = useListSupplierSettlements(
+    { supplier: Number(supplier) },
+    { query: { enabled: planLineIds.length > 0 && supplier !== "" } },
+  );
+  // What the ticked plan lines bring, shown until the person types (like the invoice they came from).
+  const fromPlans = useMemo(() => {
+    const picked = (plans.data?.rows ?? []).flatMap((row) =>
+      row.plan_lines
+        .filter((line) => planLineIds.includes(line.id) && line.status === "open")
+        .map((line) => ({ row, line })),
+    );
+    if (picked.length === 0) return null;
+    const byInvoice: Record<number, string[]> = {};
+    for (const { row, line } of picked) (byInvoice[row.invoice_id] ??= []).push(line.amount);
+    return {
+      ids: picked.map(({ line }) => line.id),
+      lines: picked.map(({ line }) => ({
+        ...newLine<PaymentMethodEnum>(line.method, asTyped(line.amount)),
+        number: line.reference,
+        reference: line.reference,
+        dueOn: line.cash_on ?? "",
+      })),
+      allocations: Object.fromEntries(
+        Object.entries(byInvoice).map(([invoice, amounts]) => [invoice, asTyped(sum(amounts))]),
+      ),
+    };
+  }, [plans.data, planLineIds]);
+  const [paidPlanLines, setPaidPlanLines] = useState<number[]>([]);
+  const planPreset = touched ? null : fromPlans;
+
   const open = useListSupplierInvoices(
     { supplier: Number(supplier), status: "open", limit: 200 },
     { query: { enabled: supplier !== "" } },
@@ -109,11 +150,16 @@ export function SupplierPaymentFormPage() {
   const invoices = useMemo(() => byDueDate(open.data?.results ?? []), [open.data]);
   const preset = touched ? undefined : invoices.find((invoice) => invoice.id === fromInvoice);
   // The invoice the person came from fills the first line's amount, once, until they type.
-  const shownLines: Line[] =
-    preset && lines.length === 1 && lines[0] && lines[0].amount === ""
+  const shownLines: Line[] = planPreset
+    ? planPreset.lines
+    : preset && lines.length === 1 && lines[0] && lines[0].amount === ""
       ? [{ ...lines[0], amount: asTyped(preset.outstanding) }]
       : lines;
-  const shownAllocations: Allocations = preset ? { [preset.id]: asTyped(preset.outstanding) } : allocations;
+  const shownAllocations: Allocations = planPreset
+    ? planPreset.allocations
+    : preset
+      ? { [preset.id]: asTyped(preset.outstanding) }
+      : allocations;
 
   const total = linesTotal(shownLines);
   const readable = allocationPayload(invoices, shownAllocations) ?? [];
@@ -159,6 +205,7 @@ export function SupplierPaymentFormPage() {
     // Keep what the preset showed, so typing changes it rather than starting from nothing.
     setLines(shownLines);
     setAllocations(shownAllocations);
+    if (planPreset) setPaidPlanLines(planPreset.ids);
     setTouched(true);
   }
 
@@ -183,10 +230,12 @@ export function SupplierPaymentFormPage() {
       notes: notes.trim(),
       allocations: payload,
       plan_line: planAmount ? planLine : null,
+      plan_lines: planPreset ? planPreset.ids : paidPlanLines,
     });
   }
 
   const id = (name: string) => `${formId}-${name}`;
+  const planLinesError = Object.entries(errors).find(([key]) => key.startsWith("plan_lines."))?.[1];
   const supplierName = (suppliers.data ?? []).find((one) => String(one.id) === supplier)?.name ?? "";
 
   return (
@@ -307,9 +356,9 @@ export function SupplierPaymentFormPage() {
           </Field>
         </Card>
 
-        {(errors.detail ?? errors.plan_line) && (
+        {(errors.detail ?? errors.plan_line ?? planLinesError) && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">
-            {errors.detail ?? errors.plan_line}
+            {errors.detail ?? errors.plan_line ?? planLinesError}
           </p>
         )}
 

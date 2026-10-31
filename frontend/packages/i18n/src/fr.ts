@@ -2264,6 +2264,11 @@ export const fr = {
     },
     // ---- Supplier settlements: paid, planned, to define (P3-T16b, D-192) ----
     supplierSettlements: {
+      select: "Choisir {{amount}} de {{number}} pour un paiement groupé",
+      selection_one: "{{count}} ligne choisie · {{amount}}",
+      selection_other: "{{count}} lignes choisies · {{amount}}",
+      clearSelection: "Tout décocher",
+      paySelection: "Payer la sélection",
       title: "Règlements fournisseurs",
       intro:
         "Pour chaque achat : ce qui est payé, ce qui est planifié et ce qui reste à définir. Un plan n'est pas un paiement : la dette ne change qu'à l'enregistrement du paiement.",

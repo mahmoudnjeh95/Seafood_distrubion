@@ -1,0 +1,40 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% block heading %}Paiement fournisseur{% endblock %}
+{% block banner %}{% if payment.voided_at %}<p class="fa-cancelled"><span class="banner">ANNULÉ</span></p>{% endif %}{% endblock %}
+{% block body %}
+<div class="parties">
+  <div>
+    <h2>Paiement</h2>
+    <p>{{ method_label }}{% if payment.reference %} · {{ payment.reference }}{% endif %}</p>
+    {% if payment.voided_at %}<p class="small muted">Annulé : {{ payment.void_reason }}</p>{% endif %}
+  </div>
+</div>
+
+<h2>Moyens de paiement</h2>
+<table class="lines">
+  <thead><tr><th>Moyen</th><th>Numéro</th><th>Banque</th><th>Échéance</th><th class="r">Montant</th></tr></thead>
+  <tbody>
+    {% for line in lines %}
+    <tr><td>{{ line.method_label }}</td><td class="num">{{ line.number }}</td><td>{{ line.bank }}</td><td class="num">{% if line.due_on %}{{ line.due_on|date:"d/m/Y" }}{% endif %}</td><td class="r num">{{ line.amount|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="totals num" style="margin-bottom: 6mm">
+  <div class="grand"><span>Montant payé</span><span>{{ payment.amount|money }} DT</span></div>
+</div>
+
+{% if allocations %}
+<h2>Factures réglées</h2>
+<table class="lines">
+  <thead><tr><th>Facture</th><th>Réf. fournisseur</th><th>Date</th><th class="r">Montant</th></tr></thead>
+  <tbody>
+    {% for row in allocations %}
+    <tr><td class="num">{{ row.number }}</td><td class="num">{{ row.supplier_reference }}</td><td class="num">{{ row.invoice_date|date:"d/m/Y" }}</td><td class="r num">{{ row.amount|money }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% if unallocated %}<p class="muted">Non affecté (avance chez le fournisseur) : <span class="num">{{ unallocated|money }} DT</span></p>{% endif %}
+{% if payment.notes %}<div class="note"><h2>Remarques</h2><p>{{ payment.notes|linebreaksbr }}</p></div>{% endif %}
+{% endblock %}
