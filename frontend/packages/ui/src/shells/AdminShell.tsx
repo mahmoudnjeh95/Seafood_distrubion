@@ -1,5 +1,5 @@
 import { useTranslation } from "@frutti/i18n";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 
 import { Button } from "../components/button";
@@ -7,6 +7,7 @@ import { Pill } from "../components/pill";
 import type { IconName } from "../icon-names";
 import { Icon } from "../icons";
 import { Brand } from "./Brand";
+import { LogoutDialog } from "./LogoutDialog";
 import { ThemeToggle } from "./ThemeToggle";
 
 export interface AdminNavGroup {
@@ -66,6 +67,7 @@ function BackLink({ nav }: { nav: AdminNavGroup[] }) {
 export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: Props) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const [leaving, setLeaving] = useState(false);
   // The menu entry that owns this page: the longest entry the path is under, so "Règlements fournisseurs"
   // (/achats/reglements) lights up alone and not "Achats" (/achats) too.
   const path = pathname.replace(/\/+$/, "") || "/";
@@ -107,7 +109,7 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
             size="icon"
             aria-label={t("common.logout")}
             title={t("common.logout")}
-            onClick={onLogout}
+            onClick={() => setLeaving(true)}
           >
             <Icon name="return" />
           </Button>
@@ -153,6 +155,7 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
           {children}
         </main>
       </div>
+      <LogoutDialog open={leaving} onOpenChange={setLeaving} onLogout={onLogout} />
     </div>
   );
 }

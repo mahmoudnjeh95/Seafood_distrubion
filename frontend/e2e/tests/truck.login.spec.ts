@@ -18,6 +18,7 @@ test("the driver logs in to the driver app and logs out", async ({ page }) => {
   await expect(page.getByRole("navigation", { name: "Navigation camion" })).toBeVisible();
 
   await page.getByRole("button", { name: "Se déconnecter" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Se déconnecter" }).click();
   await expect(page.getByRole("form", { name: "Connexion" })).toBeVisible();
 });
 

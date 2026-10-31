@@ -7,6 +7,8 @@ export const fr = {
     cancel: "Annuler",
     confirm: "Confirmer",
     confirmTitle: "Confirmer ?",
+    logoutTitle: "Se déconnecter ?",
+    logoutBody: "Vous devrez saisir à nouveau votre identifiant et votre mot de passe.",
     back: "Retour",
     comingSoon: "Bientôt disponible",
     comingSoonBody: "Cet écran sera construit dans une prochaine étape du projet.",
@@ -4590,6 +4592,9 @@ export const fr = {
       waiting_other: "{{count}} envois attendent le réseau.",
       refused: "« {{what}} » refusé par le serveur : {{reason}}. Le bureau est prévenu.",
       understood: "Compris",
+      logoutWarning_one: "{{count}} envoi n'est pas encore parti. Se déconnecter maintenant l'efface du téléphone.",
+      logoutWarning_other:
+        "{{count}} envois ne sont pas encore partis. Se déconnecter maintenant les efface du téléphone.",
     },
     // A sale kept on the phone is dated when it was made (D-133).
     lateSale: {
