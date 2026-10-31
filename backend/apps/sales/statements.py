@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.core.models import Organization
 
 from . import receivables
-from .models import CustomerPayment, SaleLine, SalePaymentMethod, SaleStatus
+from .models import CustomerPayment, CustomerPaymentMethod, SaleLine, SaleStatus
 from .models import Sale as SaleModel
 
 ZERO = Decimal("0.000")
@@ -82,7 +82,8 @@ class CustomerStatement:
 
 
 def _method_label(method: str) -> str:
-    return str(SalePaymentMethod(method).label) if method in SalePaymentMethod.values else method
+    # The règlement's methods hold every method of a sale paid on the spot.
+    return str(CustomerPaymentMethod(method).label) if method in CustomerPaymentMethod.values else method
 
 
 def _in_period(day: dt.date, date_from: dt.date | None, date_to: dt.date) -> bool:

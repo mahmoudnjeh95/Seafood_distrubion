@@ -908,18 +908,40 @@ def certificate_path(certificate: "WithholdingCertificate", filename: str) -> st
     return f"withholding/{certificate.organization_id}/{uuid.uuid4().hex}{extension}"
 
 
-class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
-    """Money a customer paid after the sale (cash, cheque, transfer, card): `RG-0001`... per organization.
+class CustomerPaymentMethod(models.TextChoices):
+    """How a customer settles after the sale (D-197): the sale's methods, the traite, and `mixed` for a
+    règlement whose lines use several of them."""
 
-    It is allocated to one or more sales (`PaymentAllocation`); what is not allocated stays as the customer's
-    credit and lowers their balance all the same. Never edited or deleted: a mistake is voided (reason, who,
-    when) and typed again. What a customer paid on the spot, at the sale, stays on the sale (`amount_paid`).
+    CASH = "cash", _("Espèces")
+    CHEQUE = "cheque", _("Chèque")
+    # A bill of exchange, common between Tunisian businesses.
+    BILL = "bill", _("Traite")
+    TRANSFER = "transfer", _("Virement")
+    CARD = "card", _("Carte bancaire")
+    # Only on the règlement itself, never on a line.
+    MIXED = "mixed", _("Plusieurs moyens")
+
+
+# The methods of a line that hand over an effet (a cheque or a traite) followed by the treasury.
+INSTRUMENT_METHODS = frozenset({CustomerPaymentMethod.CHEQUE, CustomerPaymentMethod.BILL})
+
+
+class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
+    """A règlement: money a customer paid after the sale, `RG-0001`... per organization.
+
+    It holds one or more lines (`CustomerPaymentLine`: some cash, cheques, traites...; D-197) whose sum is
+    `amount`, and is allocated to one or more sales (`PaymentAllocation`); what is not allocated stays as the
+    customer's credit and lowers their balance all the same. Never edited or deleted: a mistake is voided
+    (reason, who, when) and typed again. What a customer paid on the spot, at the sale, stays on the sale
+    (`amount_paid`).
     """
 
     number = models.CharField(max_length=20)
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="payments")
+    # The sum of the lines.
     amount = MoneyField()
-    method = models.CharField(max_length=20, choices=SalePaymentMethod.choices)
+    # The lines' method, or `mixed` when they differ.
+    method = models.CharField(max_length=20, choices=CustomerPaymentMethod.choices)
     # The day the money was received (not in the future).
     received_on = models.DateField()
     # When the driver's phone says it was received (D-133); empty for a payment entered at the office.
@@ -955,6 +977,33 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+class CustomerPaymentLine(OrganizationScopedModel):
+    """One means of payment inside a règlement: some cash, a cheque, a traite, a transfer, a card (D-197).
+
+    A cheque or a traite is an effet of the treasury (`instrument`), followed there until the bank pays it.
+    Written once with its règlement, never changed.
+    """
+
+    payment = models.ForeignKey(CustomerPayment, on_delete=models.PROTECT, related_name="lines")
+    method = models.CharField(max_length=20, choices=CustomerPaymentMethod.choices)
+    amount = MoneyField()
+    # A transfer or card reference; for an effet its number is on the instrument.
+    reference = models.CharField(max_length=50, blank=True)
+    instrument = models.OneToOneField(
+        "treasury.Instrument", null=True, blank=True, on_delete=models.PROTECT, related_name="customer_line"
+    )
+
+    class Meta:
+        ordering = ["payment", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_payment_line_amount_positive"),
+            models.CheckConstraint(condition=~models.Q(method="mixed"), name="customer_payment_line_method_not_mixed"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.payment} · {self.method} · {self.amount}"
 
 
 class PaymentAllocation(OrganizationScopedModel):
