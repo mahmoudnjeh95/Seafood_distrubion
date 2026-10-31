@@ -1349,8 +1349,6 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     raise ValidationError({"credit_limit": message})
 
 
-
-
 @transaction.atomic
 def create_opening_receivable(
     *,
