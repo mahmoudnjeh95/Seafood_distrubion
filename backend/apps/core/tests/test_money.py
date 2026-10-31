@@ -7,6 +7,7 @@ from apps.core.money import (
     QuantityField,
     checked_amount,
     checked_quantity,
+    display_money,
     line_total,
     money,
     quantity,
@@ -124,3 +125,17 @@ def test_fields_default_to_three_decimal_places():
 
     assert (money_field.max_digits, money_field.decimal_places) == (14, 3)
     assert (quantity_field.max_digits, quantity_field.decimal_places) == (12, 3)
+
+
+@pytest.mark.parametrize(
+    ("value", "shown"),
+    [
+        ("0", "0,000"),
+        ("12.5", "12,500"),
+        ("1250", "1 250,000"),
+        ("1234567.891", "1 234 567,891"),
+        ("-1250.5", "-1 250,500"),
+    ],
+)
+def test_display_money_groups_thousands_with_three_decimals(value, shown):
+    assert display_money(value) == shown

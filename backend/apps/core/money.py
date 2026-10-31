@@ -85,6 +85,24 @@ def line_total(qty: Number, unit_price: Number) -> Decimal:
     return money(_to_decimal(qty) * _to_decimal(unit_price))
 
 
+# Between thousands in an amount, as on the printed documents: a narrow no-break space.
+THIN_SPACE = " "
+
+
+def display_money(value: Number) -> str:
+    """An amount as people read it in a message: 1 250,000 (a space between thousands, a comma, 3 decimals; D-199).
+    The printed documents use the same format (`documents.templatetags.pdf_format.money`)."""
+    number = money(value)
+    sign = "-" if number < 0 else ""
+    whole, _dot, fraction = f"{abs(number):f}".partition(".")
+    groups: list[str] = []
+    while len(whole) > 3:
+        groups.insert(0, whole[-3:])
+        whole = whole[:-3]
+    groups.insert(0, whole)
+    return f"{sign}{THIN_SPACE.join(groups)},{fraction}"
+
+
 class MoneyField(models.DecimalField[Decimal, Decimal]):
     """An amount in dinars: up to 99 999 999 999.999."""
 

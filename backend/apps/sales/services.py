@@ -21,7 +21,7 @@ from apps.core import audit
 from apps.core.clock import CLOCK_MARGIN
 from apps.core.images import reencoded_photo
 from apps.core.models import Membership, Organization, Role, User
-from apps.core.money import Number, checked_amount, checked_quantity, line_total, money
+from apps.core.money import Number, checked_amount, checked_quantity, display_money, line_total, money
 from apps.inventory import services as inventory
 from apps.partners import services as partners
 
@@ -658,7 +658,9 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
             errors["amount_paid"] = _("Indiquez un montant en DT, au millime près.")
             paid = Decimal("0.000")
         if paid > total:
-            errors["amount_paid"] = _("Le montant payé dépasse le total de la vente (%(total)s DT).") % {"total": total}
+            errors["amount_paid"] = _("Le montant payé dépasse le total de la vente (%(total)s DT).") % {
+                "total": display_money(total)
+            }
     if paid > 0 and not method:
         errors["payment_method"] = _("Indiquez le mode de paiement.")
     elif method and method not in SalePaymentMethod.values:
@@ -1274,9 +1276,9 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
         "pour une limite de %(limit)s DT."
     ) % {
         "name": customer.name,
-        "balance": max(balance, Decimal("0.000")),
-        "due": due,
-        "limit": customer.credit_limit,
+        "balance": display_money(max(balance, Decimal("0.000"))),
+        "due": display_money(due),
+        "limit": display_money(customer.credit_limit),
     }
     if actor is not None and _is_driver(actor, sale.organization):
         # A driver never reads what a customer owes (D-197): the refusal says what to do, not the balance.
@@ -2419,7 +2421,7 @@ def _partial_credit_parts(
         if excl > excl_left:
             errors[line_error_key(index, "amount")] = _(
                 "Il reste %(amount)s DT hors taxe à rendre sur cette ligne."
-            ) % {"amount": excl_left}
+            ) % {"amount": display_money(excl_left)}
             continue
         if excl <= 0:
             errors[line_error_key(index, "amount")] = _("Indiquez les kilos ou le montant hors taxe à rendre.")
@@ -2724,14 +2726,14 @@ def _allocate(
             elif taken.get(sale.pk, Decimal("0.000")) + amount > open_row.outstanding:
                 errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {
                     "number": open_row.number,
-                    "due": open_row.outstanding,
+                    "due": display_money(open_row.outstanding),
                 }
             else:
                 taken[sale.pk] = taken.get(sale.pk, Decimal("0.000")) + amount
                 plan.append((sale.pk, amount))
         if not errors and sum((amount for _id, amount in plan), Decimal("0.000")) > available:
             errors["allocations"] = _("Les montants affectés dépassent le paiement (%(available)s DT disponibles).") % {
-                "available": available
+                "available": display_money(available)
             }
     if errors:
         raise ValidationError(errors)
@@ -2930,7 +2932,7 @@ def record_withholding_certificate(
             errors["amount"] = _("Le montant doit être supérieur à zéro.")
         elif withheld > invoice.total_incl_tax:
             errors["amount"] = _("La retenue dépasse le total de la facture (%(total)s DT).") % {
-                "total": invoice.total_incl_tax
+                "total": display_money(invoice.total_incl_tax)
             }
     except (ValueError, TypeError):
         withheld = Decimal("0.000")

@@ -16,7 +16,7 @@ from apps.boxes import services as box_services
 from apps.core import audit
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
-from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, line_total
+from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 from apps.partnerships import services as partnerships
@@ -873,7 +873,7 @@ def _checked_allocations(
         remaining = invoice.total - _paid_on(invoice)
         if amount > remaining:
             errors[amount_key] = _("Il ne reste que %(remaining)s DT à payer sur cette facture.") % {
-                "remaining": remaining
+                "remaining": display_money(remaining)
             }
             continue
         checked.append((invoice, amount))
@@ -882,8 +882,8 @@ def _checked_allocations(
         errors["allocations"] = _(
             "Les affectations (%(allocated)s DT) dépassent le montant disponible (%(available)s DT)."
         ) % {
-            "allocated": allocated,
-            "available": available,
+            "allocated": display_money(allocated),
+            "available": display_money(available),
         }
     return checked
 
@@ -1134,8 +1134,8 @@ def set_payment_plan(
         planned = sum((row["amount"] for row in checked), ZERO)
         if planned > remaining:
             errors["lines"] = _("Les lignes (%(planned)s DT) dépassent ce qu'il reste à payer (%(remaining)s DT).") % {
-                "planned": planned,
-                "remaining": remaining,
+                "planned": display_money(planned),
+                "remaining": display_money(remaining),
             }
     if errors:
         raise ValidationError(errors)
@@ -1359,7 +1359,7 @@ def _checked_field_purchase(organization: Organization, fields: FieldPurchaseFie
         if given > ceiling:
             errors[payment_error_key(len(checked_payments) - 1, "amount")] = _(
                 "L'argent donné (%(given)s DT) dépasse le montant de l'achat (%(total)s DT) : vérifiez les montants."
-            ) % {"given": given, "total": ceiling}
+            ) % {"given": display_money(given), "total": display_money(ceiling)}
 
     boxes = box_services.checked_box_counts(fields.get("boxes"), errors, prefix="boxes")
     if errors:
@@ -1794,7 +1794,7 @@ def receive_and_invoice(
                     "L'argent donné (%(given)s DT) dépasse le montant de la réception (%(total)s DT) : "
                     "vérifiez les montants."
                 )
-                % {"given": given, "total": invoice.total}
+                % {"given": display_money(given), "total": display_money(invoice.total)}
             }
         )
     for payment in checked_payments:
