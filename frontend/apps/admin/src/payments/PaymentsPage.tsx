@@ -202,7 +202,13 @@ export function PaymentsPage() {
 
   return (
     <>
-      <PageHeader eyebrow={t("admin.groups.sales")} title={t("admin.payments.title")} />
+      <PageHeader eyebrow={t("admin.groups.sales")} title={t("admin.payments.title")}>
+        {canWrite && (
+          <Button variant="primary" asChild>
+            <Link to="/reglements/nouveau">{t("admin.treasury.form.new")}</Link>
+          </Button>
+        )}
+      </PageHeader>
       <p className="text-ink-2">{t("admin.payments.intro")}</p>
       <AgeingCard canWrite={canWrite} />
       <WithholdingCard />

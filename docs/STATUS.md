@@ -1,15 +1,14 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T01 merged, D-197; P9-T02 supplier règlement lines built, D-208)_
+_Last updated: 2026-10-31 (P9-T02 merged, D-208; P9-T03a règlement forms and banks built, D-210)_
 
 ## Where we are
 
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
-  **P9-T01 merged (#223):** app `treasury` (banks, effets with status history), customer règlement with several lines,
-  allocation by invoice, void cancels effets still in portfolio. **P9-T02 on branch `supplier-payment-lines`** (awaits
-  CI): `SupplierPaymentLine`, method `mixed`, our cheques/traites are effets `issued`, `POST /supplier-payments` with
-  `lines`, `auto_allocate` (due first) and `plan_lines`; the older single fields still make one line (effet "à
-  compléter"); "Chèques et traites à venir" reads the effets; data migration `purchasing/0013`. No screen change yet.
+  **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app; T02 (#231, D-208) supplier règlement
+  lines, our effets issued. **P9-T03a on branch `payment-screens`** (awaits CI, D-210): "Nouveau règlement client"
+  page `/reglements/nouveau` (lines, "Répartir", open invoices/BL, encours, live totals, confirm), the supplier form
+  on the same lines editor, Banques page `/tresorerie/banques`. No backend change.
 - **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
 - **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
   customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
@@ -37,12 +36,11 @@ _Last updated: 2026-10-31 (P9-T01 merged, D-197; P9-T02 supplier règlement line
    validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
    → invoice without VAT refused. **Owner action for D-206:** put the company SMTP account in the server `.env`
    (`EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) and redeploy.
-1. P9-T02: PR from `supplier-payment-lines`, wait for green CI; before merging fetch and rebase, renumber D-208 and
-   `purchasing/0013_payment_lines` if taken. On staging: Règlements fournisseurs › a cheque with a cashing day shows
-   in "Chèques et traites à venir", as before the migration. Staging check of T01 still open:
-   a customer "Enregistrer un règlement" → Chèque, BIAT, échéance; the same cheque again is refused.
-2. **P9-T03** (new branch from `main`): the full "Nouveau règlement" page (clients and fournisseurs), list and detail
-   pages, Paramètres › Banques, and the supplier règlement void (D-208 note) — see the phase file.
+1. P9-T03a: PR from `payment-screens`, wait for green CI (e2e: supplier payment now confirms), fetch and rebase,
+   renumber D-210 if taken, merge. On staging: Règlements clients › Nouveau règlement, a customer, 500 cash +
+   "Répartir" 3 traites; Affecter automatiquement; confirm. Finance › Banques: add, rename, take off.
+2. **P9-T03b** (new branch from `main`): list pages with filters and totals, detail page with each effet's state,
+   supplier règlement void (every supplier balance reads only those not voided), several plan lines paid at once.
 3. Then T04 portfolio, T05 accounts, T06 échéancier, T07 reports.
 
 ## Open owner decisions

@@ -37,6 +37,7 @@ import { MonthClosingPage } from "./closing/MonthClosingPage";
 import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
+import { BanksPage } from "./settings/BanksPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { UsersPage } from "./settings/UsersPage";
 import { BoxesPage } from "./boxes/BoxesPage";
@@ -67,6 +68,7 @@ import { CounterSalePage } from "./sales/CounterSalePage";
 import { SaleDetailPage } from "./sales/SaleDetailPage";
 import { SaleEditPage, SaleFormPage } from "./sales/SaleFormPage";
 import { SalesPage } from "./sales/SalesPage";
+import { CustomerPaymentFormPage } from "./payments/CustomerPaymentFormPage";
 import { PaymentsPage } from "./payments/PaymentsPage";
 import { CustomerDetailPage } from "./customers/CustomerDetailPage";
 import { CustomersPage } from "./customers/CustomersPage";
@@ -133,6 +135,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
+        { to: "/tresorerie/banques", label: t("admin.nav.banks"), icon: "wallet" },
       ],
     },
     {
@@ -267,6 +270,9 @@ function AppRoutes() {
         <Route path="/ventes/:saleId/modifier" element={<SaleEditPage />} />
         {/* Invoices and finance settings (P2-T05) */}
         <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
+        {/* Règlements and treasury (P9-T03, D-197) */}
+        <Route path="/reglements/nouveau" element={<CustomerPaymentFormPage />} />
+        <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />

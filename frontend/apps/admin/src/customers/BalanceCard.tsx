@@ -52,9 +52,14 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
             </div>
           </dl>
           {canCollect && (
-            <Button variant="primary" onClick={() => setPaying(true)}>
-              {t("admin.payments.balance.collect")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link to={`/reglements/nouveau?client=${customer.id}`}>{t("admin.treasury.form.detailed")}</Link>
+              </Button>
+              <Button variant="primary" onClick={() => setPaying(true)}>
+                {t("admin.payments.balance.collect")}
+              </Button>
+            </div>
           )}
         </div>
       </Card>

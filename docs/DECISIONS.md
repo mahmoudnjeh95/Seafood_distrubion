@@ -2986,3 +2986,21 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`frutti-ci-deploy-smartfeesh`, `restrict`) and secrets, so each such push tests and deploys again.
 - Push only once the personal repo's deploy of that commit is done: two builds at once overload the shared server
   (#216). See `docs/runbook.md` › Deploy.
+
+**D-210 · The "Nouveau règlement" pages: lines, "Répartir", live totals and a last look (Phase 9, P9-T03a)** · accepted (provisional parts marked) · 2026-10-31
+- Customer règlements get a full page, `/reglements/nouveau` ("Règlement détaillé" on the customer card, "Nouveau
+  règlement" on Règlements clients). The quick window "Enregistrer un règlement" stays for one means.
+- One lines editor serves both forms: a line per means; cheque and traite ask number, bank (Paramètres › Banques),
+  échéance, and for a customer the drawer (empty: the customer). "Répartir" makes N cheques or traites of equal
+  amounts every 1 to 12 months from a first échéance, numbers counted on from the first ("004401" → "004402"); the
+  millimes that do not divide go on the last one.
+- What a customer règlement can settle: each open invoice as one row (the server spreads it over its BLs, oldest
+  first) and each BL on no invoice. "Affecter automatiquement" fills the one due first first; nothing typed keeps it
+  all as the customer's credit (the confirm window shows it).
+- The customer règlement page shows the encours next to the balance: solde + effets received still in portfolio or at the
+  bank, red when over the credit limit (Q29's recommendation, provisional until the owner answers; the server's
+  credit check still reads the balance only).
+- Every règlement goes through a confirm window (D-179) with the total, the affecté, what is left, and one line per
+  means. The supplier form moved to the same editor: its single "Montant / Mode" fields are gone.
+- Banques: a page under Finance (`/tresorerie/banques`), where T04 adds the Portefeuille. Owner and manager write.
+- The list and detail pages, the supplier void and paying several plan lines at once moved to P9-T03b.

@@ -123,6 +123,19 @@ function UsersCard() {
   );
 }
 
+function BanksCard() {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardTitle>{t("admin.treasury.banks.title")}</CardTitle>
+      <p className="mb-4 text-[0.85rem] text-ink-2">{t("admin.treasury.banks.settingsHint")}</p>
+      <Link to="/tresorerie/banques" className="text-[0.9rem] font-semibold text-sea hover:underline">
+        {t("admin.treasury.banks.open")}
+      </Link>
+    </Card>
+  );
+}
+
 /** "Paramètres": the company's logo and legal identity, and the accounts that log in. Owner only. */
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -135,6 +148,7 @@ export function SettingsPage() {
         <LogoCard session={session} />
         <LegalCard />
         <UsersCard />
+        <BanksCard />
       </div>
     </>
   );

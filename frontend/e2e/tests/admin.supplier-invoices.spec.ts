@@ -83,12 +83,16 @@ test("the owner invoices a receipt, posts it and pays it in full", async ({ page
   await page.getByRole("button", { name: "Enregistrer un paiement" }).click();
   await expect(page.getByRole("heading", { name: "Nouveau paiement fournisseur", level: 1 })).toBeVisible();
   // Coming from the invoice, the payment is its outstanding amount, all of it on that invoice.
-  await expect(page.getByLabel("Montant (DT)")).toHaveValue("200,000");
+  await expect(page.getByLabel("Montant (DT), ligne 1")).toHaveValue("200,000");
   // Other tests leave invoices of this supplier to pay (receipts owed at once, D-159): this one is checked by number.
   await expect(page.getByRole("textbox", { name: `Montant affecté à ${invoice}`, exact: true })).toHaveValue("200,000");
-  await page.getByRole("combobox", { name: "Mode de paiement" }).click();
+  await page.getByRole("combobox", { name: "Mode, ligne 1" }).click();
   await page.getByRole("option", { name: "Espèces" }).click();
   await page.getByRole("button", { name: "Enregistrer le paiement" }).click();
+  // The last look before money is recorded (D-179): the total and where it goes.
+  const confirm = page.getByRole("dialog");
+  await expect(confirm).toContainText(/Total payé\s*200,000\sDT/);
+  await confirm.getByRole("button", { name: "Confirmer" }).click();
 
   await expect(page.getByText(/Paiement RF-\d{4}-\d+ enregistré/)).toBeVisible();
   await expect(page.getByRole("heading", { name: /^FF-\d+$/, level: 1 })).toBeVisible();
@@ -102,7 +106,7 @@ test("a payment beyond what an invoice still owes is refused on its row", async 
 
   await page.getByRole("combobox", { name: "Fournisseur" }).click();
   await page.getByRole("option", { name: "Mareyeur Port de Sfax" }).click();
-  await page.getByLabel("Montant (DT)").fill("5000");
+  await page.getByLabel("Montant (DT), ligne 1").fill("5000");
   const demoRow = page.getByRole("row", { name: /MPS-F-2026-118/ });
   await demoRow.getByRole("textbox").fill("5000");
 
