@@ -185,7 +185,7 @@ test("an accepted quote is converted into a sale and the two link to each other"
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
-  await page.getByRole("button", { name: "Accepté par le client" }).click();
+  await page.getByRole("button", { name: "Marquer comme accepté" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
@@ -215,7 +215,7 @@ test("a quote is delivered in two BL: the first one takes part of it", async ({ 
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
-  await page.getByRole("button", { name: "Accepté par le client" }).click();
+  await page.getByRole("button", { name: "Marquer comme accepté" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
