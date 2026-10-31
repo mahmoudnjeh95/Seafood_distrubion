@@ -80,6 +80,7 @@ export * from './customerPaymentDetail';
 export * from './customerPaymentWrite';
 export * from './customerWrite';
 export * from './dashboard';
+export * from './dayClosingApprove';
 export * from './dayClosingDetail';
 export * from './dayClosingRow';
 export * from './dayClosingState';

@@ -12,7 +12,14 @@ import {
   useRequestDayJustification,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatQuantity,
+  parseDecimalInput,
+  useTranslation,
+} from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -35,6 +42,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
 
+import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { DaysOverview } from "./DaysOverview";
 
@@ -173,6 +181,10 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const closing = useGetDayClosing(id);
   const [reason, setReason] = useState("");
   const [asking, setAsking] = useState(false);
+  // The cash the office counts when the driver hands it over (D-204), and why it differs, if it does.
+  const [officeCash, setOfficeCash] = useState("");
+  const [officePurchase, setOfficePurchase] = useState("");
+  const [gapNote, setGapNote] = useState("");
   const refresh = () => {
     void queryClient.invalidateQueries();
   };
@@ -183,7 +195,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
         refresh();
         onDone();
       },
-      onError: () => toast.error(t("admin.dayClosings.error")),
+      onError: (failure) => toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.dayClosings.error")),
     },
   });
   const ask = useRequestDayJustification({
@@ -198,6 +210,17 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   });
   const data = closing.data;
   const handedOver = data ? handedOverOf(data.summary) : null;
+  const hasPurchases =
+    data !== undefined && (data.summary.purchases_count > 0 || Number(data.summary.purchase_float) !== 0);
+  const officeCashValue = parseDecimalInput(officeCash.trim(), 3);
+  const officePurchaseValue = hasPurchases ? parseDecimalInput(officePurchase.trim() || "0", 3) : null;
+  // Office count - driver count, in millimes so no float adds up money.
+  const gapOf = (office: string | null, driver: string | undefined) =>
+    office === null || driver === undefined ? 0 : Math.round(Number(office) * 1000) - Math.round(Number(driver) * 1000);
+  const officeGap = gapOf(officeCashValue, data?.counted_cash);
+  const officePurchaseGap = gapOf(officePurchaseValue, data?.counted_purchase_cash);
+  const gapToExplain = officeGap !== 0 || officePurchaseGap !== 0;
+  const readyToApprove = officeCashValue !== null && (!gapToExplain || gapNote.trim() !== "");
   return (
     <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none">
       <DialogTitle>{data ? `${data.truck_name} · ${formatDate(data.date)}` : t("common.loading")}</DialogTitle>
@@ -220,6 +243,12 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <Line label={t("admin.dayClosings.expected")} value={formatMoney(data.expected_cash)} />
             <Line label={t("admin.dayClosings.counted")} value={formatMoney(data.counted_cash)} />
             <Line label={t("admin.dayClosings.difference")} value={signed(data.difference)} />
+            {data.office_counted_cash !== null && (
+              <>
+                <Line label={t("admin.dayClosings.officeCounted")} value={formatMoney(data.office_counted_cash)} />
+                <Line label={t("admin.dayClosings.officeGap")} value={signed(data.office_gap ?? "0")} />
+              </>
+            )}
           </div>
           {/* Purchases at the port and their money, counted apart (D-158); a day without them shows nothing. */}
           {(data.summary.purchases_count > 0 || Number(data.summary.purchase_float) !== 0) && (
@@ -296,6 +325,58 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               {data.review_note}
             </p>
           )}
+          {canDecide && data.status === "submitted" && !asking && (
+            <fieldset className="flex flex-col gap-2 rounded-card border border-line p-3">
+              <legend className="px-1 font-semibold">{t("admin.dayClosings.officeCount")}</legend>
+              <p className="text-[0.85rem] text-ink-2">{t("admin.dayClosings.officeCountHint")}</p>
+              <div className="flex flex-wrap items-end gap-4">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.officeCash")}</span>
+                  <Input
+                    inputMode="decimal"
+                    className="num max-w-40"
+                    value={officeCash}
+                    onChange={(event) => setOfficeCash(event.target.value)}
+                  />
+                </label>
+                {hasPurchases && (
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.officePurchase")}</span>
+                    <Input
+                      inputMode="decimal"
+                      className="num max-w-40"
+                      value={officePurchase}
+                      onChange={(event) => setOfficePurchase(event.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+              {officeCashValue !== null && (
+                <p className={cn("font-semibold", officeGap === 0 ? "text-good" : "text-bad")}>
+                  {t("admin.dayClosings.officeGapLive", {
+                    office: formatMoney(officeCashValue),
+                    driver: formatMoney(data.counted_cash),
+                    gap: signed((officeGap / 1000).toFixed(3)),
+                  })}
+                </p>
+              )}
+              {hasPurchases && officePurchaseValue !== null && officePurchaseGap !== 0 && (
+                <p className="font-semibold text-bad">
+                  {t("admin.dayClosings.officePurchaseGapLive", {
+                    gap: signed((officePurchaseGap / 1000).toFixed(3)),
+                  })}
+                </p>
+              )}
+              {gapToExplain && (
+                <Input
+                  aria-label={t("admin.dayClosings.gapNote")}
+                  placeholder={t("admin.dayClosings.gapNote")}
+                  value={gapNote}
+                  onChange={(event) => setGapNote(event.target.value)}
+                />
+              )}
+            </fieldset>
+          )}
           {canDecide && data.status === "submitted" && asking && (
             <Input
               aria-label={t("admin.dayClosings.reason")}
@@ -322,8 +403,17 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             )}
             <Button
               variant="primary"
-              disabled={approve.isPending || data.changed_since_sent}
-              onClick={() => approve.mutate({ closingId: id })}
+              disabled={approve.isPending || data.changed_since_sent || !readyToApprove}
+              onClick={() =>
+                approve.mutate({
+                  closingId: id,
+                  data: {
+                    office_counted_cash: officeCashValue,
+                    office_counted_purchase_cash: hasPurchases ? officePurchaseValue : null,
+                    note: gapNote.trim(),
+                  },
+                })
+              }
             >
               {t("admin.dayClosings.approve")}
             </Button>

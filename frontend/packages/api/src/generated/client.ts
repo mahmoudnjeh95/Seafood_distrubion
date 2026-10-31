@@ -54,6 +54,7 @@ import type {
   CustomerPaymentWrite,
   CustomerWrite,
   Dashboard,
+  DayClosingApprove,
   DayClosingDetail,
   DayClosingRow,
   DayClosingWrite,
@@ -4060,17 +4061,33 @@ export const getApproveDayClosingUrl = (closingId: number,) => {
 }
 
 /**
- * Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
- * records changed since the send: the driver sends it again first.
+ * Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
+ * the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
+ * the send: the driver sends it again first.
  */
-export const approveDayClosing = async (closingId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+export const approveDayClosing = async (closingId: number,
+    dayClosingApprove?: DayClosingApprove, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
 
-  return apiFetch<DayClosingDetail>(getApproveDayClosingUrl(closingId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayClosingDetail>(getApproveDayClosingUrl(closingId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayClosingApprove)
   }
 );}
 
@@ -4095,9 +4112,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveDayClosing>>, ApproveDayClosingMutationVariables> = (props) => {
-          const {closingId} = props ?? {};
+          const {closingId,data} = props ?? {};
 
-          return  approveDayClosing(closingId,requestOptions)
+          return  approveDayClosing(closingId,data,requestOptions)
         }
 
 
@@ -4108,9 +4125,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ApproveDayClosingMutationResult = NonNullable<Awaited<ReturnType<typeof approveDayClosing>>>
-
+    export type ApproveDayClosingMutationBody = DayClosingApprove | undefined
     export type ApproveDayClosingMutationError = unknown
-    export type ApproveDayClosingMutationVariables = {closingId: number}
+    export type ApproveDayClosingMutationVariables = {closingId: number;data?: DayClosingApprove}
 
     export const useApproveDayClosing = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveDayClosing>>, TError,ApproveDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

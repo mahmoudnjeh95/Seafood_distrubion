@@ -218,8 +218,15 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
         reverse("my-day-closing"), {"counted_cash": "140.000", "note": "Dépense non saisie"}, format="json"
     )
     assert resent.status_code == 201
-    approved = day["office"].post(reverse("day-closing-approve", args=[closing["id"]]))
+    url = reverse("day-closing-approve", args=[closing["id"]])
+    # The office counts 135 DT: a gap with the driver's 140 DT needs a note (D-204).
+    no_note = day["office"].post(url, {"office_counted_cash": "135.000"}, format="json")
+    assert no_note.status_code == 400
+    assert "écart" in no_note.json()["note"][0]
+    approved = day["office"].post(url, {"office_counted_cash": "135.000", "note": "Billet faux"}, format="json")
     assert approved.json()["status"] == "approved"
+    assert (approved.json()["office_counted_cash"], approved.json()["office_gap"]) == ("135.000", "-5.000")
+    assert approved.json()["review_note"] == "Billet faux"
     assert day["api"].post(reverse("my-day-closing"), {"counted_cash": "1"}, format="json").status_code == 400  # locked
     assert day["office"].post(reverse("day-closing-approve", args=[closing["id"]])).status_code == 400
 
