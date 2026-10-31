@@ -210,9 +210,9 @@ def create_receipt(
         for index, values in enumerate(checked_lines):
             product = values["product"]
             if product is not None and product.pk not in order_lines:
-                errors[line_error_key(index, "product")] = _("Ce produit n'est pas sur la commande d'achat %(number)s.") % {
-                    "number": order.number
-                }
+                errors[line_error_key(index, "product")] = _(
+                    "Ce produit n'est pas sur la commande d'achat %(number)s."
+                ) % {"number": order.number}
             # The order says what was asked for; a delivery of part of it is not a difference.
             values["ordered_quantity"] = None
     box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
