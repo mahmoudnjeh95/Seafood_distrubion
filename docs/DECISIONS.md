@@ -3057,3 +3057,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: a day can be reopened before the office counted it, and then nothing counts as handed over (the driver
   still holds the cash until the next count); the owner may prefer the count to be required at the send instead.
   Purchase money is counted only when expected (no purchase money = no purchase count needed).
+
+**D-215 · Supplier payment receipt PDF; several plan lines paid by one règlement (Phase 9, P9-T03c)** · accepted · 2026-10-31
+- A new document kind `supplier_receipt` ("Paiement fournisseur N° RF-…"): the shared header with the supplier as
+  the party, the means (number, bank, échéance of each effet), the invoices settled and the advance left; "ANNULÉ"
+  on a voided one. PDF and e-mail buttons on the règlement's page. Rendered by `apps/purchasing/printing.py`.
+- "Règlements fournisseurs": open plan lines get a tick box (one supplier at a time) and a bar "N lignes choisies ·
+  total — Payer la sélection". The payment form then shows one means per plan line (its method, amount, reference,
+  cashing day) and each amount on its invoice, and sends `plan_lines`; each line becomes `paid` (D-208).

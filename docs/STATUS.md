@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-31 (D-213: the office alone counts the driver's cash; branch `driver-cash-office-count`)_
+_Last updated: 2026-10-31 (P9-T03b merged, D-211; P9-T03c supplier receipt PDF and grouped plan lines built, D-215)_
 
 ## Where we are
 
@@ -11,10 +11,9 @@ _Last updated: 2026-10-31 (D-213: the office alone counts the driver's cash; bra
 - **Counter sale, several lots (D-212, owner request 2026-10-31)** — branch `counter-sale-multi-lot` (PR #235), awaits CI and merge: a counter-sale line picks lots with the kilos from each (`SaleLinePick`, API `picks`), the rest oldest first; a single `batch` stays one pick of the whole line; migration `0022_sale_line_picks`. The till's lot cell opens a dialog to choose the lots.
 
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
-  **Merged:** T01 (#223, D-197), T02 (#231, D-208), T03a (#234, D-210: "Nouveau règlement" pages, lines editor,
-  Répartir, Banques). **P9-T03b on branch `payment-lists`** (awaits CI, D-211): supplier règlement void (migration
-  `purchasing/0014`, every reader skips voided), list filters + totals + Excel for both, detail pages with effet
-  history.
+  **Merged:** T01 (#223, D-197), T02 (#231, D-208), T03a (#234, D-210), T03b (#237, D-211: lists, detail pages,
+  supplier void). **P9-T03c on branch `supplier-receipt-pdf`** (awaits CI, D-215): supplier receipt PDF (documents
+  kind `supplier_receipt`, migration `documents/0005`), several plan lines paid by one règlement.
 - **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
 - **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
   customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
@@ -45,11 +44,11 @@ _Last updated: 2026-10-31 (D-213: the office alone counts the driver's cash; bra
    validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
    → invoice without VAT refused. **Owner action for D-206:** put the company SMTP account in the server `.env`
    (`EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) and redeploy.
-1. P9-T03b: PR from `payment-lists`, green CI, fetch and rebase (renumber D-211 / `purchasing/0014` if taken), merge.
-   On staging: Achats › Paiements, filter "Annulés", open a règlement, "Annuler" with a reason → its invoice owes
-   again; Règlements clients: filter by Traite, the totals and the Excel file follow.
-2. **P9-T03c** (small): supplier receipt PDF; pay several plan lines at once from "Règlements fournisseurs".
-3. Then T04 portfolio, T05 accounts, T06 échéancier, T07 reports.
+1. P9-T03c: PR from `supplier-receipt-pdf`, green CI, fetch and rebase (renumber D-215 if taken), merge. On staging:
+   a supplier règlement page → PDF; Règlements fournisseurs → tick two plan lines → Payer la sélection.
+2. **P9-T04 Portefeuille** (new branch from `main`): remise en banque (bordereau), encaissé / impayé, restituer,
+   endosser; our effets débité / rejeté. See the phase file.
+3. Then T05 accounts, T06 échéancier, T07 reports.
 
 ## Open owner decisions
 

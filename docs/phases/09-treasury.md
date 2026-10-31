@@ -103,8 +103,8 @@ cash only on the phone (as today, D-133).
 - [x] Tests: void and its readers, list filters, totals, export, effet history (both sides); vitest for the filters.
 
 ### P9-T03c · Supplier receipt PDF and several plan lines at once · S
-- [ ] PDF "reçu de paiement fournisseur" (lines, effets, invoices), button on the detail page.
-- [ ] "Payer" several plan lines at once from "Règlements fournisseurs" (the API takes `plan_lines`, D-208).
+- [x] PDF "reçu de paiement fournisseur" (lines, effets, invoices), PDF and e-mail buttons on the detail page (D-215).
+- [x] "Payer" several plan lines at once from "Règlements fournisseurs" (tick boxes, "Payer la sélection", D-215).
 
 ### P9-T04 · Portefeuille: the life of an effet · L
 - [ ] Page Trésorerie › Portefeuille: tabs À remettre (portfolio), En banque, Encaissés, Impayés, Émis (ours); filters
