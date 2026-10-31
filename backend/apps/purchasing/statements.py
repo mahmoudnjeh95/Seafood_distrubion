@@ -98,8 +98,9 @@ def supplier_statement(
         .filter(supplier_id=supplier_id, invoice_date__lte=date_to)
         .exclude(status=SupplierInvoiceStatus.DRAFT)
     )
+    # A voided règlement never happened for the account (D-211).
     payments = SupplierPayment.objects.for_organization(organization).filter(
-        supplier_id=supplier_id, paid_on__lte=date_to
+        supplier_id=supplier_id, paid_on__lte=date_to, voided_at__isnull=True
     )
     # (day, invoices before payments of the same day, id) gives the running balance its order.
     moves: list[tuple[dt.date, int, int, str, str, str, Decimal]] = [

@@ -123,7 +123,32 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
         return person_name(payment.voided_by)
 
 
+class ReceivedEffetEventSerializer(serializers.Serializer[Any]):
+    """One step in the life of a received effet: in portfolio, at the bank, cashed, unpaid, cancelled..."""
+
+    from_status = serializers.CharField(read_only=True)
+    to_status = serializers.ChoiceField(choices=treasury.INSTRUMENT_STATUS_CHOICES, read_only=True)
+    happened_on = serializers.DateField(read_only=True)
+    note = serializers.CharField(read_only=True)
+    actor = serializers.SerializerMethodField()
+
+    def get_actor(self, event: Any) -> str:
+        return person_name(event.actor)
+
+
+class InstrumentDetailSerializer(InstrumentRefSerializer):
+    # Oldest first.
+    events = ReceivedEffetEventSerializer(many=True, read_only=True)
+
+
+class CustomerPaymentLineDetailSerializer(CustomerPaymentLineSerializer):
+    instrument = InstrumentDetailSerializer(read_only=True, allow_null=True)
+
+
 class CustomerPaymentDetailSerializer(CustomerPaymentSerializer):
+    """One règlement with the sales it settled and the history of each of its effets."""
+
+    lines = CustomerPaymentLineDetailSerializer(many=True, read_only=True)
     allocations = CustomerPaymentAllocationSerializer(many=True, read_only=True)
 
     class Meta(CustomerPaymentSerializer.Meta):
@@ -186,6 +211,22 @@ class CustomerPaymentFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+    # Those with a line of this means; `mixed`: those with several means.
+    method = serializers.ChoiceField(choices=CustomerPaymentMethod.choices, required=False)
+    # `active` (not voided), `voided`, or `unallocated` (credit left).
+    state = serializers.ChoiceField(choices=["active", "voided", "unallocated"], required=False)
+
+
+class CustomerPaymentTotalsSerializer(serializers.Serializer[Any]):
+    """The totals of the filtered règlements, voided ones left out (their number is in `voided`)."""
+
+    count = serializers.IntegerField(read_only=True)
+    voided = serializers.IntegerField(read_only=True)
+    total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    allocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    unallocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Received by each means, from the lines ({"cash": "500.000", "cheque": ...}).
+    by_method = serializers.DictField(child=serializers.DecimalField(max_digits=14, decimal_places=3), read_only=True)
 
 
 # ---- Balance, ageing ----

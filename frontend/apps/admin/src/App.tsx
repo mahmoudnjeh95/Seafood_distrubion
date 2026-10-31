@@ -52,6 +52,7 @@ import { QuotesPage } from "./quotes/QuotesPage";
 import { SupplierInvoiceDetailPage } from "./purchasing/SupplierInvoiceDetailPage";
 import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
+import { SupplierPaymentDetailPage } from "./purchasing/SupplierPaymentDetailPage";
 import { SupplierPaymentFormPage } from "./purchasing/SupplierPaymentFormPage";
 import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
 import { SupplierDebtsPage } from "./purchasing/SupplierDebtsPage";
@@ -68,6 +69,7 @@ import { CounterSalePage } from "./sales/CounterSalePage";
 import { SaleDetailPage } from "./sales/SaleDetailPage";
 import { SaleEditPage, SaleFormPage } from "./sales/SaleFormPage";
 import { SalesPage } from "./sales/SalesPage";
+import { CustomerPaymentDetailPage } from "./payments/CustomerPaymentDetailPage";
 import { CustomerPaymentFormPage } from "./payments/CustomerPaymentFormPage";
 import { PaymentsPage } from "./payments/PaymentsPage";
 import { CustomerDetailPage } from "./customers/CustomerDetailPage";
@@ -272,6 +274,7 @@ function AppRoutes() {
         <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
         {/* Règlements and treasury (P9-T03, D-197) */}
         <Route path="/reglements/nouveau" element={<CustomerPaymentFormPage />} />
+        <Route path="/reglements/:paymentId" element={<CustomerPaymentDetailPage />} />
         <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
@@ -290,6 +293,7 @@ function AppRoutes() {
         <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
         <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
+        <Route path="/achats/paiements/:paymentId" element={<SupplierPaymentDetailPage />} />
         <Route path="/achats/dettes" element={<SupplierDebtsPage />} />
         <Route path="/achats/reglements" element={<SupplierSettlementsPage />} />
         {/* Stock screens (P1-T11) */}

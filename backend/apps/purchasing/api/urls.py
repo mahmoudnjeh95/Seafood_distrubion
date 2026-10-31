@@ -24,6 +24,8 @@ urlpatterns = [
     path("supplier-plan-lines/<int:line_id>", views.SupplierPlanLineView.as_view(), name="supplier-plan-line"),
     path("supplier-settlements", views.SupplierSettlementsView.as_view(), name="supplier-settlements"),
     path("supplier-payments", views.SupplierPaymentListView.as_view(), name="supplier-payment-list"),
+    path("supplier-payments/totals", views.SupplierPaymentTotalsView.as_view(), name="supplier-payment-totals"),
+    path("supplier-payments/export", views.SupplierPaymentExportView.as_view(), name="supplier-payment-export"),
     path(
         "supplier-payments/<int:payment_id>", views.SupplierPaymentDetailView.as_view(), name="supplier-payment-detail"
     ),
@@ -31,6 +33,9 @@ urlpatterns = [
         "supplier-payments/<int:payment_id>/allocations",
         views.SupplierPaymentAllocateView.as_view(),
         name="supplier-payment-allocate",
+    ),
+    path(
+        "supplier-payments/<int:payment_id>/void", views.SupplierPaymentVoidView.as_view(), name="supplier-payment-void"
     ),
     path("supplier-balances/<int:supplier_id>", views.SupplierBalanceView.as_view(), name="supplier-balance"),
     path("field-purchases", views.FieldPurchaseListView.as_view(), name="field-purchase-list"),

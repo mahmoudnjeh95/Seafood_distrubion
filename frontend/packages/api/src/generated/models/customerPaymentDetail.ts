@@ -5,10 +5,13 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CustomerPaymentAllocation } from './customerPaymentAllocation';
-import type { CustomerPaymentLine } from './customerPaymentLine';
+import type { CustomerPaymentLineDetail } from './customerPaymentLineDetail';
 import type { CustomerPaymentMethodEnum } from './customerPaymentMethodEnum';
 import type { QuoteCustomer } from './quoteCustomer';
 
+/**
+ * One règlement with the sales it settled and the history of each of its effets.
+ */
 export interface CustomerPaymentDetail {
   readonly id: number;
   readonly number: string;
@@ -16,7 +19,7 @@ export interface CustomerPaymentDetail {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
   readonly method: CustomerPaymentMethodEnum;
-  readonly lines: readonly CustomerPaymentLine[];
+  readonly lines: readonly CustomerPaymentLineDetail[];
   readonly received_on: string;
   readonly reference: string;
   readonly notes: string;
