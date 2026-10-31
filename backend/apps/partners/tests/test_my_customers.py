@@ -45,11 +45,9 @@ def test_a_driver_adds_a_customer_on_the_phone_with_no_credit_and_no_duplicate_n
     blank = client.post(reverse("my-customers"), {"name": "   "}, format="json")
 
     assert created.status_code == 201
-    assert (created.json()["name"], created.json()["city"], created.json()["owes"]) == (
-        "Poissonnerie Ben Ali",
-        "Sfax",
-        "0.000",
-    )
+    assert (created.json()["name"], created.json()["city"]) == ("Poissonnerie Ben Ali", "Sfax")
+    # A driver never sees what a customer owes (D-207).
+    assert "owes" not in created.json()
     customer = Customer.objects.get(pk=created.json()["id"])
     assert (customer.phone, customer.credit_limit) == ("98 000 000", Decimal("0"))
     assert again.status_code == 400

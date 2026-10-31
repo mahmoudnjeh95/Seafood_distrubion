@@ -326,8 +326,6 @@ export const ar: PartialTranslation = {
     payment: {
       add: "استلام أموال من حريف",
       who: "من يعطيك المال؟",
-      owes: "عليه {{amount}}",
-      owesNothing: "لا دَين عليه",
       amount: "المبلغ المقبوض نقدًا (د.ت)",
       save: "تسجيل القبض",
       saved: "تم تسجيل القبض.",

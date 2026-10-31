@@ -89,22 +89,19 @@ export function PaymentPage() {
           {(customers.data ?? [])
             .filter((item) => !item.is_walk_in)
             .map((item) => (
+              // What a customer owes is never shown on the phone (D-207): the driver types what was handed over.
               <Button
                 key={item.id}
                 size="lg"
-                variant={Number(item.owes) > 0 ? "primary" : "secondary"}
+                variant="secondary"
                 className="flex-col py-4 text-xl"
                 onClick={() => {
                   setCustomer(item);
-                  setAmount(Number(item.owes) > 0 ? item.owes : "");
+                  setAmount("");
                 }}
               >
                 <span>{item.name}</span>
-                <span className="text-sm font-normal">
-                  {Number(item.owes) > 0
-                    ? t("truck.payment.owes", { amount: formatMoney(item.owes) })
-                    : t("truck.payment.owesNothing")}
-                </span>
+                {item.city ? <span className="text-sm font-normal">{item.city}</span> : null}
               </Button>
             ))}
         </div>
@@ -114,9 +111,6 @@ export function PaymentPage() {
             <div>
               <p className="text-sm text-ink-2">{t("truck.sale.customer")}</p>
               <p className="text-xl font-bold">{customer.name}</p>
-              {Number(customer.owes) > 0 && (
-                <p className="text-ink-2">{t("truck.payment.owes", { amount: formatMoney(customer.owes) })}</p>
-              )}
             </div>
             <Button onClick={() => setCustomer(null)}>{t("truck.sale.change")}</Button>
           </div>

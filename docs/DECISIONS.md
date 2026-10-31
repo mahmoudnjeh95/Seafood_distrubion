@@ -2861,3 +2861,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   on the phone; driver cash moves to the Caisse at the approved day closing (T05); bank charges of an impayé or a deposit go to
   expenses "Frais financiers"; the balance drops when an effet is received, with the encours shown next to it and checked
   against the credit limit (T07).
+
+**D-207 · A driver never sees what a customer owes (owner list 2026-10-31, item 7)** · accepted · 2026-10-31
+- Enforced on the server: `GET/POST /my-customers` no longer carries `owes`. The phone's "Encaisser" list shows the
+  customer's name and city; the driver types the amount handed over (no pre-filled balance).
+- The credit-limit refusal, which named the balance and the limit, reads for a driver "Limite de crédit dépassée pour
+  X : faites payer davantage sur place ou appelez le bureau." The office still gets the full message.
