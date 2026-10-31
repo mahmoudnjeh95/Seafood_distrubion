@@ -2902,7 +2902,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   trucks left out), each with its place, supplier and kg; "Lot le plus ancien (FIFO)" stays the default.
 - Sale form: a picked lot fixes the place the sale leaves from; lots picked in two places are refused on the form
   ("une vente part d'un seul endroit"). Without a picked lot the place is found as before (D-144).
-- Quote lines keep the lot (`QuoteLine.requested_batch`, migration 0020); the BL made from the quote takes it. If the
+- Quote lines keep the lot (`QuoteLine.requested_batch`, migration 0021); the BL made from the quote takes it. If the
   BL leaves from another place, the lot is not there and FIFO applies (the lot is a preference, as in D-121).
 - Sale and quote lines now return `requested_batch`, so a draft reopens with its lots.
 - Not done: the driver's phone sale (the truck's lots); ask the owner if it is wanted.
