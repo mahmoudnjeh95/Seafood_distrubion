@@ -131,7 +131,7 @@ RECEIVABLE_ORDER_STATUSES = (PurchaseOrderStatus.OPEN, PurchaseOrderStatus.PARTL
 
 
 class PurchaseOrder(OrganizationScopedModel, TimeStampedModel):
-    """What we ask a supplier to deliver: the "bon d'achat" (D-076).
+    """What we ask a supplier to deliver: the "commande d'achat" (D-076).
 
     It moves no stock and owes nothing: only goods receipts do. It is never edited; a mistake is
     cancelled (before any delivery) and typed again. Its status follows its receipts.
@@ -356,7 +356,7 @@ class SupplierPaymentPlanLine(OrganizationScopedModel, TimeStampedModel):
 class DocumentKind(models.TextChoices):
     SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
     SUPPLIER_PAYMENT = "supplier_payment", _("Paiement fournisseur")
-    PURCHASE_ORDER = "purchase_order", _("Bon d'achat")
+    PURCHASE_ORDER = "purchase_order", _("Commande d'achat")
     FIELD_PURCHASE = "field_purchase", _("Achat terrain")
 
 

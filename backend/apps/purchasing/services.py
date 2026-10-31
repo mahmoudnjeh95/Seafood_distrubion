@@ -210,9 +210,9 @@ def create_receipt(
         for index, values in enumerate(checked_lines):
             product = values["product"]
             if product is not None and product.pk not in order_lines:
-                errors[line_error_key(index, "product")] = _("Ce produit n'est pas sur le bon d'achat %(number)s.") % {
-                    "number": order.number
-                }
+                errors[line_error_key(index, "product")] = _(
+                    "Ce produit n'est pas sur la commande d'achat %(number)s."
+                ) % {"number": order.number}
             # The order says what was asked for; a delivery of part of it is not a difference.
             values["ordered_quantity"] = None
     box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
@@ -298,7 +298,7 @@ def create_receipt(
     return receipt
 
 
-# ---- Purchase orders, the "bon d'achat" (D-076) ----
+# ---- Purchase orders, the "commande d'achat" (D-076) ----
 # An order moves no stock and owes nothing; its receipts do. Its status follows them.
 
 
@@ -356,9 +356,9 @@ def create_order(
     elif not supplier.is_active:
         errors["supplier"] = _("Ce fournisseur est archivé.")
     if ordered_on > timezone.localdate():
-        errors["ordered_on"] = _("La date du bon d'achat ne peut pas être dans le futur.")
+        errors["ordered_on"] = _("La date de la commande d'achat ne peut pas être dans le futur.")
     if expected_on is not None and expected_on < ordered_on:
-        errors["expected_on"] = _("La livraison prévue ne peut pas précéder le bon d'achat.")
+        errors["expected_on"] = _("La livraison prévue ne peut pas précéder la commande d'achat.")
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
     checked_lines: list[dict[str, Any]] = []
@@ -371,7 +371,7 @@ def create_order(
         elif not product.is_active:
             errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
         elif product.pk in seen:
-            errors[line_error_key(index, "product")] = _("Ce produit est déjà sur le bon d'achat.")
+            errors[line_error_key(index, "product")] = _("Ce produit est déjà sur la commande d'achat.")
         else:
             seen.add(product.pk)
         try:
@@ -432,15 +432,15 @@ def _locked_order_to_receive(
 ) -> PurchaseOrder | None:
     """The order re-read under a row lock so two deliveries cannot be counted at once; problems go to `errors`."""
     if order.organization_id != organization.pk:
-        errors["purchase_order"] = _("Bon d'achat inconnu.")
+        errors["purchase_order"] = _("Commande d'achat inconnue.")
         return None
     locked = _locked_order(order)
     if locked.supplier_id != supplier.pk:
-        errors["purchase_order"] = _("Le bon d'achat %(number)s est d'un autre fournisseur.") % {
+        errors["purchase_order"] = _("La commande d'achat %(number)s est d'un autre fournisseur.") % {
             "number": locked.number
         }
     elif locked.status not in RECEIVABLE_ORDER_STATUSES:
-        errors["purchase_order"] = _("Le bon d'achat %(number)s est %(status)s : on ne peut plus y recevoir.") % {
+        errors["purchase_order"] = _("La commande d'achat %(number)s est %(status)s : on ne peut plus y recevoir.") % {
             "number": locked.number,
             "status": PurchaseOrderStatus(locked.status).label.lower(),
         }
@@ -479,11 +479,11 @@ def cancel_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
     order = _locked_order(order)
     if order.receipts.exists():
         raise ValidationError(
-            _("Le bon d'achat %(number)s a déjà reçu des marchandises : clôturez-le au lieu de l'annuler.")
+            _("La commande d'achat %(number)s a déjà reçu des marchandises : clôturez-la au lieu de l'annuler.")
             % {"number": order.number}
         )
     if order.status != PurchaseOrderStatus.OPEN:
-        raise ValidationError(_("Le bon d'achat %(number)s ne peut plus être annulé.") % {"number": order.number})
+        raise ValidationError(_("La commande d'achat %(number)s ne peut plus être annulée.") % {"number": order.number})
     before = _order_snapshot(order)
     order.status = PurchaseOrderStatus.CANCELLED
     order.closed_at = timezone.now()
@@ -505,7 +505,7 @@ def close_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
     order = _locked_order(order)
     if order.status != PurchaseOrderStatus.PARTLY_RECEIVED:
         raise ValidationError(
-            _("Seul un bon d'achat reçu en partie peut être clôturé : %(number)s est %(status)s.")
+            _("Seule une commande d'achat reçue en partie peut être clôturée : %(number)s est %(status)s.")
             % {"number": order.number, "status": PurchaseOrderStatus(order.status).label.lower()}
         )
     before = _order_snapshot(order)

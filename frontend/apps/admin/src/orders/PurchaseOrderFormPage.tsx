@@ -55,7 +55,7 @@ const asTyped = (value: string) => value.replace(".", ",");
 
 const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
-/** Record a purchase order (bon d'achat): what a supplier is asked to deliver, at what price. */
+/** Record a purchase order (commande d'achat): what a supplier is asked to deliver, at what price. */
 export function PurchaseOrderFormPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

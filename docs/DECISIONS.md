@@ -2815,3 +2815,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   Annuler / Se déconnecter; nothing happens until the second button.
 - On the phone, logging out erases what is still waiting to be sent, so the window says how many sends are waiting
   instead of the plain question.
+
+**D-195 · "Bon d'achat" is called "Commande d'achat" (owner list 2026-10-31, item 13)** · accepted · 2026-10-31
+- Every French label, message and the document-kind choice say "Commande d'achat" (feminine agreement fixed).
+- Numbers keep their "BA-" prefix: issued numbers never change, and one series stays readable. Codes, URLs
+  (`/achats/commandes`) and the API (`purchase_order`) are unchanged.
