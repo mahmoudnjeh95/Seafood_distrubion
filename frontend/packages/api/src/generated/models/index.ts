@@ -44,6 +44,7 @@ export * from './changePassword';
 export * from './chequeToCash';
 export * from './closeLot';
 export * from './closingCheck';
+export * from './coldRoomEstimateWrite';
 export * from './coldRoomMonth';
 export * from './coldRoomMonthRow';
 export * from './coldRoomSharesWrite';

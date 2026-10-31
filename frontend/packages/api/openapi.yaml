@@ -336,6 +336,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/ColdRoomMonth'
           description: ''
+  /api/v1/cold-room-estimate:
+    put:
+      operationId: updateColdRoomEstimate
+      description: |-
+        Type the electricity estimate of a month for all the cold rooms (owner or manager), until the month's
+        bill is approved: the rooms share it by weight, as the bill is shared (D-227).
+      tags:
+      - cold-room-estimate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ColdRoomEstimateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ColdRoomEstimateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ColdRoomEstimateWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColdRoomMonth'
+          description: ''
   /api/v1/cold-room-shares:
     put:
       operationId: updateColdRoomShares
@@ -11394,6 +11423,21 @@ components:
       - count
       - ok
       - quantity
+    ColdRoomEstimateWrite:
+      type: object
+      properties:
+        month:
+          type: string
+          format: date
+        amount:
+          type: string
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - amount
+      - month
     ColdRoomMonth:
       type: object
       properties:
@@ -11412,6 +11456,15 @@ components:
         estimated:
           type: boolean
           readOnly: true
+        typed_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        estimate_typed:
+          type: boolean
+          readOnly: true
         estimate_source_month:
           type: string
           format: date
@@ -11428,14 +11481,30 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
+        estimate_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
       required:
       - bill
       - days
+      - difference
       - estimate_source_month
+      - estimate_total
+      - estimate_typed
       - estimated
       - month
       - rooms
       - total
+      - typed_amount
     ColdRoomMonthRow:
       type: object
       properties:

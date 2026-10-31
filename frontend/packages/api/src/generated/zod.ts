@@ -324,10 +324,13 @@ export const GetColdRoomMonthQueryParams = zod.object({
 })
 
 export const getColdRoomMonthResponseBillOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseTypedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getColdRoomMonthResponseRoomsItemWeightRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,3})?$');
 export const getColdRoomMonthResponseRoomsItemMonthAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getColdRoomMonthResponseRoomsItemDayAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getColdRoomMonthResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseEstimateTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getColdRoomMonthResponseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetColdRoomMonthResponse = zod.object({
@@ -348,6 +351,8 @@ export const GetColdRoomMonthResponse = zod.object({
   "estimate_source_month": zod.iso.date().nullable()
 }),zod.null()]),
   "estimated": zod.boolean(),
+  "typed_amount": zod.stringFormat('decimal', getColdRoomMonthResponseTypedAmountRegExp).nullable(),
+  "estimate_typed": zod.boolean(),
   "estimate_source_month": zod.iso.date().nullable(),
   "rooms": zod.array(zod.object({
   "location_id": zod.int(),
@@ -357,7 +362,69 @@ export const GetColdRoomMonthResponse = zod.object({
   "day_amount": zod.stringFormat('decimal', getColdRoomMonthResponseRoomsItemDayAmountRegExp).nullable(),
   "estimated": zod.boolean()
 })),
-  "total": zod.stringFormat('decimal', getColdRoomMonthResponseTotalRegExp).nullable()
+  "total": zod.stringFormat('decimal', getColdRoomMonthResponseTotalRegExp).nullable(),
+  "estimate_total": zod.stringFormat('decimal', getColdRoomMonthResponseEstimateTotalRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', getColdRoomMonthResponseDifferenceRegExp).nullable()
+})
+
+
+/**
+ * Type the electricity estimate of a month for all the cold rooms (owner or manager), until the month's
+ * bill is approved: the rooms share it by weight, as the bill is shared (D-227).
+ */
+export const updateColdRoomEstimateBodyReasonDefault = ``;
+export const updateColdRoomEstimateBodyReasonMax = 255;
+
+
+
+export const UpdateColdRoomEstimateBody = zod.object({
+  "month": zod.iso.date(),
+  "amount": zod.string(),
+  "reason": zod.string().max(updateColdRoomEstimateBodyReasonMax).default(updateColdRoomEstimateBodyReasonDefault)
+})
+
+export const updateColdRoomEstimateResponseBillOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseTypedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseRoomsItemWeightRegExp = new RegExp('^-?\\d{0,5}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseRoomsItemMonthAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseRoomsItemDayAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseEstimateTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateColdRoomEstimateResponseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateColdRoomEstimateResponse = zod.object({
+  "month": zod.iso.date(),
+  "days": zod.int(),
+  "bill": zod.union([zod.object({
+  "id": zod.int(),
+  "month": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', updateColdRoomEstimateResponseBillOneAmountRegExp),
+  "expense_id": zod.int(),
+  "expense_number": zod.string(),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "payee": zod.string(),
+  "notes": zod.string(),
+  "entered_by": zod.string(),
+  "finalized": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable()
+}),zod.null()]),
+  "estimated": zod.boolean(),
+  "typed_amount": zod.stringFormat('decimal', updateColdRoomEstimateResponseTypedAmountRegExp).nullable(),
+  "estimate_typed": zod.boolean(),
+  "estimate_source_month": zod.iso.date().nullable(),
+  "rooms": zod.array(zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "weight": zod.stringFormat('decimal', updateColdRoomEstimateResponseRoomsItemWeightRegExp),
+  "month_amount": zod.stringFormat('decimal', updateColdRoomEstimateResponseRoomsItemMonthAmountRegExp).nullable(),
+  "day_amount": zod.stringFormat('decimal', updateColdRoomEstimateResponseRoomsItemDayAmountRegExp).nullable(),
+  "estimated": zod.boolean()
+})),
+  "total": zod.stringFormat('decimal', updateColdRoomEstimateResponseTotalRegExp).nullable(),
+  "estimate_total": zod.stringFormat('decimal', updateColdRoomEstimateResponseEstimateTotalRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', updateColdRoomEstimateResponseDifferenceRegExp).nullable()
 })
 
 

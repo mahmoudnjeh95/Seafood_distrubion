@@ -6,6 +6,7 @@ the pure functions of `costing`. `selectors.lot_cost_lines` puts these lines nex
 
 import datetime as dt
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -29,9 +30,11 @@ from .costing import (
     month_days,
     next_month,
     room_day_amounts,
+    room_month_amounts,
     spread_over_months,
 )
 from .models import (
+    ColdRoomEstimate,
     ColdRoomMonthRate,
     ColdRoomWeight,
     ElectricityBill,
@@ -83,16 +86,43 @@ def _frozen_rates(organization: Organization) -> dict[dt.date, dict[int, ColdRoo
     return dict(rates)
 
 
-def _estimate_rates(
-    month: dt.date, frozen: dict[dt.date, dict[int, ColdRoomMonthRate]]
-) -> tuple[dt.date | None, dict[int, Decimal]]:
-    """What an unbilled month costs per room per day: the daily rate of the latest billed month before it
-    (the previous month's, when there is one), and which month that was."""
+def typed_estimates(organization: Organization) -> dict[dt.date, Decimal]:
+    """The estimates the owner typed, by month (D-227)."""
+    return {row.month: row.amount for row in ColdRoomEstimate.objects.for_organization(organization)}
+
+
+@dataclass(frozen=True)
+class Estimate:
+    """What an unbilled month costs in the cold rooms until its bill is approved (D-058, D-227)."""
+
+    # True when the owner typed the month's estimate; then it is shared by weight, as a bill is.
+    typed: bool
+    # The billed month whose daily rate is copied (None when typed, or when no earlier month is billed).
+    source_month: dt.date | None
+    # Per room: its part of the typed month (empty when copied).
+    month_amounts: dict[int, Decimal]
+    # Per room: the daily rate of the estimate (empty when there is none).
+    day_amounts: dict[int, Decimal]
+
+
+def _estimate(
+    month: dt.date,
+    frozen: dict[dt.date, dict[int, ColdRoomMonthRate]],
+    typed: Mapping[dt.date, Decimal],
+    weights: Mapping[int, Decimal],
+) -> Estimate:
+    """The estimate of a month: the amount the owner typed for it, else the daily rate of the latest billed
+    month before it (the previous month's, when there is one)."""
+    if month in typed:
+        parts = room_month_amounts(typed[month], weights)
+        days = {room_id: estimate_day_amount(part, month) for room_id, part in parts.items()}
+        return Estimate(typed=True, source_month=None, month_amounts=parts, day_amounts=days)
     earlier = [billed for billed in frozen if billed < month]
     if not earlier:
-        return None, {}
+        return Estimate(typed=False, source_month=None, month_amounts={}, day_amounts={})
     source = max(earlier)
-    return source, {room_id: estimate_day_amount(rate.month_amount, source) for room_id, rate in frozen[source].items()}
+    days = {room_id: estimate_day_amount(rate.month_amount, source) for room_id, rate in frozen[source].items()}
+    return Estimate(typed=False, source_month=source, month_amounts={}, day_amounts=days)
 
 
 @dataclass(frozen=True)
@@ -139,6 +169,8 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
         return []
     held = inventory.held_slices_by_hour(organization, date_from=first, date_to=today, location_ids=list(rooms))
     frozen = _frozen_rates(organization)
+    typed = typed_estimates(organization)
+    weights = room_weights(organization)
     bills = {bill.month: bill for bill in bills_of(organization).filter(finalized_at__isnull=False)}
     lines: list[ComputedLine] = []
     for month in _months_between(first, today):
@@ -146,7 +178,7 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
         if month in frozen:
             estimates = {room_id: rate.estimate_day_amount for room_id, rate in frozen[month].items()}
         else:
-            estimates = dict(_estimate_rates(month, frozen)[1])
+            estimates = _estimate(month, frozen, typed, weights).day_amounts
         for room_id, room in rooms.items():
             estimate = estimates.get(room_id)
             if estimate is None or estimate <= 0:
@@ -224,9 +256,9 @@ def bill_adjustments(
     return adjustments
 
 
-def estimate_for_new_bill(organization: Organization, *, month: dt.date) -> tuple[dt.date | None, dict[int, Decimal]]:
-    """The estimate a bill for `month` replaces: the earlier billed month used and the daily rate per room."""
-    return _estimate_rates(month, _frozen_rates(organization))
+def estimate_for_new_bill(organization: Organization, *, month: dt.date) -> Estimate:
+    """The estimate a bill for `month` replaces: the typed amount or the copied daily rate, per room."""
+    return _estimate(month, _frozen_rates(organization), typed_estimates(organization), room_weights(organization))
 
 
 # ---- Cold room: the month screen ----
@@ -251,9 +283,16 @@ class ColdRoomMonth:
     bill: ElectricityBill | None
     # True until the month's bill is approved.
     estimated: bool
+    # The estimate the owner typed for the month (None when there is none), and whether it is in use.
+    typed_amount: Decimal | None
+    estimate_typed: bool
     estimate_source_month: dt.date | None
     rooms: list[RoomMonthRow]
+    # Real once the bill is approved, else the estimate.
     total: Decimal | None
+    # What the month was estimated at (None when there was no estimate), and the real bill minus it.
+    estimate_total: Decimal | None
+    difference: Decimal | None
 
 
 def cold_room_month(organization: Organization, *, month: dt.date) -> ColdRoomMonth:
@@ -263,6 +302,7 @@ def cold_room_month(organization: Organization, *, month: dt.date) -> ColdRoomMo
     days = len(month_days(month))
     bill = bills_of(organization).filter(month=month).first()
     frozen = _frozen_rates(organization)
+    typed = typed_estimates(organization)
     rooms: list[RoomMonthRow] = []
     if bill is not None and bill.finalized_at is not None:
         for rate in sorted(frozen[month].values(), key=lambda rate: (rate.location.name, rate.pk)):
@@ -276,39 +316,56 @@ def cold_room_month(organization: Organization, *, month: dt.date) -> ColdRoomMo
                     estimated=False,
                 )
             )
+        # What the rooms were estimated at: the daily rates that were used, over the days of the month.
+        daily_rates = [rate.estimate_day_amount for rate in frozen[month].values()]
+        known_rates = [daily for daily in daily_rates if daily is not None]
+        estimate_total = sum((daily * days for daily in known_rates), ZERO) if known_rates else None
         return ColdRoomMonth(
             month=month,
             days=days,
             bill=bill,
             estimated=False,
+            typed_amount=typed.get(month),
+            estimate_typed=month in typed,
             estimate_source_month=None,
             rooms=rooms,
             total=bill.expense.amount,
+            estimate_total=estimate_total,
+            difference=bill.expense.amount - estimate_total if estimate_total is not None else None,
         )
-    source, estimates = _estimate_rates(month, frozen)
     weights = room_weights(organization)
+    estimate = _estimate(month, frozen, typed, weights)
     names = {room.pk: room.name for room in cold_rooms(organization)}
     for room_id, weight in weights.items():
-        estimate = estimates.get(room_id)
+        daily = estimate.day_amounts.get(room_id)
+        if estimate.typed:
+            month_amount = estimate.month_amounts.get(room_id)
+        else:
+            month_amount = daily * days if daily is not None else None
         rooms.append(
             RoomMonthRow(
                 location_id=room_id,
                 location_name=names[room_id],
                 weight=weight,
-                month_amount=estimate * days if estimate is not None else None,
-                day_amount=estimate,
+                month_amount=month_amount,
+                day_amount=daily,
                 estimated=True,
             )
         )
     known = [row.month_amount for row in rooms if row.month_amount is not None]
+    total = sum(known, ZERO) if known else None
     return ColdRoomMonth(
         month=month,
         days=days,
         bill=bill,
         estimated=True,
-        estimate_source_month=source,
+        typed_amount=typed.get(month),
+        estimate_typed=estimate.typed,
+        estimate_source_month=estimate.source_month,
         rooms=rooms,
-        total=sum(known, ZERO) if known else None,
+        total=total,
+        estimate_total=total,
+        difference=None,
     )
 
 

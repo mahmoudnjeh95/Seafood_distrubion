@@ -1,11 +1,14 @@
 import {
   approveElectricityBill,
+  type ColdRoomMonth,
   type ColdRoomWeight,
   createElectricityBill,
   deleteElectricityBill,
   type ElectricityBill,
   type PaymentMethodEnum,
+  updateColdRoomEstimate,
   updateColdRoomShares,
+  updateElectricityBill,
   useGetColdRoomMonth,
   useListColdRoomWeights,
   useListElectricityBills,
@@ -26,29 +29,25 @@ import { canManageCategories, canWriteExpenses, EXPENSE_TONES, PAYMENT_METHODS, 
 
 type Errors = Record<string, string>;
 
-/** Type the month's electricity bill (a finished month): draft, or approved at once. */
-function BillForm({ month, onDone }: { month: string; onDone: () => void }) {
+/** The real invoice of the cold rooms for a finished month (D-227). Saved and approved, it counts as the month's
+ * expense at once; saved as a draft it waits, and a draft is edited here until it is approved. */
+function BillForm({ month, draft, onDone }: { month: string; draft?: ElectricityBill; onDone: () => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethodEnum>("transfer");
-  const [payee, setPayee] = useState("");
+  const [amount, setAmount] = useState(draft ? draft.amount.replace(".", ",") : "");
+  const [method, setMethod] = useState<PaymentMethodEnum>(draft?.payment_method ?? "transfer");
+  const [payee, setPayee] = useState(draft?.payee ?? "");
   const [errors, setErrors] = useState<Errors>({});
   const save = useMutation({
     mutationFn: (approve: boolean) => {
       const parsed = parseDecimalInput(amount.trim(), 3);
       if (!parsed || parsed.startsWith("-") || /^0+(\.0+)?$/.test(parsed)) throw new Error("amount");
-      return createElectricityBill({
-        month,
-        amount: parsed,
-        payment_method: method,
-        payee: payee.trim(),
-        approve_now: approve,
-      });
+      const payload = { month, amount: parsed, payment_method: method, payee: payee.trim(), approve_now: approve };
+      return draft ? updateElectricityBill(draft.id, payload) : createElectricityBill(payload);
     },
-    onSuccess: async (bill) => {
-      toast.success(bill.finalized ? t("admin.coldCost.bill.approved") : t("admin.coldCost.bill.saved"));
+    onSuccess: async (saved) => {
+      toast.success(saved.finalized ? t("admin.coldCost.bill.approved") : t("admin.coldCost.bill.saved"));
       await refreshExpenses(queryClient);
       onDone();
     },
@@ -72,7 +71,7 @@ function BillForm({ month, onDone }: { month: string; onDone: () => void }) {
   }
   return (
     <form noValidate onSubmit={submit(false)} className="flex flex-col gap-3">
-      <p className="text-ink-2">{t("admin.coldCost.bill.none")}</p>
+      <p className="text-ink-2">{t("admin.coldCost.bill.intro")}</p>
       <div className="grid grid-cols-3 gap-4 max-[720px]:grid-cols-1">
         <Field label={t("admin.coldCost.bill.amount")} htmlFor={id("amount")} error={errors.amount}>
           <Input
@@ -157,6 +156,91 @@ function BillSummary({ bill, canWrite }: { bill: ElectricityBill; canWrite: bool
         </div>
       )}
     </div>
+  );
+}
+
+/** A difference with its sign: "+12,500 DT" when the real bill is higher than the estimate. */
+function signedMoney(value: string): string {
+  return `${value.startsWith("-") ? "" : "+"}${formatMoney(value)}`;
+}
+
+/** The electricity estimate of the month for all the cold rooms (D-227): typed until the month's bill is
+ * approved. The lots pay it meanwhile, and the difference with the real bill is booked on them when it is. */
+function EstimateForm({ month, data, canWrite }: { month: string; data: ColdRoomMonth; canWrite: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const formId = useId();
+  const [amount, setAmount] = useState(data.typed_amount ? data.typed_amount.replace(".", ",") : "");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const frozen = data.bill?.finalized === true;
+  const save = useMutation({
+    mutationFn: () => {
+      const parsed = parseDecimalInput(amount.trim(), 3);
+      if (!parsed || parsed.startsWith("-") || /^0+(\.0+)?$/.test(parsed)) throw new Error("amount");
+      return updateColdRoomEstimate({ month, amount: parsed, reason: reason.trim() });
+    },
+    onSuccess: async () => {
+      setError("");
+      toast.success(t("admin.coldCost.estimate.saved"));
+      await refreshExpenses(queryClient);
+    },
+    onError: (failure) => {
+      if (failure instanceof Error && failure.message === "amount") {
+        setError(t("admin.coldCost.estimate.amountInvalid"));
+        return;
+      }
+      setError(Object.values(fieldErrors(failure))[0] ?? t("admin.coldCost.estimate.error"));
+    },
+  });
+  // What the month is estimated at now (or was, once billed).
+  const current = data.estimated ? data.total : data.estimate_total;
+  const currentText = current !== null ? formatMoney(current) : t("admin.coldCost.rooms.unknown");
+  if (frozen || !canWrite) {
+    return (
+      <p className="text-ink-2">
+        {t("admin.coldCost.estimate.current")} <b className="num text-ink">{currentText}</b>
+        <span className="block text-[0.88rem]">
+          {frozen ? t("admin.coldCost.estimate.frozen") : t("admin.coldCost.estimate.readOnly")}
+        </span>
+      </p>
+    );
+  }
+  const id = (name: string) => `${formId}-${name}`;
+  return (
+    <form
+      noValidate
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        save.mutate();
+      }}
+      className="flex flex-col gap-3"
+    >
+      <p className="text-ink-2">
+        {data.estimate_typed ? t("admin.coldCost.estimate.typed") : t("admin.coldCost.estimate.copied")}
+      </p>
+      <div className="grid grid-cols-2 gap-4 max-[720px]:grid-cols-1">
+        <Field label={t("admin.coldCost.estimate.amount")} htmlFor={id("amount")} error={error || undefined}>
+          <Input
+            id={id("amount")}
+            inputMode="decimal"
+            className="num"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            aria-invalid={error ? true : undefined}
+            autoComplete="off"
+          />
+        </Field>
+        <Field label={t("admin.coldCost.estimate.reason")} htmlFor={id("reason")}>
+          <Input id={id("reason")} value={reason} onChange={(event) => setReason(event.target.value)} autoComplete="off" />
+        </Field>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" variant="primary" disabled={save.isPending}>
+          {t("admin.coldCost.estimate.save")}
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -296,6 +380,16 @@ export function ColdRoomCostPage() {
         </Button>
       </Card>
 
+      <section aria-labelledby="cold-estimate" className="flex flex-col gap-2">
+        <h2 id="cold-estimate">{t("admin.coldCost.estimate.title", { month: label })}</h2>
+        <p className="text-ink-2">{t("admin.coldCost.estimate.body")}</p>
+        <Card className="flex flex-col gap-3 p-4">
+          {data && (
+            <EstimateForm key={`${month}-${data.typed_amount ?? ""}`} month={month} data={data} canWrite={canWrite} />
+          )}
+        </Card>
+      </section>
+
       <section aria-labelledby="cold-bill" className="flex flex-col gap-2">
         <h2 id="cold-bill">{t("admin.coldCost.bill.title", { month: label })}</h2>
         <Card className="flex flex-col gap-3 p-4">
@@ -306,7 +400,17 @@ export function ColdRoomCostPage() {
               {t("common.serverUnreachable")}
             </p>
           ) : data.bill ? (
-            <BillSummary key={`${data.bill.id}-${data.bill.status}-${reload}`} bill={data.bill} canWrite={canWrite} />
+            <>
+              <BillSummary key={`${data.bill.id}-${data.bill.status}-${reload}`} bill={data.bill} canWrite={canWrite} />
+              {data.bill.status === "draft" && canWrite && (
+                <BillForm
+                  key={`draft-${data.bill.id}-${reload}`}
+                  month={month}
+                  draft={data.bill}
+                  onDone={() => setReload(reload + 1)}
+                />
+              )}
+            </>
           ) : !finished ? (
             <p className="text-ink-2">{t("admin.coldCost.bill.notYet")}</p>
           ) : canWrite ? (
@@ -358,19 +462,48 @@ export function ColdRoomCostPage() {
                   ))}
                 </tbody>
               </Table>
-              <p className="flex justify-end gap-2 border-t border-line px-2.5 py-3">
-                {t("admin.coldCost.rooms.total")}{" "}
-                <b className="num">
-                  {data.total !== null ? formatMoney(data.total) : t("admin.coldCost.rooms.unknown")}
-                </b>
-              </p>
+              <div className="flex flex-col items-end gap-1 border-t border-line px-2.5 py-3">
+                {data.estimated ? (
+                  <p>
+                    {t("admin.coldCost.rooms.total")}{" "}
+                    <b className="num">
+                      {data.total !== null ? formatMoney(data.total) : t("admin.coldCost.rooms.unknown")}
+                    </b>
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      {t("admin.coldCost.rooms.estimateTotal")}{" "}
+                      <b className="num">
+                        {data.estimate_total !== null
+                          ? formatMoney(data.estimate_total)
+                          : t("admin.coldCost.rooms.unknown")}
+                      </b>
+                    </p>
+                    <p>
+                      {t("admin.coldCost.rooms.realTotal")}{" "}
+                      <b className="num">
+                        {data.total !== null ? formatMoney(data.total) : t("admin.coldCost.rooms.unknown")}
+                      </b>
+                    </p>
+                    <p>
+                      {t("admin.coldCost.rooms.difference")}{" "}
+                      <b className="num">
+                        {data.difference !== null ? signedMoney(data.difference) : t("admin.coldCost.rooms.unknown")}
+                      </b>
+                    </p>
+                  </>
+                )}
+              </div>
               {data.estimated && (
                 <p className="px-2.5 pb-2 text-[0.85rem] text-ink-2">
-                  {data.estimate_source_month
-                    ? t("admin.coldCost.rooms.estimateFrom", {
-                        month: monthLabel(data.estimate_source_month, i18n.language),
-                      })
-                    : t("admin.coldCost.rooms.noEstimate")}
+                  {data.estimate_typed
+                    ? t("admin.coldCost.rooms.estimateTyped")
+                    : data.estimate_source_month
+                      ? t("admin.coldCost.rooms.estimateFrom", {
+                          month: monthLabel(data.estimate_source_month, i18n.language),
+                        })
+                      : t("admin.coldCost.rooms.noEstimate")}
                 </p>
               )}
             </Card>

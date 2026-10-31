@@ -38,6 +38,7 @@ import type {
   Category,
   ChangePassword,
   CloseLot,
+  ColdRoomEstimateWrite,
   ColdRoomMonth,
   ColdRoomSharesWrite,
   ColdRoomWeight,
@@ -1622,6 +1623,92 @@ export function useGetColdRoomMonth<TData = Awaited<ReturnType<typeof getColdRoo
 
 
 
+
+export const getUpdateColdRoomEstimateUrl = () => {
+
+
+
+
+  return `/api/v1/cold-room-estimate`
+}
+
+/**
+ * Type the electricity estimate of a month for all the cold rooms (owner or manager), until the month's
+ * bill is approved: the rooms share it by weight, as the bill is shared (D-227).
+ */
+export const updateColdRoomEstimate = async (coldRoomEstimateWrite: ColdRoomEstimateWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ColdRoomMonth> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ColdRoomMonth>(getUpdateColdRoomEstimateUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(coldRoomEstimateWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateColdRoomEstimateMutationKey = () => ['updateColdRoomEstimate'] as const;
+
+export const getUpdateColdRoomEstimateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomEstimate>>, TError,UpdateColdRoomEstimateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomEstimate>>, TError,UpdateColdRoomEstimateMutationVariables, TContext> => {
+
+const mutationKey = getUpdateColdRoomEstimateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateColdRoomEstimate>>, UpdateColdRoomEstimateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateColdRoomEstimate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateColdRoomEstimateMutationResult = NonNullable<Awaited<ReturnType<typeof updateColdRoomEstimate>>>
+    export type UpdateColdRoomEstimateMutationBody = ColdRoomEstimateWrite
+    export type UpdateColdRoomEstimateMutationError = unknown
+    export type UpdateColdRoomEstimateMutationVariables = {data: ColdRoomEstimateWrite}
+
+    export const useUpdateColdRoomEstimate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomEstimate>>, TError,UpdateColdRoomEstimateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateColdRoomEstimate>>,
+        TError,
+        UpdateColdRoomEstimateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateColdRoomEstimateMutationOptions(options), queryClient);
+    }
 
 export const getUpdateColdRoomSharesUrl = () => {
 
