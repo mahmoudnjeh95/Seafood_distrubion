@@ -56,9 +56,10 @@ test("the office types a purchase, fixes the kilos received and validates it", a
   await expect(dialog).toContainText("80,750");
   await dialog.getByRole("button", { name: "Valider l'achat" }).click();
 
-  await expect(page.getByText(/validé : réception, facture et paiements enregistrés/)).toBeVisible();
+  await expect(page.getByText(/validé : réception et paiements enregistrés/)).toBeVisible();
   await expect(page.getByRole("heading", { name: /^AT-\d{4}-\d{4}$/, level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: /^BR-\d+$/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^FF-\d+$/ })).toBeVisible();
+  // No invoice at validation (D-200): the office makes it from the receipt.
+  await expect(page.getByRole("link", { name: "Facturer la réception" })).toBeVisible();
   await expect(page.getByText("30,750")).toBeVisible();
 });

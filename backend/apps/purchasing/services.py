@@ -632,6 +632,11 @@ def _post(invoice: SupplierInvoice, actor: User | None) -> None:
     invoice.posted_at = timezone.now()
     invoice.posted_by = actor
     invoice.save(update_fields=["status", "posted_at", "posted_by", "updated_at"])
+    # An invoice for the receipt of one port purchase is that purchase's invoice (its page links it, D-200).
+    purchases = FieldPurchase.objects.filter(receipt__invoice_link__invoice=invoice, invoice__isnull=True)
+    if len(purchases) == 1:
+        purchases[0].invoice = invoice
+        purchases[0].save(update_fields=["invoice", "updated_at"])
     audit.record(
         organization=invoice.organization,
         actor=actor,
@@ -663,11 +668,13 @@ def create_invoice(
     supplier_reference: str = "",
     notes: str = "",
     post: bool = False,
+    apply_advances: bool = False,
 ) -> SupplierInvoice:
     """Record a supplier's invoice for some of their receipts, as a draft, or posted at once with `post`.
 
     Its amount is the receipts' invoiced amount; a receipt goes on one invoice only. Every problem comes
-    back at once, on its field.
+    back at once, on its field. With `post` and `apply_advances`, what the supplier was already given and is not
+    on an invoice yet (cash given at the port, advances) pays it, oldest first (D-200).
     """
     errors = _invoice_header_errors(organization, supplier, invoice_date, due_date)
     locked = _locked_receipts(organization, supplier, receipts, errors) if "supplier" not in errors else []
@@ -693,7 +700,31 @@ def create_invoice(
     )
     if post:
         _post(invoice, actor)
+        if apply_advances:
+            _apply_advances(invoice, actor)
     return invoice
+
+
+def _apply_advances(invoice: SupplierInvoice, actor: User | None) -> None:
+    """Allocate the supplier's unallocated payments to a posted invoice, oldest first, up to what it still owes."""
+    left = invoice.total - _paid_on(invoice)
+    advances = selectors.payments_of(invoice.organization, supplier_id=invoice.supplier_id, unallocated=True)
+    for payment in sorted(advances, key=lambda row: (row.paid_on, row.pk)):
+        if left <= 0:
+            break
+        amount = min(left, getattr(payment, "unallocated_amount"))  # noqa: B009
+        locked = SupplierPayment.objects.select_for_update().get(pk=payment.pk)
+        before = _payment_snapshot(locked)
+        _allocate(locked, actor, [(invoice, amount)])
+        audit.record(
+            organization=invoice.organization,
+            actor=actor,
+            action="supplier_payment.allocated",
+            target=locked,
+            before=before,
+            after=_payment_snapshot(locked),
+        )
+        left -= amount
 
 
 @transaction.atomic
@@ -1619,21 +1650,9 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
         notes=_("Achat terrain %(number)s") % {"number": purchase.number},
         boxes=purchase.boxes,
     )
-    invoice = create_invoice(
-        organization=organization,
-        actor=actor,
-        supplier=supplier,
-        receipts=[receipt],
-        invoice_date=purchase.bought_on,
-        due_date=due_date_of(purchase.bought_on, purchase.terms, purchase.due_days),
-        supplier_reference=purchase.supplier_reference,
-        notes=_("Achat terrain %(number)s") % {"number": purchase.number},
-        post=True,
-    )
-    left = invoice.total
+    # No invoice here (D-200): the office makes it later from the receipts it picks ("Nouvelle facture"), and
+    # the money given at the port waits as an advance of the supplier until then.
     for payment in payments:
-        allocated = min(left, payment.amount)
-        left -= allocated
         payment.supplier_payment = record_payment(
             organization=organization,
             actor=actor,
@@ -1644,24 +1663,22 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
             reference=payment.reference,
             cash_on=payment.cash_on,
             notes=_("Donné au port, achat terrain %(number)s") % {"number": purchase.number},
-            # What is given beyond the invoice stays an advance (D-043).
-            allocations=[{"invoice": invoice, "amount": allocated}] if allocated > 0 else [],
+            allocations=[],
         )
         payment.save(update_fields=["supplier_payment"])
     purchase.status = FieldPurchaseStatus.VALIDATED
     purchase.receipt = receipt
-    purchase.invoice = invoice
     purchase.decided_at = timezone.now()
     purchase.decided_by = actor
     purchase.revision += 1
-    purchase.save(update_fields=["status", "receipt", "invoice", "decided_at", "decided_by", "revision", "updated_at"])
+    purchase.save(update_fields=["status", "receipt", "decided_at", "decided_by", "revision", "updated_at"])
     _add_revision(purchase, actor, FieldPurchaseAction.VALIDATED)
     audit.record(
         organization=organization,
         actor=actor,
         action="field_purchase.validated",
         target=purchase,
-        after={"receipt": receipt.number, "invoice": invoice.number, "total": str(invoice.total)},
+        after={"receipt": receipt.number, "total": str(total)},
     )
 
 

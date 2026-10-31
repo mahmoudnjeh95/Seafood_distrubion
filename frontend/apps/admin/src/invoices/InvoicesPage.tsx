@@ -7,7 +7,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
-import { INVOICE_STATUSES, isZero, STATUS_TONES } from "./shared";
+import { canInvoice, INVOICE_STATUSES, isZero, STATUS_TONES } from "./shared";
 
 const PAGE_SIZE = 50;
 
@@ -225,6 +225,12 @@ export function InvoicesPage() {
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.sales")} title={t("admin.invoices.title")}>
+        {canInvoice(session) && (
+          <Button variant="primary" onClick={() => void navigate("/factures/nouvelle")}>
+            <Icon name="plus" />
+            {t("admin.invoiceBuilder.title")}
+          </Button>
+        )}
         {(session.role === "owner" || session.role === "manager" || session.role === "accountant") && (
           <Button onClick={() => void navigate("/factures/parametres")}>
             <Icon name="percent" />

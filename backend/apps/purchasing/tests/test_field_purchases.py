@@ -345,23 +345,33 @@ def test_validating_records_the_receipt_the_debt_and_the_payment(organization, d
     assert receipt_line.ordered_quantity == Decimal("50.000")
     assert inventory.on_hand_of(organization, location_id=room.pk).get().quantity == Decimal("48.000")
 
-    # What is owed: the kg received, due by the deal.
-    invoice = purchase.invoice
-    assert invoice is not None
-    assert invoice.total == Decimal("960.000")
-    assert invoice.due_date == TODAY() + dt.timedelta(days=30)
-    assert invoice.supplier_reference == "T-7"
-
-    # The 600 DT given at the port settle part of it.
-    invoice = selectors.invoice_of(organization, invoice.pk)
-    assert invoice.status == SupplierInvoiceStatus.PARTLY_PAID
+    # No invoice yet (D-200): the receipt waits to be invoiced, the 600 DT given at the port are an advance.
+    assert purchase.invoice is None
     payment = purchase.payments.get().supplier_payment
     assert payment is not None
     assert payment.amount == Decimal("600.000")
     assert payment.method == "cash"
     balance = selectors.supplier_balance(organization, supplier.pk)
+    assert (balance.uninvoiced_receipts, balance.uninvoiced_total) == (1, Decimal("960.000"))
+    assert balance.unallocated == Decimal("600.000")
+
+    # The office invoices the receipt later; the advance pays part of it.
+    invoice = services.create_invoice(
+        organization=organization,
+        actor=office,
+        supplier=supplier,
+        receipts=[receipt],
+        invoice_date=TODAY(),
+        due_date=TODAY() + dt.timedelta(days=30),
+        post=True,
+        apply_advances=True,
+    )
+    invoice = selectors.invoice_of(organization, invoice.pk)
+    assert invoice.total == Decimal("960.000")
+    assert invoice.status == SupplierInvoiceStatus.PARTLY_PAID
+    balance = selectors.supplier_balance(organization, supplier.pk)
     assert balance.balance == Decimal("360.000")
-    assert balance.uninvoiced_receipts == 0
+    assert (balance.uninvoiced_receipts, balance.unallocated) == (0, Decimal("0.000"))
 
 
 def test_more_given_than_owed_is_an_advance_and_a_cheque_keeps_its_cashing_day(
@@ -391,8 +401,19 @@ def test_more_given_than_owed_is_an_advance_and_a_cheque_keeps_its_cashing_day(
     )
 
     purchase.refresh_from_db()
-    assert purchase.invoice is not None
-    assert selectors.invoice_of(organization, purchase.invoice.pk).status == SupplierInvoiceStatus.PAID
+    assert purchase.receipt is not None
+    invoice = services.create_invoice(
+        organization=organization,
+        actor=None,
+        supplier=supplier,
+        receipts=[purchase.receipt],
+        invoice_date=TODAY(),
+        due_date=TODAY(),
+        post=True,
+        apply_advances=True,
+    )
+    assert selectors.invoice_of(organization, invoice.pk).status == SupplierInvoiceStatus.PAID
+    assert selectors.supplier_balance(organization, supplier.pk).unallocated == Decimal("200.000")
     cheque_id = purchase.payments.order_by("id")[1].supplier_payment_id
     assert cheque_id is not None
     cheque = selectors.payment_of(organization, cheque_id)
@@ -570,7 +591,7 @@ def test_the_office_checks_and_validates_through_the_api(organization, driver, s
     ).json()
     assert validated["status"] == "validated"
     assert validated["receipt"]["number"].startswith("BR-")
-    assert validated["invoice"]["number"].startswith("FF-")
+    assert validated["invoice"] is None  # invoiced later from "Nouvelle facture" (D-200)
     assert validated["payments"][0]["supplier_payment"]["number"].startswith(f"RF-{YEAR}-")
 
 

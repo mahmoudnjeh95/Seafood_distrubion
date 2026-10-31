@@ -1357,6 +1357,31 @@ export const fr = {
       keys: "Entrée : case suivante · ↑ ↓ : changer de ligne · Ctrl + Suppr : retirer la ligne",
     },
     // P2-T04 · sales
+    // ---- "Nouvelle facture": an invoice from the BL you tick, again and again (D-200) ----
+    invoiceBuilder: {
+      title: "Nouvelle facture",
+      intro:
+        "Choisissez le client, cochez un ou plusieurs bons de livraison à facturer, puis générez la facture. La page reste ouverte : cochez les BL suivants pour faire la facture suivante.",
+      customer: "Client",
+      customerPlaceholder: "Tapez le nom ou le code du client",
+      noCustomer: "Aucun client ne correspond.",
+      toInvoice: "Bons de livraison à facturer",
+      hint: "Ventes confirmées sans facture",
+      nothing: "Aucun bon de livraison à facturer pour ce client.",
+      all: "Tout cocher",
+      number: "BL",
+      date: "Date",
+      lines: "Lignes",
+      amount: "Montant TTC",
+      chosen_one: "{{count}} BL coché",
+      chosen_other: "{{count}} BL cochés",
+      draft: "Générer le brouillon",
+      issue: "Générer et émettre",
+      made_one: "Facture générée pour {{count}} BL.",
+      made_other: "Facture générée pour {{count}} BL.",
+      madeTitle: "Factures générées ici",
+      failed: "La facture n'a pas pu être générée.",
+    },
     invoices: {
       title: "Factures",
       intro:
@@ -2358,7 +2383,8 @@ export const fr = {
         refuse: "Refuser",
         created: "Achat {{number}} enregistré : il attend la validation.",
         saved: "Achat {{number}} enregistré (version {{revision}}).",
-        validated: "Achat {{number}} validé : réception, facture et paiements enregistrés.",
+        validated:
+          "Achat {{number}} validé : réception et paiements enregistrés. La facture se fait depuis « Facturer la réception ».",
         validateTitle: "Valider l'achat {{number}} ?",
         validateBody:
           "{{kilos}} entrent en stock, {{total}} sont dus au fournisseur (échéance le {{due}}) et {{paid}} donnés sur place sont enregistrés. Un achat validé ne se modifie plus.",
@@ -2386,6 +2412,7 @@ export const fr = {
         location: "Emplacement",
         receipt: "Réception",
         invoice: "Facture",
+        makeInvoice: "Facturer la réception",
         decided: "Décidé par",
         none: "—",
         lines: "Produits",
@@ -2541,6 +2568,8 @@ export const fr = {
         postHint: "Une facture validée compte dans le solde du fournisseur et ne se modifie plus.",
         saveDraft: "Enregistrer le brouillon",
         saveAndPost: "Enregistrer et valider",
+        saveAndAgain: "Valider et en faire une autre",
+        applyAdvances: "À la validation, payer avec l'argent déjà donné au fournisseur (port, avances)",
         saving: "Enregistrement…",
         cancel: "Annuler",
         required: "Obligatoire.",
