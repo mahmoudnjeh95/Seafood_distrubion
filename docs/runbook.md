@@ -34,9 +34,17 @@ CI deploys automatically after every green push to `main`, once these GitHub sec
 - `STAGING_SSH_KEY`: a private key **made only for this** (`ssh-keygen -t ed25519 -f frutti_ci_deploy -N ""`),
   whose public key is added to `~debian/.ssh/authorized_keys` on the server.
 
-**Done on 2026-10-10.** The CI key (`frutti-ci-deploy`) is in `~debian/.ssh/authorized_keys` with the
-`restrict` option (no tunnels, no terminal); the previous file is kept as `authorized_keys.bak-before-frutti-ci`.
-To revoke it, delete that line and the GitHub secret. Limit to keep in mind: the deploy runs uploaded code
+**Where the deploy runs (D-209, 2026-10-31).** Work happens on `mahmoudnjeh95/Seafood_distrubion` (PRs, CI).
+The organisation copy `SmartToolsAgro/SmartFeesh` follows it and is **the only repo that deploys**: after every
+merge, push `main` there as a fast-forward (`git remote add org https://github.com/SmartToolsAgro/SmartFeesh.git`
+once, then `git push org origin/main:refs/heads/main`); its CI tests again and deploys. Staging does not change
+until that push. Only one repo may hold the secrets: two deploys at once overload the shared server (#216).
+
+The SmartFeesh key (`frutti-ci-deploy-smartfeesh`) is in `~debian/.ssh/authorized_keys` with the `restrict`
+option (no tunnels, no terminal); the file before it is `authorized_keys.bak-before-smartfeesh`. The first key
+(`frutti-ci-deploy`, 2026-10-10, previous file `authorized_keys.bak-before-frutti-ci`) belongs to the personal
+repo; it is revoked by deleting its line on the server and the two secrets of the personal repo.
+To revoke a key, delete its line and the GitHub secret. Limit to keep in mind: the deploy runs uploaded code
 with sudo, so whoever holds the secret is effectively root on a server shared with other clients. The real
 fix is a separate server, or a server that pulls only code already on `main` from GitHub.
 
