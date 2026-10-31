@@ -201,14 +201,10 @@ def closing_of(driver_day: "DriverDay") -> DayClosing | None:
 
 def day_answer(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """A driver's day as the phone shows it: the figures as sent once the closing is sent (they do not move,
-    D-134), the day's records before. The records are shown again whenever the driver is about to send again,
-    since they are what the new send will keep: the office asked for a justification, a new load reopened the
-    day, or the records no longer say what was sent (D-132)."""
+    D-134; the office's correction moves them, D-220), the day's records before. The records are shown only while
+    the day runs: a new load reopened it, and the next send keeps them."""
     closing = closing_of(driver_day)
-    as_sent = closing is not None and (
-        closing.status == DayClosingStatus.APPROVED
-        or (closing.status == DayClosingStatus.SUBMITTED and not changed_since_sent(closing))
-    )
+    as_sent = closing is not None and closing.status != DayClosingStatus.REOPENED
     summary = closing.summary if closing is not None and as_sent else day_summary(organization, driver_day)
     return {"summary": summary, "closing": closing}
 
@@ -285,7 +281,7 @@ def closings_of(
     rows = (
         DayClosing.objects.for_organization(organization)
         .select_related("driver_day__truck__location", "driver_day__driver", "reviewed_by")
-        .prefetch_related("reopenings__reviewed_by", "reopenings__load")
+        .prefetch_related("reopenings__reviewed_by", "reopenings__load", "revisions__actor")
         .order_by("-submitted_at", "-id")
     )
     if status:

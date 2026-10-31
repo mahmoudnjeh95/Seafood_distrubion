@@ -2336,6 +2336,14 @@ export const GetDayClosingResponse = zod.object({
   "reopened_at": zod.iso.datetime({"offset":true}),
   "load_number": zod.string()
 }).describe('A send that a new load undid (D-134), as it was: its cash was handed to the office.')),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "actor_name": zod.string(),
+  "reason": zod.string(),
+  "before": zod.unknown(),
+  "after": zod.unknown(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('An office correction of the day (D-220): who, when, why, and the figures before and after.')),
   "changes_since_sent": zod.array(zod.object({
   "figure": zod.enum(['sales_count', 'sales_total', 'cash_received', 'payments_cash', 'other_payments', 'on_credit', 'expenses_total', 'expected_cash', 'purchases_cash', 'purchases_other', 'expected_purchase_cash', 'opening', 'loaded', 'sold', 'lost', 'returned', 'remaining']).describe('* `sales_count` - sales_count\n* `sales_total` - sales_total\n* `cash_received` - cash_received\n* `payments_cash` - payments_cash\n* `other_payments` - other_payments\n* `on_credit` - on_credit\n* `expenses_total` - expenses_total\n* `expected_cash` - expected_cash\n* `purchases_cash` - purchases_cash\n* `purchases_other` - purchases_other\n* `expected_purchase_cash` - expected_purchase_cash\n* `opening` - opening\n* `loaded` - loaded\n* `sold` - sold\n* `lost` - lost\n* `returned` - returned\n* `remaining` - remaining'),
   "product_name": zod.string(),
@@ -2483,11 +2491,174 @@ export const ApproveDayClosingResponse = zod.object({
   "reopened_at": zod.iso.datetime({"offset":true}),
   "load_number": zod.string()
 }).describe('A send that a new load undid (D-134), as it was: its cash was handed to the office.')),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "actor_name": zod.string(),
+  "reason": zod.string(),
+  "before": zod.unknown(),
+  "after": zod.unknown(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('An office correction of the day (D-220): who, when, why, and the figures before and after.')),
   "changes_since_sent": zod.array(zod.object({
   "figure": zod.enum(['sales_count', 'sales_total', 'cash_received', 'payments_cash', 'other_payments', 'on_credit', 'expenses_total', 'expected_cash', 'purchases_cash', 'purchases_other', 'expected_purchase_cash', 'opening', 'loaded', 'sold', 'lost', 'returned', 'remaining']).describe('* `sales_count` - sales_count\n* `sales_total` - sales_total\n* `cash_received` - cash_received\n* `payments_cash` - payments_cash\n* `other_payments` - other_payments\n* `on_credit` - on_credit\n* `expenses_total` - expenses_total\n* `expected_cash` - expected_cash\n* `purchases_cash` - purchases_cash\n* `purchases_other` - purchases_other\n* `expected_purchase_cash` - expected_purchase_cash\n* `opening` - opening\n* `loaded` - loaded\n* `sold` - sold\n* `lost` - lost\n* `returned` - returned\n* `remaining` - remaining'),
   "product_name": zod.string(),
   "sent": zod.stringFormat('decimal', approveDayClosingResponseChangesSinceSentItemSentRegExp),
   "live": zod.stringFormat('decimal', approveDayClosingResponseChangesSinceSentItemLiveRegExp)
+}).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
+  "changed_since_sent": zod.boolean()
+})
+
+
+/**
+ * The office corrects a driver's day (owner or manager, D-220): the driver never changes a sent day. The
+ * day's figures are taken as the records say now, and the counts are changed when given. Needs a `reason`;
+ * the correction is kept as a revision with the figures before and after. Refused for a day a new load
+ * reopened.
+ */
+export const CorrectDayClosingParams = zod.object({
+  "closing_id": zod.int()
+})
+
+export const correctDayClosingBodyReasonMax = 300;
+
+export const correctDayClosingBodyOfficeCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingBodyOfficeCountedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CorrectDayClosingBody = zod.object({
+  "reason": zod.string().max(correctDayClosingBodyReasonMax),
+  "office_counted_cash": zod.stringFormat('decimal', correctDayClosingBodyOfficeCountedCashRegExp).nullish(),
+  "office_counted_purchase_cash": zod.stringFormat('decimal', correctDayClosingBodyOfficeCountedPurchaseCashRegExp).nullish()
+})
+
+export const correctDayClosingResponseExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseOfficeCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseOfficeCountedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseOfficeDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseOfficePurchaseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const correctDayClosingResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const correctDayClosingResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOnePurchaseFloatDefault = `0.000`;
+export const correctDayClosingResponseSummaryOnePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOnePurchasesCountDefault = 0;
+export const correctDayClosingResponseSummaryOnePurchasesTotalDefault = `0.000`;
+export const correctDayClosingResponseSummaryOnePurchasesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOnePurchasesCashDefault = `0.000`;
+export const correctDayClosingResponseSummaryOnePurchasesCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOnePurchasesOtherDefault = `0.000`;
+export const correctDayClosingResponseSummaryOnePurchasesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOnePurchasesFromSalesDefault = `0.000`;
+export const correctDayClosingResponseSummaryOnePurchasesFromSalesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneOwedToDriverDefault = `0.000`;
+export const correctDayClosingResponseSummaryOneOwedToDriverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneExpectedPurchaseCashDefault = `0.000`;
+export const correctDayClosingResponseSummaryOneExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseSummaryOneProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseReopeningsItemExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseReopeningsItemCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseReopeningsItemDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseReopeningsItemCountedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseChangesSinceSentItemSentRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const correctDayClosingResponseChangesSinceSentItemLiveRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CorrectDayClosingResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "status": zod.enum(['submitted', 'justification', 'approved', 'reopened']).describe('* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "expected_cash": zod.stringFormat('decimal', correctDayClosingResponseExpectedCashRegExp),
+  "expected_purchase_cash": zod.stringFormat('decimal', correctDayClosingResponseExpectedPurchaseCashRegExp),
+  "office_counted_cash": zod.stringFormat('decimal', correctDayClosingResponseOfficeCountedCashRegExp).nullable(),
+  "office_counted_purchase_cash": zod.stringFormat('decimal', correctDayClosingResponseOfficeCountedPurchaseCashRegExp).nullable(),
+  "office_difference": zod.stringFormat('decimal', correctDayClosingResponseOfficeDifferenceRegExp),
+  "office_purchase_difference": zod.stringFormat('decimal', correctDayClosingResponseOfficePurchaseDifferenceRegExp),
+  "driver_note": zod.string(),
+  "review_note": zod.string(),
+  "submitted_at": zod.iso.datetime({"offset":true}),
+  "reviewed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reviewed_by_name": zod.string(),
+  "summary": zod.object({
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneOpeningCashRegExp),
+  "sales_count": zod.int(),
+  "sales_total": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneSalesTotalRegExp),
+  "cash_received": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', correctDayClosingResponseSummaryOnePaymentsCashRegExp),
+  "other_payments": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneOtherPaymentsRegExp),
+  "on_credit": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneOnCreditRegExp),
+  "expenses_total": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneExpensesPocketRegExp).default(correctDayClosingResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneExpensesOtherRegExp).default(correctDayClosingResponseSummaryOneExpensesOtherDefault),
+  "handed_over": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneHandedOverRegExp),
+  "expected_cash": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneExpectedCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', correctDayClosingResponseSummaryOnePurchaseFloatRegExp).default(correctDayClosingResponseSummaryOnePurchaseFloatDefault),
+  "purchases_count": zod.int().default(correctDayClosingResponseSummaryOnePurchasesCountDefault),
+  "purchases_total": zod.stringFormat('decimal', correctDayClosingResponseSummaryOnePurchasesTotalRegExp).default(correctDayClosingResponseSummaryOnePurchasesTotalDefault),
+  "purchases_cash": zod.stringFormat('decimal', correctDayClosingResponseSummaryOnePurchasesCashRegExp).default(correctDayClosingResponseSummaryOnePurchasesCashDefault),
+  "purchases_other": zod.stringFormat('decimal', correctDayClosingResponseSummaryOnePurchasesOtherRegExp).default(correctDayClosingResponseSummaryOnePurchasesOtherDefault),
+  "purchases_from_sales": zod.stringFormat('decimal', correctDayClosingResponseSummaryOnePurchasesFromSalesRegExp).default(correctDayClosingResponseSummaryOnePurchasesFromSalesDefault),
+  "owed_to_driver": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneOwedToDriverRegExp).default(correctDayClosingResponseSummaryOneOwedToDriverDefault),
+  "expected_purchase_cash": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneExpectedPurchaseCashRegExp).default(correctDayClosingResponseSummaryOneExpectedPurchaseCashDefault),
+  "products": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemOpeningRegExp),
+  "loaded": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemLoadedRegExp),
+  "sold": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemSoldRegExp),
+  "lost": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemLostRegExp),
+  "returned": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemReturnedRegExp),
+  "remaining": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', correctDayClosingResponseSummaryOneProductsItemUnexplainedRegExp)
+}))
+}),
+  "reopenings": zod.array(zod.object({
+  "status": zod.enum(['submitted', 'justification', 'approved', 'reopened']).describe('* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "expected_cash": zod.stringFormat('decimal', correctDayClosingResponseReopeningsItemExpectedCashRegExp),
+  "counted_cash": zod.stringFormat('decimal', correctDayClosingResponseReopeningsItemCountedCashRegExp).nullable(),
+  "difference": zod.stringFormat('decimal', correctDayClosingResponseReopeningsItemDifferenceRegExp).nullable(),
+  "counted_purchase_cash": zod.stringFormat('decimal', correctDayClosingResponseReopeningsItemCountedPurchaseCashRegExp).nullable(),
+  "driver_note": zod.string(),
+  "submitted_at": zod.iso.datetime({"offset":true}),
+  "reviewed_by_name": zod.string(),
+  "reviewed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "reopened_at": zod.iso.datetime({"offset":true}),
+  "load_number": zod.string()
+}).describe('A send that a new load undid (D-134), as it was: its cash was handed to the office.')),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "actor_name": zod.string(),
+  "reason": zod.string(),
+  "before": zod.unknown(),
+  "after": zod.unknown(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('An office correction of the day (D-220): who, when, why, and the figures before and after.')),
+  "changes_since_sent": zod.array(zod.object({
+  "figure": zod.enum(['sales_count', 'sales_total', 'cash_received', 'payments_cash', 'other_payments', 'on_credit', 'expenses_total', 'expected_cash', 'purchases_cash', 'purchases_other', 'expected_purchase_cash', 'opening', 'loaded', 'sold', 'lost', 'returned', 'remaining']).describe('* `sales_count` - sales_count\n* `sales_total` - sales_total\n* `cash_received` - cash_received\n* `payments_cash` - payments_cash\n* `other_payments` - other_payments\n* `on_credit` - on_credit\n* `expenses_total` - expenses_total\n* `expected_cash` - expected_cash\n* `purchases_cash` - purchases_cash\n* `purchases_other` - purchases_other\n* `expected_purchase_cash` - expected_purchase_cash\n* `opening` - opening\n* `loaded` - loaded\n* `sold` - sold\n* `lost` - lost\n* `returned` - returned\n* `remaining` - remaining'),
+  "product_name": zod.string(),
+  "sent": zod.stringFormat('decimal', correctDayClosingResponseChangesSinceSentItemSentRegExp),
+  "live": zod.stringFormat('decimal', correctDayClosingResponseChangesSinceSentItemLiveRegExp)
 }).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
   "changed_since_sent": zod.boolean()
 })
@@ -2626,6 +2797,14 @@ export const CountDayClosingResponse = zod.object({
   "reopened_at": zod.iso.datetime({"offset":true}),
   "load_number": zod.string()
 }).describe('A send that a new load undid (D-134), as it was: its cash was handed to the office.')),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "actor_name": zod.string(),
+  "reason": zod.string(),
+  "before": zod.unknown(),
+  "after": zod.unknown(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('An office correction of the day (D-220): who, when, why, and the figures before and after.')),
   "changes_since_sent": zod.array(zod.object({
   "figure": zod.enum(['sales_count', 'sales_total', 'cash_received', 'payments_cash', 'other_payments', 'on_credit', 'expenses_total', 'expected_cash', 'purchases_cash', 'purchases_other', 'expected_purchase_cash', 'opening', 'loaded', 'sold', 'lost', 'returned', 'remaining']).describe('* `sales_count` - sales_count\n* `sales_total` - sales_total\n* `cash_received` - cash_received\n* `payments_cash` - payments_cash\n* `other_payments` - other_payments\n* `on_credit` - on_credit\n* `expenses_total` - expenses_total\n* `expected_cash` - expected_cash\n* `purchases_cash` - purchases_cash\n* `purchases_other` - purchases_other\n* `expected_purchase_cash` - expected_purchase_cash\n* `opening` - opening\n* `loaded` - loaded\n* `sold` - sold\n* `lost` - lost\n* `returned` - returned\n* `remaining` - remaining'),
   "product_name": zod.string(),
@@ -2766,6 +2945,14 @@ export const RequestDayJustificationResponse = zod.object({
   "reopened_at": zod.iso.datetime({"offset":true}),
   "load_number": zod.string()
 }).describe('A send that a new load undid (D-134), as it was: its cash was handed to the office.')),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "actor_name": zod.string(),
+  "reason": zod.string(),
+  "before": zod.unknown(),
+  "after": zod.unknown(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('An office correction of the day (D-220): who, when, why, and the figures before and after.')),
   "changes_since_sent": zod.array(zod.object({
   "figure": zod.enum(['sales_count', 'sales_total', 'cash_received', 'payments_cash', 'other_payments', 'on_credit', 'expenses_total', 'expected_cash', 'purchases_cash', 'purchases_other', 'expected_purchase_cash', 'opening', 'loaded', 'sold', 'lost', 'returned', 'remaining']).describe('* `sales_count` - sales_count\n* `sales_total` - sales_total\n* `cash_received` - cash_received\n* `payments_cash` - payments_cash\n* `other_payments` - other_payments\n* `on_credit` - on_credit\n* `expenses_total` - expenses_total\n* `expected_cash` - expected_cash\n* `purchases_cash` - purchases_cash\n* `purchases_other` - purchases_other\n* `expected_purchase_cash` - expected_purchase_cash\n* `opening` - opening\n* `loaded` - loaded\n* `sold` - sold\n* `lost` - lost\n* `returned` - returned\n* `remaining` - remaining'),
   "product_name": zod.string(),

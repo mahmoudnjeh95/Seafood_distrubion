@@ -5,9 +5,10 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -18,7 +19,7 @@ from apps.fleet import services as fleet_services
 from apps.sales import services as sales_services
 
 from . import selectors
-from .models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
+from .models import DayClosing, DayClosingRevision, DayClosingStatus, DayReopening, SyncProblem
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
@@ -30,8 +31,13 @@ def _plain(value: Any) -> Any:
     return json.loads(json.dumps(value, cls=DjangoJSONEncoder))
 
 
+# The office corrects a day whose records moved since the send (D-220); the driver never sends it again.
 CHANGED_SINCE_SENT = (
-    "Les chiffres ont changé depuis l'envoi : le chauffeur doit renvoyer sa journée avant l'approbation."
+    "Les chiffres ont changé depuis l'envoi : corrigez d'abord la journée (Corriger). "
+    "Le chauffeur ne la renvoie plus."
+)
+DRIVER_CANNOT_RESEND = (
+    "Les chiffres ont changé depuis l'envoi : le bureau corrige la journée. Vous ne pouvez plus l'envoyer."
 )
 _COUNT_FIELDS = [
     "office_counted_cash",
@@ -72,6 +78,36 @@ def _set_office_count(
     )
 
 
+def _refuse_recount(
+    closing: DayClosing, office_counted_cash: Decimal | None, office_counted_purchase_cash: Decimal | None
+) -> None:
+    """A count already saved changes only by a correction, with its reason (D-220). A count left out (None) keeps
+    what was saved."""
+    errors: dict[str, str] = {}
+    message = _("Le comptage est déjà saisi : pour le changer, corrigez la journée avec une raison.")
+    if closing.office_counted_cash is not None and office_counted_cash not in (None, closing.office_counted_cash):
+        errors["office_counted_cash"] = message
+    if (
+        closing.office_counted_purchase_cash is not None
+        and office_counted_purchase_cash not in (None, closing.office_counted_purchase_cash)
+    ):
+        errors["office_counted_purchase_cash"] = message
+    if errors:
+        raise ValidationError(errors)
+
+
+def _figures_of(summary: dict[str, Any], closing: DayClosing) -> dict[str, str | None]:
+    """The figures a correction shows before and after: the day's figures as kept, and the office's counts."""
+    figures: dict[str, str | None] = {name: str(summary[name]) for name in selectors.DAY_FIGURES if name in summary}
+    figures.update(
+        office_counted_cash=_text(closing.office_counted_cash),
+        office_counted_purchase_cash=_text(closing.office_counted_purchase_cash),
+        office_difference=str(closing.office_difference),
+        office_purchase_difference=str(closing.office_purchase_difference),
+    )
+    return figures
+
+
 @transaction.atomic
 def submit_day_closing(*, driver_day: "DriverDay", actor: User, note: str = "") -> DayClosing:
     """The driver sends the end of their day. The driver does not count the cash: the office counts it when the
@@ -89,6 +125,13 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, note: str = "") 
         raise ValidationError(_("Cette journée est déjà envoyée."))
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError(_("Cette journée est approuvée : elle ne change plus."))
+    # The driver never changes a sent day (D-220): when its records moved since the send, the office corrects it.
+    if (
+        existing is not None
+        and existing.status in (DayClosingStatus.SUBMITTED, DayClosingStatus.JUSTIFICATION)
+        and selectors.changed_since_sent(existing)
+    ):
+        raise PermissionDenied(DRIVER_CANNOT_RESEND)
     # The BL of the truck still to deliver are not delivered (D-178): nothing was sold, the goods go back with the
     # return to the cold room.
     sales_services.cancel_undelivered(
@@ -160,7 +203,14 @@ def record_office_count(
     closing = _reviewable(closing)
     if selectors.changed_since_sent(closing):
         raise ValidationError(CHANGED_SINCE_SENT)
-    _set_office_count(closing, office_counted_cash, office_counted_purchase_cash)
+    _refuse_recount(closing, office_counted_cash, office_counted_purchase_cash)
+    # A purchase count left out keeps the one saved (D-220).
+    purchase = (
+        office_counted_purchase_cash
+        if office_counted_purchase_cash is not None
+        else closing.office_counted_purchase_cash
+    )
+    _set_office_count(closing, office_counted_cash, purchase)
     closing.save(update_fields=[*_COUNT_FIELDS, "updated_at"])
     audit.record(
         organization=closing.organization,
@@ -193,7 +243,8 @@ def approve_day_closing(
     closing = _reviewable(closing)
     if selectors.changed_since_sent(closing):
         raise ValidationError(CHANGED_SINCE_SENT)
-    # A count sent with the approval replaces the saved one; a figure left out keeps what was saved.
+    # A count sent with the approval must match the saved one (D-220); a figure left out keeps what was saved.
+    _refuse_recount(closing, office_counted_cash, office_counted_purchase_cash)
     cash = office_counted_cash if office_counted_cash is not None else closing.office_counted_cash
     purchase = (
         office_counted_purchase_cash
@@ -229,6 +280,69 @@ def approve_day_closing(
             "office_difference": str(closing.office_difference),
             "office_purchase_difference": str(closing.office_purchase_difference),
         },
+    )
+    return closing
+
+
+@transaction.atomic
+def correct_day_closing(
+    *,
+    closing: DayClosing,
+    actor: User,
+    reason: str,
+    office_counted_cash: Decimal | None = None,
+    office_counted_purchase_cash: Decimal | None = None,
+) -> DayClosing:
+    """The office corrects a driver's day (D-220): the driver never changes a sent day, so the office takes the day's
+    records as they are now (the figures sent move to them) and, when given, its counts. Each correction is a
+    `DayClosingRevision` with who, when, why, and the figures before and after. The status stays: an approval
+    stands, and a day still to check stays to check. Refused for a day a new load reopened: its send is in the
+    history (D-134)."""
+    reason = reason.strip()
+    if not reason:
+        raise ValidationError({"reason": _("Dites pourquoi vous corrigez la journée.")})
+    _counts_checked(office_counted_cash, office_counted_purchase_cash)
+    closing = DayClosing.objects.select_for_update().get(pk=closing.pk)
+    if closing.status == DayClosingStatus.REOPENED:
+        raise ValidationError(
+            _("Une nouvelle charge a rouvert cette journée : corrigez-la après son prochain envoi.")
+        )
+    cash = office_counted_cash if office_counted_cash is not None else closing.office_counted_cash
+    purchase = (
+        office_counted_purchase_cash
+        if office_counted_purchase_cash is not None
+        else closing.office_counted_purchase_cash
+    )
+    if cash is None and purchase is not None:
+        raise ValidationError({"office_counted_cash": _("Comptez d'abord l'argent du chauffeur.")})
+    before = _figures_of(closing.summary, closing)
+    live = selectors.day_summary(closing.organization, closing.driver_day)
+    closing.summary = _plain(live)
+    closing.expected_cash = live["expected_cash"]
+    closing.expected_purchase_cash = live["expected_purchase_cash"]
+    if cash is not None:
+        _set_office_count(closing, cash, purchase)
+    after = _figures_of(closing.summary, closing)
+    if after == before:
+        raise ValidationError(_("Rien n'a changé : il n'y a rien à corriger."))
+    closing.save(update_fields=["summary", "expected_cash", "expected_purchase_cash", *_COUNT_FIELDS, "updated_at"])
+    last = closing.revisions.aggregate(last=Max("number"))["last"] or 0
+    DayClosingRevision.objects.create(
+        organization=closing.organization,
+        closing=closing,
+        number=last + 1,
+        actor=actor,
+        reason=reason[:300],
+        before=before,
+        after=after,
+    )
+    audit.record(
+        organization=closing.organization,
+        actor=actor,
+        action="day_closing.corrected",
+        target=closing,
+        before=before,
+        after=after,
     )
     return closing
 
