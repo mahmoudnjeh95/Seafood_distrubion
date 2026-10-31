@@ -6,7 +6,7 @@ import { OWNER_STATE } from "./owner";
 // cold room, in products the other tests leave alone (rouget, sardine, poulpe), so they can run in any order.
 test.use({ storageState: OWNER_STATE });
 
-// In the grid a sale is typed in, the cell after the price (and the discount, or the lot): the kilos in stock.
+// In the grid a sale is typed in, the cell after the price and the discount: the kilos in stock.
 const STOCK_CELL = 5;
 
 async function choose(page: Page, scope: Page | Locator, label: string, option: string) {
@@ -44,7 +44,8 @@ test("a counter sale to the walk-in customer is weighed, paid and confirmed at o
   await choose(page, line, "Produit", "Rouget · RO-009");
   // The daily price is proposed; the cold room's stock is shown; the oldest lot goes first unless one is picked.
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("14,000");
-  await expect(line.getByRole("cell").nth(STOCK_CELL)).toHaveText(/^[\d\s,]+kg$/);
+  // No discount column at the counter: the stock is one cell earlier than on the sale form (the lot is last, D-201).
+  await expect(line.getByRole("cell").nth(STOCK_CELL - 1)).toHaveText(/^[\d\s,]+kg$/);
   await expect(line.getByRole("combobox", { name: "Lot" })).toHaveText("Lot le plus ancien (FIFO)");
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
