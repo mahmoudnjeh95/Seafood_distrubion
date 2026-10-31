@@ -74,6 +74,8 @@ import type {
   DriverDay,
   ElectricityBill,
   ElectricityBillWrite,
+  EmailDraft,
+  EmailWrite,
   Employee,
   EmployeeWrite,
   ExpenseCategory,
@@ -5549,6 +5551,201 @@ export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments
 
 
 
+
+export const getGetDocumentEmailDraftUrl = (kind: string,
+    objectId: number,) => {
+
+
+
+
+  return `/api/v1/documents/${kind}/${objectId}/email`
+}
+
+/**
+ * What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+ * the document and the company, a short message; and the last times it was sent.
+ */
+export const getDocumentEmailDraft = async (kind: string,
+    objectId: number, options?: Parameters<typeof apiFetch>[1]): Promise<EmailDraft> => {
+
+  return apiFetch<EmailDraft>(getGetDocumentEmailDraftUrl(kind,objectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentEmailDraftQueryKey = (kind: string,
+    objectId: number,) => {
+    return [
+    `/api/v1/documents/${kind}/${objectId}/email`
+    ] as const;
+    }
+
+
+export const getGetDocumentEmailDraftQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError = unknown>(kind: string,
+    objectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentEmailDraftQueryKey(kind,objectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocumentEmailDraft>>> = ({ signal }) => getDocumentEmailDraft(kind,objectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: kind !== null && kind !== undefined && objectId !== null && objectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDocumentEmailDraftQueryResult = NonNullable<Awaited<ReturnType<typeof getDocumentEmailDraft>>>
+export type GetDocumentEmailDraftQueryError = unknown
+
+
+export function useGetDocumentEmailDraft<TData = Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError = unknown>(
+ kind: string,
+    objectId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocumentEmailDraft>>,
+          TError,
+          Awaited<ReturnType<typeof getDocumentEmailDraft>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDocumentEmailDraft<TData = Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError = unknown>(
+ kind: string,
+    objectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocumentEmailDraft>>,
+          TError,
+          Awaited<ReturnType<typeof getDocumentEmailDraft>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDocumentEmailDraft<TData = Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError = unknown>(
+ kind: string,
+    objectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDocumentEmailDraft<TData = Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError = unknown>(
+ kind: string,
+    objectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentEmailDraft>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDocumentEmailDraftQueryOptions(kind,objectId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendDocumentEmailUrl = (kind: string,
+    objectId: number,) => {
+
+
+
+
+  return `/api/v1/documents/${kind}/${objectId}/email`
+}
+
+/**
+ * Send the document's PDF by e-mail from the company address (D-206). Office roles that may read it.
+ */
+export const sendDocumentEmail = async (kind: string,
+    objectId: number,
+    emailWrite: EmailWrite, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getSendDocumentEmailUrl(kind,objectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailWrite)
+  }
+);}
+
+
+
+
+
+export const getSendDocumentEmailMutationKey = () => ['sendDocumentEmail'] as const;
+
+export const getSendDocumentEmailMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDocumentEmail>>, TError,SendDocumentEmailMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendDocumentEmail>>, TError,SendDocumentEmailMutationVariables, TContext> => {
+
+const mutationKey = getSendDocumentEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendDocumentEmail>>, SendDocumentEmailMutationVariables> = (props) => {
+          const {kind,objectId,data} = props ?? {};
+
+          return  sendDocumentEmail(kind,objectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendDocumentEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendDocumentEmail>>>
+    export type SendDocumentEmailMutationBody = EmailWrite
+    export type SendDocumentEmailMutationError = unknown
+    export type SendDocumentEmailMutationVariables = {kind: string;objectId: number;data: EmailWrite}
+
+    export const useSendDocumentEmail = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDocumentEmail>>, TError,SendDocumentEmailMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendDocumentEmail>>,
+        TError,
+        SendDocumentEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendDocumentEmailMutationOptions(options), queryClient);
+    }
 
 export const getGetDocumentPdfUrl = (kind: string,
     objectId: number,

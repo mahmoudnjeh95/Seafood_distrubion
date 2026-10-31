@@ -7,21 +7,26 @@ An app that owns printable documents calls `register(kind, provider)` when it st
 
 import base64
 import logging
+import smtplib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.mail import EmailMessage
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
-from apps.core.models import Organization
+from apps.core.models import Organization, User
 
 from . import rendering
 from .models import DocumentKind as DocumentKind  # re-exported for the apps that register documents
-from .models import GeneratedDocument
+from .models import GeneratedDocument, SentEmail
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,10 @@ class Printable:
     version: str
     # The file name offered to the user, without folders.
     filename: str
+    # What the document is, as the e-mail subject names it ("Facture FA-2026-0001"), and the address it usually goes
+    # to (the customer's); empty when unknown (D-206).
+    title: str = ""
+    email_to: str = ""
 
 
 Provider = Callable[[Organization, int], Printable]
@@ -104,6 +113,76 @@ def render_pdf(document: Printable, organization: Organization) -> bytes:
 def render_pack_pdf(pack: list[Printable], organization: Organization) -> bytes:
     """One PDF holding several documents one after the other, each starting on its own page."""
     return rendering.htmls_to_pdf([render_html(document, organization) for document in pack])
+
+
+def email_draft(organization: Organization, kind: str, object_id: int) -> dict[str, str]:
+    """What the "Envoyer par e-mail" window proposes (D-206): the usual address, a clear subject and a short
+    message. Raises like `printable`."""
+    document = printable(organization, kind, object_id)
+    title = document.title or str(DocumentKind(kind).label)
+    company = organization.name
+    return {
+        "to": document.email_to,
+        "subject": f"{title} - {company}",
+        "body": (
+            f"Bonjour,\n\nVeuillez trouver ci-joint votre document : {title}.\n"
+            f"Pour toute question, répondez simplement à ce message.\n\nCordialement,\n{company}"
+        ),
+    }
+
+
+def send_email(
+    *,
+    organization: Organization,
+    actor: User | None,
+    kind: str,
+    object_id: int,
+    to: list[str],
+    subject: str,
+    body: str,
+) -> SentEmail:
+    """Send the document's PDF by e-mail from the company address (`DEFAULT_FROM_EMAIL`), and keep a trace of
+    it, also when sending failed (D-206). Raises ValidationError with the reason when it cannot be sent."""
+    errors: dict[str, str] = {}
+    addresses = [address.strip() for address in to if address.strip()]
+    if not addresses:
+        errors["to"] = _("Indiquez au moins une adresse e-mail.")
+    if not subject.strip():
+        errors["subject"] = _("Indiquez l'objet du message.")
+    if not settings.DEBUG and settings.EMAIL_BACKEND.endswith("console.EmailBackend"):
+        errors["detail"] = _("L'envoi d'e-mails n'est pas encore configuré sur le serveur : prévenez l'administrateur.")
+    if errors:
+        raise ValidationError(errors)
+    document = printable(organization, kind, object_id)
+    pdf = rendering.html_to_pdf(render_html(document, organization))
+    # The company's name before its address; Django encodes it when the message leaves.
+    name = organization.name.replace('"', "")
+    sender = f'"{name}" <{settings.DEFAULT_FROM_EMAIL}>'
+    message = EmailMessage(
+        subject=subject.strip(),
+        body=body,
+        from_email=sender,
+        to=addresses,
+        reply_to=[settings.DEFAULT_FROM_EMAIL],
+    )
+    message.attach(document.filename, pdf, "application/pdf")
+    row = SentEmail(
+        organization=organization,
+        kind=kind,
+        object_id=object_id,
+        to=", ".join(addresses)[:500],
+        subject=subject.strip()[:255],
+        sent_by=actor,
+    )
+    try:
+        message.send(fail_silently=False)
+    except (OSError, smtplib.SMTPException) as error:
+        logger.exception("E-mail of %s %s failed", kind, object_id)
+        row.error = str(error)[:255]
+        row.save()
+        raise ValidationError({"detail": _("Le message n'a pas pu partir : %(why)s") % {"why": error}}) from None
+    row.save()
+    return row
 
 
 def file_version(organization: Organization, document: Printable) -> str:

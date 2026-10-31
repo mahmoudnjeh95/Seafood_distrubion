@@ -214,6 +214,25 @@ export const fr = {
     },
     documents: {
       pdf: "PDF",
+      // D-206 · any PDF sent by e-mail from the company address
+      email: {
+        button: "E-mail",
+        title: "Envoyer par e-mail",
+        intro:
+          "Le PDF part de l'adresse de l'entreprise, en pièce jointe. Vérifiez le destinataire, l'objet et le message.",
+        to: "Destinataire(s)",
+        subject: "Objet",
+        body: "Message",
+        attached: "Le document est joint en PDF.",
+        history: "Déjà envoyé",
+        notSent: "échec",
+        send: "Envoyer",
+        sending: "Envoi…",
+        sent: "Envoyé à {{to}}.",
+        failed: "Le message n'a pas pu partir. Réessayez.",
+        badAddress: "Indiquez une ou plusieurs adresses e-mail valides, séparées par des virgules.",
+        required: "Obligatoire.",
+      },
       statement: "Relevé du partenaire (PDF)",
       making: "Préparation…",
       failed: "Le PDF n'a pas pu être préparé. Réessayez dans un instant.",

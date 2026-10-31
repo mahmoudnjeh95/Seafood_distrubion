@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import FileResponse, Http404
 from drf_spectacular.types import OpenApiTypes
@@ -11,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.documents import services
+from apps.documents.models import SentEmail
 
 PdfState = inline_serializer("PdfState", {"status": serializers.ChoiceField(choices=["pending", "failed"])})
 
@@ -50,3 +53,71 @@ class DocumentPdfView(APIView):
         response["Content-Disposition"] = f'inline; filename="{current.filename}"'
         response["Cache-Control"] = "private, no-store"
         return response
+
+
+class SentEmailRowSerializer(serializers.Serializer[Any]):
+    to = serializers.CharField(read_only=True)
+    subject = serializers.CharField(read_only=True)
+    sent_at = serializers.DateTimeField(read_only=True)
+    # Why it did not leave; empty when it did.
+    error = serializers.CharField(read_only=True)
+
+
+class EmailDraftSerializer(serializers.Serializer[Any]):
+    to = serializers.CharField(read_only=True)
+    subject = serializers.CharField(read_only=True)
+    body = serializers.CharField(read_only=True)
+    # The last sends of this document, newest first.
+    sent = SentEmailRowSerializer(many=True, read_only=True)
+
+
+class EmailWriteSerializer(serializers.Serializer[Any]):
+    to = serializers.ListField(child=serializers.EmailField(), allow_empty=False, max_length=10)
+    subject = serializers.CharField(max_length=255)
+    body = serializers.CharField(allow_blank=True, max_length=5000)
+
+
+class DocumentEmailView(APIView):
+    permission_classes: tuple[type[BasePermission], ...] = (ReadOfficeWriteOwnerOrManager,)
+
+    def _checked(self, request: Request, kind: str, object_id: int) -> Any:
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        if not services.is_known(kind):
+            raise Http404
+        if not services.may_read(kind, membership.role):
+            raise PermissionDenied
+        try:
+            services.printable(membership.organization, kind, object_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        return membership
+
+    @extend_schema(operation_id="getDocumentEmailDraft", responses=EmailDraftSerializer)
+    def get(self, request: Request, kind: str, object_id: int) -> Response:
+        """What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+        the document and the company, a short message; and the last times it was sent."""
+        membership = self._checked(request, kind, object_id)
+        draft = services.email_draft(membership.organization, kind, object_id)
+        sent = list(
+            SentEmail.objects.for_organization(membership.organization).filter(kind=kind, object_id=object_id)[:5]
+        )
+        return Response(EmailDraftSerializer({**draft, "sent": sent}).data)
+
+    @extend_schema(operation_id="sendDocumentEmail", request=EmailWriteSerializer, responses={204: None})
+    def post(self, request: Request, kind: str, object_id: int) -> Response:
+        """Send the document's PDF by e-mail from the company address (D-206). Office roles that may read it."""
+        membership = self._checked(request, kind, object_id)
+        serializer = EmailWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.send_email(
+            organization=membership.organization,
+            actor=membership.user,
+            kind=kind,
+            object_id=object_id,
+            to=data["to"],
+            subject=data["subject"],
+            body=data["body"],
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

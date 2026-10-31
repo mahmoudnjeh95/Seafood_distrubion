@@ -140,6 +140,23 @@ MAX_REQUEST_BYTES = 10 * 1024 * 1024
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# E-mail (D-206): documents leave from the company's mailbox. Without EMAIL_HOST nothing is sent (the console
+# backend prints them in development); production sets the provider's SMTP account in the environment.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = 20
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="contact@fruttidelmare.com")
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_HOST
+    else "django.core.mail.backends.console.EmailBackend",
+)
+
 # Background jobs (D-071). Redis is the broker; with CELERY_EAGER the job runs inside the request, which is
 # what `make backend` and the tests do (no Redis, no worker needed). Staging and production run a worker.
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")

@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -45,3 +46,24 @@ class GeneratedDocument(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.kind} #{self.object_id}"
+
+
+class SentEmail(OrganizationScopedModel):
+    """A document sent by e-mail from the app (D-206): to whom, with which subject, by whom; `error` when it failed."""
+
+    kind = models.CharField(max_length=20, choices=DocumentKind.choices)
+    object_id = models.PositiveBigIntegerField()
+    to = models.CharField(max_length=500)
+    subject = models.CharField(max_length=255)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+    error = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-sent_at", "-id"]
+        indexes = [models.Index(fields=["organization", "kind", "object_id"], name="sent_email_document_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.object_id} -> {self.to}"

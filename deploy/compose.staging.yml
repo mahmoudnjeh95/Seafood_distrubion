@@ -49,6 +49,14 @@ services:
       DJANGO_CACHE_URL: redis://redis:6379/1
       CELERY_BROKER_URL: redis://redis:6379/0
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # The company mailbox documents are sent from (D-206); empty EMAIL_HOST: sending is refused with a message.
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-contact@fruttidelmare.com}
       SENTRY_ENVIRONMENT: staging
       SENTRY_RELEASE: ${RELEASE}
     volumes: [media:/app/media] # product photos and PDFs, served by the API to members only

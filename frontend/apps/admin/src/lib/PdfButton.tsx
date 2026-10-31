@@ -2,9 +2,11 @@ import { useTranslation } from "@frutti/i18n";
 import { Button, Icon, toast } from "@frutti/ui";
 import { useState } from "react";
 
+import { EmailButton } from "./EmailButton";
 import { openPdf, PdfError, type PdfKind } from "./pdf";
 
-/** "PDF": makes the document's PDF in the background and opens it when ready. */
+/** "PDF": makes the document's PDF in the background and opens it when ready. Next to it, "E-mail" sends it from the
+ * company address (D-206). */
 export function PdfButton({
   kind,
   id,
@@ -39,9 +41,12 @@ export function PdfButton({
   };
 
   return (
-    <Button variant={variant} className={className} disabled={busy} onClick={() => void open()}>
-      <Icon name="receipt" />
-      {busy ? t("admin.documents.making") : (label ?? t("admin.documents.pdf"))}
-    </Button>
+    <>
+      <Button variant={variant} className={className} disabled={busy} onClick={() => void open()}>
+        <Icon name="receipt" />
+        {busy ? t("admin.documents.making") : (label ?? t("admin.documents.pdf"))}
+      </Button>
+      <EmailButton kind={kind} id={id} className={className} />
+    </>
   );
 }
