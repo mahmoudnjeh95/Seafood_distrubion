@@ -30,7 +30,12 @@ def test_the_seed_gives_employees_last_months_payroll_and_days_on_a_lot(settings
     assert all(record.status == "approved" for record in records)
     # What is owed is the net: gross less the employee's own CNSS (D-119), for the two employees left unpaid.
     due = {record.employee.reference: selectors.due_amount(record) for record in records}
-    assert sorted(selectors.unpaid_by_employee(organization).values()) == sorted(due[ref] for ref in ("E-007", "E-008"))
+    # This month's salaries are approved too (D-228): what is unpaid is last month's two plus this month's seven.
+    unpaid = selectors.unpaid_by_employee(organization)
+    assert sum(unpaid.values()) == sum(
+        selectors.outstanding_amount(record) for record in selectors.salary_records_of(organization)
+    )
+    assert all(selectors.outstanding_amount(record) == due[record.employee.reference] for record in records if record.employee.reference in ("E-007", "E-008"))
     assert all(record.employee_cnss > 0 and record.net < record.gross for record in records)
     this_month = selectors.salary_records_of(organization, month=timezone.localdate())
     assert this_month.count() == 7

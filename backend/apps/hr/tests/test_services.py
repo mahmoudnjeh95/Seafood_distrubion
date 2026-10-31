@@ -340,7 +340,7 @@ def test_the_employee_cnss_is_withheld_from_the_gross_and_shown_on_its_own_line(
 def test_other_deductions_come_off_after_the_cnss_and_the_rate_can_be_changed_on_a_draft():
     employee = EmployeeFactory.create(monthly_salary=Decimal("1000.000"), employee_cnss_rate=Decimal("9.18"))
     services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
-    record = selectors.salary_records_of(employee.organization).get()
+    record = as_draft(selectors.salary_records_of(employee.organization).get())
 
     changed = services.update_salary_record(
         record=record, actor=None, bonus="100.000", deductions="50.000", employee_cnss_rate="10"
