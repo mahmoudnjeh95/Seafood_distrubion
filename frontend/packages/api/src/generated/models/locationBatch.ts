@@ -16,6 +16,7 @@ export interface LocationBatch {
   readonly received_on: string;
   readonly supplier_id: number;
   readonly supplier_name: string;
+  readonly location_id: number;
   readonly location_name: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly quantity: string;

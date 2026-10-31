@@ -6093,6 +6093,7 @@ export const ListLocationBatchesResponseItem = zod.object({
   "received_on": zod.iso.date(),
   "supplier_id": zod.int(),
   "supplier_name": zod.string(),
+  "location_id": zod.int(),
   "location_name": zod.string(),
   "quantity": zod.stringFormat('decimal', listLocationBatchesResponseQuantityRegExp)
 }).describe('One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).\n\n`location_name` is a hint for the till, never printed on a devis or a BL.')
@@ -9172,6 +9173,7 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "discount_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -9356,6 +9358,7 @@ export const DeliverMyDeliveryResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -9518,6 +9521,7 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -11678,6 +11682,7 @@ export const ListQuotesResponse = zod.object({
 
 
 export const createQuoteBodyNotesDefault = ``;
+
 export const createQuoteBodySendNowDefault = false;
 export const createQuoteBodyBelowMinimumReasonDefault = ``;
 export const createQuoteBodyBelowMinimumReasonMax = 255;
@@ -11694,7 +11699,8 @@ export const CreateQuoteBody = zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
-  "discount_rate": zod.string().nullish()
+  "discount_rate": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish()
 })),
   "send_now": zod.boolean().default(createQuoteBodySendNowDefault),
   "below_minimum_reason": zod.string().max(createQuoteBodyBelowMinimumReasonMax).default(createQuoteBodyBelowMinimumReasonDefault)
@@ -11775,6 +11781,7 @@ export const CreateQuoteResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', createQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', createQuoteResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', createQuoteResponseLinesItemAmountRegExp),
+  "requested_batch": zod.int().nullable(),
   "delivered_quantity": zod.stringFormat('decimal', createQuoteResponseLinesItemDeliveredQuantityRegExp),
   "remaining_quantity": zod.stringFormat('decimal', createQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
@@ -11863,6 +11870,7 @@ export const GetQuoteResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', getQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', getQuoteResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', getQuoteResponseLinesItemAmountRegExp),
+  "requested_batch": zod.int().nullable(),
   "delivered_quantity": zod.stringFormat('decimal', getQuoteResponseLinesItemDeliveredQuantityRegExp),
   "remaining_quantity": zod.stringFormat('decimal', getQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
@@ -11880,6 +11888,7 @@ export const UpdateQuoteParams = zod.object({
 
 
 export const updateQuoteBodyNotesDefault = ``;
+
 export const updateQuoteBodySendNowDefault = false;
 export const updateQuoteBodyBelowMinimumReasonDefault = ``;
 export const updateQuoteBodyBelowMinimumReasonMax = 255;
@@ -11896,7 +11905,8 @@ export const UpdateQuoteBody = zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
-  "discount_rate": zod.string().nullish()
+  "discount_rate": zod.string().nullish(),
+  "batch": zod.int().min(1).nullish()
 })),
   "send_now": zod.boolean().default(updateQuoteBodySendNowDefault),
   "below_minimum_reason": zod.string().max(updateQuoteBodyBelowMinimumReasonMax).default(updateQuoteBodyBelowMinimumReasonDefault)
@@ -11977,6 +11987,7 @@ export const UpdateQuoteResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', updateQuoteResponseLinesItemAmountRegExp),
+  "requested_batch": zod.int().nullable(),
   "delivered_quantity": zod.stringFormat('decimal', updateQuoteResponseLinesItemDeliveredQuantityRegExp),
   "remaining_quantity": zod.stringFormat('decimal', updateQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
@@ -12066,6 +12077,7 @@ export const AcceptQuoteResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', acceptQuoteResponseLinesItemAmountRegExp),
+  "requested_batch": zod.int().nullable(),
   "delivered_quantity": zod.stringFormat('decimal', acceptQuoteResponseLinesItemDeliveredQuantityRegExp),
   "remaining_quantity": zod.stringFormat('decimal', acceptQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
@@ -12216,6 +12228,7 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -12342,6 +12355,7 @@ export const RefuseQuoteResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', refuseQuoteResponseLinesItemAmountRegExp),
+  "requested_batch": zod.int().nullable(),
   "delivered_quantity": zod.stringFormat('decimal', refuseQuoteResponseLinesItemDeliveredQuantityRegExp),
   "remaining_quantity": zod.stringFormat('decimal', refuseQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
@@ -12431,6 +12445,7 @@ export const SendQuoteResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', sendQuoteResponseLinesItemAmountRegExp),
+  "requested_batch": zod.int().nullable(),
   "delivered_quantity": zod.stringFormat('decimal', sendQuoteResponseLinesItemDeliveredQuantityRegExp),
   "remaining_quantity": zod.stringFormat('decimal', sendQuoteResponseLinesItemRemainingQuantityRegExp)
 }))
@@ -14278,7 +14293,7 @@ export const CreateSaleBody = zod.object({
   "unit_price": zod.string().nullish(),
   "discount_rate": zod.string().nullish(),
   "batch": zod.int().min(1).nullish()
-})),
+}).describe('A sale line as typed: the same fields as a quote line, the lot included.')),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
   "below_minimum_reason": zod.string().max(createSaleBodyBelowMinimumReasonMax).default(createSaleBodyBelowMinimumReasonDefault),
   "approve_credit": zod.boolean().default(createSaleBodyApproveCreditDefault),
@@ -14396,6 +14411,7 @@ export const CreateSaleResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', createSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', createSaleResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', createSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -14548,6 +14564,7 @@ export const GetSaleResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', getSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', getSaleResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', getSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -14626,7 +14643,7 @@ export const UpdateSaleBody = zod.object({
   "unit_price": zod.string().nullish(),
   "discount_rate": zod.string().nullish(),
   "batch": zod.int().min(1).nullish()
-})),
+}).describe('A sale line as typed: the same fields as a quote line, the lot included.')),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
   "below_minimum_reason": zod.string().max(updateSaleBodyBelowMinimumReasonMax).default(updateSaleBodyBelowMinimumReasonDefault),
   "approve_credit": zod.boolean().default(updateSaleBodyApproveCreditDefault),
@@ -14744,6 +14761,7 @@ export const UpdateSaleResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', updateSaleResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -14905,6 +14923,7 @@ export const CancelSaleResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -15066,6 +15085,7 @@ export const ConfirmSaleResponse = zod.object({
   "discount_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemAmountRegExp),
   "cost_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
   "id": zod.int(),
   "batch": zod.object({
@@ -15365,6 +15385,29 @@ export const updateStockSettingsResponseLossApprovalThresholdRegExp = new RegExp
 export const UpdateStockSettingsResponse = zod.object({
   "loss_approval_threshold": zod.stringFormat('decimal', updateStockSettingsResponseLossApprovalThresholdRegExp)
 })
+
+
+/**
+ * The lots of one product in every cold room, oldest first: to pick one on a quote or a sale (D-201).
+ */
+export const ListProductBatchesParams = zod.object({
+  "product_id": zod.int()
+})
+
+export const listProductBatchesResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ListProductBatchesResponseItem = zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "received_on": zod.iso.date(),
+  "supplier_id": zod.int(),
+  "supplier_name": zod.string(),
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', listProductBatchesResponseQuantityRegExp)
+}).describe('One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).\n\n`location_name` is a hint for the till, never printed on a devis or a BL.')
+export const ListProductBatchesResponse = zod.array(ListProductBatchesResponseItem)
 
 
 /**

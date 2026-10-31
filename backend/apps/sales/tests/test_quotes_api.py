@@ -90,6 +90,7 @@ def test_creating_a_quote_answers_it_with_amounts_as_strings(api, customer, crev
             "gross_amount": "210.000",
             "discount_amount": "21.000",
             "amount": "189.000",
+            "requested_batch": None,
             "delivered_quantity": "0.000",
             "remaining_quantity": "5.000",
         }

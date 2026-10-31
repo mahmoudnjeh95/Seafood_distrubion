@@ -92,6 +92,7 @@ class QuoteLineSerializer(serializers.ModelSerializer[QuoteLine]):
             "gross_amount",
             "discount_amount",
             "amount",
+            "requested_batch",
             "delivered_quantity",
             "remaining_quantity",
         )
@@ -202,11 +203,12 @@ class QuoteLineWriteSerializer(serializers.Serializer[Any]):
     unit_price = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     # Percent, 2 decimals at most ("5", "2.50"). Empty means none.
     discount_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # A lot picked by hand instead of FIFO (D-121, D-201). Empty: the oldest lot first, as always.
+    batch = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
 
 
 class SaleLineWriteSerializer(QuoteLineWriteSerializer):
-    # A lot picked by hand instead of FIFO (D-121). Empty: the oldest lot first, as always.
-    batch = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+    """A sale line as typed: the same fields as a quote line, the lot included."""
 
 
 class QuoteWriteSerializer(serializers.Serializer[Any]):
@@ -297,6 +299,7 @@ class SaleLineSerializer(serializers.ModelSerializer[SaleLine]):
             "discount_amount",
             "amount",
             "cost_amount",
+            "requested_batch",
             "batches",
             # On the BL of a truck load: the kg written on the printed BL; `quantity` is what was delivered (D-178).
             "ordered_quantity",

@@ -104,7 +104,14 @@ def _quote_fields(organization: Organization, data: dict[str, Any], *, may_appro
         except ObjectDoesNotExist:
             errors[services.line_error_key(index, "product")] = _("Produit inconnu.")
             continue
-        lines.append({**line, "product": product})
+        batch = None
+        if line.get("batch") is not None:
+            try:
+                batch = inventory.batch_of(organization, line["batch"])
+            except ObjectDoesNotExist:
+                errors[services.line_error_key(index, "batch")] = _("Lot inconnu.")
+                continue
+        lines.append({**line, "product": product, "batch": batch})
     if errors:
         raise ValidationError(errors)
     return {**fields, "lines": lines, "send": data["send_now"]}

@@ -21,6 +21,8 @@ export interface QuoteLine {
   readonly discount_amount: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
+  /** @nullable */
+  readonly requested_batch: number | null;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly delivered_quantity: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */

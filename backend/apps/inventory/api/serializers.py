@@ -118,6 +118,7 @@ class LocationBatchSerializer(serializers.Serializer[Any]):
     received_on = serializers.DateField(source="batch.received_on", read_only=True)
     supplier_id = serializers.IntegerField(source="batch.supplier_id", read_only=True)
     supplier_name = serializers.CharField(source="batch.supplier.name", read_only=True)
+    location_id = serializers.IntegerField(read_only=True)
     location_name = serializers.CharField(source="location.name", read_only=True)
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 

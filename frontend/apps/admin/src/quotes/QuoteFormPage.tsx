@@ -52,6 +52,7 @@ import {
 } from "../lib/lines";
 import { BelowMinimumReason } from "../lib/BelowMinimumReason";
 import { LinesGrid } from "../lib/LinesGrid";
+import { LotPicker } from "../lib/LotPicker";
 import { placesOf, totalsOf, usePlacesStock, usePlacesStockLoaded } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { todayInTunis } from "../receipts/shared";
@@ -128,6 +129,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
               unit_price: asTyped(line.unit_price),
               discount_rate: isZero(line.discount_rate) ? "" : rateAsTyped(line.discount_rate),
               priceTouched: true,
+              batch: line.requested_batch === null ? "" : String(line.requested_batch),
             }),
           )
         : (fromRequest?.lines ?? []).map((line) =>
@@ -283,6 +285,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
         quantity: quantity ?? "",
         unit_price: price,
         discount_rate: rate,
+        batch: line.batch ? Number(line.batch) : null,
       });
     });
     if (belowCount > 0 && canApprove && !belowReason.trim())
@@ -399,6 +402,12 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
             errors={errors}
             discount
             hint={priceHint}
+            extra={{
+              header: t("admin.sales.counterSale.lot"),
+              field: "batch",
+              // The lot goes on the BL made from the quote (D-201); FIFO when none is picked.
+              cell: (line, change) => <LotPicker line={line} onChange={(batch) => change({ batch })} />,
+            }}
           />
           {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
           <div className="flex flex-wrap items-start gap-x-8 gap-y-2">

@@ -7836,6 +7836,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/StockSettings'
           description: ''
+  /api/v1/stock/{product_id}/batches:
+    get:
+      operationId: listProductBatches
+      description: 'The lots of one product in every cold room, oldest first: to pick
+        one on a quote or a sale (D-201).'
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - stock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocationBatch'
+          description: ''
   /api/v1/stock/movements:
     get:
       operationId: listMovements
@@ -15757,6 +15781,9 @@ components:
         supplier_name:
           type: string
           readOnly: true
+        location_id:
+          type: integer
+          readOnly: true
         location_name:
           type: string
           readOnly: true
@@ -15768,6 +15795,7 @@ components:
       required:
       - batch_id
       - batch_number
+      - location_id
       - location_name
       - quantity
       - received_on
@@ -20661,6 +20689,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        requested_batch:
+          type: integer
+          readOnly: true
+          nullable: true
         delivered_quantity:
           type: string
           format: decimal
@@ -20681,6 +20713,7 @@ components:
       - product
       - quantity
       - remaining_quantity
+      - requested_batch
       - unit_price
     QuoteLineWrite:
       type: object
@@ -20695,6 +20728,10 @@ components:
           nullable: true
         discount_rate:
           type: string
+          nullable: true
+        batch:
+          type: integer
+          minimum: 1
           nullable: true
       required:
       - product
@@ -22818,6 +22855,10 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
           nullable: true
+        requested_batch:
+          type: integer
+          readOnly: true
+          nullable: true
         batches:
           type: array
           items:
@@ -22843,6 +22884,7 @@ components:
       - price_source
       - product
       - quantity
+      - requested_batch
       - unit_price
     SaleLineBatch:
       type: object
@@ -22885,6 +22927,8 @@ components:
       - unit_cost
     SaleLineWrite:
       type: object
+      description: 'A sale line as typed: the same fields as a quote line, the lot
+        included.'
       properties:
         product:
           type: integer
