@@ -46,7 +46,7 @@ test("a counter sale to the walk-in customer is weighed, paid and confirmed at o
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("14,000");
   // No discount column at the counter: the stock is one cell earlier than on the sale form (the lot is last, D-201).
   await expect(line.getByRole("cell").nth(STOCK_CELL - 1)).toHaveText(/^[\d\s,]+kg$/);
-  await expect(line.getByRole("combobox", { name: "Lot" })).toHaveText("Lot le plus ancien (FIFO)");
+  await expect(line.getByRole("button", { name: "Lot" })).toHaveText("Lot le plus ancien (FIFO)");
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
 
@@ -185,7 +185,7 @@ test("an accepted quote is converted into a sale and the two link to each other"
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
-  await page.getByRole("button", { name: "Accepté par le client" }).click();
+  await page.getByRole("button", { name: "Marquer comme accepté" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 
@@ -215,7 +215,7 @@ test("a quote is delivered in two BL: the first one takes part of it", async ({ 
   await line.getByLabel("Prix (DT/kg)").fill("30");
   await page.getByRole("button", { name: "Enregistrer et envoyer" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ enregistré et envoyé/)).toBeVisible();
-  await page.getByRole("button", { name: "Accepté par le client" }).click();
+  await page.getByRole("button", { name: "Marquer comme accepté" }).click();
   await expect(page.getByText(/Devis DV-\d{4}-\d+ accepté/)).toBeVisible();
   const quoteNumber = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
 

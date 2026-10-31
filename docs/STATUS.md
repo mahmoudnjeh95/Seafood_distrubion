@@ -4,6 +4,8 @@ _Last updated: 2026-10-31 (P9-T02 merged, D-208; P9-T03a règlement forms and ba
 
 ## Where we are
 
+- **Counter sale, several lots (D-212, owner request 2026-10-31)** — branch `counter-sale-multi-lot` (PR #235), awaits CI and merge: a counter-sale line picks lots with the kilos from each (`SaleLinePick`, API `picks`), the rest oldest first; a single `batch` stays one pick of the whole line; migration `0022_sale_line_picks`. The till's lot cell opens a dialog to choose the lots.
+
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
   **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app; T02 (#231, D-208) supplier règlement
   lines, our effets issued. **P9-T03a on branch `payment-screens`** (awaits CI, D-210): "Nouveau règlement client"

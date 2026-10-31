@@ -3004,3 +3004,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   means. The supplier form moved to the same editor: its single "Montant / Mode" fields are gone.
 - Banques: a page under Finance (`/tresorerie/banques`), where T04 adds the Portefeuille. Owner and manager write.
 - The list and detail pages, the supplier void and paying several plan lines at once moved to P9-T03b.
+
+**D-212 · Several lots picked by hand on a counter-sale line (owner request, 2026-10-31)** · accepted · 2026-10-31
+- A counter-sale line may name several lots, each with the kilos to take from it: `SaleLinePick` (one row per line and
+  lot), written as `picks: [{batch, quantity}]` on `SaleLineWrite`. It replaces the single `batch` of D-121. Picks take
+  their kilos in the order given, each up to what it holds; what they leave over comes from the other lots, oldest
+  first (FIFO), and a picked lot short is topped up the same way. Stock never goes negative.
+- Refused on the line: picks asking more kilos than the line's weight, a lot picked twice, a lot of another product or
+  organization, a pick without kilos above zero.
+- Migration `0021_sale_line_picks` copies each old `requested_batch` into one pick of the line's full weight, then drops
+  the field. A draft's picks go with its lines; a confirmed sale keeps `SaleLineBatch` as before.
+- The till opens a dialog from the lot cell to choose the lots and their kilos; the cell shows the picks and warns when
+  a picked lot is short. Regular sale and BL screens still have no lot picker.
+- Provisional: the kilos the picks leave over come from the oldest lots only; the seller cannot pick the lot for that rest.

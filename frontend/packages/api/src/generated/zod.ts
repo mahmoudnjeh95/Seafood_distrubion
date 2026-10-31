@@ -14621,6 +14621,7 @@ export const createSaleBodyPaymentReferenceMax = 50;
 
 export const createSaleBodyNotesDefault = ``;
 
+
 export const createSaleBodyConfirmNowDefault = false;
 export const createSaleBodyBelowMinimumReasonDefault = ``;
 export const createSaleBodyBelowMinimumReasonMax = 255;
@@ -14646,7 +14647,11 @@ export const CreateSaleBody = zod.object({
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
   "discount_rate": zod.string().nullish(),
-  "batch": zod.int().min(1).nullish()
+  "batch": zod.int().min(1).nullish(),
+  "picks": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "quantity": zod.string()
+})).optional()
 }).describe('A sale line as typed: the same fields as a quote line, the lot included.')),
   "confirm_now": zod.boolean().default(createSaleBodyConfirmNowDefault),
   "below_minimum_reason": zod.string().max(createSaleBodyBelowMinimumReasonMax).default(createSaleBodyBelowMinimumReasonDefault),
@@ -14971,6 +14976,7 @@ export const updateSaleBodyPaymentReferenceMax = 50;
 
 export const updateSaleBodyNotesDefault = ``;
 
+
 export const updateSaleBodyConfirmNowDefault = false;
 export const updateSaleBodyBelowMinimumReasonDefault = ``;
 export const updateSaleBodyBelowMinimumReasonMax = 255;
@@ -14996,7 +15002,11 @@ export const UpdateSaleBody = zod.object({
   "quantity": zod.string(),
   "unit_price": zod.string().nullish(),
   "discount_rate": zod.string().nullish(),
-  "batch": zod.int().min(1).nullish()
+  "batch": zod.int().min(1).nullish(),
+  "picks": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "quantity": zod.string()
+})).optional()
 }).describe('A sale line as typed: the same fields as a quote line, the lot included.')),
   "confirm_now": zod.boolean().default(updateSaleBodyConfirmNowDefault),
   "below_minimum_reason": zod.string().max(updateSaleBodyBelowMinimumReasonMax).default(updateSaleBodyBelowMinimumReasonDefault),
