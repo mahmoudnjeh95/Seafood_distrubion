@@ -35,7 +35,9 @@ def test_the_seed_gives_employees_last_months_payroll_and_days_on_a_lot(settings
     assert sum(unpaid.values()) == sum(
         selectors.outstanding_amount(record) for record in selectors.salary_records_of(organization)
     )
-    assert all(selectors.outstanding_amount(record) == due[record.employee.reference] for record in records if record.employee.reference in ("E-007", "E-008"))
+    for record in records:
+        if record.employee.reference in ("E-007", "E-008"):
+            assert selectors.outstanding_amount(record) == due[record.employee.reference]
     assert all(record.employee_cnss > 0 and record.net < record.gross for record in records)
     this_month = selectors.salary_records_of(organization, month=timezone.localdate())
     assert this_month.count() == 7
