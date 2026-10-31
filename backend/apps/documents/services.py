@@ -145,7 +145,11 @@ def send_email(
     it, also when sending failed (D-206). Raises ValidationError with the reason when it cannot be sent."""
     errors: dict[str, str] = {}
     # Each address once, whatever its case: the office may have ticked the same one twice (D-222).
-    addresses = list({address.strip().lower(): address.strip() for address in to if address.strip()}.values())
+    first_seen: dict[str, str] = {}
+    for address in to:
+        if address.strip():
+            first_seen.setdefault(address.strip().lower(), address.strip())
+    addresses = list(first_seen.values())
     if not addresses:
         errors["to"] = _("Indiquez au moins une adresse e-mail.")
     if not subject.strip():
