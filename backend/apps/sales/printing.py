@@ -20,11 +20,11 @@ from . import selectors
 from .models import (
     CreditNoteKind,
     CreditNoteStock,
+    CustomerPaymentMethod,
     DeliveryStatus,
     InvoiceStatus,
     QuoteStatus,
     Sale,
-    SalePaymentMethod,
     SaleRevisionKind,
     SaleStatus,
 )
@@ -234,7 +234,17 @@ def receipt_printable(organization: Organization, payment_id: int) -> documents.
         "payment": payment,
         "doc_date": payment.received_on,
         "party": _customer_party(payment.customer),
-        "method_label": str(SalePaymentMethod(payment.method).label),
+        "method_label": str(CustomerPaymentMethod(payment.method).label),
+        "lines": [
+            {
+                "method_label": str(CustomerPaymentMethod(line.method).label),
+                "number": line.instrument.number if line.instrument else line.reference,
+                "bank": line.instrument.bank.code if line.instrument and line.instrument.bank else "",
+                "due_on": line.instrument.due_on if line.instrument else None,
+                "amount": line.amount,
+            }
+            for line in payment.lines.all()
+        ],
         "allocations": rows,
         "unallocated": Decimal("0.000") if payment.voided_at else payment.amount - allocated,
     }

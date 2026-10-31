@@ -721,9 +721,11 @@ paths:
     post:
       operationId: createCustomerPayment
       description: |-
-        Register a payment received from a customer (owner or manager). `allocations` empty or absent
-        settles their oldest open sales first; a list names the sales and amounts (an empty list keeps
-        everything as credit). Errors of a row come back on `allocations.<index>.amount`.
+        Register a règlement received from a customer (owner or manager). `lines` gives its means (cash,
+        cheques, traites with number, bank and échéance, transfer, card); without it, `amount` and `method` make
+        its one line. `allocations` empty or absent settles their oldest open sales first; a list names the sales
+        or invoices and amounts (an empty list keeps everything as credit). Errors of a row come back on
+        `lines.<index>.<field>` and `allocations.<index>.amount`.
       tags:
       - customer-payments
       requestBody:
@@ -4397,7 +4399,7 @@ paths:
     get:
       operationId: listMyCustomers
       description: |-
-        Active customers for a driver to sell to (name and city only, never what they owe: D-197): the ones
+        Active customers for a driver to sell to (name and city only, never what they owe: D-207): the ones
         they sold to lately first, the walk-in customer last. Filter with `search`. At most 30 rows. When today's
         load of the driver's truck names clients, only those clients and the walk-in customer are listed (D-174).
       parameters:
@@ -9021,6 +9023,176 @@ paths:
               schema:
                 $ref: '#/components/schemas/TruckDay'
           description: ''
+  /api/v1/treasury/banks:
+    get:
+      operationId: listBanks
+      description: The banks an effet may be drawn on, in the list's order; `active_only=false`
+        adds those taken off.
+      parameters:
+      - in: query
+        name: active_only
+        schema:
+          type: boolean
+          default: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bank'
+          description: ''
+    post:
+      operationId: createBank
+      description: 'Add a bank to the list (owner or manager): its short name (sigle)
+        and its name.'
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BankWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BankWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bank'
+          description: ''
+  /api/v1/treasury/banks/{bank_id}:
+    put:
+      operationId: updateBank
+      description: Rename a bank, or take it off the lists (`is_active` false); effets
+        already drawn on it keep it.
+      parameters:
+      - in: path
+        name: bank_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BankWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BankWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bank'
+          description: ''
+  /api/v1/treasury/instruments:
+    get:
+      operationId: listInstruments
+      description: |-
+        Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
+        status (comma separated), customer, supplier, due days (inclusive) or `search` (number, drawer, règlement,
+        party).
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: direction
+        schema:
+          enum:
+          - received
+          - issued
+          type: string
+          minLength: 1
+        description: |-
+          * `received` - Reçu
+          * `issued` - Émis
+      - in: query
+        name: due_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: due_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - cheque
+          - bill
+          type: string
+          minLength: 1
+        description: |-
+          * `cheque` - Chèque
+          * `bill` - Traite
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          type: string
+          default: ''
+          maxLength: 200
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInstrumentList'
+          description: ''
   /api/v1/truck-assignments:
     get:
       operationId: listTruckAssignments
@@ -9608,6 +9780,41 @@ components:
       - issued_on
       - number
       - withholding_amount
+    Bank:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - code
+      - id
+      - is_active
+      - name
+    BankWrite:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 200
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - code
+      - name
     Batch:
       type: object
       properties:
@@ -11111,11 +11318,15 @@ components:
         sale:
           type: integer
           minimum: 1
+          nullable: true
+        invoice:
+          type: integer
+          minimum: 1
+          nullable: true
         amount:
           type: string
       required:
       - amount
-      - sale
     CustomerBalance:
       type: object
       properties:
@@ -11367,7 +11578,12 @@ components:
           readOnly: true
         method:
           allOf:
-          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/CustomerPaymentMethodEnum'
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerPaymentLine'
           readOnly: true
         received_on:
           type: string
@@ -11423,6 +11639,7 @@ components:
       - customer
       - id
       - is_voided
+      - lines
       - method
       - notes
       - number
@@ -11472,7 +11689,12 @@ components:
           readOnly: true
         method:
           allOf:
-          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/CustomerPaymentMethodEnum'
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerPaymentLine'
           readOnly: true
         received_on:
           type: string
@@ -11534,6 +11756,7 @@ components:
       - customer
       - id
       - is_voided
+      - lines
       - method
       - notes
       - number
@@ -11544,6 +11767,81 @@ components:
       - void_reason
       - voided_at
       - voided_by
+    CustomerPaymentLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/CustomerPaymentMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        instrument:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentRef'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - id
+      - instrument
+      - method
+      - reference
+    CustomerPaymentLineWrite:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/CustomerPaymentMethodEnum'
+        amount:
+          type: string
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        number:
+          type: string
+          default: ''
+          maxLength: 50
+        bank:
+          type: integer
+          minimum: 1
+          nullable: true
+        drawer:
+          type: string
+          default: ''
+          maxLength: 150
+        due_on:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - amount
+      - method
+    CustomerPaymentMethodEnum:
+      enum:
+      - cash
+      - cheque
+      - bill
+      - transfer
+      - card
+      - mixed
+      type: string
+      description: |-
+        * `cash` - Espèces
+        * `cheque` - Chèque
+        * `bill` - Traite
+        * `transfer` - Virement
+        * `card` - Carte bancaire
+        * `mixed` - Plusieurs moyens
     CustomerPaymentWrite:
       type: object
       properties:
@@ -11555,10 +11853,16 @@ components:
         customer:
           type: integer
           minimum: 1
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerPaymentLineWrite'
+          nullable: true
         amount:
           type: string
+          nullable: true
         method:
-          $ref: '#/components/schemas/SalePaymentMethodEnum'
+          $ref: '#/components/schemas/CustomerPaymentMethodEnum'
         received_on:
           type: string
           format: date
@@ -11571,9 +11875,7 @@ components:
           type: string
           default: ''
       required:
-      - amount
       - customer
-      - method
     CustomerWrite:
       type: object
       properties:
@@ -15272,6 +15574,167 @@ components:
           default: true
       required:
       - file
+    Instrument:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        direction:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentDirectionEnum'
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentKindEnum'
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank:
+          allOf:
+          - $ref: '#/components/schemas/Bank'
+          readOnly: true
+          nullable: true
+        drawer:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        source_number:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - bank
+      - created_at
+      - customer
+      - direction
+      - drawer
+      - due_on
+      - id
+      - issued_on
+      - kind
+      - notes
+      - number
+      - source_number
+      - status
+      - supplier
+    InstrumentDirectionEnum:
+      enum:
+      - received
+      - issued
+      type: string
+      description: |-
+        * `received` - Reçu
+        * `issued` - Émis
+    InstrumentKindEnum:
+      enum:
+      - cheque
+      - bill
+      type: string
+      description: |-
+        * `cheque` - Chèque
+        * `bill` - Traite
+    InstrumentRef:
+      type: object
+      description: The cheque or traite of a payment line, as the treasury follows
+        it (D-197).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentKindEnum'
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank_code:
+          type: string
+          readOnly: true
+          default: ''
+        bank_name:
+          type: string
+          readOnly: true
+          default: ''
+        drawer:
+          type: string
+          readOnly: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+      required:
+      - bank_code
+      - bank_name
+      - drawer
+      - due_on
+      - id
+      - kind
+      - number
+      - status
+    InstrumentStatusEnum:
+      enum:
+      - portfolio
+      - deposited
+      - cashed
+      - unpaid
+      - returned
+      - endorsed
+      - issued
+      - debited
+      - rejected
+      - cancelled
+      type: string
+      description: |-
+        * `portfolio` - En portefeuille
+        * `deposited` - Remis en banque
+        * `cashed` - Encaissé
+        * `unpaid` - Impayé
+        * `returned` - Restitué
+        * `endorsed` - Endossé
+        * `issued` - Émis
+        * `debited` - Débité
+        * `rejected` - Rejeté
+        * `cancelled` - Annulé
     Invoice:
       type: object
       properties:
@@ -18862,6 +19325,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FieldPurchaseList'
+    PaginatedInstrumentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Instrument'
     PaginatedInvoiceList:
       type: object
       required:
@@ -19425,6 +19911,22 @@ components:
       - phone
       - tax_id
       - trade_register
+    PartyRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - reference
     PatchedCategory:
       type: object
       properties:
@@ -22201,7 +22703,7 @@ components:
           readOnly: true
         method:
           allOf:
-          - $ref: '#/components/schemas/SalePaymentMethodEnum'
+          - $ref: '#/components/schemas/CustomerPaymentMethodEnum'
           readOnly: true
       required:
       - amount

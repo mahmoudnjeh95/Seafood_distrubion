@@ -54,6 +54,7 @@ LOCAL_APPS = [
     "apps.dataimport",
     "apps.notifications",
     "apps.storefront",
+    "apps.treasury",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -221,6 +222,10 @@ SPECTACULAR_SETTINGS = {
         # P2-T04 · sales
         "SaleStatusEnum": "apps.sales.models.SaleStatus",
         "SalePaymentMethodEnum": "apps.sales.models.SalePaymentMethod",
+        "CustomerPaymentMethodEnum": "apps.sales.models.CustomerPaymentMethod",
+        "InstrumentKindEnum": "apps.treasury.models.InstrumentKind",
+        "InstrumentStatusEnum": "apps.treasury.models.InstrumentStatus",
+        "InstrumentDirectionEnum": "apps.treasury.models.InstrumentDirection",
         "SalePriceSourceEnum": "apps.sales.models.PriceSource",
         # P2-T05 · invoices
         "InvoiceStatusEnum": "apps.sales.models.InvoiceStatus",
