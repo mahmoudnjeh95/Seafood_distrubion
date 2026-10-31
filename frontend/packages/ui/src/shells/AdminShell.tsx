@@ -39,7 +39,6 @@ function initials(name: string): string {
 function BackLink({ nav }: { nav: AdminNavGroup[] }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const [leaving, setLeaving] = useState(false);
   const navigate = useNavigate();
   const entries = nav.flatMap((group) => group.items.map((item) => item.to));
   if (entries.includes(pathname.replace(/\/+$/, "") || "/")) return null;
@@ -68,6 +67,7 @@ function BackLink({ nav }: { nav: AdminNavGroup[] }) {
 export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: Props) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const [leaving, setLeaving] = useState(false);
   // The menu entry that owns this page: the longest entry the path is under, so "Règlements fournisseurs"
   // (/achats/reglements) lights up alone and not "Achats" (/achats) too.
   const path = pathname.replace(/\/+$/, "") || "/";
