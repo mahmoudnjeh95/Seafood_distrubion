@@ -23,6 +23,7 @@ from apps.core.clock import moment_from_phone
 from apps.core.models import Membership
 from apps.core.permissions import IsDriver, membership_of
 from apps.dayclose import selectors as dayclose
+from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.purchasing import selectors, services
@@ -122,6 +123,9 @@ class MyFieldPurchasesView(DriverView):
         dayclose.refuse_sale_outside_day(membership, made_at)
         fields = _driver_fields(membership, data)
         fields["bought_on"] = timezone.localtime(made_at or timezone.now()).date()
+        # The goods go on the driver's truck of that day (D-211); the office may still choose another place.
+        truck = fleet.truck_of_driver(membership, on=fields["bought_on"])
+        fields["location"] = truck.location if truck is not None else None
         purchase = services.submit_field_purchase(
             organization=membership.organization,
             buyer=membership.user,

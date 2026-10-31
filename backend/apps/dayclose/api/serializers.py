@@ -362,12 +362,25 @@ class DayOverviewExpenseSerializer(serializers.Serializer[Any]):
     made_at = serializers.DateTimeField(read_only=True)
 
 
+class DayOverviewPurchaseSerializer(serializers.Serializer[Any]):
+    """A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    supplier_name = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    total = _money()
+    cash = _money()
+    made_at = serializers.DateTimeField(read_only=True)
+
+
 class DayOverviewDetailSerializer(DayOverviewRowSerializer):
     closing = DayClosingStateSerializer(read_only=True, allow_null=True)
     sales = DayOverviewSaleSerializer(many=True, read_only=True)
     deliveries = DayOverviewSaleSerializer(many=True, read_only=True)
     payments = DayOverviewPaymentSerializer(many=True, read_only=True)
     expenses = DayOverviewExpenseSerializer(many=True, read_only=True)
+    purchases = DayOverviewPurchaseSerializer(many=True, read_only=True)
 
     class Meta:
         ref_name = "DayOverviewDetail"

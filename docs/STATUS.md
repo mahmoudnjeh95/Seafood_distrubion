@@ -1,9 +1,11 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T02 merged, D-208; P9-T03a règlement forms and banks built, D-210)_
+_Last updated: 2026-10-31 (P9-T02 merged, D-208; P9-T03a règlement forms and banks built, D-210; port purchase on the truck and on the day, D-211)_
 
 ## Where we are
 
+- **D-211 (fix, branch `truck-purchase-stock`, awaits CI):** a driver's port purchase goes to the driver's truck (was: first
+  cold room); "Journées des chauffeurs" lists the day's purchases with their status until the office checks them.
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
   **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app; T02 (#231, D-208) supplier règlement
   lines, our effets issued. **P9-T03a on branch `payment-screens`** (awaits CI, D-210): "Nouveau règlement client"
@@ -31,6 +33,9 @@ _Last updated: 2026-10-31 (P9-T02 merged, D-208; P9-T03a règlement forms and ba
 
 ## Next step
 
+0a. D-211: PR from `truck-purchase-stock`, wait for green CI, merge. On staging: as a driver with can-buy, send a port
+   purchase from the phone; in the office, "Journées des chauffeurs" shows it "À valider au bureau" and the place is the
+   truck; validate it, then the truck's stock holds the kilos.
 0. Owner list: merge #220 → #230 in order as CI goes green, then on staging: Camions du jour › Fonds de caisse (set,
    then accept on the phone), close a day with an office count, a "Nouvelle facture" with two BL, an Achat terrain
    validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
