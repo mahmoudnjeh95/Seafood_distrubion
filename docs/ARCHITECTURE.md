@@ -60,6 +60,7 @@ backend/
     reporting/            read-only report queries and exports
     notifications/        office ⇄ driver notifications, written from audit entries (D-175)
     storefront/           public site: site products and web prices, orders and quote requests (D-186)
+    treasury/             banks, cheques and traites (effets) and their life; later cash and bank accounts (D-196)
     demo/                 seed_dev: demo organization, logins and catalogue (may call every app)
   manage.py
 frontend/
