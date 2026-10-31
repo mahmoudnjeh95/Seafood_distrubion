@@ -105,6 +105,7 @@ export * from './dayOverviewDriver';
 export * from './dayOverviewExpense';
 export * from './dayOverviewPayment';
 export * from './dayOverviewPurchase';
+export * from './dayOverviewPurchaseStatusEnum';
 export * from './dayOverviewRow';
 export * from './dayOverviewSale';
 export * from './dayProduct';

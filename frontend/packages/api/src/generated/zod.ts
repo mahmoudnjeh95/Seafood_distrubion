@@ -2999,7 +2999,7 @@ export const GetDayOverviewResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "supplier_name": zod.string(),
-  "status": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - submitted\n* `validated` - validated\n* `refused` - refused'),
   "total": zod.stringFormat('decimal', getDayOverviewResponsePurchasesItemTotalRegExp),
   "cash": zod.stringFormat('decimal', getDayOverviewResponsePurchasesItemCashRegExp),
   "made_at": zod.iso.datetime({"offset":true})
