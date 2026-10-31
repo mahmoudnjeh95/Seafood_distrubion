@@ -7,31 +7,47 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0005_membership_can_buy'),
-        ('dayclose', '0008_office_counts_only'),
+        ("core", "0005_membership_can_buy"),
+        ("dayclose", "0008_office_counts_only"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DayClosingRevision',
+            name="DayClosingRevision",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('number', models.PositiveIntegerField()),
-                ('reason', models.CharField(max_length=300)),
-                ('before', models.JSONField(encoder=django.core.serializers.json.DjangoJSONEncoder)),
-                ('after', models.JSONField(encoder=django.core.serializers.json.DjangoJSONEncoder)),
-                ('actor', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('closing', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='revisions', to='dayclose.dayclosing')),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='core.organization')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("number", models.PositiveIntegerField()),
+                ("reason", models.CharField(max_length=300)),
+                ("before", models.JSONField(encoder=django.core.serializers.json.DjangoJSONEncoder)),
+                ("after", models.JSONField(encoder=django.core.serializers.json.DjangoJSONEncoder)),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "closing",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="revisions", to="dayclose.dayclosing"
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to="core.organization"
+                    ),
+                ),
             ],
             options={
-                'ordering': ['number'],
-                'constraints': [models.UniqueConstraint(fields=('closing', 'number'), name='day_closing_revision_number_unique')],
+                "ordering": ["number"],
+                "constraints": [
+                    models.UniqueConstraint(fields=("closing", "number"), name="day_closing_revision_number_unique")
+                ],
             },
         ),
     ]

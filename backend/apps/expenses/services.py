@@ -1362,8 +1362,8 @@ def delete_general_cost(*, period: GeneralCostPeriod, actor: User | None) -> Non
 
 
 def _refuse_cash_without_fund(*, organization: Organization, driver: User, on: dt.date) -> None:
-    """"La caisse" pays out of the day's cash: a driver whose day started with 0 DT, or has not started, has none
-    to pay from (D-220). The driver pays with "Ma poche" or "Carte" then."""
+    """Cash paid from the box needs cash in the day: a driver whose day started with 0 DT, or has not started, has
+    none to pay from (D-220). The driver pays with "Ma poche" or "Carte" then."""
     day = fleet.driver_days_of(organization, driver_id=driver.pk).filter(date=on).first()
     other_ways = _("Payez avec « Ma poche » ou « Carte ».")
     if day is None:

@@ -33,8 +33,7 @@ def _plain(value: Any) -> Any:
 
 # The office corrects a day whose records moved since the send (D-220); the driver never sends it again.
 CHANGED_SINCE_SENT = (
-    "Les chiffres ont changé depuis l'envoi : corrigez d'abord la journée (Corriger). "
-    "Le chauffeur ne la renvoie plus."
+    "Les chiffres ont changé depuis l'envoi : corrigez d'abord la journée (Corriger). Le chauffeur ne la renvoie plus."
 )
 DRIVER_CANNOT_RESEND = (
     "Les chiffres ont changé depuis l'envoi : le bureau corrige la journée. Vous ne pouvez plus l'envoyer."
@@ -87,10 +86,8 @@ def _refuse_recount(
     message = _("Le comptage est déjà saisi : pour le changer, corrigez la journée avec une raison.")
     if closing.office_counted_cash is not None and office_counted_cash not in (None, closing.office_counted_cash):
         errors["office_counted_cash"] = message
-    if (
-        closing.office_counted_purchase_cash is not None
-        and office_counted_purchase_cash not in (None, closing.office_counted_purchase_cash)
-    ):
+    purchase_moved = office_counted_purchase_cash not in (None, closing.office_counted_purchase_cash)
+    if closing.office_counted_purchase_cash is not None and purchase_moved:
         errors["office_counted_purchase_cash"] = message
     if errors:
         raise ValidationError(errors)
@@ -304,9 +301,7 @@ def correct_day_closing(
     _counts_checked(office_counted_cash, office_counted_purchase_cash)
     closing = DayClosing.objects.select_for_update().get(pk=closing.pk)
     if closing.status == DayClosingStatus.REOPENED:
-        raise ValidationError(
-            _("Une nouvelle charge a rouvert cette journée : corrigez-la après son prochain envoi.")
-        )
+        raise ValidationError(_("Une nouvelle charge a rouvert cette journée : corrigez-la après son prochain envoi."))
     cash = office_counted_cash if office_counted_cash is not None else closing.office_counted_cash
     purchase = (
         office_counted_purchase_cash

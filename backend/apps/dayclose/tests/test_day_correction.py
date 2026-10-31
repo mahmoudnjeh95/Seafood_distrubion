@@ -5,9 +5,16 @@ import pytest
 from django.urls import reverse
 
 from apps.dayclose.models import DayClosing, DayClosingRevision, DayClosingStatus
-from apps.dayclose.tests.test_dayclose import day, sell  # noqa: F401 (the fixture of a day, and its sales)
+from apps.dayclose.tests.test_dayclose import day as base_day
+from apps.dayclose.tests.test_dayclose import sell
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def day(base_day):
+    """A driver with a loaded truck and the day started, as in test_dayclose."""
+    return base_day
 
 
 def send(day):

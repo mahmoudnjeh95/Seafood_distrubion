@@ -463,9 +463,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                     </label>
                     {hasPurchases && (
                       <label className="flex flex-col gap-1">
-                        <span className="text-[0.85rem] font-semibold">
-                          {t("admin.dayClosings.correct.purchase")}
-                        </span>
+                        <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.correct.purchase")}</span>
                         <Input
                           inputMode="decimal"
                           className="num max-w-40"
