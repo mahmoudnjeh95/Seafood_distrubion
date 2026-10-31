@@ -419,7 +419,7 @@ def test_an_explained_or_exact_day_is_not_an_alert(day):
 def test_a_payment_collected_by_the_driver_counts_in_the_day_cash_and_is_recorded_once(day):
     sell(day, "5", "100.000")  # 140 DT, 40 left on credit
     listed = day["api"].get(reverse("my-customers")).json()
-    assert all("owes" not in c for c in listed)  # the driver never sees the balance (D-197)
+    assert all("owes" not in c for c in listed)  # the driver never sees the balance (D-207)
     assert customer_balance(day["customer"].organization, day["customer"].pk).balance == Decimal("40.000")
     body = {"customer": day["customer"].pk, "amount": "30.000", "method": "cash", "client_uuid": str(uuid4())}
 

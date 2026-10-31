@@ -24,6 +24,7 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("apps.dataimport.api.urls")),
     path("", include("apps.notifications.api.urls")),
     path("", include("apps.storefront.api.urls")),
+    path("", include("apps.treasury.api.urls")),
     path("schema", SpectacularAPIView.as_view(permission_classes=[IsOwnerOrManager]), name="schema"),
 ]
 

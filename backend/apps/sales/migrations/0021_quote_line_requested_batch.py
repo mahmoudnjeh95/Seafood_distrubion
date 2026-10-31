@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('inventory', '0009_transfer_from_cold_rooms'),
-        ('sales', '0019_load_delivery'),
+        ('sales', '0020_payment_lines'),
     ]
 
     operations = [
