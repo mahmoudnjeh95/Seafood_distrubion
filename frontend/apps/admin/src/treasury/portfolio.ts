@@ -1,7 +1,7 @@
 // The tabs of the portfolio (P9-T04a, D-216): which effets each one lists.
 import type { InstrumentStatusEnum, ListInstrumentsParams } from "@frutti/api";
 
-export const TABS = ["toRemit", "atBank", "cashed", "issued", "debited", "deposits"] as const;
+export const TABS = ["toRemit", "atBank", "cashed", "unpaid", "issued", "debited", "deposits"] as const;
 export type PortfolioTab = (typeof TABS)[number];
 
 /** The list query of each tab of effets (the bordereaux tab lists deposits instead). */
@@ -9,6 +9,7 @@ export const TAB_QUERY: Record<Exclude<PortfolioTab, "deposits">, ListInstrument
   toRemit: { direction: "received", status: "portfolio" },
   atBank: { direction: "received", status: "deposited" },
   cashed: { direction: "received", status: "cashed" },
+  unpaid: { direction: "received", status: "unpaid" },
   issued: { direction: "issued", status: "issued" },
   debited: { direction: "issued", status: "debited" },
 };

@@ -98,7 +98,8 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
     def get_unallocated(self, payment: CustomerPayment) -> str:
         if payment.voided_at is not None:
             return "0.000"
-        return str(payment.amount - (getattr(payment, "allocated_total", None) or 0))
+        free = payment.amount - (getattr(payment, "unpaid_total", None) or 0)
+        return str(free - (getattr(payment, "allocated_total", None) or 0))
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
     def get_remaining(self, payment: CustomerPayment) -> str:
@@ -141,8 +142,29 @@ class InstrumentDetailSerializer(InstrumentRefSerializer):
     events = ReceivedEffetEventSerializer(many=True, read_only=True)
 
 
+class UnpaidEffetSerializer(serializers.Serializer[Any]):
+    """The impayé of a line (D-217): when, why, the bank's charges and their expense."""
+
+    unpaid_on = serializers.DateField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    bank_charges = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    expense_number = serializers.CharField(read_only=True)
+
+
 class CustomerPaymentLineDetailSerializer(CustomerPaymentLineSerializer):
     instrument = InstrumentDetailSerializer(read_only=True, allow_null=True)
+    # Set once the bank refused its cheque or traite.
+    unpaid = serializers.SerializerMethodField()
+
+    class Meta(CustomerPaymentLineSerializer.Meta):
+        fields = (*CustomerPaymentLineSerializer.Meta.fields, "unpaid")
+        read_only_fields = fields
+
+    @extend_schema_field(UnpaidEffetSerializer(allow_null=True))
+    def get_unpaid(self, line: CustomerPaymentLine) -> dict[str, Any] | None:
+        unpaid = getattr(line, "unpaid", None)
+        return UnpaidEffetSerializer(unpaid).data if unpaid is not None else None
 
 
 class CustomerPaymentDetailSerializer(CustomerPaymentSerializer):
@@ -202,6 +224,13 @@ class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class UnpaidWriteSerializer(serializers.Serializer[Any]):
+    unpaid_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
+    # The bank's charges (DT as a string); empty: none.
+    bank_charges = serializers.CharField(required=False, allow_blank=True, default="0")
+
+
 class VoidWriteSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
 
@@ -258,8 +287,9 @@ class OpenSaleSerializer(serializers.Serializer[Any]):
 
 
 class HistoryEntrySerializer(serializers.Serializer[Any]):
-    # "sale" (what it owes now), "on_spot" (paid at the sale) or "payment".
-    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment"], read_only=True)
+    # "sale" (what it owes now), "on_spot" (paid at the sale), "payment", or "unpaid" (an effet refused by the
+    # bank: owed again, D-217).
+    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment", "unpaid"], read_only=True)
     day = serializers.DateField(read_only=True)
     number = serializers.CharField(read_only=True)
     object_id = serializers.IntegerField(read_only=True)

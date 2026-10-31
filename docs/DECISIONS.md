@@ -3081,3 +3081,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`instruments`, `day`), `GET /treasury/instruments/totals`; filters `bank` and `deposit` on the list. Owner and
   manager write, the accountant reads. Each step is an `InstrumentEvent` and an audit entry; at most 200 effets at once.
 
+**D-217 · An impayé is a new record: the customer owes again, the sales owe again beyond the credit (Phase 9, P9-T04b)** · accepted (provisional parts marked) · 2026-10-31
+- "Impayé" on a customer cheque or traite at the bank, or already credited (the bank may take it back): the effet
+  becomes "Impayé" and `sales.UnpaidEffet` (day, reason, amount, bank charges) is written. The règlement is never
+  edited: it keeps its amount and lines.
+- The customer balance adds the impayé back. Its règlement's credit left (not allocated) absorbs it first; the rest is
+  taken back from the sales it settled, newest allocation first (`UnpaidRelease` rows), so those sales owe again
+  (`amount_due` refreshed). The règlement then has less to allocate, and it can no longer be voided.
+- The bank's charges, when given, become an approved expense "Frais financiers" paid by transfer on the impayé's day
+  (provisional, Q29: re-invoicing them to the customer is not done). The office gets a notification `effet_unpaid`;
+  the account history, the customer page and the statement PDF show the line "Effet impayé".
+- After an impayé the paper is "Restitué" to the customer (`POST /treasury/instruments/return`); the customer pays
+  with a new règlement. Re-presenting the same paper to the bank is not offered (it would need the impayé undone).
+- API: `POST /customer-effets/<instrument_id>/unpaid` (`unpaid_on`, `reason`, `bank_charges`), owner or manager; the
+  règlement's detail shows each line's `unpaid`. Endorsing to a supplier and our effets rejected move to P9-T04c.

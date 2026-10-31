@@ -357,6 +357,7 @@ import type {
   TruckDay,
   TruckWrite,
   UnpaidSalaries,
+  UnpaidWrite,
   Unread,
   VatProducts,
   VoidWrite,
@@ -2610,6 +2611,94 @@ export function useGetCreditNote<TData = Awaited<ReturnType<typeof getCreditNote
 
 
 
+
+export const getRecordUnpaidEffetUrl = (instrumentId: number,) => {
+
+
+
+
+  return `/api/v1/customer-effets/${instrumentId}/unpaid`
+}
+
+/**
+ * The bank refused this customer cheque or traite (owner or manager): it becomes "Impayé", the customer
+ * owes its amount again (the sales its règlement settled owe again beyond its credit), the bank's charges
+ * become an expense "Frais financiers" and the office is told (D-217). Answers with the règlement.
+ */
+export const recordUnpaidEffet = async (instrumentId: number,
+    unpaidWrite: UnpaidWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerPaymentDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerPaymentDetail>(getRecordUnpaidEffetUrl(instrumentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(unpaidWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordUnpaidEffetMutationKey = () => ['recordUnpaidEffet'] as const;
+
+export const getRecordUnpaidEffetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordUnpaidEffet>>, TError,RecordUnpaidEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordUnpaidEffet>>, TError,RecordUnpaidEffetMutationVariables, TContext> => {
+
+const mutationKey = getRecordUnpaidEffetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordUnpaidEffet>>, RecordUnpaidEffetMutationVariables> = (props) => {
+          const {instrumentId,data} = props ?? {};
+
+          return  recordUnpaidEffet(instrumentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordUnpaidEffetMutationResult = NonNullable<Awaited<ReturnType<typeof recordUnpaidEffet>>>
+    export type RecordUnpaidEffetMutationBody = UnpaidWrite
+    export type RecordUnpaidEffetMutationError = unknown
+    export type RecordUnpaidEffetMutationVariables = {instrumentId: number;data: UnpaidWrite}
+
+    export const useRecordUnpaidEffet = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordUnpaidEffet>>, TError,RecordUnpaidEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordUnpaidEffet>>,
+        TError,
+        RecordUnpaidEffetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordUnpaidEffetMutationOptions(options), queryClient);
+    }
 
 export const getListCustomerPaymentsUrl = (params?: ListCustomerPaymentsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -30616,6 +30705,91 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDebitInstrumentsMutationOptions(options), queryClient);
+    }
+
+export const getReturnInstrumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/instruments/return`
+}
+
+/**
+ * Unpaid effets given back to the customer on `day` ("Restitué").
+ */
+export const returnInstruments = async (instrumentBatch: InstrumentBatch, options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Instrument[]>(getReturnInstrumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(instrumentBatch)
+  }
+);}
+
+
+
+
+
+export const getReturnInstrumentsMutationKey = () => ['returnInstruments'] as const;
+
+export const getReturnInstrumentsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnInstruments>>, TError,ReturnInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof returnInstruments>>, TError,ReturnInstrumentsMutationVariables, TContext> => {
+
+const mutationKey = getReturnInstrumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnInstruments>>, ReturnInstrumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  returnInstruments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReturnInstrumentsMutationResult = NonNullable<Awaited<ReturnType<typeof returnInstruments>>>
+    export type ReturnInstrumentsMutationBody = InstrumentBatch
+    export type ReturnInstrumentsMutationError = unknown
+    export type ReturnInstrumentsMutationVariables = {data: InstrumentBatch}
+
+    export const useReturnInstruments = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnInstruments>>, TError,ReturnInstrumentsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof returnInstruments>>,
+        TError,
+        ReturnInstrumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReturnInstrumentsMutationOptions(options), queryClient);
     }
 
 export const getGetInstrumentTotalsUrl = (params?: GetInstrumentTotalsParams,) => {

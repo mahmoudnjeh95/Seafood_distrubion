@@ -10,6 +10,7 @@ urlpatterns = [
     path("treasury/instruments/cash", views.InstrumentCashView.as_view(), name="treasury-instrument-cash"),
     path("treasury/instruments/withdraw", views.InstrumentWithdrawView.as_view(), name="treasury-instrument-withdraw"),
     path("treasury/instruments/debit", views.InstrumentDebitView.as_view(), name="treasury-instrument-debit"),
+    path("treasury/instruments/return", views.InstrumentReturnView.as_view(), name="treasury-instrument-return"),
     path("treasury/deposits", views.DepositListView.as_view(), name="treasury-deposit-list"),
     path("treasury/deposits/<int:deposit_id>", views.DepositDetailView.as_view(), name="treasury-deposit-detail"),
 ]

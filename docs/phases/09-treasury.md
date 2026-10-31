@@ -116,14 +116,19 @@ cash only on the phone (as today, D-133).
       Retirer de la banque (back to the portfolio); our effets Débité.
 - [x] Each change is an `InstrumentEvent` and an audit entry. Tests; vitest for the tabs.
 
-### P9-T04b · Portefeuille: impayé, restituer, endosser, rejeté · M
-- [ ] Impayé (day, reason, bank charges): the customer owes again the amount (new record, D-197), charges as an
-      expense "Frais financiers", the invoices owe again.
-- [ ] After an impayé: Restituer (paper given back), or replace it by a new règlement.
+### P9-T04b · Portefeuille: impayé and restituer · M
+- [x] Impayé (day, reason, bank charges) of a customer effet at the bank or already credited (D-217): a new record
+      `sales.UnpaidEffet`, the customer owes the amount again; what its règlement had settled on sales beyond its
+      credit is taken back newest first (`UnpaidRelease`), so those sales owe again; the charges become an approved
+      expense "Frais financiers"; the office is told; the account history and the statement show "Effet impayé".
+- [x] After an impayé: Restituer (paper given back); the customer pays with a new règlement.
+- [x] Portefeuille: tab Impayés, steps "Impayé" (one effet at a time) and "Restituer"; the règlement's page shows
+      the impayé. Tests.
+
+### P9-T04c · Endosser, and our effets rejetés · M
 - [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement (provisional: allowed
       for cheques and traites still in portfolio).
-- [ ] Issued effets: Rejeté (day, reason: the supplier is owed again).
-- [ ] Notifications to the owner on an impayé.
+- [ ] Issued effets: Rejeté (day, reason): the supplier is owed again (a new record, like the customer impayé).
 
 ### P9-T05 · Accounts and movements · L
 - [ ] `TreasuryAccount`: Caisse (one per organization, more allowed), bank accounts (bank, RIB, label), each driver's
