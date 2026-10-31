@@ -1,5 +1,6 @@
 """Every write on core models goes through these functions (ARCHITECTURE §3)."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
@@ -10,9 +11,9 @@ from django.db.models import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from . import audit, selectors
+from . import audit, numbering, selectors
 from .images import reencoded_photo
-from .models import Job, JobRun, Membership, Organization, Role, User
+from .models import Job, JobRun, Membership, NumberPrefix, Organization, Role, User
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -369,3 +370,44 @@ def record_job_run(*, job: Job, ok: bool, problems: int = 0) -> JobRun:
         job=job, defaults={"ran_at": timezone.now(), "ok": ok, "problems": problems}
     )
     return run
+
+
+@transaction.atomic
+def set_number_prefixes(
+    *, organization: Organization, actor: User | None, prefixes: Sequence[tuple[str, str]]
+) -> dict[str, str]:
+    """Change the prefixes printed before the numbers (Paramètres, D-223). Every kind is sent, in the order of
+    `numbering.NUMBER_KINDS`. A prefix is 1 to 6 capitals or digits, and no two kinds share one in the organization.
+    Numbers already given keep their prefix; the counters go on."""
+    # One change at a time in an organization, so two owners cannot both take the same prefix.
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()
+    before = numbering.prefixes_of(organization)
+    errors: dict[str, str] = {}
+    chosen: dict[str, str] = {}
+    for index, (key, prefix) in enumerate(prefixes):
+        value = prefix.strip().upper()
+        if key not in numbering.KIND_BY_KEY:
+            errors[f"prefixes.{index}.kind"] = _("Type de numéro inconnu.")
+        elif not numbering.PREFIX_PATTERN.match(value):
+            errors[f"prefixes.{index}.prefix"] = _("1 à 6 lettres majuscules ou chiffres, sans espace.")
+        else:
+            chosen[key] = value
+    if not errors:
+        effective = {**before, **chosen}
+        for index, (key, _prefix) in enumerate(prefixes):
+            if list(effective.values()).count(effective[key]) > 1:
+                errors[f"prefixes.{index}.prefix"] = _("Ce préfixe sert déjà à un autre type de numéro.")
+    if errors:
+        raise ValidationError(errors)
+    changed = {key: value for key, value in chosen.items() if value != before[key]}
+    for key, value in changed.items():
+        NumberPrefix.objects.update_or_create(organization=organization, kind=key, defaults={"prefix": value})
+    if changed:
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="numbering.prefixes_changed",
+            before={key: before[key] for key in changed},
+            after=changed,
+        )
+    return numbering.prefixes_of(organization)

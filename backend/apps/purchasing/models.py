@@ -103,18 +103,6 @@ class GoodsReceiptLine(OrganizationScopedModel):
         return self.invoiced_quantity != self.accepted_quantity or ordered_differs
 
 
-class ReceiptCounter(OrganizationScopedModel):
-    """The last receipt number given in an organization, locked while a number is taken."""
-
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [models.UniqueConstraint(fields=["organization"], name="one_receipt_counter_per_organization")]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.last_number}"
-
-
 class PurchaseOrderStatus(models.TextChoices):
     # Sent to the supplier, nothing delivered yet.
     OPEN = "open", _("En attente")
@@ -443,30 +431,6 @@ class SupplierPaymentPlanLine(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.invoice} · {self.amount}"
-
-
-class DocumentKind(models.TextChoices):
-    SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
-    SUPPLIER_PAYMENT = "supplier_payment", _("Paiement fournisseur")
-    PURCHASE_ORDER = "purchase_order", _("Commande d'achat")
-    FIELD_PURCHASE = "field_purchase", _("Achat terrain")
-
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one kind of purchasing document in an organization, locked while taken."""
-
-    kind = models.CharField(max_length=30, choices=DocumentKind.choices)
-    # 0 for a kind numbered without a year (FF-0001, order numbers); the year for a kind that restarts yearly (D-120).
-    year = models.PositiveIntegerField(default=0)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "kind", "year"], name="one_document_counter_per_kind_year"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.kind} · {self.year} · {self.last_number}"
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----

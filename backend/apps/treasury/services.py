@@ -10,7 +10,7 @@ from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 
@@ -23,7 +23,6 @@ from .models import (
     InstrumentEvent,
     InstrumentKind,
     InstrumentStatus,
-    TreasuryCounter,
 )
 
 if TYPE_CHECKING:
@@ -339,18 +338,8 @@ def cancel_instruments(
 
 # ---- The portfolio: remise en banque, encaissé, débité (P9-T04a, D-216) ----
 
-DEPOSIT_PREFIX = "RB"
 # The effets one action may move at once.
 MAX_BATCH = 200
-
-
-def _next_number(organization: Organization, kind: str, prefix: str, day: dt.date) -> str:
-    """ "RB-2026-0001": numbered per organization and year, the counter locked while the number is taken."""
-    TreasuryCounter.objects.get_or_create(organization=organization, kind=kind, year=day.year)
-    counter = TreasuryCounter.objects.select_for_update().get(organization=organization, kind=kind, year=day.year)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{prefix}-{day.year}-{counter.last_number:04d}"
 
 
 def _batch(
@@ -426,7 +415,7 @@ def deposit_instruments(
     assert deposited_on is not None  # checked by _batch
     deposit = Deposit.objects.create(
         organization=organization,
-        number=_next_number(organization, "deposit", DEPOSIT_PREFIX, deposited_on),
+        number=numbering.next_number(organization, "deposit", year=deposited_on.year),
         bank=bank,
         deposited_on=deposited_on,
         notes=notes.strip()[:255],

@@ -225,6 +225,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
         {input("name", t("admin.customers.form.name"))}
         {input("reference", t("admin.customers.form.reference"), {
           hint: customer ? undefined : t("admin.customers.form.referenceHint"),
+          disabled: true,
         })}
         <Field label={t("admin.customers.form.kind")} htmlFor={`${formId}-kind`} error={errors.kind}>
           <Select

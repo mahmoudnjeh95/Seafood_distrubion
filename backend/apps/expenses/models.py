@@ -10,25 +10,6 @@ from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField
 
 
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one series of expense documents ("DP" expenses) in an organization.
-
-    Locked while a number is taken (same scheme as the other apps, D-043), so two expenses saved at once
-    never share one.
-    """
-
-    series = models.CharField(max_length=20)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "series"], name="expenses_one_counter_per_series"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.series} · {self.last_number}"
-
-
 # ---- Expenses (P5-T01, D-053) ----
 
 

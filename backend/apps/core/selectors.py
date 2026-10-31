@@ -7,6 +7,7 @@ from enum import StrEnum
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from . import numbering
 from .models import Job, JobRun, Membership, Organization, Role, User
 
 type MembershipQuerySet = QuerySet[Membership]
@@ -65,3 +66,32 @@ def job_health(job: Job, *, max_age: timedelta, now: datetime | None = None) -> 
     if (now or timezone.now()) - run.ran_at > max_age:
         return JobHealth(JobState.LATE, run.ran_at)
     return JobHealth(JobState.OK, run.ran_at)
+
+
+@dataclass(frozen=True)
+class NumberLine:
+    """One kind of number on the Paramètres page: its prefix in force, the default, and the next number."""
+
+    kind: str
+    label: str
+    group: str
+    prefix: str
+    default_prefix: str
+    yearly: bool
+    next_number: str
+
+
+def number_lines(organization: Organization) -> list[NumberLine]:
+    prefixes = numbering.prefixes_of(organization)
+    return [
+        NumberLine(
+            kind=item.key,
+            label=str(item.label),
+            group=str(item.group),
+            prefix=prefixes[item.key],
+            default_prefix=item.prefix,
+            yearly=item.yearly,
+            next_number=numbering.next_preview(organization, item.key, prefixes),
+        )
+        for item in numbering.NUMBER_KINDS
+    ]

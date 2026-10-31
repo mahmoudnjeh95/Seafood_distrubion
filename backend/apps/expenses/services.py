@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
@@ -27,7 +27,6 @@ from .models import (
     ColdRoomWeight,
     DayLabourEntry,
     DayLabourer,
-    DocumentCounter,
     ElectricityBill,
     Expense,
     ExpenseCategory,
@@ -181,25 +180,8 @@ def update_category(
 
 # ---- Expenses (P5-T01, D-053) ----
 
-EXPENSE_SERIES = "DP"
 MAX_RECEIPT_BYTES = 8 * 1024 * 1024
 OPEN_STATUSES = frozenset({ExpenseStatus.DRAFT, ExpenseStatus.PENDING})
-
-
-def _next_number(organization: Organization, series: str) -> str:
-    """DP-2026-0001, DP-2026-0002... per organization, series and year, taken under a row lock (D-120).
-
-    A deleted draft leaves a gap: these are not fiscal numbers. Expenses numbered before D-120 keep `DP-0001`.
-    """
-    year = timezone.localdate().year
-    counter_series = f"{series}-{year}"
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=counter_series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=counter_series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{counter_series}-{counter.last_number:04d}"
 
 
 def _checked_expense(
@@ -316,7 +298,7 @@ def create_expense(
     )
     expense = Expense.objects.create(
         organization=organization,
-        number=_next_number(organization, EXPENSE_SERIES),
+        number=numbering.next_number(organization, "expense"),
         status=ExpenseStatus.PENDING if submit else ExpenseStatus.DRAFT,
         spent_on=spent_on,
         made_at=made_at,

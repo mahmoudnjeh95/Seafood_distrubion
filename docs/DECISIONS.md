@@ -3123,3 +3123,30 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+
+**D-223 · One numbering for every kind of number; the prefixes are set on Paramètres (owner point 5)** · accepted (provisional parts marked) · 2026-10-31
+- One counter for all: `core.NumberSeries` (organization, kind, year; year 0 for kinds not restarted each year). Taken by
+  `core.numbering.next_number` under the row lock, inside the transaction that saves the record, after every check: gap-free
+  as before. The eight counter tables (sales, purchasing ×2, inventory ×2, expenses, hr, treasury) are dropped; their
+  migrations (`sales/0024`, `purchasing/0016`, `inventory/0011`, `expenses/0006`, `hr/0004`, `treasury/0003`) copy each
+  last number into `NumberSeries`, so no number is reused.
+- Kinds (`numbering.NUMBER_KINDS`): customer, supplier, employee, product, and every document (quote, sale, delivery note,
+  invoice, credit note, customer payment, opening receivable, purchase order, receipt, supplier invoice, supplier payment,
+  field purchase, batch, transfer, loss, count, expense, deposit, salary payment). Default prefixes are the ones already
+  printed (DV, VE, BL, FA, AV, RG, OUV, BA, BR, FF, RF, AT, L, TR, PE, INV, DP, RB, PS; C, F, E), so nothing changes
+  until the owner edits them (provisional: the partners stay C-001 / F-001 / E-001, not CL / FO).
+- Yearly kinds restart at 1 each year (D-120): `FA-2026-0001`. The others: `BR-0001`, `C-001`.
+- Product references are `ART0001`, four digits, no hyphen: the owner's article codes (D-126) use that shape. Provisional:
+  the default prefix is ART, and the counter starts after the highest `ART` code in use (ART0060 gives ART0061).
+- Paramètres › Numérotation (`/parametres/numerotation`, `GET`/`PUT /numbering`): one line per kind with its prefix, the
+  default and the next number. A prefix is 1 to 6 capitals or digits, and no two kinds share one in the organization.
+  Owner or manager writes, the accountant reads, drivers get 403. A changed prefix applies to the next number; the counter
+  goes on. Audit `numbering.prefixes_changed`.
+- Customers, suppliers, employees and products: the reference is generated on create when left blank
+  (`numbering.next_free_reference`). The counter starts after the highest reference already in use under the current prefix
+  (lazily at first use, and in the migrations `partners/0004`, `catalog/0006`, `hr/0005` for existing data). A reference
+  typed by hand is skipped, never reused. A typed reference is kept: imports, the demo seed and the owner's codes
+  (`set_product_codes`) are unchanged. The forms show the reference read-only (provisional: the API still accepts a
+  corrected reference on update, for the owner's clean-up).
+- Not converted: the public site's request numbers (`W-00012`, derived from the request id). The effets' own numbers are
+  typed by hand (D-197).

@@ -133,3 +133,24 @@ class ChangePasswordSerializer(serializers.Serializer[Any]):
 class UpdateProfileSerializer(serializers.Serializer[Any]):
     first_name = serializers.CharField(max_length=150, allow_blank=True)
     last_name = serializers.CharField(max_length=150, allow_blank=True)
+
+
+class NumberLineSerializer(serializers.Serializer[Any]):
+    kind = serializers.CharField()
+    label = serializers.CharField()
+    group = serializers.CharField()
+    prefix = serializers.CharField()
+    default_prefix = serializers.CharField()
+    yearly = serializers.BooleanField()
+    # The number the next record of this kind will get, e.g. "FA-2026-0008".
+    next_number = serializers.CharField()
+
+
+class NumberPrefixRowSerializer(serializers.Serializer[Any]):
+    kind = serializers.CharField(max_length=30)
+    # Checked by the service (1 to 6 capitals or digits, unique), so the errors name the row.
+    prefix = serializers.CharField(max_length=6, allow_blank=True)
+
+
+class NumberingWriteSerializer(serializers.Serializer[Any]):
+    prefixes = NumberPrefixRowSerializer(many=True)

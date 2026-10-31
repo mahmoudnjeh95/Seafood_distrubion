@@ -10,13 +10,11 @@ from django.core.validators import validate_email
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.models import Organization, User
 
 from .models import Customer, CustomerContact, CustomerKind, Supplier, SupplierContact
 
-SUPPLIER_REFERENCE_PREFIX = "F-"
-_GENERATED_REFERENCE = re.compile(rf"^{SUPPLIER_REFERENCE_PREFIX}(\d+)$", re.IGNORECASE)
 # 7 digits and a key letter, then the VAT code, the category and the establishment number (000 = head office).
 _TAX_ID = re.compile(r"^(\d{6,7})([A-Z])(?:([A-Z])([A-Z])(\d{3}))?$")
 
@@ -54,16 +52,6 @@ def normalized_tax_id(value: str) -> str:
     number, key, vat_code, category, establishment = match.groups()
     identifier = f"{number.zfill(7)}{key}"
     return f"{identifier}/{vat_code}/{category}/{establishment}" if vat_code else identifier
-
-
-def _next_reference(organization: Organization) -> str:
-    """F-001, F-002... one more than the highest reference of that shape in the organization."""
-    numbers = [
-        int(match.group(1))
-        for reference in Supplier.objects.for_organization(organization).values_list("reference", flat=True)
-        if (match := _GENERATED_REFERENCE.match(reference))
-    ]
-    return f"{SUPPLIER_REFERENCE_PREFIX}{max(numbers, default=0) + 1:03d}"
 
 
 def _snapshot(supplier: Supplier, contacts: Sequence[SupplierContact]) -> dict[str, Any]:
@@ -143,12 +131,14 @@ def create_supplier(
     contacts: Sequence[ContactFields] = (),
     **fields: Unpack[SupplierFields],
 ) -> Supplier:
-    """A new supplier. Without a reference it gets the next free `F-NNN`."""
+    """A new supplier. Without a reference it gets the next supplier number (F-001 by default, D-223)."""
     # Serializes creations in one organization, so two of them cannot take the same generated reference.
     Organization.objects.select_for_update().filter(pk=organization.pk).first()
     supplier = Supplier(organization=organization, **fields)
     if not supplier.reference.strip():
-        supplier.reference = _next_reference(organization)
+        supplier.reference = numbering.next_free_reference(
+            organization, "supplier", Supplier.objects.for_organization(organization)
+        )
     _clean_supplier(supplier)
     new_contacts = _cleaned_contacts(supplier, contacts)
     supplier.save()
@@ -211,8 +201,6 @@ def set_supplier_active(*, supplier: Supplier, actor: User | None, is_active: bo
 
 # ---- customers (P2-T01, D-047) ----
 
-CUSTOMER_REFERENCE_PREFIX = "C-"
-_GENERATED_CUSTOMER_REFERENCE = re.compile(rf"^{CUSTOMER_REFERENCE_PREFIX}(\d+)$", re.IGNORECASE)
 WALK_IN_NAME = "Client de passage"
 _MILLIME = Decimal("0.001")
 
@@ -229,16 +217,6 @@ class CustomerFields(TypedDict, total=False):
     notes: str
     credit_limit: Decimal
     payment_terms_days: int
-
-
-def _next_customer_reference(organization: Organization) -> str:
-    """C-001, C-002... one more than the highest reference of that shape in the organization."""
-    numbers = [
-        int(match.group(1))
-        for reference in Customer.objects.for_organization(organization).values_list("reference", flat=True)
-        if (match := _GENERATED_CUSTOMER_REFERENCE.match(reference))
-    ]
-    return f"{CUSTOMER_REFERENCE_PREFIX}{max(numbers, default=0) + 1:03d}"
 
 
 def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) -> dict[str, Any]:
@@ -325,12 +303,14 @@ def create_customer(
     is_walk_in: bool = False,
     **fields: Unpack[CustomerFields],
 ) -> Customer:
-    """A new customer. Without a reference it gets the next free `C-NNN`."""
+    """A new customer. Without a reference it gets the next customer number (C-001 by default, D-223)."""
     # Serializes creations in one organization, so two of them cannot take the same generated reference.
     Organization.objects.select_for_update().filter(pk=organization.pk).first()
     customer = Customer(organization=organization, is_walk_in=is_walk_in, **fields)
     if not customer.reference.strip():
-        customer.reference = _next_customer_reference(organization)
+        customer.reference = numbering.next_free_reference(
+            organization, "customer", Customer.objects.for_organization(organization)
+        )
     _clean_customer(customer)
     new_contacts = _cleaned_customer_contacts(customer, contacts)
     customer.save()

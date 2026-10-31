@@ -10855,6 +10855,50 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
+ * The prefixes of every number and the next number of each kind (Paramètres, D-223). Owners and managers
+ * change them; the accountant reads them; drivers do not see them.
+ */
+export const GetNumberingResponseItem = zod.object({
+  "kind": zod.string(),
+  "label": zod.string(),
+  "group": zod.string(),
+  "prefix": zod.string(),
+  "default_prefix": zod.string(),
+  "yearly": zod.boolean(),
+  "next_number": zod.string()
+})
+export const GetNumberingResponse = zod.array(GetNumberingResponseItem)
+
+
+/**
+ * Change the prefixes. Each kind keeps its counter: the next number carries the new prefix.
+ */
+export const updateNumberingBodyPrefixesItemKindMax = 30;
+
+export const updateNumberingBodyPrefixesItemPrefixMax = 6;
+
+
+
+export const UpdateNumberingBody = zod.object({
+  "prefixes": zod.array(zod.object({
+  "kind": zod.string().max(updateNumberingBodyPrefixesItemKindMax),
+  "prefix": zod.string().max(updateNumberingBodyPrefixesItemPrefixMax)
+}))
+})
+
+export const UpdateNumberingResponseItem = zod.object({
+  "kind": zod.string(),
+  "label": zod.string(),
+  "group": zod.string(),
+  "prefix": zod.string(),
+  "default_prefix": zod.string(),
+  "yearly": zod.boolean(),
+  "next_number": zod.string()
+})
+export const UpdateNumberingResponse = zod.array(UpdateNumberingResponseItem)
+
+
+/**
  * The company logo on the Paramètres page and on the driver's phone (D-154). Every member reads it, since it is
  * the logo every document already carries; owners and managers may change it (same as the legal fields).
  */
@@ -11569,6 +11613,7 @@ export const ListProductsResponseItem = zod.object({
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
 
+export const createProductBodyReferenceDefault = ``;
 export const createProductBodyReferenceMax = 30;
 
 export const createProductBodyNameMax = 150;
@@ -11586,7 +11631,7 @@ export const createProductBodySalePriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\
 
 
 export const CreateProductBody = zod.object({
-  "reference": zod.string().max(createProductBodyReferenceMax),
+  "reference": zod.string().max(createProductBodyReferenceMax).default(createProductBodyReferenceDefault),
   "name": zod.string().max(createProductBodyNameMax),
   "name_ar": zod.string().max(createProductBodyNameArMax).default(createProductBodyNameArDefault),
   "category": zod.int(),
@@ -11673,6 +11718,7 @@ export const UpdateProductParams = zod.object({
   "product_id": zod.int()
 })
 
+export const updateProductBodyReferenceDefault = ``;
 export const updateProductBodyReferenceMax = 30;
 
 export const updateProductBodyNameMax = 150;
@@ -11689,7 +11735,7 @@ export const updateProductBodyVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0
 
 
 export const UpdateProductBody = zod.object({
-  "reference": zod.string().max(updateProductBodyReferenceMax).optional(),
+  "reference": zod.string().max(updateProductBodyReferenceMax).default(updateProductBodyReferenceDefault),
   "name": zod.string().max(updateProductBodyNameMax).optional(),
   "name_ar": zod.string().max(updateProductBodyNameArMax).default(updateProductBodyNameArDefault),
   "category": zod.int().optional(),

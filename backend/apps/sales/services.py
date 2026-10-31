@@ -17,7 +17,7 @@ from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.clock import CLOCK_MARGIN
 from apps.core.images import reencoded_photo
 from apps.core.models import Membership, Organization, Role, User
@@ -43,7 +43,6 @@ from .models import (
     CustomerPaymentLine,
     CustomerPaymentMethod,
     DeliveryStatus,
-    DocumentCounter,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -79,7 +78,6 @@ if TYPE_CHECKING:
 
 # ---- Quotes (P2-T03, D-050) ----
 
-QUOTE_SERIES = "DV"
 # Validity when none is given: the prototype's quote is "valable 3 jours". Provisional (D-050): seafood
 # prices move daily, so a short validity is the safe default.
 DEFAULT_VALIDITY_DAYS = 3
@@ -101,20 +99,6 @@ class QuoteLineFields(TypedDict, total=False):
 def line_error_key(index: int, field: str) -> str:
     """Errors of a document line are reported on `lines.<index>.<field>`, under the line's own input."""
     return f"lines.{index}.{field}"
-
-
-def _next_number(organization: Organization, series: str) -> str:
-    """DV-0001, DV-0002... per organization and series, taken under a row lock (same scheme as batches).
-
-    Taken in the transaction that creates the document and quotes are never deleted, so there are no gaps.
-    """
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
 
 
 def moment_of(day: dt.date) -> dt.datetime:
@@ -432,7 +416,7 @@ def create_quote(
     )
     quote = Quote.objects.create(
         organization=organization,
-        number=_next_yearly_number(organization, QUOTE_SERIES, timezone.localdate().year),
+        number=numbering.next_number(organization, "quote"),
         customer=customer,
         location=location,
         quoted_on=quoted_on,
@@ -604,11 +588,8 @@ def expire_quotes(*, organization: Organization, actor: User | None = None, toda
 
 # ---- Sales (P2-T04, D-051) ----
 
-SALE_SERIES = "VE"
+
 # A validated sale is a delivery note (bon de livraison): BL-2026-0001, restarting every year (D-095).
-DELIVERY_NOTE_PREFIX = "BL"
-
-
 class LotPickFields(TypedDict):
     """A lot picked by hand for a sale line, and the kilos to take from it first (D-121, D-208)."""
 
@@ -934,7 +915,7 @@ def create_sale(
     box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
         organization=organization,
-        number=_next_number(organization, SALE_SERIES),
+        number=numbering.next_number(organization, "sale"),
         customer=customer,
         location=location,
         sold_at=sold_at,
@@ -1050,7 +1031,7 @@ def _add_revision(
 
 def _issue_load_bl(sale: Sale, actor: User | None) -> None:
     """The client's BL of a load gets its BL number now and is version 1, the one printed and taken on the road."""
-    sale.number = _next_yearly_number(sale.organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
+    sale.number = numbering.next_number(sale.organization, "delivery_note")
     sale.issued_at = timezone.now()
     sale.delivery_status = DeliveryStatus.TO_DELIVER
     sale.version = 1
@@ -1368,7 +1349,6 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     raise ValidationError({"credit_limit": message})
 
 
-OPENING_RECEIVABLE_PREFIX = "OUV"
 
 
 @transaction.atomic
@@ -1408,7 +1388,7 @@ def create_opening_receivable(
     now = timezone.now()
     sale = Sale.objects.create(
         organization=organization,
-        number=_next_yearly_number(organization, OPENING_RECEIVABLE_PREFIX, owed_on.year),
+        number=numbering.next_number(organization, "opening_receivable", year=owed_on.year),
         status=SaleStatus.CONFIRMED,
         customer=customer,
         location=location,
@@ -1548,7 +1528,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     draft_number = sale.number
     # The BL of a load has its number since the load (D-178).
     if sale.issued_at is None:
-        sale.number = _next_yearly_number(organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
+        sale.number = numbering.next_number(organization, "delivery_note")
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
@@ -1936,25 +1916,6 @@ def save_finance_settings(
 
 
 # ---- Invoices and credit notes (P2-T05, D-057) ----
-
-INVOICE_PREFIX = "FA"
-CREDIT_NOTE_PREFIX = "AV"
-
-
-def _next_yearly_number(organization: Organization, prefix: str, year: int) -> str:
-    """FA-2026-0001, FA-2026-0002... per organization and year, under the counter's row lock.
-
-    Called inside the transaction that issues the document, after every check: if anything fails later the
-    transaction rolls back with the counter, so the series never has a gap (ARCHITECTURE §4.11).
-    """
-    series = f"{prefix}-{year}"
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
 
 
 class InvoiceChoices(TypedDict, total=False):
@@ -2409,7 +2370,7 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     invoice.issued_by = actor
     invoice.issued_at = timezone.now()
     invoice.status = InvoiceStatus.ISSUED
-    invoice.number = _next_yearly_number(invoice.organization, INVOICE_PREFIX, today.year)
+    invoice.number = numbering.next_number(invoice.organization, "invoice", year=today.year)
     invoice.save()
     lines = list(invoice.lines.select_related("product", "sale_line"))
     for line in lines:
@@ -2657,7 +2618,7 @@ def create_credit_note(
     today = timezone.localdate()
     note = CreditNote.objects.create(
         organization=invoice.organization,
-        number=_next_yearly_number(invoice.organization, CREDIT_NOTE_PREFIX, today.year),
+        number=numbering.next_number(invoice.organization, "credit_note", year=today.year),
         invoice=invoice,
         kind=kind,
         issued_on=today,
@@ -2720,7 +2681,6 @@ def create_credit_note(
 
 # ---- Customer payments, balance, credit, withholding certificates (P2-T06, D-062, D-063) ----
 
-PAYMENT_SERIES = "RG"
 MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
 
 
@@ -3047,7 +3007,7 @@ def record_customer_payment(
         raise ValidationError(errors)
     paid = sum((value for _method, value, _line in checked), Decimal("0.000"))
     methods = {line_method for line_method, _value, _line in checked}
-    number = _next_number(organization, PAYMENT_SERIES)
+    number = numbering.next_number(organization, "payment")
     payment = CustomerPayment.objects.create(
         organization=organization,
         number=number,
