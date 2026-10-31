@@ -7,7 +7,7 @@
 
 export interface NumberLine {
   kind: string;
-  label: string;
+  title: string;
   group: string;
   prefix: string;
   default_prefix: string;

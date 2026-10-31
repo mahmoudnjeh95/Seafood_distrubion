@@ -5,7 +5,7 @@ import { nextWithPrefix } from "./numbering";
 
 const invoice: NumberLine = {
   kind: "invoice",
-  label: "Facture",
+  title: "Facture",
   group: "Ventes",
   prefix: "FA",
   default_prefix: "FA",

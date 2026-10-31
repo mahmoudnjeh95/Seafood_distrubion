@@ -20107,7 +20107,7 @@ components:
       properties:
         kind:
           type: string
-        label:
+        title:
           type: string
         group:
           type: string
@@ -20123,9 +20123,9 @@ components:
       - default_prefix
       - group
       - kind
-      - label
       - next_number
       - prefix
+      - title
       - yearly
     NumberPrefixRow:
       type: object

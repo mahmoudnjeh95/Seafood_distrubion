@@ -57,14 +57,14 @@ function NumberingForm({ lines }: { lines: NumberLine[] }) {
                 )}
                 <tr>
                   <Td>
-                    {line.label}
+                    {line.title}
                     {line.yearly && (
                       <span className="block text-[0.8rem] text-ink-2">{t("admin.numbering.yearly")}</span>
                     )}
                   </Td>
                   <Td>
                     <Input
-                      aria-label={line.label}
+                      aria-label={line.title}
                       name={`prefix-${line.kind}`}
                       value={prefix}
                       maxLength={6}

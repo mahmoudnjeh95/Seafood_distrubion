@@ -137,7 +137,8 @@ class UpdateProfileSerializer(serializers.Serializer[Any]):
 
 class NumberLineSerializer(serializers.Serializer[Any]):
     kind = serializers.CharField()
-    label = serializers.CharField()
+    # "title" rather than "label": DRF fields already have a label.
+    title = serializers.CharField()
     group = serializers.CharField()
     prefix = serializers.CharField()
     default_prefix = serializers.CharField()

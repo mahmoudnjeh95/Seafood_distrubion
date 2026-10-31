@@ -10860,7 +10860,7 @@ export const GetMyTruckDayResponse = zod.object({
  */
 export const GetNumberingResponseItem = zod.object({
   "kind": zod.string(),
-  "label": zod.string(),
+  "title": zod.string(),
   "group": zod.string(),
   "prefix": zod.string(),
   "default_prefix": zod.string(),
@@ -10888,7 +10888,7 @@ export const UpdateNumberingBody = zod.object({
 
 export const UpdateNumberingResponseItem = zod.object({
   "kind": zod.string(),
-  "label": zod.string(),
+  "title": zod.string(),
   "group": zod.string(),
   "prefix": zod.string(),
   "default_prefix": zod.string(),

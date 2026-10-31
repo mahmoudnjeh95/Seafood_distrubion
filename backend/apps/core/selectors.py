@@ -73,7 +73,7 @@ class NumberLine:
     """One kind of number on the Paramètres page: its prefix in force, the default, and the next number."""
 
     kind: str
-    label: str
+    title: str
     group: str
     prefix: str
     default_prefix: str
@@ -86,7 +86,7 @@ def number_lines(organization: Organization) -> list[NumberLine]:
     return [
         NumberLine(
             kind=item.key,
-            label=str(item.label),
+            title=str(item.label),
             group=str(item.group),
             prefix=prefixes[item.key],
             default_prefix=item.prefix,
