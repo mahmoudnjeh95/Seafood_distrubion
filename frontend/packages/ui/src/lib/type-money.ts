@@ -28,4 +28,3 @@ export function typeMoney(event: ChangeEvent<HTMLInputElement>, previous: string
   input.value = text;
   input.setSelectionRange(at, at);
 }
-
