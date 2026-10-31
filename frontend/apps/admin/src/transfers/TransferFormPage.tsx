@@ -39,6 +39,7 @@ import { type BoxCountInputs, NO_BOX_INPUTS, boxCountsFromInputs, boxInputsFromC
 import { subtract, sum, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { amountsOf, asTyped, filled, isZero, type Line, newLine, shownPrice, withSpare } from "../lib/lines";
+import { lotColumn } from "../lib/lotColumn";
 import { LinesGrid } from "../lib/LinesGrid";
 import { placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import { todayInTunis } from "../receipts/shared";
@@ -70,6 +71,7 @@ function typedLine(line: TransferDetail["lines"][number]): Line {
     quantity: asTyped(line.quantity),
     unit_price: line.unit_price ? asTyped(line.unit_price) : "",
     priceTouched: line.unit_price !== null,
+    picks: line.picks.map((pick) => ({ batch: String(pick.batch), quantity: asTyped(pick.quantity) })),
   });
 }
 
@@ -166,6 +168,8 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
   );
   // From the cold rooms, the boxes leave from the first one, as on the server.
   const fromPlace = from === COLD_ROOMS ? coldRooms[0] : places.find((place) => String(place.id) === from);
+  // Lots are picked where the kg leave from, unless several cold rooms give them (D-215).
+  const lotRoom = from === COLD_ROOMS || !fromPlace ? undefined : String(fromPlace.id);
   const toPlace = places.find((place) => String(place.id) === to);
   const kind = kindOf(fromPlace, toPlace);
   const isLoad = kind === "load";
@@ -258,7 +262,13 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
             if (price === null || price.startsWith("-")) found[key("unit_price")] = t("admin.transfers.form.money");
           }
         }
-        return { product: Number(line.product), quantity: quantity ?? "", unit_price: price };
+        const picks = line.picks
+          .filter((pick) => pick.batch !== "")
+          .map((pick) => ({
+            batch: Number(pick.batch),
+            quantity: parseDecimalInput(pick.quantity.trim(), 3) ?? "",
+          }));
+        return { product: Number(line.product), quantity: quantity ?? "", unit_price: price, picks };
       });
     const payloadLines = rowsOf(lines, (product) => dailyPrice.get(product) ?? null, "");
     const deliveries: NonNullable<TransferWrite["deliveries"]> = clientParts.map((part, index) => {
@@ -410,6 +420,7 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
                 stock={stockFor(part.key)}
                 places={placesOfProduct}
                 errors={errors}
+                lotRoom={lotRoom}
                 onChange={(next) =>
                   setParts((current) => current.map((other) => (other.key === part.key ? next : other)))
                 }
@@ -452,6 +463,7 @@ function TransferForm({ draft }: { draft?: TransferDetail }) {
             places={placesOfProduct}
             errors={errors}
             hint={isLoad ? hintFor("") : undefined}
+            extra={lotColumn(t("admin.sales.counterSale.lot"), lotRoom)}
           />
           {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
           {isLoad && (

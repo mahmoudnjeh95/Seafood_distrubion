@@ -692,6 +692,8 @@ export * from './transferDetailBoxes';
 export * from './transferKindEnum';
 export * from './transferLine';
 export * from './transferLineDetail';
+export * from './transferLinePick';
+export * from './transferLinePickWrite';
 export * from './transferLineWrite';
 export * from './transferStatusEnum';
 export * from './transferWrite';

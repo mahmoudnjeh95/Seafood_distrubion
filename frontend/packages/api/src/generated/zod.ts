@@ -17871,12 +17871,14 @@ export const ListTransfersResponse = zod.object({
 
 export const createTransferBodyFromColdRoomsDefault = false;
 export const createTransferBodyNotesDefault = ``;
+
 export const createTransferBodyValidateNowDefault = false;
 export const createTransferBodyBoxesMinOne = 0;
 
 
 export const createTransferBodyDeliveriesItemDeliveryAddressDefault = ``;
 export const createTransferBodyDeliveriesItemDeliveryAddressMax = 255;
+
 
 
 export const createTransferBodyDeliveriesItemBoxesMinOne = 0;
@@ -17892,7 +17894,11 @@ export const CreateTransferBody = zod.object({
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
-  "unit_price": zod.string().nullish()
+  "unit_price": zod.string().nullish(),
+  "picks": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "quantity": zod.string()
+})).optional()
 })),
   "validate_now": zod.boolean().default(createTransferBodyValidateNowDefault),
   "boxes": zod.record(zod.string(), zod.int().min(createTransferBodyBoxesMinOne)).optional(),
@@ -17902,7 +17908,11 @@ export const CreateTransferBody = zod.object({
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
-  "unit_price": zod.string().nullish()
+  "unit_price": zod.string().nullish(),
+  "picks": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "quantity": zod.string()
+})).optional()
 })),
   "boxes": zod.record(zod.string(), zod.int().min(createTransferBodyDeliveriesItemBoxesMinOne)).optional()
 })).optional()
@@ -17912,6 +17922,7 @@ export const createTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{
 export const createTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransferResponseLinesItemPicksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17956,7 +17967,12 @@ export const CreateTransferResponse = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "quantity": zod.stringFormat('decimal', createTransferResponseLinesItemBatchesItemQuantityRegExp)
-}).describe('One batch a line took, oldest first: the movement posted for it.'))
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "picks": zod.array(zod.object({
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', createTransferResponseLinesItemPicksItemQuantityRegExp)
+}).describe('A lot picked by hand for a line, with the kilos to take from it first (D-215).'))
 })),
   "total_quantity": zod.stringFormat('decimal', createTransferResponseTotalQuantityRegExp),
   "total_amount": zod.stringFormat('decimal', createTransferResponseTotalAmountRegExp).nullable(),
@@ -17999,6 +18015,7 @@ export const getTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9
 export const getTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getTransferResponseLinesItemPicksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -18043,7 +18060,12 @@ export const GetTransferResponse = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "quantity": zod.stringFormat('decimal', getTransferResponseLinesItemBatchesItemQuantityRegExp)
-}).describe('One batch a line took, oldest first: the movement posted for it.'))
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "picks": zod.array(zod.object({
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', getTransferResponseLinesItemPicksItemQuantityRegExp)
+}).describe('A lot picked by hand for a line, with the kilos to take from it first (D-215).'))
 })),
   "total_quantity": zod.stringFormat('decimal', getTransferResponseTotalQuantityRegExp),
   "total_amount": zod.stringFormat('decimal', getTransferResponseTotalAmountRegExp).nullable(),
@@ -18085,12 +18107,14 @@ export const UpdateTransferParams = zod.object({
 
 export const updateTransferBodyFromColdRoomsDefault = false;
 export const updateTransferBodyNotesDefault = ``;
+
 export const updateTransferBodyValidateNowDefault = false;
 export const updateTransferBodyBoxesMinOne = 0;
 
 
 export const updateTransferBodyDeliveriesItemDeliveryAddressDefault = ``;
 export const updateTransferBodyDeliveriesItemDeliveryAddressMax = 255;
+
 
 
 export const updateTransferBodyDeliveriesItemBoxesMinOne = 0;
@@ -18106,7 +18130,11 @@ export const UpdateTransferBody = zod.object({
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
-  "unit_price": zod.string().nullish()
+  "unit_price": zod.string().nullish(),
+  "picks": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "quantity": zod.string()
+})).optional()
 })),
   "validate_now": zod.boolean().default(updateTransferBodyValidateNowDefault),
   "boxes": zod.record(zod.string(), zod.int().min(updateTransferBodyBoxesMinOne)).optional(),
@@ -18116,7 +18144,11 @@ export const UpdateTransferBody = zod.object({
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
   "quantity": zod.string(),
-  "unit_price": zod.string().nullish()
+  "unit_price": zod.string().nullish(),
+  "picks": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "quantity": zod.string()
+})).optional()
 })),
   "boxes": zod.record(zod.string(), zod.int().min(updateTransferBodyDeliveriesItemBoxesMinOne)).optional()
 })).optional()
@@ -18126,6 +18158,7 @@ export const updateTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{
 export const updateTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const updateTransferResponseLinesItemPicksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -18170,7 +18203,12 @@ export const UpdateTransferResponse = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "quantity": zod.stringFormat('decimal', updateTransferResponseLinesItemBatchesItemQuantityRegExp)
-}).describe('One batch a line took, oldest first: the movement posted for it.'))
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "picks": zod.array(zod.object({
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', updateTransferResponseLinesItemPicksItemQuantityRegExp)
+}).describe('A lot picked by hand for a line, with the kilos to take from it first (D-215).'))
 })),
   "total_quantity": zod.stringFormat('decimal', updateTransferResponseTotalQuantityRegExp),
   "total_amount": zod.stringFormat('decimal', updateTransferResponseTotalAmountRegExp).nullable(),
@@ -18213,6 +18251,7 @@ export const cancelTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{
 export const cancelTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelTransferResponseLinesItemPicksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const cancelTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const cancelTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -18257,7 +18296,12 @@ export const CancelTransferResponse = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "quantity": zod.stringFormat('decimal', cancelTransferResponseLinesItemBatchesItemQuantityRegExp)
-}).describe('One batch a line took, oldest first: the movement posted for it.'))
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "picks": zod.array(zod.object({
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', cancelTransferResponseLinesItemPicksItemQuantityRegExp)
+}).describe('A lot picked by hand for a line, with the kilos to take from it first (D-215).'))
 })),
   "total_quantity": zod.stringFormat('decimal', cancelTransferResponseTotalQuantityRegExp),
   "total_amount": zod.stringFormat('decimal', cancelTransferResponseTotalAmountRegExp).nullable(),
@@ -18302,6 +18346,7 @@ export const validateTransferResponseLinesItemQuantityRegExp = new RegExp('^-?\\
 export const validateTransferResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const validateTransferResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const validateTransferResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateTransferResponseLinesItemPicksItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const validateTransferResponseTotalQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const validateTransferResponseTotalAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -18346,7 +18391,12 @@ export const ValidateTransferResponse = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "quantity": zod.stringFormat('decimal', validateTransferResponseLinesItemBatchesItemQuantityRegExp)
-}).describe('One batch a line took, oldest first: the movement posted for it.'))
+}).describe('One batch a line took, oldest first: the movement posted for it.')),
+  "picks": zod.array(zod.object({
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "quantity": zod.stringFormat('decimal', validateTransferResponseLinesItemPicksItemQuantityRegExp)
+}).describe('A lot picked by hand for a line, with the kilos to take from it first (D-215).'))
 })),
   "total_quantity": zod.stringFormat('decimal', validateTransferResponseTotalQuantityRegExp),
   "total_amount": zod.stringFormat('decimal', validateTransferResponseTotalAmountRegExp).nullable(),

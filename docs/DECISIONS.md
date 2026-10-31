@@ -3109,3 +3109,20 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+
+**D-219 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
+- A transfer line may name lots, each with the kilos to take from it, as a counter-sale line does (D-212): `TransferLinePick`
+  (one row per line and lot), written as `picks: [{batch, quantity}]` on `TransferLineWrite`, in the kept part and in each
+  client's part of a load. Picks take their kilos in the order given, each up to what it holds; what they leave over
+  comes from the other lots, oldest first (FIFO), and a picked lot short is topped up the same way. Stock never goes
+  negative. Validation posts the line's picks first, then FIFO, through `inventory.services.post_fifo_movements`.
+- It replaces the rule of D-009 that nobody picks batches by hand, for transfers too, as D-212 did for sales.
+- Refused on the line: picks above the line's weight, a lot picked twice, a lot of another product or organization,
+  a pick without kilos above zero, and any pick on a load from several cold rooms (D-174): the kg there come from
+  whichever rooms hold them, so there is no one place to pick a lot from.
+- The check is one function, `inventory.services.checked_lot_picks`, used by the counter sale and by transfers.
+- Migration `inventory.0011_transfer_line_picks` creates the table. A draft's picks go with its lines when it is
+  changed; a validated transfer keeps the movements that really moved.
+- The transfer form shows the lot column on every line grid, lots of the place the kg leave from; with several cold
+  rooms the column shows the oldest lots and cannot be picked.
+- Provisional: the kilos the picks leave over come from the oldest lots only, as for a sale.
