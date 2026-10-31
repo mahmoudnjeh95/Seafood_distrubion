@@ -3226,6 +3226,8 @@ export const getDayOverviewResponseDeliveriesItemAmountPaidRegExp = new RegExp('
 export const getDayOverviewResponseDeliveriesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponseExpensesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayOverviewResponsePurchasesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayOverviewResponsePurchasesItemCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetDayOverviewResponse = zod.object({
@@ -3326,7 +3328,16 @@ export const GetDayOverviewResponse = zod.object({
   "status": zod.string(),
   "payment_method": zod.string(),
   "made_at": zod.iso.datetime({"offset":true})
-}))
+})),
+  "purchases": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_name": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - submitted\n* `validated` - validated\n* `refused` - refused'),
+  "total": zod.stringFormat('decimal', getDayOverviewResponsePurchasesItemTotalRegExp),
+  "cash": zod.stringFormat('decimal', getDayOverviewResponsePurchasesItemCashRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+}).describe('A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 

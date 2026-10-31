@@ -336,3 +336,31 @@ def test_a_day_with_purchase_money_left_is_approved_only_once_that_money_is_coun
     )
     assert approved.status_code == 200, approved.json()
     assert (approved.json()["status"], approved.json()["office_purchase_difference"]) == ("approved", "0.000")
+
+
+def test_a_purchase_sent_from_the_phone_goes_to_the_drivers_truck(setup):
+    """D-214: the goods are on the driver's truck, not in a cold room, unless the office chooses another place."""
+    assert send(setup).status_code == 201
+    purchase = FieldPurchase.objects.get()
+    assert purchase.location == setup["truck"].location
+
+
+def test_the_office_sees_the_purchase_on_the_drivers_day_until_it_is_checked(setup):
+    """D-214: the purchase is on the day in "Journées des chauffeurs", to check, with its total and cash."""
+    sent = send(setup)
+    assert sent.status_code == 201
+    rows = setup["owner"].get(reverse("day-overview-list")).json()
+    assert rows[0]["purchases_count"] == 1
+    assert rows[0]["purchases_total"] == "750.000"
+    detail = setup["owner"].get(reverse("day-overview-detail", args=[rows[0]["id"]])).json()
+    assert detail["purchases"] == [
+        {
+            "id": sent.json()["id"],
+            "number": sent.json()["number"],
+            "supplier_name": "Pêcheur Hamdi",
+            "status": "submitted",
+            "total": "750.000",
+            "cash": "600.000",
+            "made_at": detail["purchases"][0]["made_at"],
+        }
+    ]
