@@ -57,7 +57,9 @@ def dorade(organization):
 
 
 def receive(organization, item, location, kg, *, with_vat):
-    batch = BatchFactory.create(organization=organization, product=item, unit_cost=D("20.000"), bought_with_vat=with_vat)
+    batch = BatchFactory.create(
+        organization=organization, product=item, unit_cost=D("20.000"), bought_with_vat=with_vat
+    )
     stock.post_movement(
         organization=organization,
         actor=None,
