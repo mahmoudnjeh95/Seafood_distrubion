@@ -4,15 +4,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('purchasing', '0009_supplier_payment_plan_line'),
+        ("purchasing", "0009_supplier_payment_plan_line"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='documentcounter',
-            name='kind',
-            field=models.CharField(choices=[('supplier_invoice', 'Facture fournisseur'), ('supplier_payment', 'Paiement fournisseur'), ('purchase_order', "Commande d'achat"), ('field_purchase', 'Achat terrain')], max_length=30),
+            model_name="documentcounter",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("supplier_invoice", "Facture fournisseur"),
+                    ("supplier_payment", "Paiement fournisseur"),
+                    ("purchase_order", "Commande d'achat"),
+                    ("field_purchase", "Achat terrain"),
+                ],
+                max_length=30,
+            ),
         ),
     ]
