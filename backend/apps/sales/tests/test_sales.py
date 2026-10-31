@@ -891,3 +891,29 @@ def test_a_quote_approved_under_the_minimum_is_delivered_by_anyone(organization,
 
     assert delivered.lines.get().amount == Decimal("75.600")
     assert AuditLog.objects.filter(action="quote.price_below_minimum_approved", target_id=str(quote.pk)).exists()
+
+
+def test_the_lot_picked_on_a_quote_goes_on_its_bl(organization, actor, customer, counter, crevette):
+    receive(organization, crevette, counter, "10", cost="20.000", days_ago=2)
+    new = receive(organization, crevette, counter, "10", cost="22.000")
+    quote = services.create_quote(
+        organization=organization,
+        actor=actor,
+        customer=customer,
+        quoted_on=timezone.localdate(),
+        location=counter,
+        lines=[{"product": crevette, "quantity": "4", "batch": new}],
+        send=True,
+    )
+    assert quote.lines.get().requested_batch == new
+
+    converted = services.create_sale_from_quote(
+        quote=services.accept_quote(quote=quote, actor=actor),
+        actor=actor,
+        payment={"amount_paid": "0", "payment_method": "cash"},
+        confirm=True,
+    )
+
+    line = converted.lines.get()
+    assert line.requested_batch == new
+    assert [(row.batch, row.quantity) for row in line.batches.order_by("id")] == [(new, Decimal("4.000"))]

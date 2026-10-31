@@ -214,6 +214,14 @@ class LocationBatchesView(LocationView):
         return Response(LocationBatchSerializer(rows, many=True).data)
 
 
+class ProductBatchesView(OfficeView):
+    @extend_schema(operation_id="listProductBatches", responses=LocationBatchSerializer(many=True))
+    def get(self, request: Request, product_id: int) -> Response:
+        """The lots of one product in every cold room, oldest first: to pick one on a quote or a sale (D-201)."""
+        rows = selectors.product_batches(self.organization, product_id=product_id)
+        return Response(LocationBatchSerializer(rows, many=True).data)
+
+
 # ---- Transfers (P1-T09) ----
 
 

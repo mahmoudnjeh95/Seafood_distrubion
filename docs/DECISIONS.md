@@ -2895,3 +2895,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Not changed (provisional): a receipt typed at the office as "Dû dès la réception" still makes its invoice at once
   (D-192); the owner said only the port purchase. The deal and due days typed on a port purchase are no longer used;
   the due date is set on the invoice.
+
+**D-201 · Pick the lot on every quote and sale line, FIFO by default (owner list 2026-10-31, item 15)** · accepted · 2026-10-31
+- The "Lot" column of the counter sale (D-121) is now on the sale form and the quote form too (`lib/LotPicker`).
+  Without a fixed place it lists the product's lots in every cold room (new `GET /inventory/stock/<product>/batches`,
+  trucks left out), each with its place, supplier and kg; "Lot le plus ancien (FIFO)" stays the default.
+- Sale form: a picked lot fixes the place the sale leaves from; lots picked in two places are refused on the form
+  ("une vente part d'un seul endroit"). Without a picked lot the place is found as before (D-144).
+- Quote lines keep the lot (`QuoteLine.requested_batch`, migration 0021); the BL made from the quote takes it. If the
+  BL leaves from another place, the lot is not there and FIFO applies (the lot is a preference, as in D-121).
+- Sale and quote lines now return `requested_batch`, so a draft reopens with its lots.
+- Not done: the driver's phone sale (the truck's lots); ask the owner if it is wanted.

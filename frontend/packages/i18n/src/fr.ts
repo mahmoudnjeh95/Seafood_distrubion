@@ -1913,6 +1913,8 @@ export const fr = {
         lot: "Lot",
         lotAuto: "Lot le plus ancien (FIFO)",
         lotChoice: "{{batch}} · {{supplier}} · {{quantity}} dispo.",
+        lotChoiceWhere: "{{batch}} · {{place}} · {{supplier}} · {{quantity}} dispo.",
+        lotPlaces: "Les lots choisis sont dans des chambres différentes : une vente part d'un seul endroit.",
         lotDetail: "{{quantity}} dispo.",
         partnerTag: "partenaire",
         lotShort: "Ce lot n'a que {{quantity}} : le reste viendra automatiquement d'un autre lot.",

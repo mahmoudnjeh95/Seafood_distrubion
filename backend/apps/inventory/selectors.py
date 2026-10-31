@@ -219,6 +219,18 @@ def location_batches(organization: Organization, *, product_id: int, location_id
     )
 
 
+def product_batches(organization: Organization, *, product_id: int) -> QuerySet[StockOnHand]:
+    """The lots of one product in every cold room (not on the trucks), oldest first: for picking a lot on a quote
+    or a sale before its place is known (D-201). Each row carries its batch, supplier and location."""
+    return (
+        StockOnHand.objects.for_organization(organization)
+        .filter(product_id=product_id, quantity__gt=0)
+        .exclude(location__kind=LocationKind.TRUCK)
+        .select_related("batch", "batch__supplier", "location")
+        .order_by(*(f"batch__{field}" for field in FIFO_ORDER), "location_id")
+    )
+
+
 def takeable(row: StockOnHand, limits: Mapping[int, Decimal] | None = None) -> Decimal:
     """What can be taken from one on-hand row: all of it, or at most its lot's limit when `limits` is given
     (a lot without a limit gives nothing)."""

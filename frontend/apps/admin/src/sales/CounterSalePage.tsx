@@ -4,13 +4,12 @@ import {
   type SalePaymentMethodEnum,
   type SaleWrite,
   useListCustomers,
-  useListLocationBatches,
   useListLocations,
   useListPriceLists,
   useListProducts,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -33,65 +32,21 @@ import { Link, Navigate, useOutletContext } from "react-router";
 import { sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
-import { amountsOf, filled, isShort, type Line, newLine, shownPrice } from "../lib/lines";
+import { amountsOf, filled, type Line, newLine, shownPrice } from "../lib/lines";
 import { LinesGrid } from "../lib/LinesGrid";
+import { LotPicker } from "../lib/LotPicker";
 import { choosePlace, needsOf, placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { type ReactNode } from "react";
 import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
-// Radix Select has no empty choice: this value stands for the walk-in customer ("Client de passage") and,
-// for a lot, the oldest one first (FIFO, the default a seller can override, D-121).
+// Radix Select has no empty choice: this value stands for the walk-in customer ("Client de passage").
 const WALK_IN = "walk-in";
-const AUTO_LOT = "fifo";
 
 const isPositive = (value: string | null): value is string =>
   value !== null && !value.startsWith("-") && !/^0+(\.0+)?$/.test(value);
 // The messages the grid shows in its own cells; every other one goes in the alert.
 const inGrid = (key: string) => /^lines\.\d+\.(product|quantity|unit_price|batch)$/.test(key);
-
-/**
- * The lot a row takes its kilos from first. Lots of the row's product at this room, oldest first: a hint of
- * where they sit and who supplied them, never printed on a devis or a BL (D-121). FIFO stays the default;
- * picking one overrides it for the row.
- */
-function LotCell({ room, line, onChange }: { room: string; line: Line; onChange: (batch: string) => void }) {
-  const { t } = useTranslation();
-  const batches = useListLocationBatches(Number(room), Number(line.product), {
-    query: { enabled: room !== "" && line.product !== "" },
-  });
-  if (!line.product) return null;
-  const chosen = (batches.data ?? []).find((option) => String(option.batch_id) === line.batch);
-  return (
-    <>
-      <Select value={line.batch || AUTO_LOT} onValueChange={(value) => onChange(value === AUTO_LOT ? "" : value)}>
-        <SelectTrigger
-          aria-label={t("admin.sales.counterSale.lot")}
-          className="border-0 bg-transparent px-2.5 py-2 [&>span]:truncate"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={AUTO_LOT}>{t("admin.sales.counterSale.lotAuto")}</SelectItem>
-          {(batches.data ?? []).map((option) => (
-            <SelectItem key={option.batch_id} value={String(option.batch_id)}>
-              {t("admin.sales.counterSale.lotChoice", {
-                batch: option.batch_number,
-                supplier: option.supplier_name,
-                quantity: formatQuantity(option.quantity),
-              })}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {chosen && isShort(line.quantity, chosen.quantity) && (
-        <p className="px-2.5 pb-1.5 text-[0.78rem] font-semibold text-bad">
-          {t("admin.sales.counterSale.lotShort", { quantity: formatQuantity(chosen.quantity) })}
-        </p>
-      )}
-    </>
-  );
-}
 
 /** "Vente comptoir": weigh, type the rows of the basket, take the money. The sale is confirmed at once (D-052). */
 export function CounterSalePage() {
@@ -287,7 +242,7 @@ export function CounterSalePage() {
                 header: t("admin.sales.counterSale.lot"),
                 field: "batch",
                 cell: (line, change) => (
-                  <LotCell
+                  <LotPicker
                     room={room === null ? "" : String(room)}
                     line={line}
                     onChange={(batch) => change({ batch })}

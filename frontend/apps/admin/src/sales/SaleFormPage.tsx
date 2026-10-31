@@ -53,6 +53,7 @@ import {
 } from "../lib/lines";
 import { BelowMinimumReason } from "../lib/BelowMinimumReason";
 import { LinesGrid } from "../lib/LinesGrid";
+import { LotPicker } from "../lib/LotPicker";
 import { addressOf } from "../transfers/formLines";
 import { canSell, localInputOf, momentOf, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -119,10 +120,13 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
           unit_price: asTyped(line.unit_price),
           discount_rate: isZero(line.discount_rate) ? "" : rateAsTyped(line.discount_rate),
           priceTouched: true,
+          batch: line.requested_batch === null ? "" : String(line.requested_batch),
         }),
       ),
     ),
   );
+  // Where each lot picked on a row sits: a sale leaves from one place, so a picked lot names it (D-201).
+  const [lotPlaces, setLotPlaces] = useState<Record<string, number>>({});
   const [errors, setErrors] = useState<Errors>({});
   const [belowReason, setBelowReason] = useState("");
 
@@ -235,6 +239,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
         quantity: quantity ?? "",
         unit_price: price,
         discount_rate: rate,
+        batch: line.batch ? Number(line.batch) : null,
       });
     });
     let paid: string | null = null;
@@ -243,8 +248,16 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
       if (paid === null || paid.startsWith("-")) found.amount_paid = t("admin.sales.form.money");
     }
     const needs: Need[] = needsOf(rows);
-    const place = choosePlace(needs, byPlace);
-    if (place === null && needs.length > 0) {
+    // A lot picked by hand fixes the place; without one, the place that holds every product is found (D-144).
+    const lotPlace = new Set<number>();
+    for (const line of rows) {
+      const where = line.batch ? (lotPlaces[line.batch] ?? draft?.location.id) : undefined;
+      if (where !== undefined) lotPlace.add(where);
+    }
+    const [onlyLotPlace] = lotPlace;
+    const place = lotPlace.size === 1 && onlyLotPlace !== undefined ? onlyLotPlace : choosePlace(needs, byPlace);
+    if (lotPlace.size > 1) found.lines = t("admin.sales.counterSale.lotPlaces");
+    else if (place === null && needs.length > 0) {
       found.lines = t("admin.sales.form.noSinglePlace", {
         products: needs.map((need) => nameOf(need.product)).join(", "),
       });
@@ -360,6 +373,19 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             errors={errors}
             discount
             hint={priceHint}
+            extra={{
+              header: t("admin.sales.counterSale.lot"),
+              field: "batch",
+              cell: (line, change) => (
+                <LotPicker
+                  line={line}
+                  onChange={(batch, location) => {
+                    change({ batch });
+                    if (batch && location !== null) setLotPlaces((known) => ({ ...known, [batch]: location }));
+                  }}
+                />
+              ),
+            }}
           />
           {errors.lines && <p className="text-[0.78rem] font-semibold text-bad">{errors.lines}</p>}
           <div className="flex flex-wrap items-start gap-x-8 gap-y-2">

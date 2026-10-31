@@ -13,4 +13,9 @@ export interface QuoteLineWrite {
   unit_price?: string | null;
   /** @nullable */
   discount_rate?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  batch?: number | null;
 }

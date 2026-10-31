@@ -31,6 +31,8 @@ export interface SaleLine {
      */
   readonly cost_amount: string | null;
   /** @nullable */
+  readonly requested_batch: number | null;
+  /** @nullable */
   readonly batches: readonly SaleLineBatch[] | null;
   /**
      * @nullable

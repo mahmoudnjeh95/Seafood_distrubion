@@ -133,6 +133,10 @@ class QuoteLine(OrganizationScopedModel):
     quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
     quantity = QuantityField()
+    # The lot the kilos should come from, carried to the BL made from the quote; empty: FIFO (D-121, D-201).
+    requested_batch = models.ForeignKey(
+        "inventory.Batch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     # DT per kg: the sale price in force when it was typed, or the one agreed with the customer.
     unit_price = MoneyField()
     # Percent, 2 decimals: 5.00 = 5 %.

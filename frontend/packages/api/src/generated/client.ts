@@ -25522,6 +25522,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateStockSettingsMutationOptions(options), queryClient);
     }
 
+export const getListProductBatchesUrl = (productId: number,) => {
+
+
+
+
+  return `/api/v1/stock/${productId}/batches`
+}
+
+/**
+ * The lots of one product in every cold room, oldest first: to pick one on a quote or a sale (D-201).
+ */
+export const listProductBatches = async (productId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LocationBatch[]> => {
+
+  return apiFetch<LocationBatch[]>(getListProductBatchesUrl(productId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductBatchesQueryKey = (productId: number,) => {
+    return [
+    `/api/v1/stock/${productId}/batches`
+    ] as const;
+    }
+
+
+export const getListProductBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listProductBatches>>, TError = unknown>(productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductBatchesQueryKey(productId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductBatches>>> = ({ signal }) => listProductBatches(productId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: productId !== null && productId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductBatches>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListProductBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listProductBatches>>>
+export type ListProductBatchesQueryError = unknown
+
+
+export function useListProductBatches<TData = Awaited<ReturnType<typeof listProductBatches>>, TError = unknown>(
+ productId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductBatches>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProductBatches>>,
+          TError,
+          Awaited<ReturnType<typeof listProductBatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProductBatches<TData = Awaited<ReturnType<typeof listProductBatches>>, TError = unknown>(
+ productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductBatches>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProductBatches>>,
+          TError,
+          Awaited<ReturnType<typeof listProductBatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProductBatches<TData = Awaited<ReturnType<typeof listProductBatches>>, TError = unknown>(
+ productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListProductBatches<TData = Awaited<ReturnType<typeof listProductBatches>>, TError = unknown>(
+ productId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductBatches>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListProductBatchesQueryOptions(productId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListMovementsUrl = (params?: ListMovementsParams,) => {
   const normalizedParams = new URLSearchParams();
 

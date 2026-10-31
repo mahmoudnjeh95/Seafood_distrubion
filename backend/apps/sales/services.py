@@ -88,6 +88,8 @@ class QuoteLineFields(TypedDict, total=False):
     unit_price: Number | None
     # Percent with at most 2 decimals; empty means none.
     discount_rate: Number | None
+    # The lot the kilos should come from (D-201); empty: the oldest lot first.
+    batch: "Batch | None"
 
 
 def line_error_key(index: int, field: str) -> str:
@@ -305,6 +307,7 @@ def _prepared(
     checked_lines = _checked_lines(
         organization, customer, lines, moment_of(quoted_on), errors, below_minimum_reason=below_minimum_reason
     )
+    _checked_batches(organization, lines, checked_lines, errors)
     if errors:
         raise ValidationError(errors)
     return valid_until, checked_lines
@@ -324,6 +327,7 @@ def _write_lines(quote: Quote, checked_lines: list[dict[str, Any]]) -> None:
                 gross_amount=values["gross_amount"],
                 discount_amount=values["discount_amount"],
                 amount=values["amount"],
+                requested_batch=values.get("requested_batch"),
             )
             for values in checked_lines
         ]
@@ -677,7 +681,7 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
 
 def _checked_batches(
     organization: Organization,
-    lines: Sequence[SaleLineFields],
+    lines: Sequence[SaleLineFields] | Sequence[QuoteLineFields],
     checked_lines: list[dict[str, Any]],
     errors: dict[str, str],
 ) -> None:
@@ -1663,7 +1667,7 @@ def create_sale_from_quote(
         raise ValidationError(_("Seul un devis accepté devient une vente."))
     if quote.valid_until < timezone.localdate():
         raise _expiry_error(quote)
-    quote_lines = {line.pk: line for line in quote.lines.select_related("product").order_by("id")}
+    quote_lines = {line.pk: line for line in quote.lines.select_related("product", "requested_batch").order_by("id")}
     delivery = selectors.quote_delivery(quote)
     if all(delivery[pk].remaining <= 0 for pk in quote_lines):
         numbers = ", ".join(sale.number for sale in selectors.live_sales_of(quote))
@@ -1711,6 +1715,8 @@ def create_sale_from_quote(
                 "quantity": quantity,
                 "unit_price": line.unit_price,
                 "discount_rate": line.discount_rate,
+                # The lot picked on the quote goes on the BL (D-201).
+                "batch": line.requested_batch,
             }
             for line, quantity in taken
         ],

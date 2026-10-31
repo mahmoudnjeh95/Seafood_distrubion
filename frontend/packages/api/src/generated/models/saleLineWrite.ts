@@ -5,6 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
+/**
+ * A sale line as typed: the same fields as a quote line, the lot included.
+ */
 export interface SaleLineWrite {
   /** @minimum 1 */
   product: number;

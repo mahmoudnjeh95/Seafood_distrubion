@@ -16,6 +16,7 @@ urlpatterns = [
         views.LocationBatchesView.as_view(),
         name="location-batches",
     ),
+    path("stock/<int:product_id>/batches", views.ProductBatchesView.as_view(), name="product-batches"),
     path("transfers", views.TransferListView.as_view(), name="transfer-list"),
     path("my-losses", views.MyLossesView.as_view(), name="my-losses"),
     path("my-return", views.MyReturnView.as_view(), name="my-return"),
