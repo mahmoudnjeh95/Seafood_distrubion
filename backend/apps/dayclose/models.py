@@ -31,11 +31,11 @@ class DayClosing(OrganizationScopedModel, TimeStampedModel):
     # What the records say: opening cash + cash sales - cash expenses. The driver is shown it, never asked to count.
     expected_cash = MoneyField()
     # The driver's own count and its gap (D-094, D-158): kept for the sends made before D-213, empty since.
-    counted_cash = MoneyField(null=True, blank=True)
+    counted_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     difference = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     # The purchase money, counted apart from the sales cash (D-158): what should be left of it.
     expected_purchase_cash = MoneyField(default=0)
-    counted_purchase_cash = MoneyField(null=True, blank=True)
+    counted_purchase_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     purchase_difference = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     # The cash the office counted when the driver handed it over (D-204, D-213); empty until the office counts.
     office_counted_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
@@ -71,10 +71,10 @@ class DayReopening(OrganizationScopedModel, TimeStampedModel):
     status = models.CharField(max_length=20, choices=DayClosingStatus.choices)
     expected_cash = MoneyField()
     # The cash the office counted at that send (D-213; the driver's own count for a send made before), and its gap.
-    counted_cash = MoneyField(null=True, blank=True)
+    counted_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     difference = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     # The purchase money counted at that send (D-158), handed to the office with the sales cash.
-    counted_purchase_cash = MoneyField(null=True, blank=True)
+    counted_purchase_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     driver_note = models.TextField(blank=True)
     summary: Any = models.JSONField(encoder=DjangoJSONEncoder)
     submitted_at = models.DateTimeField()

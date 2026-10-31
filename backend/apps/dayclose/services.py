@@ -13,7 +13,6 @@ from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Organization, User
-from apps.core.money import Number, checked_amount
 from apps.fleet import selectors as fleet
 from apps.fleet import services as fleet_services
 from apps.sales import services as sales_services
@@ -269,6 +268,9 @@ def reopen_days_after_load(*, load: "Transfer", actor: User | None) -> list[DayC
             continue
         # The cash the office counted at that send went to the office (D-213); a send made before the office counted
         # kept the driver's own count, which went the same way.
+        counted: Decimal | None
+        difference: Decimal | None
+        counted_purchase: Decimal | None
         if closing.office_counted_cash is not None:
             counted, difference = closing.office_counted_cash, closing.office_difference
             counted_purchase = closing.office_counted_purchase_cash
