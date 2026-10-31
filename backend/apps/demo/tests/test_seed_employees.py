@@ -34,7 +34,7 @@ def test_the_seed_gives_employees_last_months_payroll_and_days_on_a_lot(settings
     assert all(record.employee_cnss > 0 and record.net < record.gross for record in records)
     this_month = selectors.salary_records_of(organization, month=timezone.localdate())
     assert this_month.count() == 7
-    assert all(record.status == "draft" for record in this_month)
+    assert all(record.status == "approved" for record in this_month)
 
     days = list(selectors.lot_work_days_of(organization))
     assert len(days) == 3

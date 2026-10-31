@@ -3123,3 +3123,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+
+**D-228 · A salary is approved when it is generated; adjust it, then pay it (owner point 12, provisional parts marked)** · accepted (provisional parts marked) · 2026-11-01
+- "Générer le mois" creates **approved** salary records (`approved_at`, `approved_by` set): no draft step any more.
+  Drafts made before this change stay drafts and keep their edit, approve and delete actions (nothing creates new ones).
+- An approved salary is corrected only by a `SalaryAdjustment` (signed amount, reason), then paid as before. The
+  record never changes (ARCHITECTURE §4.5).
+- The month's expense, the unpaid badges and the demo seed read approved records as before. The demo's night hours are
+  now an adjustment "Heures de nuit" (the record is approved).
+- **Not in this PR (waits for PR #246, treasury ledger, D-219, `ec` session):** the payment writing its treasury
+  movement (`salary` kind, source `hr.salary_payment`) and the screen line "Débité de la trésorerie : N DT (compte, date)".
+  No second ledger is built here; that line follows once `post_movement` is on `origin/main` (see D-229).
