@@ -3095,4 +3095,3 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   with a new règlement. Re-presenting the same paper to the bank is not offered (it would need the impayé undone).
 - API: `POST /customer-effets/<instrument_id>/unpaid` (`unpaid_on`, `reason`, `bank_charges`), owner or manager; the
   règlement's detail shows each line's `unpaid`. Endorsing to a supplier and our effets rejected move to P9-T04c.
-\n
