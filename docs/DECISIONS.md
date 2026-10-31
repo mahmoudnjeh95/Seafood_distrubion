@@ -3065,3 +3065,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - "Règlements fournisseurs": open plan lines get a tick box (one supplier at a time) and a bar "N lignes choisies ·
   total — Payer la sélection". The payment form then shows one means per plan line (its method, amount, reference,
   cashing day) and each amount on its invoice, and sends `plan_lines`; each line becomes `paid` (D-208).
+
+**D-216 · The portfolio: remise en banque with a bordereau, encaissé, retirer, débité (Phase 9, P9-T04a)** · accepted (provisional parts marked) · 2026-10-31
+- Trésorerie › Portefeuille (`/tresorerie/portefeuille`, side menu Finance › Portefeuille): every cheque and traite by
+  where it stands, in tabs; filters (search, kind, bank, due days), totals of the filter with those late (échéance
+  passed while in portfolio, at the bank or issued), a tick box per effet and the steps of the tab.
+- A remise en banque is a `treasury.Deposit` "RB-2026-0001" (per organization and year, `TreasuryCounter`): the bank
+  and the day, the effets in portfolio it takes ("Remis en banque", `Instrument.deposit`), a PDF bordereau (document
+  kind `bank_deposit`) listing them with their total, opened right after. Provisional: the bank is picked from the
+  banks list until T05 adds our bank accounts.
+- Encaissé: from the bank, or straight from the portfolio (cashed at the bank's counter). Retirer de la banque brings
+  an effet back to the portfolio; its bordereau keeps it listed and its history shows the step. Our effets: Débité.
+  No balance moves on these steps (the règlement already counted, Q29); the impayé and the rejet come with P9-T04b.
+- API: `GET/POST /treasury/deposits`, `GET /treasury/deposits/<id>`, `POST /treasury/instruments/cash|withdraw|debit`
+  (`instruments`, `day`), `GET /treasury/instruments/totals`; filters `bank` and `deposit` on the list. Owner and
+  manager write, the accountant reads. Each step is an `InstrumentEvent` and an audit entry; at most 200 effets at once.
+

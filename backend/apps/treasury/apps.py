@@ -8,4 +8,10 @@ class TreasuryConfig(AppConfig):
 
     def ready(self) -> None:
         # A new organization gets the list of Tunisian banks (D-197).
-        from . import signals  # noqa: F401
+        from . import (
+            printing,
+            signals,  # noqa: F401
+        )
+
+        # The PDF bordereau of a remise en banque (P9-T04a).
+        printing.register_printables()

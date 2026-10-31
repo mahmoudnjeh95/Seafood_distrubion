@@ -18249,10 +18249,223 @@ export const UpdateBankResponse = zod.object({
 
 
 /**
- * Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
- * status (comma separated), customer, supplier, due days (inclusive) or `search` (number, drawer, règlement,
- * party).
+ * Bordereaux de remise en banque, newest first, paginated, each with its effets.
  */
+export const ListDepositsQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+})
+
+export const listDepositsResponseResultsItemEffetsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listDepositsResponseResultsItemInstrumentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDepositsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "bank": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "deposited_on": zod.iso.date(),
+  "notes": zod.string(),
+  "effets_count": zod.int(),
+  "effets_total": zod.stringFormat('decimal', listDepositsResponseResultsItemEffetsTotalRegExp).nullable(),
+  "instruments": zod.array(zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', listDepositsResponseResultsItemInstrumentsItemAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
+ * them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+ */
+
+export const createDepositBodyInstrumentsMax = 200;
+
+
+export const createDepositBodyNotesDefault = ``;
+export const createDepositBodyNotesMax = 255;
+
+
+
+export const CreateDepositBody = zod.object({
+  "instruments": zod.array(zod.int().min(1)).max(createDepositBodyInstrumentsMax),
+  "bank": zod.int().min(1).nullish(),
+  "deposited_on": zod.iso.date().nullish(),
+  "notes": zod.string().max(createDepositBodyNotesMax).default(createDepositBodyNotesDefault)
+})
+
+export const createDepositResponseEffetsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createDepositResponseInstrumentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateDepositResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "bank": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "deposited_on": zod.iso.date(),
+  "notes": zod.string(),
+  "effets_count": zod.int(),
+  "effets_total": zod.stringFormat('decimal', createDepositResponseEffetsTotalRegExp).nullable(),
+  "instruments": zod.array(zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', createDepositResponseInstrumentsItemAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * One bordereau with its effets.
+ */
+export const GetDepositParams = zod.object({
+  "deposit_id": zod.int()
+})
+
+export const getDepositResponseEffetsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDepositResponseInstrumentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetDepositResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "bank": zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "deposited_on": zod.iso.date(),
+  "notes": zod.string(),
+  "effets_count": zod.int(),
+  "effets_total": zod.stringFormat('decimal', getDepositResponseEffetsTotalRegExp).nullable(),
+  "instruments": zod.array(zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', getDepositResponseInstrumentsItemAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
+ * status (comma separated), customer, supplier, bank, bordereau, due days (inclusive) or `search` (number,
+ * drawer, règlement, party).
+ */
+
+
 
 export const listInstrumentsQuerySearchDefault = ``;
 export const listInstrumentsQuerySearchMax = 100;
@@ -18264,7 +18477,9 @@ export const listInstrumentsQueryStatusMax = 200;
 
 
 export const ListInstrumentsQueryParams = zod.object({
+  "bank": zod.int().min(1).optional(),
   "customer": zod.int().min(1).optional(),
+  "deposit": zod.int().min(1).optional(),
   "direction": zod.enum(['received', 'issued']).optional().describe('* `received` - Reçu\n* `issued` - Émis'),
   "due_from": zod.iso.date().optional(),
   "due_to": zod.iso.date().optional(),
@@ -18311,9 +18526,234 @@ export const ListInstrumentsResponse = zod.object({
 }),zod.null()]),
   "source_number": zod.string(),
   "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
   "created_at": zod.iso.datetime({"offset":true})
 }))
 })
+
+
+/**
+ * Received effets the bank credited on `day`: at the bank, or cashed at its counter from the portfolio.
+ */
+
+export const cashInstrumentsBodyInstrumentsMax = 200;
+
+export const cashInstrumentsBodyNoteDefault = ``;
+export const cashInstrumentsBodyNoteMax = 255;
+
+
+
+export const CashInstrumentsBody = zod.object({
+  "instruments": zod.array(zod.int().min(1)).max(cashInstrumentsBodyInstrumentsMax),
+  "day": zod.iso.date().nullish(),
+  "note": zod.string().max(cashInstrumentsBodyNoteMax).default(cashInstrumentsBodyNoteDefault)
+}).describe('Several effets moved at once, on one day.')
+
+export const cashInstrumentsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CashInstrumentsResponseItem = zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', cashInstrumentsResponseAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const CashInstrumentsResponse = zod.array(CashInstrumentsResponseItem)
+
+
+/**
+ * Our cheques and traites the bank paid on `day`.
+ */
+
+export const debitInstrumentsBodyInstrumentsMax = 200;
+
+export const debitInstrumentsBodyNoteDefault = ``;
+export const debitInstrumentsBodyNoteMax = 255;
+
+
+
+export const DebitInstrumentsBody = zod.object({
+  "instruments": zod.array(zod.int().min(1)).max(debitInstrumentsBodyInstrumentsMax),
+  "day": zod.iso.date().nullish(),
+  "note": zod.string().max(debitInstrumentsBodyNoteMax).default(debitInstrumentsBodyNoteDefault)
+}).describe('Several effets moved at once, on one day.')
+
+export const debitInstrumentsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const DebitInstrumentsResponseItem = zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', debitInstrumentsResponseAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const DebitInstrumentsResponse = zod.array(DebitInstrumentsResponseItem)
+
+
+/**
+ * The count and amount of the effets of the same filters as the list, by status, and those late (échéance
+ * passed while still in portfolio, at the bank or issued).
+ */
+
+
+
+export const getInstrumentTotalsQuerySearchDefault = ``;
+export const getInstrumentTotalsQuerySearchMax = 100;
+
+export const getInstrumentTotalsQueryStatusDefault = ``;
+export const getInstrumentTotalsQueryStatusMax = 200;
+
+
+
+
+export const GetInstrumentTotalsQueryParams = zod.object({
+  "bank": zod.int().min(1).optional(),
+  "customer": zod.int().min(1).optional(),
+  "deposit": zod.int().min(1).optional(),
+  "direction": zod.enum(['received', 'issued']).optional().describe('* `received` - Reçu\n* `issued` - Émis'),
+  "due_from": zod.iso.date().optional(),
+  "due_to": zod.iso.date().optional(),
+  "kind": zod.enum(['cheque', 'bill']).optional().describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "search": zod.string().max(getInstrumentTotalsQuerySearchMax).default(getInstrumentTotalsQuerySearchDefault),
+  "status": zod.string().max(getInstrumentTotalsQueryStatusMax).default(getInstrumentTotalsQueryStatusDefault),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const getInstrumentTotalsResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInstrumentTotalsResponseByStatusTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInstrumentTotalsResponseOverdueTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetInstrumentTotalsResponse = zod.object({
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', getInstrumentTotalsResponseTotalRegExp),
+  "by_status": zod.record(zod.string(), zod.object({
+  "count": zod.int(),
+  "total": zod.stringFormat('decimal', getInstrumentTotalsResponseByStatusTotalRegExp)
+})),
+  "overdue_count": zod.int(),
+  "overdue_total": zod.stringFormat('decimal', getInstrumentTotalsResponseOverdueTotalRegExp)
+}).describe('The count and amount of the filtered effets, by status, and those late (échéance passed, not done).')
+
+
+/**
+ * Effets taken back from the bank before it cashed them: in portfolio again.
+ */
+
+export const withdrawInstrumentsBodyInstrumentsMax = 200;
+
+export const withdrawInstrumentsBodyNoteDefault = ``;
+export const withdrawInstrumentsBodyNoteMax = 255;
+
+
+
+export const WithdrawInstrumentsBody = zod.object({
+  "instruments": zod.array(zod.int().min(1)).max(withdrawInstrumentsBodyInstrumentsMax),
+  "day": zod.iso.date().nullish(),
+  "note": zod.string().max(withdrawInstrumentsBodyNoteMax).default(withdrawInstrumentsBodyNoteDefault)
+}).describe('Several effets moved at once, on one day.')
+
+export const withdrawInstrumentsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const WithdrawInstrumentsResponseItem = zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', withdrawInstrumentsResponseAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const WithdrawInstrumentsResponse = zod.array(WithdrawInstrumentsResponseItem)
 
 
 /**

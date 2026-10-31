@@ -39,6 +39,7 @@ import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
 import { SettingsPage } from "./settings/SettingsPage";
+import { PortfolioPage } from "./treasury/PortfolioPage";
 import { UsersPage } from "./settings/UsersPage";
 import { BoxesPage } from "./boxes/BoxesPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
@@ -137,6 +138,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
+        { to: "/tresorerie/portefeuille", label: t("admin.nav.portfolio"), icon: "receipt" },
         { to: "/tresorerie/banques", label: t("admin.nav.banks"), icon: "wallet" },
       ],
     },
@@ -276,6 +278,7 @@ function AppRoutes() {
         <Route path="/reglements/nouveau" element={<CustomerPaymentFormPage />} />
         <Route path="/reglements/:paymentId" element={<CustomerPaymentDetailPage />} />
         <Route path="/tresorerie/banques" element={<BanksPage />} />
+        <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />

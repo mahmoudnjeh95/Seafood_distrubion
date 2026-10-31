@@ -9553,16 +9553,104 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bank'
           description: ''
+  /api/v1/treasury/deposits:
+    get:
+      operationId: listDeposits
+      description: Bordereaux de remise en banque, newest first, paginated, each with
+        its effets.
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDepositList'
+          description: ''
+    post:
+      operationId: createDeposit
+      description: |-
+        Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
+        them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DepositWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DepositWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+          description: ''
+  /api/v1/treasury/deposits/{deposit_id}:
+    get:
+      operationId: getDeposit
+      description: One bordereau with its effets.
+      parameters:
+      - in: path
+        name: deposit_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+          description: ''
   /api/v1/treasury/instruments:
     get:
       operationId: listInstruments
       description: |-
         Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
-        status (comma separated), customer, supplier, due days (inclusive) or `search` (number, drawer, règlement,
-        party).
+        status (comma separated), customer, supplier, bank, bordereau, due days (inclusive) or `search` (number,
+        drawer, règlement, party).
       parameters:
       - in: query
+        name: bank
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
         name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: deposit
         schema:
           type: integer
           minimum: 1
@@ -9637,6 +9725,177 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedInstrumentList'
+          description: ''
+  /api/v1/treasury/instruments/cash:
+    post:
+      operationId: cashInstruments
+      description: 'Received effets the bank credited on `day`: at the bank, or cashed
+        at its counter from the portfolio.'
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
+  /api/v1/treasury/instruments/debit:
+    post:
+      operationId: debitInstruments
+      description: Our cheques and traites the bank paid on `day`.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
+  /api/v1/treasury/instruments/totals:
+    get:
+      operationId: getInstrumentTotals
+      description: |-
+        The count and amount of the effets of the same filters as the list, by status, and those late (échéance
+        passed while still in portfolio, at the bank or issued).
+      parameters:
+      - in: query
+        name: bank
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: deposit
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: direction
+        schema:
+          enum:
+          - received
+          - issued
+          type: string
+          minLength: 1
+        description: |-
+          * `received` - Reçu
+          * `issued` - Émis
+      - in: query
+        name: due_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: due_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - cheque
+          - bill
+          type: string
+          minLength: 1
+        description: |-
+          * `cheque` - Chèque
+          * `bill` - Traite
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          type: string
+          default: ''
+          maxLength: 200
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstrumentTotals'
+          description: ''
+  /api/v1/treasury/instruments/withdraw:
+    post:
+      operationId: withdrawInstruments
+      description: 'Effets taken back from the bank before it cashed them: in portfolio
+        again.'
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstrumentBatch'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
           description: ''
   /api/v1/truck-assignments:
     get:
@@ -14055,6 +14314,98 @@ components:
         * `delivered` - Livré
         * `partial` - Livré en partie
         * `cancelled` - Non livré
+    Deposit:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank:
+          allOf:
+          - $ref: '#/components/schemas/Bank'
+          readOnly: true
+        deposited_on:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        effets_count:
+          type: integer
+          readOnly: true
+        effets_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        instruments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Instrument'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bank
+      - created_at
+      - created_by
+      - deposited_on
+      - effets_count
+      - effets_total
+      - id
+      - instruments
+      - notes
+      - number
+    DepositRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        deposited_on:
+          type: string
+          format: date
+          readOnly: true
+      required:
+      - deposited_on
+      - id
+      - number
+    DepositWrite:
+      type: object
+      properties:
+        instruments:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 200
+        bank:
+          type: integer
+          minimum: 1
+          nullable: true
+        deposited_on:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - instruments
     DifferenceLine:
       type: object
       properties:
@@ -16180,6 +16531,11 @@ components:
         notes:
           type: string
           readOnly: true
+        deposit:
+          allOf:
+          - $ref: '#/components/schemas/DepositRef'
+          readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -16189,6 +16545,7 @@ components:
       - bank
       - created_at
       - customer
+      - deposit
       - direction
       - drawer
       - due_on
@@ -16200,6 +16557,26 @@ components:
       - source_number
       - status
       - supplier
+    InstrumentBatch:
+      type: object
+      description: Several effets moved at once, on one day.
+      properties:
+        instruments:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 200
+        day:
+          type: string
+          format: date
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - instruments
     InstrumentDetail:
       type: object
       description: The cheque or traite of a payment line, as the treasury follows
@@ -16332,6 +16709,38 @@ components:
         * `debited` - Débité
         * `rejected` - Rejeté
         * `cancelled` - Annulé
+    InstrumentTotals:
+      type: object
+      description: The count and amount of the filtered effets, by status, and those
+        late (échéance passed, not done).
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        by_status:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/StatusTotal'
+          readOnly: true
+        overdue_count:
+          type: integer
+          readOnly: true
+        overdue_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - by_status
+      - count
+      - overdue_count
+      - overdue_total
+      - total
     Invoice:
       type: object
       properties:
@@ -19937,6 +20346,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CustomerPayment'
+    PaginatedDepositList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deposit'
     PaginatedDifferenceLineList:
       type: object
       required:
@@ -25673,6 +26105,20 @@ components:
       - rows
       - total_quantity
       - total_value
+    StatusTotal:
+      type: object
+      properties:
+        count:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - count
+      - total
     StockCheckHealth:
       type: object
       properties:

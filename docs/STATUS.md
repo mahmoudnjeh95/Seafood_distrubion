@@ -1,54 +1,41 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T03b merged, D-211; P9-T03c supplier receipt PDF and grouped plan lines built, D-215)_
+_Last updated: 2026-10-31 (P9-T03c merged, D-215; P9-T04a portfolio built, D-216)_
 
 ## Where we are
 
-- **Driver's cash (owner request 2026-10-31, D-213), on branch `driver-cash-office-count`, PR not yet open:** the phone no
-  longer asks the driver to count the cash or the purchase money; it shows what they should hold, and only the office
-  counts (`POST /day-closings/<id>/count`, "Enregistrer le comptage" in the closing window). The gap is office − expected;
-  the driver never sees it. Migration `dayclose.0008`; the API client is regenerated.
-- **Counter sale, several lots (D-212, owner request 2026-10-31)** — branch `counter-sale-multi-lot` (PR #235), awaits CI and merge: a counter-sale line picks lots with the kilos from each (`SaleLinePick`, API `picks`), the rest oldest first; a single `batch` stays one pick of the whole line; migration `0022_sale_line_picks`. The till's lot cell opens a dialog to choose the lots.
-
-- **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
-  **Merged:** T01 (#223, D-197), T02 (#231, D-208), T03a (#234, D-210), T03b (#237, D-211: lists, detail pages,
-  supplier void). **P9-T03c on branch `supplier-receipt-pdf`** (awaits CI, D-215): supplier receipt PDF (documents
-  kind `supplier_receipt`, migration `documents/0005`), several plan lines paid by one règlement.
-- **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
-- **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
-  customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
-  #224 D-200 "Nouvelle facture" from ticked BL/BR, Achat terrain makes no invoice · #225 D-201 lot picker on quotes and
-  sales (sales migration 0021) · #226 D-202 bought with VAT → invoiced with VAT · #227 D-203 starting cash set by the
-  office, accepted on the phone · #228 D-204 office cash count at closing · #229 D-205 expense categories for both apps,
-  phone "Payé avec" · #230 D-206 e-mail any PDF. Provisional choices are marked in DECISIONS (D-202, D-204, D-205, D-206).
-- **Recent work (2026-10-19 to 10-25), merged or awaiting merge, each to check on staging:** D-193 price floor override,
-  D-192 Règlements fournisseurs (T16a–d, side menu), D-191 general cost by calendar day (provisional), D-190 payment in
-  "Convertir en vente", D-189 UI units, D-188 site request → quote, site card alignment, D-187 Bilan des caisses.
-- **On main, check on staging:** D-186 public site (live on www.fruttidelmare.com), D-185 load BLs in a driver's day,
-  D-184 empty truck, D-183 receipt product search, D-182 port cash split, D-181 purchase paid limit, D-179 money
-  confirm window, P2-T15 load delivery, P3-T15 notifications, D-159 supplier debts and cheques, D-156 statement PDFs.
+- **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
+  **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app · T02 (#231, D-208) supplier lines,
+  our effets issued · T03a (#234, D-210) "Nouveau règlement" pages, Répartir, Banques · T03b (#237, D-211) lists with
+  filters/totals/Excel, detail pages, supplier void · T03c (#240, D-215) supplier receipt PDF, several plan lines paid
+  at once. **P9-T04a on branch `portfolio`** (awaits CI, D-216): Trésorerie › Portefeuille (tabs, filters, totals,
+  late in red), remise en banque with its bordereau `RB-…` and PDF, encaissé, retirer, débité (migrations
+  `treasury/0002`, `documents/0006`).
+- **Other work merged 2026-10-31 (other sessions):** D-194 to D-207 (owner list, PRs #217–#230), D-212 counter sale on
+  several lots (#235), D-213 the office alone counts the driver's cash (#239). D-214 (#238, truck purchase stock) is
+  still open in another session; the next free decision number is D-217.
+- **Earlier, check on staging:** D-193 price floor override, D-192 Règlements fournisseurs, D-191 general cost by day,
+  D-190 payment in "Convertir en vente", D-189 UI units, D-188 site request → quote, D-187 Bilan des caisses, D-186
+  public site, D-185 load BLs, D-184 empty truck, D-181 purchase paid limit, D-179 money confirm window.
 - **Phases:** 1 done except P1-T14 owner decisions; 2 mostly done; 3: open T08 field test, T09 Arabic review,
-  T10 printing.
+  T10 printing; 9 in progress (T04b to T07 left).
 - **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver http://ch.fruttidelmare.com,
   demo logins `owner` / `driver` (password in `~/frutti-staging/.env`). Every merge to `main` deploys staging.
 - **Working rules:** no tests or e2e locally, CI checks the PR; one branch and one PR per task; merge only after green.
-  A second session may work in the main clone: Phase 9 work happens in the worktree `C:\Mahmoud_workspace\wt-treasury`.
+  Several sessions work at once: Phase 9 happens in the worktree `C:\Mahmoud_workspace\wt-treasury`; recheck the
+  decision and migration numbers right before merging.
 
 ## Next step
 
-0. **D-213 PR:** rebase on main, open it, wait for green CI (dayclose tests were updated but not run locally), merge, then
-   on staging: close a day on the phone (no count field, expected shown), count it in Clôtures à vérifier, enter a gap
-   with a note, approve; check the day overview shows the office count.
-0. Owner list: merge #220 → #230 in order as CI goes green, then on staging: Camions du jour › Fonds de caisse (set,
-   then accept on the phone), close a day with an office count, a "Nouvelle facture" with two BL, an Achat terrain
-   validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
-   → invoice without VAT refused. **Owner action for D-206:** put the company SMTP account in the server `.env`
-   (`EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) and redeploy.
-1. P9-T03c: PR from `supplier-receipt-pdf`, green CI, fetch and rebase (renumber D-215 if taken), merge. On staging:
-   a supplier règlement page → PDF; Règlements fournisseurs → tick two plan lines → Payer la sélection.
-2. **P9-T04 Portefeuille** (new branch from `main`): remise en banque (bordereau), encaissé / impayé, restituer,
-   endosser; our effets débité / rejeté. See the phase file.
-3. Then T05 accounts, T06 échéancier, T07 reports.
+1. P9-T04a: PR from `portfolio`, green CI (e2e: the side menu lists Portefeuille), fetch and rebase (renumber D-216,
+   `treasury/0002`, `documents/0006` if taken), merge. On staging: Finance › Portefeuille › À remettre, tick two
+   cheques → Remettre en banque (BIAT, today) → the bordereau PDF opens; En banque → Encaissé; Émis → Débité.
+2. **P9-T04b** (new branch from `main`): impayé (the customer owes again, bank charges as "Frais financiers"),
+   restituer, endosser a customer effet to a supplier, our effet rejeté (the supplier is owed again), owner
+   notification on an impayé. Read `apps/sales/receivables.py` first: an impayé must raise the customer balance with
+   a new record, never by editing the règlement.
+3. Then T05 accounts (caisse, banks, driver cash), T06 échéancier and alerts, T07 reports.
+4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
 
