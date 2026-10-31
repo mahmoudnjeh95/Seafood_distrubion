@@ -16,7 +16,7 @@ _Last updated: 2026-10-31 (P9-T04c merged, D-218; P9-T05a accounts and movements
   de caisse, `backfill_treasury` (run at each staging start), API. No screen yet (T05c).
 - **Other work merged 2026-10-31 (other sessions):** D-194 to D-207 (owner list, PRs #217–#230), D-212 counter sale on
   several lots (#235), D-213 the office alone counts the driver's cash (#239), D-214 port purchases on the truck and
-  the day (#245). The next free decision number is D-220.
+  the day (#245). Session ca holds D-220 to D-229; the next free decision number here is D-230.
 - **Earlier, check on staging:** D-193 price floor override, D-192 Règlements fournisseurs, D-191 general cost by day,
   D-190 payment in "Convertir en vente", D-189 UI units, D-188 site request → quote, D-187 Bilan des caisses, D-186
   public site, D-185 load BLs, D-184 empty truck, D-181 purchase paid limit, D-179 money confirm window.
@@ -31,8 +31,8 @@ _Last updated: 2026-10-31 (P9-T04c merged, D-218; P9-T05a accounts and movements
 ## Next step
 
 1. P9-T05a: PR from `treasury-accounts`, green CI, fetch and rebase (renumber D-219, `treasury/0003` if taken), merge.
-2. P9-T05b: driver cash at the approved closing (the office's count, D-213), fund, sales paid on the spot, salaries,
-   expenses, partner settlements, port purchases; extend `backfill_treasury`.
+2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases; extend `backfill_treasury`.
+   Salaries and the driver's day closing may belong to session ca (D-220 to D-229): confirm with it first.
 3. P9-T05c: the Comptes page and "Compte" in the forms; then T06 échéancier and alerts, T07 reports.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
