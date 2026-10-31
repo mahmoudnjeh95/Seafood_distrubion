@@ -23,6 +23,8 @@ export interface CustomerPaymentDetail {
   readonly received_on: string;
   readonly reference: string;
   readonly notes: string;
+  readonly reason: string;
+  readonly paid_by: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly allocated_total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

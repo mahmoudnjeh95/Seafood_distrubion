@@ -2779,6 +2779,8 @@ def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
         "method": payment.method,
         "received_on": payment.received_on.isoformat(),
         "reference": payment.reference,
+        "reason": payment.reason,
+        "paid_by": payment.paid_by,
         "lines": [_line_snapshot(line) for line in payment.lines.select_related("instrument__bank").order_by("id")],
         "allocations": [
             {"sale": row.sale.number, "amount": str(row.amount)}
@@ -2995,6 +2997,8 @@ def record_customer_payment(
     received_on: dt.date | None = None,
     reference: str = "",
     notes: str = "",
+    reason: str = "",
+    paid_by: str = "",
     allocations: Sequence[AllocationFields] | None = None,
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
@@ -3058,6 +3062,8 @@ def record_customer_payment(
         made_at=made_at,
         reference=_header_reference(reference if lines is None else None, checked),
         notes=notes.strip(),
+        reason=reason.strip(),
+        paid_by=paid_by.strip(),
         created_by=actor,
         client_uuid=client_uuid,
     )

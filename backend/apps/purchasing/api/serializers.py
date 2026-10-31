@@ -562,6 +562,7 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
             "reference",
             "cash_on",
             "notes",
+            "reason",
             "lines",
             "allocated_amount",
             "unallocated_amount",
@@ -624,6 +625,8 @@ class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
     cash_on = serializers.DateField(required=False, allow_null=True, default=None)
     lines = SupplierPaymentLineWriteSerializer(many=True, required=False)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    # What the money is for (optional).
+    reason = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
     allocations = AllocationWriteSerializer(many=True, required=False, default=list)
     # True: spread the amount over the invoices still to pay, the one due first first (`allocations` ignored).
     auto_allocate = serializers.BooleanField(required=False, default=False)

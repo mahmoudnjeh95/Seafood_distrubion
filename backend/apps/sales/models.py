@@ -972,6 +972,10 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
     # Cheque number, transfer reference...
     reference = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)
+    # What the money is for (optional, "Motif").
+    reason = models.CharField(max_length=200, blank=True)
+    # Who handed the money over, when it is not the customer (optional, "Payé par").
+    paid_by = models.CharField(max_length=120, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
