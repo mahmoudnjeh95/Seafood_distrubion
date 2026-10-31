@@ -204,7 +204,10 @@ SPECTACULAR_SETTINGS = {
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SupplierInvoiceStatusEnum": "apps.purchasing.models.SupplierInvoiceStatus",
-        "PaymentMethodEnum": "apps.purchasing.models.PaymentMethod",
+        # One means of payment (expenses, plan lines, a line of a règlement); a supplier règlement may also be
+        # "mixed" (D-208).
+        "PaymentMethodEnum": "apps.purchasing.models.LINE_METHOD_CHOICES",
+        "SupplierPaymentMethodEnum": "apps.purchasing.models.PaymentMethod",
         "PurchaseOrderStatusEnum": "apps.purchasing.models.PurchaseOrderStatus",
         "FieldPurchaseStatusEnum": "apps.purchasing.models.FieldPurchaseStatus",
         "PaymentTermsEnum": "apps.purchasing.models.PaymentTerms",

@@ -2959,3 +2959,23 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   production server refuses to send with a clear message; development prints the message in the console.
 - **Owner action:** the company mailbox and its SMTP account (provider, user, app password) go into the server's `.env`.
 - Not covered yet: the customer and supplier statements of the reports (their PDFs are made by another endpoint).
+
+**D-208 · A supplier règlement with several means; our cheques and traites are effets issued (Phase 9, P9-T02)** · accepted (provisional parts marked) · 2026-10-31
+- `SupplierPaymentLine` (method, amount, reference, effet): a règlement fournisseur can be some cash, several of our
+  cheques and traites, a transfer... The lines add up to its amount; `SupplierPayment.method` is `mixed` ("Plusieurs
+  moyens") when they differ. A line never is `mixed`, nor a plan line or a sum given at the port.
+- Each cheque or traite is a `treasury.Instrument` with `direction=issued`, status `issued` (until T04 marks it
+  debited), its number, the bank it is drawn on and its échéance. Our cheque number is one paper whoever it went to:
+  the same number on the same bank is refused twice (received effets stay per customer, D-197).
+- `POST /supplier-payments` takes `lines` (number, bank and due day for an effet; a traite needs its due day) and
+  `auto_allocate` (the invoices due first are paid first), `plan_lines` (several D-192 plan lines paid by one
+  règlement). Without `lines`, `amount`/`method`/`reference`/`cash_on` make one line as before (the port purchase,
+  a receipt paid at once, the current form): its effet may lack its bank and number ("à compléter", the number then
+  is the règlement's) and a traite without its day falls due on the payment day (`partial` in the treasury checks).
+- `cash_on` stays on the règlement for one cheque or traite; each effet keeps its own échéance. "Chèques et traites à
+  venir" (D-159) now lists every effet issued, so a cheque given without a cashing day shows on its payment day.
+- Data migration: every old supplier payment gets one line; a cheque or a traite gets its effet, bank empty, due on
+  `cash_on` (else the payment day), taken as debited when due more than 30 days ago (provisional, checked in T04).
+- API enums: `PaymentMethodEnum` stays the five means (expenses, plan lines, lines); the règlement's own method is
+  `SupplierPaymentMethodEnum` (adds `mixed`).
+- Supplier règlements still cannot be voided (no void before D-208 either); a void with its effets comes with T03.

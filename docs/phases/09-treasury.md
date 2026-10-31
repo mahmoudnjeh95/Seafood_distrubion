@@ -69,13 +69,13 @@ cash only on the phone (as today, D-133).
 - [x] Tests: lines add up, effet checks, duplicate effet, invoice affectation, void rules, migration, API permissions.
 
 ### P9-T02 · Supplier règlement with several lines (backend) · M
-- [ ] `SupplierPaymentLine` (method, amount, reference, effet issued); `SupplierPayment.method` `mixed`; `cash_on`
+- [x] `SupplierPaymentLine` (method, amount, reference, effet issued); `SupplierPayment.method` `mixed`; `cash_on`
       moves to each line's effet (kept on the payment for the old rows).
-- [ ] `POST /supplier-payments` takes `lines`; allocation per supplier invoice as today (D-043), and "auto" oldest
+- [x] `POST /supplier-payments` takes `lines`; allocation per supplier invoice as today (D-043), and "auto" oldest
       due first. Issued effets: our cheque number, our bank account (T05: the account it will be debited from).
-- [ ] D-192 plan lines: "Enregistrer le paiement" from several plan lines in one règlement; each named line → `paid`.
-- [ ] Receipt "payer maintenant" (D-192) and port purchases (D-176) write lines too (one line each, as now).
-- [ ] Void rules and data migration as in T01. Tests.
+- [x] D-192 plan lines: "Enregistrer le paiement" from several plan lines in one règlement; each named line → `paid`.
+- [x] Receipt "payer maintenant" (D-192) and port purchases (D-176) write lines too (one line each, as now).
+- [x] Data migration as in T01. Tests. (Void: supplier règlements had none; it comes with the T03 screens.)
 
 ### P9-T03 · Office: the règlement screens (clients and fournisseurs) · L
 - [ ] "Nouveau règlement" full page (not a small dialog): customer (or supplier) picker with its balance, encours and
@@ -90,6 +90,8 @@ cash only on the phone (as today, D-133).
 - [ ] Règlement detail page: lines with each effet's state and history, affectation, avance left with "Affecter",
       "Annuler" (reason), PDF reçu de règlement (lines and invoices), link to the customer statement.
 - [ ] Settings › Banques: list, add, rename, deactivate.
+- [ ] Void a supplier règlement (D-208: none existed): reason, its allocations undone (invoice status back), its
+      plan lines open again, its effets cancelled; refused once an effet was debited. Same rules as the customer void.
 - [ ] i18n FR. Vitest for the totals and the "Répartir" helper.
 
 ### P9-T04 · Portefeuille: the life of an effet · L

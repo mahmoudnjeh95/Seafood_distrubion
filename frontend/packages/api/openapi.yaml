@@ -8437,8 +8437,11 @@ paths:
     post:
       operationId: recordSupplierPayment
       description: |-
-        Record money paid to a supplier and the posted invoices it settles. What is not allocated is an
-        advance, to allocate later. Errors of an allocation come back on `allocations.<index>.<field>`.
+        Record money paid to a supplier and the posted invoices it settles. Its means come in `lines` (some
+        cash, our cheques and traites, each one an effet the treasury follows), or as one means in `amount`,
+        `method`, `reference` and `cash_on`. What is not allocated is an advance, to allocate later;
+        `auto_allocate` pays the invoices due first. Errors come back on `lines.<index>.<field>`,
+        `allocations.<index>.<field>` and `plan_lines.<index>`.
       tags:
       - supplier-payments
       requestBody:
@@ -16525,6 +16528,45 @@ components:
       - base
       - computed_amount
       - rate
+    IssuedInstrument:
+      type: object
+      description: Our cheque or traite of a payment line, as the treasury follows
+        it until the bank debits it (D-208).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentKindEnum'
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        bank_code:
+          type: string
+          readOnly: true
+          default: ''
+        bank_name:
+          type: string
+          readOnly: true
+          default: ''
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InstrumentStatusEnum'
+          readOnly: true
+      required:
+      - bank_code
+      - bank_name
+      - due_on
+      - id
+      - kind
+      - number
+      - status
     Justification:
       type: object
       properties:
@@ -25659,7 +25701,7 @@ components:
           readOnly: true
         method:
           allOf:
-          - $ref: '#/components/schemas/PaymentMethodEnum'
+          - $ref: '#/components/schemas/SupplierPaymentMethodEnum'
           readOnly: true
         reference:
           type: string
@@ -25671,6 +25713,11 @@ components:
           nullable: true
         notes:
           type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierPaymentLine'
           readOnly: true
         allocated_amount:
           type: string
@@ -25702,6 +25749,7 @@ components:
       - created_at
       - created_by
       - id
+      - lines
       - method
       - notes
       - number
@@ -25709,8 +25757,83 @@ components:
       - reference
       - supplier
       - unallocated_amount
+    SupplierPaymentLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        instrument:
+          allOf:
+          - $ref: '#/components/schemas/IssuedInstrument'
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - id
+      - instrument
+      - method
+      - reference
+    SupplierPaymentLineWrite:
+      type: object
+      description: One means of the règlement (D-208). Our cheque or traite gives
+        its number, bank and échéance.
+      properties:
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        amount:
+          type: string
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        number:
+          type: string
+          default: ''
+          maxLength: 50
+        bank:
+          type: integer
+          minimum: 1
+          nullable: true
+        due_on:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - amount
+      - method
+    SupplierPaymentMethodEnum:
+      enum:
+      - cash
+      - cheque
+      - transfer
+      - bill
+      - other
+      - mixed
+      type: string
+      description: |-
+        * `cash` - Espèces
+        * `cheque` - Chèque
+        * `transfer` - Virement
+        * `bill` - Traite
+        * `other` - Autre
+        * `mixed` - Plusieurs moyens
     SupplierPaymentWrite:
       type: object
+      description: 'A règlement: its means in `lines` (D-208), or one means in `amount`,
+        `method`, `reference`, `cash_on`.'
       properties:
         supplier:
           type: integer
@@ -25730,6 +25853,10 @@ components:
           type: string
           format: date
           nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierPaymentLineWrite'
         notes:
           type: string
           default: ''
@@ -25737,13 +25864,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AllocationWrite'
+        auto_allocate:
+          type: boolean
+          default: false
         plan_line:
           type: integer
           minimum: 1
           nullable: true
+        plan_lines:
+          type: array
+          items:
+            type: integer
+            minimum: 1
       required:
-      - amount
-      - method
       - paid_on
       - supplier
     SupplierWrite:

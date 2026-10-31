@@ -150,20 +150,22 @@ def instrument_errors(
     issued_on: dt.date,
     due_on: dt.date | None,
     customer: "Customer | None" = None,
-    supplier: "Supplier | None" = None,
     taken: Sequence[tuple[str, int | None, str]] = (),
+    partial: bool = False,
 ) -> dict[str, str]:
     """What is wrong with an effet about to be written, by field (`number`, `bank`, `due_on`); empty when fine.
 
     `taken` holds the (kind, bank id, number) of the effets written just before in the same règlement, so one
-    règlement cannot hold the same paper twice either.
+    règlement cannot hold the same paper twice either. `partial` lets the number, the bank and the échéance be
+    missing: an effet given through a screen that does not ask them (the port purchase, a receipt paid at once),
+    to complete later. Our own cheque (issued) is one paper whoever it went to; a received one is the customer's.
     """
     errors: dict[str, str] = {}
     number = number.strip()
     if kind not in InstrumentKind.values:
         errors["method"] = _("Ce moyen de paiement n'est ni un chèque ni une traite.")
         return errors
-    if not number:
+    if not number and not partial:
         errors["number"] = (
             _("Indiquez le numéro du chèque.")
             if kind == InstrumentKind.CHEQUE
@@ -172,14 +174,15 @@ def instrument_errors(
     elif len(number) > 50:
         errors["number"] = _("50 caractères au plus.")
     if bank is None:
-        errors["bank"] = _("Choisissez la banque.")
+        if not partial:
+            errors["bank"] = _("Choisissez la banque.")
     elif bank.organization_id != organization.pk:
         errors["bank"] = _("Banque inconnue.")
     elif not bank.is_active:
         errors["bank"] = _("Cette banque n'est plus proposée.")
     latest = issued_on + dt.timedelta(days=MAX_DUE_DAYS)
     if due_on is None:
-        if kind == InstrumentKind.BILL:
+        if kind == InstrumentKind.BILL and not partial:
             errors["due_on"] = _("Indiquez l'échéance de la traite.")
     elif due_on > latest:
         errors["due_on"] = _("L'échéance ne peut pas dépasser un an (%(day)s au plus tard).") % {
@@ -189,7 +192,7 @@ def instrument_errors(
         errors["due_on"] = _("L'échéance d'une traite ne peut pas précéder le jour du règlement.")
     elif kind == InstrumentKind.CHEQUE and due_on < issued_on - dt.timedelta(days=MAX_DUE_DAYS):
         errors["due_on"] = _("Ce chèque a plus d'un an : il ne peut plus être encaissé.")
-    if "number" not in errors and "bank" not in errors and bank is not None:
+    if number and "number" not in errors and "bank" not in errors and bank is not None:
         key = (kind, bank.pk, number.casefold())
         if key in {(row_kind, row_bank, row_number.casefold()) for row_kind, row_bank, row_number in taken}:
             errors["number"] = _("Ce numéro est déjà sur une autre ligne de ce règlement.")
@@ -200,8 +203,6 @@ def instrument_errors(
             same = same.exclude(status=InstrumentStatus.CANCELLED)
             if customer is not None:
                 same = same.filter(customer=customer)
-            if supplier is not None:
-                same = same.filter(supplier=supplier)
             existing = same.first()
             if existing is not None:
                 errors["number"] = _("Ce %(kind)s est déjà enregistré (%(source)s).") % {
@@ -226,9 +227,11 @@ def register_instrument(
     customer: "Customer | None" = None,
     supplier: "Supplier | None" = None,
     source_number: str = "",
+    partial: bool = False,
 ) -> Instrument:
     """Write a received or issued effet in its first status. Runs inside the règlement's transaction; the caller
-    checked it with `instrument_errors` first (checked again here, so a bad effet is never written)."""
+    checked it with `instrument_errors` first (checked again here, so a bad effet is never written). `partial` as
+    in `instrument_errors`: a traite without its échéance falls due on the day it was given."""
     errors = instrument_errors(
         organization=organization,
         direction=direction,
@@ -238,7 +241,7 @@ def register_instrument(
         issued_on=issued_on,
         due_on=due_on,
         customer=customer,
-        supplier=supplier,
+        partial=partial,
     )
     if direction not in InstrumentDirection.values:
         errors["direction"] = _("Sens inconnu.")

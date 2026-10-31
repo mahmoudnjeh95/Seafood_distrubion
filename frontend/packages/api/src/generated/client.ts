@@ -27409,8 +27409,11 @@ export const getRecordSupplierPaymentUrl = () => {
 }
 
 /**
- * Record money paid to a supplier and the posted invoices it settles. What is not allocated is an
- * advance, to allocate later. Errors of an allocation come back on `allocations.<index>.<field>`.
+ * Record money paid to a supplier and the posted invoices it settles. Its means come in `lines` (some
+ * cash, our cheques and traites, each one an effet the treasury follows), or as one means in `amount`,
+ * `method`, `reference` and `cash_on`. What is not allocated is an advance, to allocate later;
+ * `auto_allocate` pays the invoices due first. Errors come back on `lines.<index>.<field>`,
+ * `allocations.<index>.<field>` and `plan_lines.<index>`.
  */
 export const recordSupplierPayment = async (supplierPaymentWrite: SupplierPaymentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierPayment> => {
 

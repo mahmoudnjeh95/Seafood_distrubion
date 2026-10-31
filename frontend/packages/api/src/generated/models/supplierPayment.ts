@@ -5,8 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { PaymentAllocation } from './paymentAllocation';
-import type { PaymentMethodEnum } from './paymentMethodEnum';
 import type { Ref } from './ref';
+import type { SupplierPaymentLine } from './supplierPaymentLine';
+import type { SupplierPaymentMethodEnum } from './supplierPaymentMethodEnum';
 
 export interface SupplierPayment {
   readonly id: number;
@@ -15,11 +16,12 @@ export interface SupplierPayment {
   readonly paid_on: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
-  readonly method: PaymentMethodEnum;
+  readonly method: SupplierPaymentMethodEnum;
   readonly reference: string;
   /** @nullable */
   readonly cash_on: string | null;
   readonly notes: string;
+  readonly lines: readonly SupplierPaymentLine[];
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly allocated_amount: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

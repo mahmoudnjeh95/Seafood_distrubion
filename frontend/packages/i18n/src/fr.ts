@@ -2664,6 +2664,7 @@ export const fr = {
         transfer: "Virement",
         bill: "Traite",
         other: "Autre",
+        mixed: "Plusieurs moyens",
       },
       columns: {
         number: "N°",

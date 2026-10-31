@@ -11,6 +11,7 @@ from rest_framework import serializers
 from apps.core.money import line_total
 from apps.purchasing import selectors, services
 from apps.purchasing.models import (
+    LINE_METHOD_CHOICES,
     FieldPurchase,
     FieldPurchaseLine,
     FieldPurchasePayment,
@@ -27,7 +28,9 @@ from apps.purchasing.models import (
     SupplierInvoice,
     SupplierInvoiceStatus,
     SupplierPayment,
+    SupplierPaymentLine,
 )
+from apps.treasury import selectors as treasury
 
 AMOUNT = serializers.DecimalField(max_digits=14, decimal_places=3)
 ZERO = Decimal("0.000")
@@ -169,7 +172,7 @@ class ReceiptLineWriteSerializer(serializers.Serializer[Any]):
 
 
 class FieldPurchasePaymentWriteSerializer(serializers.Serializer[Any]):
-    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES)
     amount = serializers.CharField(allow_blank=True)
     reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     cash_on = serializers.DateField(required=False, allow_null=True, default=None)
@@ -361,7 +364,7 @@ class PaymentRefSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     number = serializers.CharField(read_only=True)
     paid_on = serializers.DateField(read_only=True)
-    method = serializers.ChoiceField(choices=PaymentMethod.choices, read_only=True)
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES, read_only=True)
     reference = serializers.CharField(read_only=True)
 
 
@@ -465,8 +468,34 @@ class PaymentAllocationSerializer(serializers.Serializer[Any]):
     created_at = serializers.DateTimeField(read_only=True)
 
 
+class IssuedInstrumentSerializer(serializers.Serializer[Any]):
+    """Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208)."""
+
+    id = serializers.IntegerField(read_only=True)
+    kind = serializers.ChoiceField(choices=treasury.INSTRUMENT_KIND_CHOICES, read_only=True)
+    number = serializers.CharField(read_only=True)
+    bank_code = serializers.CharField(source="bank.code", read_only=True, default="")
+    bank_name = serializers.CharField(source="bank.name", read_only=True, default="")
+    due_on = serializers.DateField(read_only=True)
+    status = serializers.ChoiceField(choices=treasury.INSTRUMENT_STATUS_CHOICES, read_only=True)
+
+
+class SupplierPaymentLineSerializer(serializers.ModelSerializer[SupplierPaymentLine]):
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES, read_only=True)
+    # Our cheque or traite, with its state in the treasury; null for cash, transfer, other.
+    instrument = IssuedInstrumentSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = SupplierPaymentLine
+        fields: tuple[str, ...] = ("id", "method", "amount", "reference", "instrument")
+        read_only_fields: tuple[str, ...] = fields
+
+
 class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
     supplier = RefSerializer(read_only=True)
+    # `mixed` when the lines use several methods.
+    method = serializers.ChoiceField(choices=PaymentMethod.choices, read_only=True)
+    lines = SupplierPaymentLineSerializer(many=True, read_only=True)
     allocated_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # Not allocated to an invoice yet: an advance, already deducted from the supplier balance.
     unallocated_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
@@ -485,6 +514,7 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
             "reference",
             "cash_on",
             "notes",
+            "lines",
             "allocated_amount",
             "unallocated_amount",
             "allocations",
@@ -503,19 +533,40 @@ class AllocationWriteSerializer(serializers.Serializer[Any]):
     amount = serializers.CharField(allow_blank=True)
 
 
+class SupplierPaymentLineWriteSerializer(serializers.Serializer[Any]):
+    """One means of the règlement (D-208). Our cheque or traite gives its number, bank and échéance."""
+
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES)
+    # A string ("500.000"), checked by the service, which reports it on `lines.<i>.amount`.
+    amount = serializers.CharField(allow_blank=True)
+    # A transfer reference.
+    reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    number = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    bank = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
+    due_on = serializers.DateField(required=False, allow_null=True, default=None)
+
+
 class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
+    """A règlement: its means in `lines` (D-208), or one means in `amount`, `method`, `reference`, `cash_on`."""
+
     supplier = serializers.IntegerField(min_value=1)
     paid_on = serializers.DateField()
-    # A string ("1255.500"), checked by the service: a typed "1255,5" is refused, not rounded.
-    amount = serializers.CharField(allow_blank=True)
-    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    # A string ("1255.500"), checked by the service: a typed "1255,5" is refused, not rounded. With `lines`, it
+    # may be left out; given, it must equal their sum.
+    amount = serializers.CharField(required=False, allow_blank=True)
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES, required=False)
     reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     # The day a post-dated cheque or a traite may be cashed (D-176).
     cash_on = serializers.DateField(required=False, allow_null=True, default=None)
+    lines = SupplierPaymentLineWriteSerializer(many=True, required=False)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     allocations = AllocationWriteSerializer(many=True, required=False, default=list)
+    # True: spread the amount over the invoices still to pay, the one due first first (`allocations` ignored).
+    auto_allocate = serializers.BooleanField(required=False, default=False)
     # An open plan line (D-192) this payment settles; its invoice must be one of the allocations.
     plan_line = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
+    # Several open plan lines paid by this one règlement (D-208).
+    plan_lines = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
 
 
 class PaymentAllocateSerializer(serializers.Serializer[Any]):
@@ -904,7 +955,7 @@ class ChequeToCashSerializer(serializers.Serializer[Any]):
     number = serializers.CharField(read_only=True)
     supplier_id = serializers.IntegerField(read_only=True)
     supplier_name = serializers.CharField(read_only=True)
-    method = serializers.ChoiceField(choices=PaymentMethod.choices, read_only=True)
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES, read_only=True)
     reference = serializers.CharField(read_only=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     paid_on = serializers.DateField(read_only=True)
@@ -938,7 +989,7 @@ PURCHASE_TYPES = ("port", "office", "opening")
 class PlanLineSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
-    method = serializers.ChoiceField(choices=PaymentMethod.choices, read_only=True)
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES, read_only=True)
     planned_on = serializers.DateField(read_only=True)
     reference = serializers.CharField(read_only=True)
     cash_on = serializers.DateField(read_only=True, allow_null=True)
@@ -950,7 +1001,7 @@ class PlanLineSerializer(serializers.Serializer[Any]):
 class PlanLineWriteSerializer(serializers.Serializer[Any]):
     # A string ("500.000"), checked by the service, which reports it on `lines.<i>.amount`.
     amount = serializers.CharField(allow_blank=True)
-    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    method = serializers.ChoiceField(choices=LINE_METHOD_CHOICES)
     planned_on = serializers.DateField()
     reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     cash_on = serializers.DateField(required=False, allow_null=True, default=None)
