@@ -54,6 +54,7 @@ import {
 import { BelowMinimumReason } from "../lib/BelowMinimumReason";
 import { LinesGrid } from "../lib/LinesGrid";
 import { LotPicker } from "../lib/LotPicker";
+import { VatHint } from "../lib/VatHint";
 import { addressOf } from "../transfers/formLines";
 import { canSell, localInputOf, momentOf, PAYMENT_METHODS, refreshAfterSale } from "./shared";
 
@@ -357,6 +358,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
 
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.sales.form.lines")}</CardTitle>
+          <VatHint lines={lines} products={products.data ?? []} />
           <LinesGrid
             label={t("admin.sales.form.lines")}
             lines={lines}

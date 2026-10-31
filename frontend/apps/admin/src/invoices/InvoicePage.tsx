@@ -235,6 +235,11 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
           {t("admin.invoices.form.applyVat")}
         </label>
         {!values.applyVat && <p className="text-[0.85rem] text-ink-2">{t("admin.invoices.form.noVatNote")}</p>}
+        {errors.apply_vat && (
+          <p role="alert" className="text-[0.85rem] font-semibold text-bad">
+            {errors.apply_vat}
+          </p>
+        )}
 
         {values.applyVat && (
           <fieldset className="flex flex-col gap-2">

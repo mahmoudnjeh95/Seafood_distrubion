@@ -122,6 +122,7 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
             "purchase_order",
             "received_on",
             "supplier_reference",
+            "with_vat",
             "notes",
             "lines",
             "has_differences",
@@ -181,6 +182,8 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     purchase_order = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     received_on = serializers.DateField()
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    # Bought with VAT: what is sold from these lots must be invoiced with VAT (D-202).
+    with_vat = serializers.BooleanField(required=False, default=False)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = ReceiptLineWriteSerializer(many=True, allow_empty=True)
     # Returnable boxes that came with the delivery, per box type ("small", "big"): a count, never kg (D-122).

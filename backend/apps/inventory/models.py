@@ -72,6 +72,8 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
     # Purchase cost in DT per kg, without VAT. Costs change daily, so each batch carries its own (D-020).
     unit_cost = MoneyField()
     use_by = models.DateField(null=True, blank=True)
+    # Bought with VAT (the supplier's paper carries it): what is sold from this lot is invoiced with VAT (D-202).
+    bought_with_vat = models.BooleanField(default=False)
 
     class Meta:
         ordering = list(FIFO_ORDER)

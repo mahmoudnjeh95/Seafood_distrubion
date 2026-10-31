@@ -186,6 +186,7 @@ def create_receipt(
     notes: str = "",
     purchase_order: PurchaseOrder | None = None,
     boxes: Mapping[str, int] | None = None,
+    with_vat: bool = False,
 ) -> GoodsReceipt:
     """Record goods received from a supplier: one batch per line, and its accepted weight into stock.
 
@@ -228,6 +229,7 @@ def create_receipt(
         purchase_order=order,
         received_on=received_on,
         supplier_reference=supplier_reference,
+        with_vat=with_vat,
         notes=notes.strip(),
         created_by=actor,
     )
@@ -248,6 +250,7 @@ def create_receipt(
             unit_cost=values["unit_cost"],
             receipt_reference=supplier_reference or receipt.number,
             use_by=values["use_by"],
+            bought_with_vat=with_vat,
         )
         line = GoodsReceiptLine.objects.create(
             organization=organization,
@@ -1765,6 +1768,7 @@ def receive_and_invoice(
     purchase_order: PurchaseOrder | None = None,
     boxes: Mapping[str, int] | None = None,
     payments: Sequence[FieldPaymentFields] = (),
+    with_vat: bool = False,
 ) -> GoodsReceipt:
     """Record goods received and, in the same step, what is owed for them (D-159): a posted supplier invoice for the
     receipt, due by the deal made for this delivery, as a purchase at the port is (D-176). The debt starts at the
@@ -1791,6 +1795,7 @@ def receive_and_invoice(
         notes=notes,
         purchase_order=purchase_order,
         boxes=boxes,
+        with_vat=with_vat,
     )
     invoice = create_invoice(
         organization=organization,

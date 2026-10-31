@@ -53,6 +53,7 @@ import {
 import { BelowMinimumReason } from "../lib/BelowMinimumReason";
 import { LinesGrid } from "../lib/LinesGrid";
 import { LotPicker } from "../lib/LotPicker";
+import { VatHint } from "../lib/VatHint";
 import { placesOf, totalsOf, usePlacesStock, usePlacesStockLoaded } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { todayInTunis } from "../receipts/shared";
@@ -387,6 +388,7 @@ function QuoteForm({ draft, fromRequest }: { draft?: QuoteDetail; fromRequest?: 
 
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.quotes.form.lines")}</CardTitle>
+          <VatHint lines={lines} products={products.data ?? []} />
           <LinesGrid
             label={t("admin.quotes.form.lines")}
             lines={lines}

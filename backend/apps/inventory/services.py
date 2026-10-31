@@ -193,6 +193,7 @@ def create_batch(
     unit_cost: Number,
     receipt_reference: str = "",
     use_by: dt.date | None = None,
+    bought_with_vat: bool = False,
 ) -> Batch:
     """A new batch with the next number. Called by the goods receipt (P1-T07) and the demo data.
 
@@ -230,6 +231,7 @@ def create_batch(
         received_on=received_on,
         unit_cost=cost,
         use_by=use_by,
+        bought_with_vat=bought_with_vat,
     )
     audit.record(
         organization=organization, actor=actor, action="batch.created", target=batch, after=_batch_snapshot(batch)

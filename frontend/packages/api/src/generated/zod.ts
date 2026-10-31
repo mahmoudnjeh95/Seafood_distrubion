@@ -12627,6 +12627,7 @@ export const ListReceiptsResponse = zod.object({
 }).describe('The purchase order a receipt delivers against.'),zod.null()]),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
+  "with_vat": zod.boolean(),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -12674,6 +12675,7 @@ export const ListReceiptsResponse = zod.object({
 export const createReceiptBodySupplierReferenceDefault = ``;
 export const createReceiptBodySupplierReferenceMax = 50;
 
+export const createReceiptBodyWithVatDefault = false;
 export const createReceiptBodyNotesDefault = ``;
 
 export const createReceiptBodyBoxesMinOne = 0;
@@ -12695,6 +12697,7 @@ export const CreateReceiptBody = zod.object({
   "purchase_order": zod.int().min(1).nullish(),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string().max(createReceiptBodySupplierReferenceMax).default(createReceiptBodySupplierReferenceDefault),
+  "with_vat": zod.boolean().default(createReceiptBodyWithVatDefault),
   "notes": zod.string().default(createReceiptBodyNotesDefault),
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
@@ -12746,6 +12749,7 @@ export const CreateReceiptResponse = zod.object({
 }).describe('The purchase order a receipt delivers against.'),zod.null()]),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
+  "with_vat": zod.boolean(),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -12813,6 +12817,7 @@ export const GetReceiptResponse = zod.object({
 }).describe('The purchase order a receipt delivers against.'),zod.null()]),
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
+  "with_vat": zod.boolean(),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17899,6 +17904,14 @@ export const RestoreTruckResponse = zod.object({
   "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
 })
+
+
+/**
+ * The ids of the products with kilos in stock bought with VAT: the quote and sale forms flag them (D-202).
+ */
+export const ListVatProductsResponse = zod.object({
+  "products": zod.array(zod.int())
+}).describe('The products with kilos in stock bought with VAT (D-202).')
 
 
 /**

@@ -149,6 +149,8 @@ export function ReceiptFormPage() {
   const [location, setLocation] = useState("");
   const [receivedOn, setReceivedOn] = useState(todayInTunis);
   const [supplierReference, setSupplierReference] = useState("");
+  // Bought with VAT: its lots are then sold and invoiced with VAT (D-202).
+  const [withVat, setWithVat] = useState(false);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [boxes, setBoxes] = useState<BoxCountInputs>(NO_BOX_INPUTS);
@@ -295,6 +297,7 @@ export function ReceiptFormPage() {
       purchase_order: order?.id ?? null,
       received_on: receivedOn,
       supplier_reference: supplierReference.trim(),
+      with_vat: withVat,
       notes: notes.trim(),
       lines: payloadLines,
       boxes: boxCounts.counts,
@@ -504,6 +507,15 @@ export function ReceiptFormPage() {
               </p>
             )}
           </Field>
+          <label className="flex items-center gap-2.5 self-end pb-2.5 font-semibold">
+            <input
+              type="checkbox"
+              className="size-4 accent-sea"
+              checked={withVat}
+              onChange={(event) => setWithVat(event.target.checked)}
+            />
+            {t("admin.receipts.form.withVat")}
+          </label>
         </Card>
 
         <Card className="flex flex-col gap-3">
