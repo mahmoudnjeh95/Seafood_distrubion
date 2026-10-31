@@ -27,6 +27,7 @@ from apps.purchasing.models import (
     SupplierPayment,
     SupplierPaymentPlanLine,
 )
+from apps.treasury import selectors as treasury
 
 from .serializers import (
     DifferenceFilterSerializer,
@@ -344,6 +345,44 @@ def _plan_line(organization: Organization, line_id: int | None) -> SupplierPayme
         raise ValidationError({"plan_line": _("Ligne de règlement inconnue.")}) from None
 
 
+def _plan_lines(organization: Organization, line_ids: list[int]) -> list[SupplierPaymentPlanLine]:
+    """The plan lines named by id (D-208); an unknown one is an error on `plan_lines.<index>`."""
+    errors: dict[str, str] = {}
+    found: list[SupplierPaymentPlanLine] = []
+    for index, line_id in enumerate(line_ids):
+        try:
+            found.append(selectors.plan_line_of(organization, line_id))
+        except SupplierPaymentPlanLine.DoesNotExist:
+            errors[f"plan_lines.{index}"] = _("Ligne de règlement inconnue.")
+    if errors:
+        raise ValidationError(errors)
+    return found
+
+
+def _payment_lines(organization: Organization, lines: list[dict[str, Any]]) -> list[services.PaymentLineFields]:
+    """The règlement's lines with their bank resolved in the organization; an unknown bank is an error on its line."""
+    errors: dict[str, str] = {}
+    resolved: list[services.PaymentLineFields] = []
+    for index, line in enumerate(lines):
+        row: services.PaymentLineFields = {
+            "method": line["method"],
+            "amount": line["amount"],
+            "reference": line["reference"],
+            "number": line["number"],
+            "due_on": line["due_on"],
+            "bank": None,
+        }
+        if line["bank"] is not None:
+            try:
+                row["bank"] = treasury.bank_of(organization, line["bank"])
+            except ObjectDoesNotExist:
+                errors[services.line_error_key(index, "bank")] = _("Banque inconnue.")
+        resolved.append(row)
+    if errors:
+        raise ValidationError(errors)
+    return resolved
+
+
 class SupplierInvoiceListView(PurchasingView, ListAPIView[SupplierInvoice]):
     serializer_class = SupplierInvoiceSerializer
     pagination_class = PagedList
@@ -535,20 +574,30 @@ class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
         responses={201: SupplierPaymentSerializer},
     )
     def post(self, request: Request) -> Response:
-        """Record money paid to a supplier and the posted invoices it settles. What is not allocated is an
-        advance, to allocate later. Errors of an allocation come back on `allocations.<index>.<field>`."""
+        """Record money paid to a supplier and the posted invoices it settles. Its means come in `lines` (some
+        cash, our cheques and traites, each one an effet the treasury follows), or as one means in `amount`,
+        `method`, `reference` and `cash_on`. What is not allocated is an advance, to allocate later;
+        `auto_allocate` pays the invoices due first. Errors come back on `lines.<index>.<field>`,
+        `allocations.<index>.<field>` and `plan_lines.<index>`."""
         serializer = SupplierPaymentWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         supplier = _supplier(self.organization, data.pop("supplier"))
         allocations = _allocations(self.organization, data.pop("allocations"))
+        auto = data.pop("auto_allocate")
         plan_line = _plan_line(self.organization, data.pop("plan_line"))
+        plan_lines = _plan_lines(self.organization, data.pop("plan_lines"))
+        lines = data.pop("lines", None)
         payment = services.record_payment(
             organization=self.organization,
             actor=self.membership.user,
             supplier=supplier,
-            allocations=allocations,
+            lines=_payment_lines(self.organization, lines) if lines is not None else None,
+            allocations=None if auto else allocations,
             plan_line=plan_line,
+            plan_lines=plan_lines,
+            amount=data.pop("amount", None),
+            method=data.pop("method", ""),
             **data,
         )
         return Response(

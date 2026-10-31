@@ -44,6 +44,7 @@ from .models import (
     SupplierInvoiceStatus,
     SupplierPayment,
     SupplierPaymentAllocation,
+    SupplierPaymentLine,
     SupplierPaymentPlanLine,
 )
 
@@ -261,13 +262,15 @@ def payments_of(
     """Supplier payments newest first, with their allocations, `allocated_amount` and `unallocated_amount`.
 
     `unallocated` keeps the payments with a part not allocated to an invoice yet (advances).
-    `search` matches our number, the cheque or transfer reference and the supplier's name.
+    `search` matches our number, the cheque or transfer reference (of any line) and the supplier's name.
     """
     allocations = SupplierPaymentAllocation.objects.select_related("invoice").order_by("id")
+    lines = SupplierPaymentLine.objects.select_related("instrument__bank").order_by("id")
     payments = (
         SupplierPayment.objects.for_organization(organization)
         .select_related("supplier", "created_by")
         .prefetch_related(Prefetch("allocations", queryset=allocations))
+        .prefetch_related(Prefetch("lines", queryset=lines))
         .annotate(allocated_amount=_sum_of_allocations(payment=OuterRef("pk")))
         .annotate(unallocated_amount=ExpressionWrapper(F("amount") - F("allocated_amount"), output_field=AMOUNT))
         .order_by("-paid_on", "-id")
@@ -277,8 +280,14 @@ def payments_of(
     if unallocated:
         payments = payments.filter(unallocated_amount__gt=0)
     if search := search.strip():
+        in_lines = SupplierPaymentLine.objects.filter(payment=OuterRef("pk")).filter(
+            Q(reference__icontains=search) | Q(instrument__number__icontains=search)
+        )
         payments = payments.filter(
-            Q(number__icontains=search) | Q(reference__icontains=search) | Q(supplier__name__icontains=search)
+            Q(number__icontains=search)
+            | Q(reference__icontains=search)
+            | Q(supplier__name__icontains=search)
+            | Exists(in_lines)
         )
     return payments
 
@@ -776,26 +785,29 @@ def supplier_debts(organization: Organization, *, today: dt.date | None = None) 
         row["advances"] += getattr(payment, "unallocated_amount")  # noqa: B009
     debts = sorted((SupplierDebt(**row) for row in rows.values()), key=lambda r: (-r.outstanding, r.name))
 
+    # Our cheques and traites still to be debited or just debited, from the treasury's effets (D-208).
     cheques = [
         ChequeToCash(
-            payment_id=payment.pk,
-            number=payment.number,
-            supplier_id=payment.supplier_id,
-            supplier_name=payment.supplier.name,
-            method=payment.method,
-            reference=payment.reference,
-            amount=payment.amount,
-            paid_on=payment.paid_on,
-            cash_on=payment.cash_on,
+            payment_id=line.payment_id,
+            number=line.payment.number,
+            supplier_id=line.payment.supplier_id,
+            supplier_name=line.payment.supplier.name,
+            method=line.method,
+            reference=line.instrument.number,
+            amount=line.amount,
+            paid_on=line.payment.paid_on,
+            cash_on=line.instrument.due_on,
         )
-        for payment in SupplierPayment.objects.for_organization(organization)
+        for line in SupplierPaymentLine.objects.for_organization(organization)
         .filter(
-            method__in=(PaymentMethod.CHEQUE, PaymentMethod.BILL),
-            cash_on__gte=today - dt.timedelta(days=CHEQUES_SINCE_DAYS),
+            instrument__isnull=False,
+            instrument__due_on__gte=today - dt.timedelta(days=CHEQUES_SINCE_DAYS),
         )
-        .select_related("supplier")
-        .order_by("cash_on", "id")
-        if payment.cash_on is not None
+        # A cancelled effet was never handed over: its règlement was voided.
+        .exclude(instrument__status="cancelled")
+        .select_related("payment__supplier", "instrument")
+        .order_by("instrument__due_on", "id")
+        if line.instrument is not None
     ]
     return SupplierDebts(
         rows=debts,

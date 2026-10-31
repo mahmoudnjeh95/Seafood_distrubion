@@ -20,9 +20,12 @@ from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 from apps.partnerships import services as partnerships
+from apps.treasury import services as treasury
 
 from . import selectors
 from .models import (
+    INSTRUMENT_METHODS,
+    LINE_METHOD_CHOICES,
     RECEIVABLE_ORDER_STATUSES,
     DocumentCounter,
     DocumentKind,
@@ -45,6 +48,7 @@ from .models import (
     SupplierInvoiceStatus,
     SupplierPayment,
     SupplierPaymentAllocation,
+    SupplierPaymentLine,
     SupplierPaymentPlanLine,
 )
 from .models import PaymentMethod as PaymentMethod  # re-exported for apps that record payments (the demo)
@@ -55,12 +59,15 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import StockLocation
     from apps.partners.models import Supplier
+    from apps.treasury.models import Bank
 
 ZERO = Decimal("0.000")
 RECEIPT_NUMBER_PREFIX = "BR-"
 INVOICE_NUMBER_PREFIX = "FF-"
 ORDER_NUMBER_PREFIX = "BA-"
 PAYMENT_NUMBER_PREFIX = "RF-"
+# The methods one line, a plan line or a sum given at the port may use: every method but "several" (D-208).
+LINE_METHODS = frozenset(value for value, _label in LINE_METHOD_CHOICES)
 
 
 class ReceiptLineFields(TypedDict, total=False):
@@ -944,35 +951,182 @@ def _payment_snapshot(payment: SupplierPayment) -> dict[str, Any]:
         "method": payment.method,
         "reference": payment.reference,
         "cash_on": payment.cash_on.isoformat() if payment.cash_on else None,
+        "lines": [
+            _payment_line_snapshot(line)
+            for line in SupplierPaymentLine.objects.filter(payment=payment).select_related("instrument__bank")
+        ],
         "allocations": [{"invoice": line.invoice.number, "amount": str(line.amount)} for line in allocations],
     }
 
 
-def _checked_plan_line(
+def _payment_line_snapshot(line: SupplierPaymentLine) -> dict[str, Any]:
+    row: dict[str, Any] = {"method": line.method, "amount": str(line.amount), "reference": line.reference}
+    if line.instrument is not None:
+        row["number"] = line.instrument.number
+        row["bank"] = line.instrument.bank.code if line.instrument.bank else ""
+        row["due_on"] = line.instrument.due_on.isoformat()
+    return row
+
+
+def _checked_plan_lines(
     organization: Organization,
     supplier: "Supplier",
-    plan_line: SupplierPaymentPlanLine,
+    plan_lines: Sequence[SupplierPaymentPlanLine],
     allocations: Sequence[tuple[SupplierInvoice, Decimal]],
     errors: dict[str, str],
-) -> SupplierPaymentPlanLine | None:
-    """The plan line a payment settles, locked, once checked; a problem is added to `errors["plan_line"]`."""
-    line = (
-        SupplierPaymentPlanLine.objects.select_for_update()
+) -> list[SupplierPaymentPlanLine]:
+    """The plan lines a payment settles, locked, once checked; problems go on `plan_lines.<index>`."""
+    ids = [line.pk for line in plan_lines]
+    found = {
+        line.pk: line
+        for line in SupplierPaymentPlanLine.objects.select_for_update(of=("self",))
         .select_related("invoice")
-        .filter(pk=plan_line.pk, organization=organization)
-        .first()
+        .filter(pk__in=sorted(set(ids)), organization=organization)
+        .order_by("id")
+    }
+    allocated = {invoice.pk for invoice, amount in allocations if amount > 0}
+    checked: list[SupplierPaymentPlanLine] = []
+    for index, pk in enumerate(ids):
+        key = f"plan_lines.{index}"
+        line = found.get(pk)
+        if line is None:
+            errors[key] = _("Ligne de règlement inconnue.")
+        elif ids.index(pk) != index:
+            errors[key] = _("Cette ligne de règlement est déjà dans la liste.")
+        elif line.invoice.supplier_id != supplier.pk:
+            errors[key] = _("Cette ligne de règlement est d'un autre fournisseur.")
+        elif line.status != PlanLineStatus.OPEN:
+            errors[key] = _("Cette ligne de règlement n'est plus planifiée.")
+        elif line.invoice_id not in allocated:
+            errors[key] = _("Affectez ce paiement à la facture de la ligne de règlement.")
+        else:
+            checked.append(line)
+    return checked
+
+
+def _oldest_due_first(
+    organization: Organization, supplier: "Supplier", available: Decimal | None
+) -> list[AllocationFields]:
+    """`available` spread over the supplier's posted invoices still to pay, the one due first first (D-208)."""
+    if available is None:
+        return []
+    rows: list[AllocationFields] = []
+    left = available
+    invoices = SupplierInvoice.objects.for_organization(organization).filter(
+        supplier=supplier, status__in=(SupplierInvoiceStatus.POSTED, SupplierInvoiceStatus.PARTLY_PAID)
     )
-    if line is None:
-        errors["plan_line"] = _("Ligne de règlement inconnue.")
-    elif line.invoice.supplier_id != supplier.pk:
-        errors["plan_line"] = _("Cette ligne de règlement est d'un autre fournisseur.")
-    elif line.status != PlanLineStatus.OPEN:
-        errors["plan_line"] = _("Cette ligne de règlement n'est plus planifiée.")
-    elif not any(invoice.pk == line.invoice_id and amount > 0 for invoice, amount in allocations):
-        errors["plan_line"] = _("Affectez ce paiement à la facture de la ligne de règlement.")
-    else:
-        return line
-    return None
+    for invoice in invoices.order_by("due_date", "invoice_date", "id"):
+        if left <= 0:
+            break
+        part = min(left, invoice.total - _paid_on(invoice))
+        if part > 0:
+            rows.append({"invoice": invoice, "amount": part})
+            left -= part
+    return rows
+
+
+class PaymentLineFields(TypedDict, total=False):
+    """One means of a supplier règlement (D-208). Our cheque or traite gives its number, the bank it is drawn on
+    and its échéance (`due_on`); other methods may give a reference."""
+
+    method: str
+    amount: Number
+    reference: str
+    number: str
+    bank: "Bank | None"
+    due_on: dt.date | None
+
+
+# At most this many lines in one règlement.
+MAX_PAYMENT_LINES = 50
+
+
+def _checked_settlement_lines(
+    organization: Organization,
+    paid_on: dt.date,
+    lines: Sequence[PaymentLineFields],
+    errors: dict[str, str],
+    *,
+    partial: bool,
+) -> list[tuple[str, Decimal, PaymentLineFields]]:
+    """The règlement's lines with their amount checked; errors on `lines.<index>.<field>`. `partial`: the effet's
+    number, bank and échéance may be missing (one line made of the older single fields, to complete later)."""
+    checked: list[tuple[str, Decimal, PaymentLineFields]] = []
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un moyen de paiement.")
+        return checked
+    if len(lines) > MAX_PAYMENT_LINES:
+        errors["lines"] = _("%(count)s moyens de paiement au plus par règlement.") % {"count": MAX_PAYMENT_LINES}
+        return checked
+    taken: list[tuple[str, int | None, str]] = []
+    for index, line in enumerate(lines):
+        method = line.get("method", "")
+        if method not in LINE_METHODS:
+            errors[line_error_key(index, "method")] = _("Mode de paiement inconnu.")
+        try:
+            value = checked_amount(line.get("amount", ""))
+            if value <= 0:
+                errors[line_error_key(index, "amount")] = _("Le montant doit être supérieur à zéro.")
+        except (ValueError, TypeError):
+            value = ZERO
+            errors[line_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
+        if method not in LINE_METHODS:
+            continue
+        if method in INSTRUMENT_METHODS:
+            bank = line.get("bank")
+            number = line.get("number", "")
+            found = treasury.instrument_errors(
+                organization=organization,
+                direction="issued",
+                kind=method,
+                number=number,
+                bank=bank,
+                issued_on=paid_on,
+                due_on=line.get("due_on"),
+                taken=taken,
+                partial=partial,
+            )
+            for field, message in found.items():
+                errors[line_error_key(index, field)] = message
+            taken.append((method, bank.pk if bank else None, number.strip()))
+        checked.append((method, value, line))
+    return checked
+
+
+def _write_lines(
+    payment: SupplierPayment,
+    actor: User | None,
+    checked: Sequence[tuple[str, Decimal, PaymentLineFields]],
+    *,
+    partial: bool,
+) -> None:
+    """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier."""
+    for method, value, line in checked:
+        instrument = None
+        if method in INSTRUMENT_METHODS:
+            instrument = treasury.register_instrument(
+                organization=payment.organization,
+                actor=actor,
+                direction="issued",
+                kind=method,
+                # A cheque given without its number keeps the règlement's until the office completes it.
+                number=line.get("number", "").strip() or payment.number,
+                bank=line.get("bank"),
+                amount=value,
+                issued_on=payment.paid_on,
+                due_on=line.get("due_on"),
+                supplier=payment.supplier,
+                source_number=payment.number,
+                partial=partial,
+            )
+        SupplierPaymentLine.objects.create(
+            organization_id=payment.organization_id,
+            payment=payment,
+            method=method,
+            amount=value,
+            reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
+            instrument=instrument,
+        )
 
 
 @transaction.atomic
@@ -982,70 +1136,102 @@ def record_payment(
     actor: User | None,
     supplier: "Supplier",
     paid_on: dt.date,
-    amount: Number,
-    method: str,
-    allocations: Sequence[AllocationFields] = (),
+    amount: Number | None = None,
+    method: str = "",
+    lines: Sequence[PaymentLineFields] | None = None,
+    allocations: Sequence[AllocationFields] | None = (),
     reference: str = "",
     notes: str = "",
     cash_on: dt.date | None = None,
     plan_line: SupplierPaymentPlanLine | None = None,
+    plan_lines: Sequence[SupplierPaymentPlanLine] = (),
 ) -> SupplierPayment:
-    """Record money paid to a supplier and the posted invoices it settles.
+    """Record money paid to a supplier and the posted invoices it settles (D-043, D-208).
+
+    `lines` gives its means (some cash, our cheques, traites, a transfer...): each cheque or traite becomes an
+    effet issued, followed by the treasury until the bank debits it. Without `lines`, `amount`, `method`,
+    `reference` and `cash_on` make its one line (the port purchase, a receipt paid at once, the older form): its
+    effet may lack its bank, to complete later. With `lines`, an `amount` given must equal their sum.
 
     The allocations may cover all of the amount, part of it or none: what is left is an advance, already
-    deducted from the supplier balance, to allocate later (`allocate_payment`). An allocation never goes
-    beyond what is left to pay on its invoice. Every problem comes back at once, on its field.
+    deducted from the supplier balance, to allocate later (`allocate_payment`). None spreads the amount over the
+    supplier's invoices still to pay, the one due first first. An allocation never goes beyond what is left to
+    pay on its invoice. Every problem comes back at once, on its field.
 
-    `plan_line` is an open plan line (D-192) this payment settles: its invoice must be among the allocations
-    (with an amount) and its supplier the payment's; the line becomes `paid`, linked to the payment.
+    `plan_lines` (or one `plan_line`) are open plan lines (D-192) this payment settles: each one's invoice must be
+    among the allocations (with an amount) and its supplier the payment's; they become `paid`, linked to it.
     """
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
         errors["supplier"] = _("Fournisseur inconnu.")
     if paid_on > timezone.localdate():
         errors["paid_on"] = _("La date du paiement ne peut pas être dans le futur.")
-    if method not in PaymentMethod.values:
-        errors["method"] = _("Mode de paiement inconnu.")
-    if cash_on is not None and cash_on < paid_on:
-        errors["cash_on"] = _("Le jour d'encaissement ne peut pas précéder le paiement.")
-    checked: Decimal | None = None
-    try:
-        checked = checked_amount(amount)
-        if checked == 0:
-            checked = None
-            errors["amount"] = _("Le montant doit être supérieur à zéro.")
-    except (ValueError, TypeError):
-        errors["amount"] = _("Indiquez un montant en DT, au millime près.")
-    allocated = (
-        _checked_allocations(organization, supplier, allocations, checked, errors) if "supplier" not in errors else []
-    )
-    locked_line = _checked_plan_line(organization, supplier, plan_line, allocated, errors) if plan_line else None
+    partial = lines is None
+    if lines is None:
+        # One line made of the single fields; its errors stay on `amount`, `method` and `cash_on`.
+        single: dict[str, str] = {}
+        one_line: PaymentLineFields = {
+            "method": method,
+            "amount": amount if amount is not None else "",
+            "reference": reference,
+            "number": reference,
+            "due_on": cash_on,
+        }
+        if cash_on is not None and cash_on < paid_on:
+            errors["cash_on"] = _("Le jour d'encaissement ne peut pas précéder le paiement.")
+        checked = _checked_settlement_lines(organization, paid_on, [one_line], single, partial=True)
+        for key, message in single.items():
+            field = key.removeprefix("lines.0.")
+            errors.setdefault({"due_on": "cash_on", "number": "reference"}.get(field, field), message)
+    else:
+        checked = _checked_settlement_lines(organization, paid_on, lines, errors, partial=False)
+        if amount is not None and not errors:
+            try:
+                if checked_amount(amount) != sum((value for _method, value, _line in checked), ZERO):
+                    errors["amount"] = _("Le total ne correspond pas à la somme des moyens de paiement.")
+            except (ValueError, TypeError):
+                errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    total: Decimal | None = None
+    if not any(key == "amount" or key.endswith(".amount") for key in errors) and checked:
+        total = sum((value for _method, value, _line in checked), ZERO)
+    if "supplier" in errors:
+        allocated: list[tuple[SupplierInvoice, Decimal]] = []
+    else:
+        requested = _oldest_due_first(organization, supplier, total) if allocations is None else allocations
+        allocated = _checked_allocations(organization, supplier, requested, total, errors)
+    named = [*plan_lines, *([plan_line] if plan_line is not None else [])]
+    settled = _checked_plan_lines(organization, supplier, named, allocated, errors) if named else []
+    if plan_line is not None and "plan_lines.0" in errors and not plan_lines:
+        errors["plan_line"] = errors.pop("plan_lines.0")
     if errors:
         raise ValidationError(errors)
-    assert checked is not None  # an amount error would have been raised above
+    assert total is not None  # an amount error would have been raised above
+    methods = {line_method for line_method, _value, _line in checked}
+    only = checked[0][2] if len(checked) == 1 else None
     payment = SupplierPayment.objects.create(
         organization=organization,
         number=_next_document_number(organization, DocumentKind.SUPPLIER_PAYMENT, PAYMENT_NUMBER_PREFIX, yearly=True),
         supplier=supplier,
         paid_on=paid_on,
-        amount=checked,
-        method=method,
-        reference=reference.strip(),
-        cash_on=cash_on,
+        amount=total,
+        method=methods.pop() if len(methods) == 1 else PaymentMethod.MIXED,
+        reference=_header_reference(reference if partial else None, checked),
+        cash_on=only.get("due_on") if only is not None and checked[0][0] in INSTRUMENT_METHODS else None,
         notes=notes.strip(),
         created_by=actor,
     )
+    _write_lines(payment, actor, checked, partial=partial)
     _allocate(payment, actor, allocated)
-    if locked_line is not None:
-        locked_line.status = PlanLineStatus.PAID
-        locked_line.payment = payment
-        locked_line.save(update_fields=["status", "payment", "updated_at"])
+    for line in settled:
+        line.status = PlanLineStatus.PAID
+        line.payment = payment
+        line.save(update_fields=["status", "payment", "updated_at"])
         audit.record(
             organization=organization,
             actor=actor,
             action="supplier_plan_line.paid",
-            target=locked_line,
-            after={"invoice": locked_line.invoice.number, "amount": str(locked_line.amount), "payment": payment.number},
+            target=line,
+            after={"invoice": line.invoice.number, "amount": str(line.amount), "payment": payment.number},
         )
     audit.record(
         organization=organization,
@@ -1055,6 +1241,17 @@ def record_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+def _header_reference(reference: str | None, checked: Sequence[tuple[str, Decimal, PaymentLineFields]]) -> str:
+    """The règlement's own reference, shown in its list: the one typed, else that of its only line (a transfer
+    reference, a cheque number); none for several lines, each keeping its own."""
+    if reference is None:
+        reference = ""
+        if len(checked) == 1:
+            line = checked[0][2]
+            reference = line.get("number", "") if checked[0][0] in INSTRUMENT_METHODS else line.get("reference", "")
+    return reference.strip()[:50]
 
 
 @transaction.atomic
@@ -1147,7 +1344,7 @@ def set_payment_plan(
         except (ValueError, TypeError):
             errors[plan_error_key(index, "amount")] = _("Indiquez un montant en DT, au millime près.")
         method = line.get("method", "")
-        if method not in PaymentMethod.values:
+        if method not in LINE_METHODS:
             errors[plan_error_key(index, "method")] = _("Mode de paiement inconnu.")
         planned_on = line.get("planned_on")
         if planned_on is None:
@@ -1265,7 +1462,7 @@ def _checked_payment_lines(
     checked_payments: list[dict[str, Any]] = []
     for index, payment in enumerate(payments):
         method = payment.get("method", "")
-        if method not in PaymentMethod.values:
+        if method not in LINE_METHODS:
             errors[payment_error_key(index, "method")] = _("Mode de paiement inconnu.")
         values: dict[str, Any] = {
             "method": method,

@@ -266,6 +266,14 @@ class PaymentMethod(models.TextChoices):
     # "Traite": a bill of exchange, common between Tunisian businesses.
     BILL = "bill", _("Traite")
     OTHER = "other", _("Autre")
+    # A règlement paid in several ways (some cash, cheques, traites...): the lines say which (D-208).
+    MIXED = "mixed", _("Plusieurs moyens")
+
+
+# The means one line pays with: every method but "several".
+LINE_METHOD_CHOICES = [(value, label) for value, label in PaymentMethod.choices if value != PaymentMethod.MIXED]
+# The methods that are a paper the bank pays later: an effet of the treasury (D-197, D-208).
+INSTRUMENT_METHODS = frozenset({PaymentMethod.CHEQUE, PaymentMethod.BILL})
 
 
 class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
@@ -283,7 +291,8 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     method = models.CharField(max_length=20, choices=PaymentMethod.choices)
     # Cheque or bill number, transfer reference.
     reference = models.CharField(max_length=50, blank=True)
-    # The day a cheque or a traite may be cashed (post-dated); empty when it is paid at once (D-176).
+    # The day a cheque or a traite may be cashed (post-dated); empty when it is paid at once (D-176). Since D-208
+    # each line's effet holds its own échéance; this keeps the one of a règlement with a single cheque or traite.
     cash_on = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
@@ -299,6 +308,35 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+class SupplierPaymentLine(OrganizationScopedModel, TimeStampedModel):
+    """One means of a supplier règlement (D-208): some cash, one of our cheques, one traite, a transfer...
+
+    A cheque or a traite is an effet issued (`treasury.Instrument`), followed until the bank debits it; the
+    lines add up to the règlement's amount.
+    """
+
+    payment = models.ForeignKey(SupplierPayment, on_delete=models.PROTECT, related_name="lines")
+    method = models.CharField(max_length=20, choices=LINE_METHOD_CHOICES)
+    amount = MoneyField()
+    # A transfer reference; a cheque or a traite keeps its number on its effet.
+    reference = models.CharField(max_length=50, blank=True)
+    instrument = models.OneToOneField(
+        "treasury.Instrument", null=True, blank=True, on_delete=models.PROTECT, related_name="supplier_line"
+    )
+
+    class Meta:
+        ordering = ["payment", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_payment_line_amount_positive"),
+            models.CheckConstraint(
+                condition=~models.Q(method=PaymentMethod.MIXED), name="supplier_payment_line_one_method"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.payment} · {self.method} {self.amount}"
 
 
 class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
@@ -334,7 +372,7 @@ class SupplierPaymentPlanLine(OrganizationScopedModel, TimeStampedModel):
 
     invoice = models.ForeignKey(SupplierInvoice, on_delete=models.PROTECT, related_name="plan_lines")
     amount = MoneyField()
-    method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    method = models.CharField(max_length=20, choices=LINE_METHOD_CHOICES)
     planned_on = models.DateField()
     # Cheque or bill number, transfer reference.
     reference = models.CharField(max_length=50, blank=True)
@@ -537,7 +575,7 @@ class FieldPurchasePayment(OrganizationScopedModel):
     """A sum given to the supplier at the port. It becomes a supplier payment at validation."""
 
     purchase = models.ForeignKey(FieldPurchase, on_delete=models.CASCADE, related_name="payments")
-    method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    method = models.CharField(max_length=20, choices=LINE_METHOD_CHOICES)
     amount = MoneyField()
     # Cheque or traite number.
     reference = models.CharField(max_length=50, blank=True)

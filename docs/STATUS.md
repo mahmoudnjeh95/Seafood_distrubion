@@ -1,15 +1,15 @@
 # Project status
 
-_Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 built, D-197)_
+_Last updated: 2026-10-31 (P9-T01 merged, D-197; P9-T02 supplier règlement lines built, D-208)_
 
 ## Where we are
 
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
-  **P9-T01 done on branch `treasury-plan`** (awaits CI): new app `treasury` (banks seeded per organization, effets =
-  cheques/traites with status history), customer règlement with several lines (`CustomerPaymentLine`, method `mixed`,
-  Traite added), allocation by invoice, void cancels effets still in portfolio (refused once one moved on), data migration
-  of old payments, `GET/POST /treasury/banks`, `PUT /treasury/banks/<id>`, `GET /treasury/instruments`; the existing
-  payment window asks number, bank, échéance and drawer for a cheque or traite. API client regenerated.
+  **P9-T01 merged (#223):** app `treasury` (banks, effets with status history), customer règlement with several lines,
+  allocation by invoice, void cancels effets still in portfolio. **P9-T02 on branch `supplier-payment-lines`** (awaits
+  CI): `SupplierPaymentLine`, method `mixed`, our cheques/traites are effets `issued`, `POST /supplier-payments` with
+  `lines`, `auto_allocate` (due first) and `plan_lines`; the older single fields still make one line (effet "à
+  compléter"); "Chèques et traites à venir" reads the effets; data migration `purchasing/0013`. No screen change yet.
 - **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
 - **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
   customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
@@ -37,16 +37,13 @@ _Last updated: 2026-10-31 (Phase 9 Règlements & Trésorerie planned; P9-T01 bui
    validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
    → invoice without VAT refused. **Owner action for D-206:** put the company SMTP account in the server `.env`
    (`EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) and redeploy.
-1. P9-T01: open the PR from `treasury-plan`, wait for green CI, rebase on `main` if another branch touched
-   `docs/STATUS.md`, `docs/DECISIONS.md` (renumber D-197 if taken; D-194 to D-196 went to logout, "Commande d'achat" and the Transferts menu) or `sales` migrations (renumber `0020`), then merge.
-   On staging: a customer page → "Enregistrer un règlement" → Chèque, number, BIAT, échéance; the list shows its number;
-   the same cheque again is refused; voiding it frees the number.
-2. **P9-T02** (next session, new branch from `main`): `SupplierPaymentLine`, `POST /supplier-payments` with `lines`,
-   effets issued (`direction=issued`, status `issued`), D-192 plan lines paid from one règlement, receipt and port
-   purchase payments as lines, data migration of `SupplierPayment.cash_on` into the effets. Reuse
-   `treasury.services.register_instrument` / `instrument_errors` / `cancel_instruments`.
-3. Then T03 (full "Nouveau règlement" page, list and detail pages, Paramètres › Banques), T04 portfolio, T05 accounts,
-   T06 échéancier, T07 reports.
+1. P9-T02: PR from `supplier-payment-lines`, wait for green CI; before merging fetch and rebase, renumber D-208 and
+   `purchasing/0013_payment_lines` if taken. On staging: Règlements fournisseurs › a cheque with a cashing day shows
+   in "Chèques et traites à venir", as before the migration. Staging check of T01 still open:
+   a customer "Enregistrer un règlement" → Chèque, BIAT, échéance; the same cheque again is refused.
+2. **P9-T03** (new branch from `main`): the full "Nouveau règlement" page (clients and fournisseurs), list and detail
+   pages, Paramètres › Banques, and the supplier règlement void (D-208 note) — see the phase file.
+3. Then T04 portfolio, T05 accounts, T06 échéancier, T07 reports.
 
 ## Open owner decisions
 

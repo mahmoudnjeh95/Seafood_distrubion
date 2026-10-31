@@ -6,22 +6,30 @@
  */
 import type { AllocationWrite } from './allocationWrite';
 import type { PaymentMethodEnum } from './paymentMethodEnum';
+import type { SupplierPaymentLineWrite } from './supplierPaymentLineWrite';
 
+/**
+ * A règlement: its means in `lines` (D-208), or one means in `amount`, `method`, `reference`, `cash_on`.
+ */
 export interface SupplierPaymentWrite {
   /** @minimum 1 */
   supplier: number;
   paid_on: string;
-  amount: string;
-  method: PaymentMethodEnum;
+  amount?: string;
+  method?: PaymentMethodEnum;
   /** @maxLength 50 */
   reference?: string;
   /** @nullable */
   cash_on?: string | null;
+  lines?: SupplierPaymentLineWrite[];
   notes?: string;
   allocations?: AllocationWrite[];
+  auto_allocate?: boolean;
   /**
      * @minimum 1
      * @nullable
      */
   plan_line?: number | null;
+  /** @items.minimum 1 */
+  plan_lines?: number[];
 }
