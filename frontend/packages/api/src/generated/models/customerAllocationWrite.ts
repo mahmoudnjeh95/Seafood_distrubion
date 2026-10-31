@@ -6,7 +6,15 @@
  */
 
 export interface CustomerAllocationWrite {
-  /** @minimum 1 */
-  sale: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  sale?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  invoice?: number | null;
   amount: string;
 }

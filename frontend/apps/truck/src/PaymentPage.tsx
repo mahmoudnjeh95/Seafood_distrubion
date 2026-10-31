@@ -89,7 +89,7 @@ export function PaymentPage() {
           {(customers.data ?? [])
             .filter((item) => !item.is_walk_in)
             .map((item) => (
-              // What a customer owes is never shown on the phone (D-197): the driver types what was handed over.
+              // What a customer owes is never shown on the phone (D-207): the driver types what was handed over.
               <Button
                 key={item.id}
                 size="lg"

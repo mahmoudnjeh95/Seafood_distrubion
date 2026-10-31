@@ -5,15 +5,19 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CustomerAllocationWrite } from './customerAllocationWrite';
-import type { SalePaymentMethodEnum } from './salePaymentMethodEnum';
+import type { CustomerPaymentLineWrite } from './customerPaymentLineWrite';
+import type { CustomerPaymentMethodEnum } from './customerPaymentMethodEnum';
 
 export interface CustomerPaymentWrite {
   /** @nullable */
   allocations?: CustomerAllocationWrite[] | null;
   /** @minimum 1 */
   customer: number;
-  amount: string;
-  method: SalePaymentMethodEnum;
+  /** @nullable */
+  lines?: CustomerPaymentLineWrite[] | null;
+  /** @nullable */
+  amount?: string | null;
+  method?: CustomerPaymentMethodEnum;
   /** @nullable */
   received_on?: string | null;
   /** @maxLength 50 */

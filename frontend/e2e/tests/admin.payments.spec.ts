@@ -38,7 +38,7 @@ test("a customer pays part of a credit sale and the balance shows the rest", asy
 
   await page.getByRole("button", { name: "Enregistrer un règlement" }).click();
   await page.getByLabel("Montant (DT)").fill("1,000");
-  await page.getByLabel("Référence (n° de chèque, virement…)").fill("CH-E2E");
+  await page.getByLabel("Référence (virement, carte…)").fill("CH-E2E");
   await page.getByRole("button", { name: "Enregistrer le règlement" }).click();
   await expect(page.getByText(/Règlement RG-\d+ enregistré/)).toBeVisible();
 
