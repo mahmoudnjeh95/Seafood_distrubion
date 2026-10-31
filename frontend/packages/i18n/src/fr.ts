@@ -3195,6 +3195,8 @@ export const fr = {
       none: "—",
       outside: "Extérieur",
       loadError: "Le stock n'a pas pu être chargé.",
+      view: { label: "Affichage des produits", cards: "Cartes", list: "Liste" },
+      list: { reference: "Réf.", product: "Produit", state: "État" },
       product: {
         back: "Retour au stock",
         title: "Stock de {{name}}",
