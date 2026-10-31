@@ -538,3 +538,21 @@ def return_instruments(
         _move(row, to_status=InstrumentStatus.RETURNED, happened_on=returned_on, actor=actor)
     _record(organization, actor, "treasury.returned", rows, day=returned_on.isoformat())
     return rows
+
+
+def mark_rejected(
+    *, organization: Organization, actor: User | None, instrument_id: int, rejected_on: dt.date | None, note: str
+) -> Instrument:
+    """Our bank refused to pay one of our cheques or traites: "Rejeté". Called by the règlement's app, which owes the
+    supplier again in the same transaction (D-218)."""
+    rows = _batch(
+        organization,
+        [instrument_id],
+        direction=InstrumentDirection.ISSUED,
+        statuses=frozenset({InstrumentStatus.ISSUED}),
+        happened_on=rejected_on,
+    )
+    assert rejected_on is not None
+    _move(rows[0], to_status=InstrumentStatus.REJECTED, happened_on=rejected_on, actor=actor, note=note)
+    _record(organization, actor, "treasury.rejected", rows, day=rejected_on.isoformat(), reason=note)
+    return rows[0]

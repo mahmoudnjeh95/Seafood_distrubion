@@ -2,6 +2,7 @@ import {
   cashInstruments,
   createDeposit,
   recordUnpaidEffet,
+  rejectIssuedEffet,
   returnInstruments,
   debitInstruments,
   type Instrument,
@@ -54,7 +55,7 @@ import { type PortfolioTab, TABS, TAB_QUERY, waitingLate } from "./portfolio";
 
 const PAGE_SIZE = 100;
 
-type Step = "deposit" | "cash" | "withdraw" | "debit" | "unpaid" | "return";
+type Step = "deposit" | "cash" | "withdraw" | "debit" | "unpaid" | "return" | "reject";
 
 /** The actions each tab offers on the ticked effets. */
 const STEPS: Record<PortfolioTab, Step[]> = {
@@ -62,7 +63,7 @@ const STEPS: Record<PortfolioTab, Step[]> = {
   atBank: ["cash", "unpaid", "withdraw"],
   cashed: ["unpaid"],
   unpaid: ["return"],
-  issued: ["debit"],
+  issued: ["debit", "reject"],
   debited: [],
   deposits: [],
 };
@@ -434,6 +435,11 @@ function StepDialog({
         });
         toast.success(t("admin.treasury.portfolio.deposited", { number: deposit.number }));
         void openPdf("bank_deposit", deposit.id);
+      } else if (step === "reject") {
+        const only = effets[0];
+        if (!only || effets.length > 1) throw new Error(t("admin.treasury.portfolio.unpaidOne"));
+        await rejectIssuedEffet(only.id, { rejected_on: day, reason: notes.trim() });
+        toast.success(t("admin.treasury.portfolio.done.reject", { count: 1 }));
       } else if (step === "unpaid") {
         const only = effets[0];
         if (!only || effets.length > 1) throw new Error(t("admin.treasury.portfolio.unpaidOne"));
@@ -537,6 +543,19 @@ function StepDialog({
                 />
               </Field>
               <p className="col-span-full text-[0.85rem] text-ink-2">{t("admin.treasury.portfolio.unpaidBody")}</p>
+            </>
+          )}
+          {step === "reject" && (
+            <>
+              <Field label={t("admin.treasury.portfolio.unpaidReason")} htmlFor={`${id}-why`} className="col-span-full">
+                <Input
+                  id={`${id}-why`}
+                  value={notes}
+                  maxLength={255}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </Field>
+              <p className="col-span-full text-[0.85rem] text-ink-2">{t("admin.treasury.portfolio.rejectBody")}</p>
             </>
           )}
           {(step === "deposit" || step === "withdraw") && (

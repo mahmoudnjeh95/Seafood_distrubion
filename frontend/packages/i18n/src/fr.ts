@@ -2780,6 +2780,7 @@ export const fr = {
           debit: "Débité",
           unpaid: "Impayé",
           return: "Restituer au client",
+          reject: "Rejeté par la banque",
         },
         days: {
           deposit: "Jour de la remise",
@@ -2788,7 +2789,10 @@ export const fr = {
           debit: "Jour du débit",
           unpaid: "Jour du rejet par la banque",
           return: "Jour de la restitution",
+          reject: "Jour du rejet par notre banque",
         },
+        rejectBody:
+          "Le fournisseur redevient créancier de ce montant : ses factures réglées par ce règlement redeviennent dues au-delà de son avance. Payez-le par un nouveau règlement.",
         unpaidReason: "Motif du rejet",
         unpaidReasonHint: "Sans provision, signature non conforme…",
         bankCharges: "Frais bancaires (DT)",
@@ -2808,6 +2812,8 @@ export const fr = {
           unpaid_other: "Impayé enregistré : le client redoit le montant.",
           return_one: "{{count}} effet restitué.",
           return_other: "{{count}} effets restitués.",
+          reject_one: "Rejet enregistré : le fournisseur redevient créancier.",
+          reject_other: "Rejet enregistré : le fournisseur redevient créancier.",
         },
         error: "L'opération a échoué. Réessayez.",
         columns: {
@@ -2867,6 +2873,7 @@ export const fr = {
         allocated: "Crédit affecté aux ventes les plus anciennes.",
         allocateError: "L'affectation a échoué.",
         unpaid: "Impayé le {{day}} : {{reason}} · frais {{charges}}",
+        rejected: "Rejeté le {{day}} : {{reason}}",
       },
       banks: {
         title: "Banques",

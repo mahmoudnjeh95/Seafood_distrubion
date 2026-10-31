@@ -78,6 +78,7 @@ import type {
   DepositWrite,
   DocumentList,
   DriverDay,
+  EffetReject,
   ElectricityBill,
   ElectricityBillWrite,
   EmailDraft,
@@ -27093,6 +27094,94 @@ export function useGetSupplierDebts<TData = Awaited<ReturnType<typeof getSupplie
 
 
 
+
+export const getRejectIssuedEffetUrl = (instrumentId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-effets/${instrumentId}/reject`
+}
+
+/**
+ * Our bank refused to pay this cheque or traite (owner or manager): it becomes "Rejeté" and the supplier is
+ * owed its amount again (the invoices its règlement settled owe again beyond its advance, D-218). Answers
+ * with the règlement.
+ */
+export const rejectIssuedEffet = async (instrumentId: number,
+    effetReject: EffetReject, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierPaymentDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SupplierPaymentDetail>(getRejectIssuedEffetUrl(instrumentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(effetReject)
+  }
+);}
+
+
+
+
+
+export const getRejectIssuedEffetMutationKey = () => ['rejectIssuedEffet'] as const;
+
+export const getRejectIssuedEffetMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectIssuedEffet>>, TError,RejectIssuedEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectIssuedEffet>>, TError,RejectIssuedEffetMutationVariables, TContext> => {
+
+const mutationKey = getRejectIssuedEffetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectIssuedEffet>>, RejectIssuedEffetMutationVariables> = (props) => {
+          const {instrumentId,data} = props ?? {};
+
+          return  rejectIssuedEffet(instrumentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectIssuedEffetMutationResult = NonNullable<Awaited<ReturnType<typeof rejectIssuedEffet>>>
+    export type RejectIssuedEffetMutationBody = EffetReject
+    export type RejectIssuedEffetMutationError = unknown
+    export type RejectIssuedEffetMutationVariables = {instrumentId: number;data: EffetReject}
+
+    export const useRejectIssuedEffet = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectIssuedEffet>>, TError,RejectIssuedEffetMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectIssuedEffet>>,
+        TError,
+        RejectIssuedEffetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectIssuedEffetMutationOptions(options), queryClient);
+    }
 
 export const getListSupplierInvoicesUrl = (params?: ListSupplierInvoicesParams,) => {
   const normalizedParams = new URLSearchParams();

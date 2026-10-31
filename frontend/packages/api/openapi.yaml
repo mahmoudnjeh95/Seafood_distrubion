@@ -8412,6 +8412,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierDebts'
           description: ''
+  /api/v1/supplier-effets/{instrument_id}/reject:
+    post:
+      operationId: rejectIssuedEffet
+      description: |-
+        Our bank refused to pay this cheque or traite (owner or manager): it becomes "Rejeté" and the supplier is
+        owed its amount again (the invoices its règlement settled owe again beyond its advance, D-218). Answers
+        with the règlement.
+      parameters:
+      - in: path
+        name: instrument_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-effets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffetReject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EffetReject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EffetReject'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierPaymentDetail'
+          description: ''
   /api/v1/supplier-invoices:
     get:
       operationId: listSupplierInvoices
@@ -14728,6 +14764,18 @@ components:
       - happened_on
       - note
       - to_status
+    EffetReject:
+      type: object
+      properties:
+        rejected_on:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - reason
     ElectricityBill:
       type: object
       properties:
@@ -23436,6 +23484,26 @@ components:
       - id
       - name
       - reference
+    RejectedEffet:
+      type: object
+      description: 'The rejet of a line (D-218): when and why.'
+      properties:
+        rejected_on:
+          type: string
+          format: date
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - reason
+      - rejected_on
     ReopenLot:
       type: object
       properties:
@@ -27175,12 +27243,18 @@ components:
           - $ref: '#/components/schemas/IssuedInstrumentDetail'
           readOnly: true
           nullable: true
+        rejected:
+          allOf:
+          - $ref: '#/components/schemas/RejectedEffet'
+          nullable: true
+          readOnly: true
       required:
       - amount
       - id
       - instrument
       - method
       - reference
+      - rejected
     SupplierPaymentLineWrite:
       type: object
       description: One means of the règlement (D-208). Our cheque or traite gives

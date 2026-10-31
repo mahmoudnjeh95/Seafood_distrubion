@@ -24,6 +24,11 @@ urlpatterns = [
     path("supplier-plan-lines/<int:line_id>", views.SupplierPlanLineView.as_view(), name="supplier-plan-line"),
     path("supplier-settlements", views.SupplierSettlementsView.as_view(), name="supplier-settlements"),
     path("supplier-payments", views.SupplierPaymentListView.as_view(), name="supplier-payment-list"),
+    path(
+        "supplier-effets/<int:instrument_id>/reject",
+        views.SupplierEffetRejectView.as_view(),
+        name="supplier-effet-reject",
+    ),
     path("supplier-payments/totals", views.SupplierPaymentTotalsView.as_view(), name="supplier-payment-totals"),
     path("supplier-payments/export", views.SupplierPaymentExportView.as_view(), name="supplier-payment-export"),
     path(

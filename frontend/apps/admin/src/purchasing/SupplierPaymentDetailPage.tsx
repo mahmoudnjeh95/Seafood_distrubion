@@ -121,6 +121,14 @@ export function SupplierPaymentDetailPage() {
                       </span>
                       <div className="mt-1">
                         <EffetHistory events={line.instrument.events} />
+                        {line.rejected && (
+                          <p className="mt-1 text-[0.85rem] font-semibold text-bad">
+                            {t("admin.treasury.detail.rejected", {
+                              day: formatDate(line.rejected.rejected_on),
+                              reason: line.rejected.reason,
+                            })}
+                          </p>
+                        )}
                       </div>
                     </>
                   ) : (

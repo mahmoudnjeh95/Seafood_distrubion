@@ -126,9 +126,11 @@ cash only on the phone (as today, D-133).
       the impayé. Tests.
 
 ### P9-T04c · Endosser, and our effets rejetés · M
-- [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement (provisional: allowed
-      for cheques and traites still in portfolio).
-- [ ] Issued effets: Rejeté (day, reason): the supplier is owed again (a new record, like the customer impayé).
+- [x] Issued effets: Rejeté (day, reason, D-218): `purchasing.RejectedEffet`, the supplier is owed again; the
+      règlement's advance absorbs it first, then the invoices it settled owe again, newest first (`RejectedRelease`).
+      Portefeuille › Émis › "Rejeté par la banque"; the règlement page and the supplier statement show it. Tests.
+- [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement. **Waits for the owner
+      (Q29: may customer traites be endorsed to suppliers?)**; not built, per the open-question rule.
 
 ### P9-T05 · Accounts and movements · L
 - [ ] `TreasuryAccount`: Caisse (one per organization, more allowed), bank accounts (bank, RIB, label), each driver's
