@@ -1169,8 +1169,9 @@ paths:
     post:
       operationId: approveDayClosing
       description: |-
-        Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
-        records changed since the send: the driver sends it again first.
+        Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
+        the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
+        the send: the driver sends it again first.
       parameters:
       - in: path
         name: closing_id
@@ -1179,6 +1180,17 @@ paths:
         required: true
       tags:
       - day-closings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingApprove'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingApprove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingApprove'
       security:
       - cookieAuth: []
       responses:
@@ -11968,6 +11980,23 @@ components:
       - sales
       - settlements_undefined_late
       - stock_value
+    DayClosingApprove:
+      type: object
+      properties:
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 300
     DayClosingDetail:
       type: object
       properties:
@@ -12018,6 +12047,30 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        office_purchase_gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
         driver_note:
           type: string
           readOnly: true
@@ -12065,6 +12118,10 @@ components:
       - expected_cash
       - expected_purchase_cash
       - id
+      - office_counted_cash
+      - office_counted_purchase_cash
+      - office_gap
+      - office_purchase_gap
       - purchase_difference
       - reopenings
       - review_note
@@ -12124,6 +12181,30 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        office_gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
+        office_purchase_gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          readOnly: true
       required:
       - counted_cash
       - counted_purchase_cash
@@ -12133,6 +12214,10 @@ components:
       - expected_cash
       - expected_purchase_cash
       - id
+      - office_counted_cash
+      - office_counted_purchase_cash
+      - office_gap
+      - office_purchase_gap
       - purchase_difference
       - status
       - truck_name

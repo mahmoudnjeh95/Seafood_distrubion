@@ -2925,3 +2925,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   with the fund's amounts and stamps `accepted_at`. With nothing set, it is refused ("appelez le bureau").
 - A driver who disagrees calls the office before accepting (no "contester" button, provisional). The purchase money can
   still be raised during the day from the phone (D-158).
+
+**D-204 · At closing the office counts the cash too; the gap with the driver's count is shown (owner list 2026-10-31, item 8)** · provisional · 2026-10-31
+- The closing window has "Comptage du bureau": the cash the office counted (and the purchase money, for a day with
+  purchases). It shows "Bureau X · chauffeur Y · écart Z" live; "Approuver" needs the office count.
+- Stored on the closing (`office_counted_cash`, `office_counted_purchase_cash`, migration); the API adds
+  `office_gap` / `office_purchase_gap` (office − driver). A day sent again clears the office count.
+- A gap is allowed but needs a note (kept as the review note, audited). Provisional: the owner may prefer a gap to block
+  the approval, or a tolerance. The API still approves without an office count (old clients, tests); the screen
+  always sends one.

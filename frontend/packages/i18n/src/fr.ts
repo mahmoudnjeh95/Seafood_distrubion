@@ -902,6 +902,16 @@ export const fr = {
     },
     dayClosings: {
       title: "Journées des chauffeurs",
+      officeCount: "Comptage du bureau",
+      officeCountHint:
+        "Comptez l'argent remis par le chauffeur avant d'approuver. Un écart avec son comptage demande une explication.",
+      officeCash: "Argent compté par le bureau (DT)",
+      officePurchase: "Argent des achats compté (DT)",
+      officeGapLive: "Bureau {{office}} · chauffeur {{driver}} · écart {{gap}}",
+      officePurchaseGapLive: "Écart sur l'argent des achats : {{gap}}",
+      gapNote: "Expliquez l'écart entre le bureau et le chauffeur",
+      officeCounted: "Compté par le bureau",
+      officeGap: "Écart bureau / chauffeur",
       statusFilter: "Filtrer par état",
       all: "Toutes",
       statuses: {

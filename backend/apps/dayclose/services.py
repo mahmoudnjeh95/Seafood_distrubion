@@ -89,6 +89,9 @@ def submit_day_closing(
         "driver_note": note.strip(),
         "summary": _plain(summary),
         "submitted_at": now,
+        # Sent again: the office counts again (D-204).
+        "office_counted_cash": None,
+        "office_counted_purchase_cash": None,
     }
     if existing is None:
         closing = DayClosing.objects.create(organization=driver_day.organization, driver_day=driver_day, **fields)
@@ -122,20 +125,73 @@ def _reviewable(closing: DayClosing) -> DayClosing:
 
 
 @transaction.atomic
-def approve_day_closing(*, closing: DayClosing, actor: User) -> DayClosing:
+def approve_day_closing(
+    *,
+    closing: DayClosing,
+    actor: User,
+    office_counted_cash: Decimal | None = None,
+    office_counted_purchase_cash: Decimal | None = None,
+    note: str = "",
+) -> DayClosing:
     """The office checked the day: it is locked. Refused while the day's records no longer say what the driver
-    sent (D-132): the driver sends it again first."""
+    sent (D-132): the driver sends it again first.
+
+    The office types the cash it counted when the driver handed it over (D-204); a gap with the driver's count
+    needs a note saying why, kept as the review note."""
     closing = _reviewable(closing)
     if selectors.changed_since_sent(closing):
         raise ValidationError(
             _("Les chiffres ont changé depuis l'envoi : le chauffeur doit renvoyer sa journée avant l'approbation.")
         )
+    errors: dict[str, str] = {}
+    for name, value in (
+        ("office_counted_cash", office_counted_cash),
+        ("office_counted_purchase_cash", office_counted_purchase_cash),
+    ):
+        if value is not None and value < 0:
+            errors[name] = _("Un montant compté ne peut pas être négatif.")
+    if errors:
+        raise ValidationError(errors)
+    gap = office_counted_cash - closing.counted_cash if office_counted_cash is not None else Decimal("0.000")
+    purchase_gap = (
+        office_counted_purchase_cash - closing.counted_purchase_cash
+        if office_counted_purchase_cash is not None
+        else Decimal("0.000")
+    )
+    if (gap != 0 or purchase_gap != 0) and not note.strip():
+        raise ValidationError(
+            {"note": _("Le bureau n'a pas compté la même somme que le chauffeur : expliquez l'écart.")}
+        )
     closing.status = DayClosingStatus.APPROVED
     closing.reviewed_by = actor
     closing.reviewed_at = timezone.now()
-    closing.review_note = ""
-    closing.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"])
-    audit.record(organization=closing.organization, actor=actor, action="day_closing.approved", target=closing)
+    closing.review_note = note.strip()[:300]
+    closing.office_counted_cash = office_counted_cash
+    closing.office_counted_purchase_cash = office_counted_purchase_cash
+    closing.save(
+        update_fields=[
+            "status",
+            "reviewed_by",
+            "reviewed_at",
+            "review_note",
+            "office_counted_cash",
+            "office_counted_purchase_cash",
+            "updated_at",
+        ]
+    )
+    audit.record(
+        organization=closing.organization,
+        actor=actor,
+        action="day_closing.approved",
+        target=closing,
+        after={
+            "office_counted_cash": None if office_counted_cash is None else str(office_counted_cash),
+            "office_counted_purchase_cash": (
+                None if office_counted_purchase_cash is None else str(office_counted_purchase_cash)
+            ),
+            "office_gap": str(gap),
+        },
+    )
     return closing
 
 

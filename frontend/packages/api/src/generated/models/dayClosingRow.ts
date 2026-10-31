@@ -24,4 +24,24 @@ export interface DayClosingRow {
   readonly counted_purchase_cash: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly purchase_difference: string;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly office_counted_cash: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly office_counted_purchase_cash: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly office_gap: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly office_purchase_gap: string | null;
 }

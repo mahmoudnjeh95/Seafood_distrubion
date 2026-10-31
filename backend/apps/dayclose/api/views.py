@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
 
 from .serializers import (
+    DayClosingApproveSerializer,
     DayClosingDetailSerializer,
     DayClosingFilterSerializer,
     DayClosingRowSerializer,
@@ -243,11 +244,18 @@ class DayClosingDetailView(DayClosingView):
 
 
 class DayClosingApproveView(DayClosingView):
-    @extend_schema(operation_id="approveDayClosing", request=None, responses=DayClosingDetailSerializer)
+    @extend_schema(
+        operation_id="approveDayClosing", request=DayClosingApproveSerializer, responses=DayClosingDetailSerializer
+    )
     def post(self, request: Request, closing_id: int) -> Response:
-        """Approve the day (owner or manager): it is locked. Refused for a day a new load reopened, or whose
-        records changed since the send: the driver sends it again first."""
-        services.approve_day_closing(closing=self.closing(closing_id), actor=self.membership.user)
+        """Approve the day (owner or manager): it is locked. With the cash the office counted (D-204); a gap with
+        the driver's count needs a `note`. Refused for a day a new load reopened, or whose records changed since
+        the send: the driver sends it again first."""
+        serializer = DayClosingApproveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.approve_day_closing(
+            closing=self.closing(closing_id), actor=self.membership.user, **serializer.validated_data
+        )
         return self.answer(closing_id)
 
 

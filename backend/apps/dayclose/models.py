@@ -37,6 +37,9 @@ class DayClosing(OrganizationScopedModel, TimeStampedModel):
     expected_purchase_cash = MoneyField(default=0)
     counted_purchase_cash = MoneyField(default=0)
     purchase_difference = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    # The cash the office counted when the driver handed it over, typed at approval (D-204); empty before.
+    office_counted_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    office_counted_purchase_cash = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     driver_note = models.TextField(blank=True)
     # `selectors.day_summary` as it was when sent.
     summary: Any = models.JSONField(encoder=DjangoJSONEncoder)
