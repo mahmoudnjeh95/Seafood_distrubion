@@ -3022,7 +3022,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   history, what it settled, the credit or advance left ("Affecter"), "Annuler" with a reason; the PDF receipt for a
   customer. The supplier receipt PDF and paying several plan lines from "Règlements fournisseurs" move to P9-T03c.
 
-**D-212 · A port purchase by a driver goes on the driver's truck, and shows on the day until the office checks it (changes D-176, D-158)** · accepted · 2026-10-31
+**D-214 · A port purchase by a driver goes on the driver's truck, and shows on the day until the office checks it (changes D-176, D-158)** · accepted · 2026-10-31
 - **Owner report (2026-10-31):** "when the driver pays for a product it should be in his stock", and the purchase did
   not appear in "Journées des chauffeurs" in the office app, although it needs the office's validation.
 - **Where the goods go:** the office form defaulted the place to the first cold room, and the driver never chose one.

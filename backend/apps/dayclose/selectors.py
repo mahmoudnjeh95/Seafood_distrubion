@@ -361,7 +361,7 @@ def _sale_line(sale: Any) -> dict[str, Any]:
 def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """Everything a driver's day holds, for the office: the figures, the sales made, the deliveries of the
     loads (to do and done), the customer payments collected, the road expenses and the purchases at the port
-    (to check, checked or refused, D-212)."""
+    (to check, checked or refused, D-214)."""
     start, end = fleet.day_window(driver_day)
     answer = day_answer(organization, driver_day)
     made = [

@@ -758,7 +758,7 @@ def purchases_made_between(
     organization: Organization, *, buyer_id: int, start: dt.datetime, end: dt.datetime
 ) -> list[FieldPurchase]:
     """A driver's purchases made in [start, end) (by the phone's time, else when they were recorded), refused ones
-    included: their status says so, and the office sees them on the driver's day (D-212)."""
+    included: their status says so, and the office sees them on the driver's day (D-214)."""
     return [
         purchase
         for purchase in field_purchases_of(organization, buyer_id=buyer_id)

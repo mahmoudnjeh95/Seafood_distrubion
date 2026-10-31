@@ -13427,7 +13427,8 @@ components:
           type: string
           readOnly: true
         status:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/DayOverviewPurchaseStatusEnum'
           readOnly: true
         total:
           type: string
@@ -13451,6 +13452,16 @@ components:
       - status
       - supplier_name
       - total
+    DayOverviewPurchaseStatusEnum:
+      enum:
+      - submitted
+      - validated
+      - refused
+      type: string
+      description: |-
+        * `submitted` - submitted
+        * `validated` - validated
+        * `refused` - refused
     DayOverviewRow:
       type: object
       description: 'One driver''s day for the office, running or sent: its money,

@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { DayOverviewPurchaseStatusEnum } from './dayOverviewPurchaseStatusEnum';
 
 /**
  * A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.
@@ -12,7 +13,7 @@ export interface DayOverviewPurchase {
   readonly id: number;
   readonly number: string;
   readonly supplier_name: string;
-  readonly status: string;
+  readonly status: DayOverviewPurchaseStatusEnum;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

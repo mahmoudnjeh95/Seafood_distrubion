@@ -1,5 +1,4 @@
 import {
-  type DayOverviewPurchase,
   type DayOverviewRow,
   type DayOverviewSale,
   useGetDayOverview,
