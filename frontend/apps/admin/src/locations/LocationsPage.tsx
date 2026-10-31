@@ -29,6 +29,8 @@ import { fieldErrors } from "../lib/errors";
 import { type Status, StatusFilter } from "../lib/StatusFilter";
 import { StockTabs } from "../lib/StockTabs";
 import { StockProductCard } from "../stock/StockProductCard";
+import { StockProductList, StockViewSwitch } from "../stock/StockProductList";
+import { saveStockView, savedStockView, type StockView } from "../stock/shared";
 import { LocationDialog } from "./LocationDialog";
 import { canEditLocations, refreshLocations } from "./shared";
 import { TruckDialog } from "./TruckDialog";
@@ -119,6 +121,7 @@ export function LocationsPage() {
   const canEdit = canEditLocations(session);
   const [status, setStatus] = useState<Status>("active");
   const [open, setOpen] = useState<Open>(null);
+  const [view, setView] = useState<StockView>(savedStockView);
 
   const locations = useListLocations({ status }, { query: { placeholderData: keepPreviousData } });
   const trucks = useListTrucks({ status }, { query: { placeholderData: keepPreviousData } });
@@ -262,7 +265,16 @@ export function LocationsPage() {
       )}
 
       <section aria-labelledby="stock-products-title" className="flex flex-col gap-3">
-        <h2 id="stock-products-title">{t("admin.stock.productsTitle")}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="stock-products-title">{t("admin.stock.productsTitle")}</h2>
+          <StockViewSwitch
+            view={view}
+            onChange={(next) => {
+              setView(next);
+              saveStockView(next);
+            }}
+          />
+        </div>
         <p className="text-ink-2">{t("admin.stock.productsIntro")}</p>
         {overview.isPending ? (
           <p className="text-ink-2">{t("common.loading")}</p>
@@ -272,6 +284,8 @@ export function LocationsPage() {
           </p>
         ) : overview.data.products.length === 0 ? (
           <p className="text-ink-2">{t("admin.stock.noProducts")}</p>
+        ) : view === "list" ? (
+          <StockProductList products={overview.data.products} places={totals} />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {overview.data.products.map((stock) => (

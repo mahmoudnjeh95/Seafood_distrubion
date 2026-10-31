@@ -2830,3 +2830,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   customer's name and city; the driver types the amount handed over (no pre-filled balance).
 - The credit-limit refusal, which named the balance and the limit, reads for a driver "Limite de crédit dépassée pour
   X : faites payer davantage sur place ou appelez le bureau." The office still gets the full message.
+
+**D-198 · Stock products as cards or as a list (owner list 2026-10-31, item 1)** · accepted · 2026-10-31
+- "Stock par produit" has a "Cartes / Liste" switch. The list is one table: reference, product, total kg, one column per
+  place holding stock, average and last purchase price, state; it sorts by product, total or average price.
+- The choice is remembered per browser (`localStorage`, best effort); cards stay the default.
