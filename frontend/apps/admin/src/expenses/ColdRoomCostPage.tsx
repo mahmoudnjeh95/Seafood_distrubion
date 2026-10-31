@@ -12,7 +12,21 @@ import {
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, EmptyState, Field, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  EmptyState,
+  Field,
+  Input,
+  MoneyInput,
+  PageHeader,
+  Pill,
+  Table,
+  Td,
+  Th,
+  toast,
+} from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 import { useOutletContext } from "react-router";
@@ -75,7 +89,7 @@ function BillForm({ month, onDone }: { month: string; onDone: () => void }) {
       <p className="text-ink-2">{t("admin.coldCost.bill.none")}</p>
       <div className="grid grid-cols-3 gap-4 max-[720px]:grid-cols-1">
         <Field label={t("admin.coldCost.bill.amount")} htmlFor={id("amount")} error={errors.amount}>
-          <Input
+          <MoneyInput
             id={id("amount")}
             inputMode="decimal"
             className="num"

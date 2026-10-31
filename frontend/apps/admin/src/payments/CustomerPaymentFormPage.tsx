@@ -17,6 +17,7 @@ import {
   Combobox,
   Field,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Table,
@@ -296,7 +297,7 @@ export function CustomerPaymentFormPage() {
                       </Td>
                       <Td numeric className="w-40">
                         <div className="flex items-center gap-1">
-                          <Input
+                          <MoneyInput
                             id={id(`allocation-${item.key}`)}
                             inputMode="decimal"
                             aria-label={t("admin.supplierPayments.form.allocationFor", { number: item.number })}

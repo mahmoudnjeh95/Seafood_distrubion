@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -165,7 +166,7 @@ export function PlanDialog({ row, onClose }: { row: SettlementRow; onClose: () =
                 htmlFor={id(`a${draft.key}`)}
                 error={lineError(index, "amount")}
               >
-                <Input
+                <MoneyInput
                   id={id(`a${draft.key}`)}
                   inputMode="decimal"
                   value={draft.amount}

@@ -1,5 +1,16 @@
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Field, Icon, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@frutti/ui";
+import {
+  Button,
+  Field,
+  Icon,
+  Input,
+  MoneyInput,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@frutti/ui";
 import { useState } from "react";
 
 import { isPaper, newLine, type PaymentLine, splitIntoEffets } from "./lines";
@@ -80,7 +91,7 @@ export function PaymentLinesEditor<M extends string>({
                 </Select>
               </Field>
               <Field label={t("admin.treasury.lines.amount")} htmlFor={id("amount")} error={lineErrors.amount}>
-                <Input
+                <MoneyInput
                   id={id("amount")}
                   inputMode="decimal"
                   aria-label={t("admin.treasury.lines.aria", { field: t("admin.treasury.lines.amount"), n })}
@@ -308,7 +319,7 @@ function SplitPanel<M extends string>({
           </Select>
         </Field>
         <Field label={t("admin.treasury.split.total")} htmlFor={id("total")}>
-          <Input
+          <MoneyInput
             id={id("total")}
             inputMode="decimal"
             value={total}

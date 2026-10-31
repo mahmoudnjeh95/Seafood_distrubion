@@ -28,6 +28,7 @@ import {
   EmptyState,
   Field,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Select,
@@ -446,7 +447,7 @@ function StepDialog({
         await recordUnpaidEffet(only.id, {
           unpaid_on: day,
           reason: notes.trim(),
-          bank_charges: charges.trim().replace(",", "."),
+          bank_charges: charges.trim().replace(/\s/g, "").replace(",", "."),
         });
         toast.success(t("admin.treasury.portfolio.done.unpaid", { count: 1 }));
       } else {
@@ -534,7 +535,7 @@ function StepDialog({
                 />
               </Field>
               <Field label={t("admin.treasury.portfolio.bankCharges")} htmlFor={`${id}-charges`}>
-                <Input
+                <MoneyInput
                   id={`${id}-charges`}
                   inputMode="decimal"
                   value={charges}

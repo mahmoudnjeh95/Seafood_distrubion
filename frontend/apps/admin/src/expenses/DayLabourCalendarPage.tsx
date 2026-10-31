@@ -24,6 +24,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Select,
@@ -140,7 +141,7 @@ function AddDay({ day, initialLot }: { day: string; initialLot?: number }) {
         </Select>
       </Field>
       <Field label={t("admin.dayLabour.form.amount")} htmlFor={id("amount")} error={errors.amount}>
-        <Input
+        <MoneyInput
           id={id("amount")}
           inputMode="decimal"
           className="num"

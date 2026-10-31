@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -96,7 +97,7 @@ export function PaymentDialog({
         </DialogDescription>
         <div className="grid grid-cols-2 gap-3 max-[520px]:grid-cols-1">
           <Field label={t("admin.payments.dialog.amount")} htmlFor={`${formId}-amount`} error={errors.amount}>
-            <Input
+            <MoneyInput
               id={`${formId}-amount`}
               inputMode="decimal"
               value={amount}

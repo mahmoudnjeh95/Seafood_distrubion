@@ -21,6 +21,7 @@ import {
   EmptyState,
   Field,
   Input,
+  MoneyInput,
   PageHeader,
   Select,
   SelectContent,
@@ -196,7 +197,7 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
               .map((one) => ({ value: String(one.id), label: one.name })),
           )}
           <Field label={t("admin.expenses.form.amount")} htmlFor={id("amount")} error={errors.amount}>
-            <Input
+            <MoneyInput
               id={id("amount")}
               inputMode="decimal"
               className="num"
