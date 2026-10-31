@@ -207,8 +207,19 @@ class QuoteLineWriteSerializer(serializers.Serializer[Any]):
     batch = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
 
 
+class SaleLinePickSerializer(serializers.Serializer[Any]):
+    # A lot of the line's product at the place the goods leave from (`location_batches`).
+    batch = serializers.IntegerField(min_value=1)
+    # Kilos to take from this lot first; text, checked by the service like the line's weight.
+    quantity = serializers.CharField(allow_blank=True)
+
+
 class SaleLineWriteSerializer(QuoteLineWriteSerializer):
     """A sale line as typed: the same fields as a quote line, the lot included."""
+
+    # Several lots picked by hand, each with the kilos to take from it first (D-208). They take precedence over
+    # `batch`; empty takes the lot in `batch`, or the oldest lot first.
+    picks = SaleLinePickSerializer(many=True, required=False, default=list)
 
 
 class QuoteWriteSerializer(serializers.Serializer[Any]):

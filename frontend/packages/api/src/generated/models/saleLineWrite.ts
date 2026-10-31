@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { SaleLinePick } from './saleLinePick';
 
 /**
  * A sale line as typed: the same fields as a quote line, the lot included.
@@ -21,4 +22,5 @@ export interface SaleLineWrite {
      * @nullable
      */
   batch?: number | null;
+  picks?: SaleLinePick[];
 }

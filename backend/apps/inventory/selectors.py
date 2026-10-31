@@ -270,6 +270,39 @@ def fifo_split(
     return allocations
 
 
+def picked_split(
+    holdings: Sequence[StockOnHand],
+    quantity: Decimal,
+    picks: Sequence[tuple[int, Decimal]],
+    limits: Mapping[int, Decimal] | None = None,
+) -> list[Allocation]:
+    """Take `quantity` from `holdings` (oldest first) the way a sale line asks it (D-121, D-208): each picked lot
+    gives the kilos picked from it, in the order they were picked, and no more than it holds; what is still
+    missing comes from the other lots, oldest first, as FIFO does. A picked lot short is topped up the same way.
+
+    `picks` is `[(batch id, kg)]`. Returns less than asked when the holdings are not enough, as `fifo_split`.
+    """
+    rows = {row.batch_id: row for row in holdings}
+    room = {batch_id: takeable(row, limits) for batch_id, row in rows.items()}
+    taken: dict[int, Decimal] = {}
+    missing = quantity
+
+    def give(batch_id: int, most: Decimal) -> None:
+        nonlocal missing
+        amount = min(most, room[batch_id], missing)
+        if amount > 0:
+            taken[batch_id] = taken.get(batch_id, Decimal(0)) + amount
+            room[batch_id] -= amount
+            missing -= amount
+
+    for batch_id, kg in picks:
+        if batch_id in room:
+            give(batch_id, kg)
+    for row in holdings:
+        give(row.batch_id, room[row.batch_id])
+    return [(rows[batch_id].batch, kg) for batch_id, kg in taken.items()]
+
+
 def least_held_since(
     organization: Organization, *, location_id: int, product_id: int, day: dt.date
 ) -> dict[int, Decimal]:

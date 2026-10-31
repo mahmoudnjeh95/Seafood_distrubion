@@ -499,6 +499,29 @@ class SaleLineBatch(OrganizationScopedModel):
         return f"{self.line} · {self.batch_id} · {self.quantity} kg"
 
 
+class SaleLinePick(OrganizationScopedModel):
+    """A lot a seller picked by hand for one sale line, and the kilos to take from it first (D-121, D-208).
+
+    Several lots may be picked for one line; the kilos it asks beyond them come from the other lots, oldest
+    first, and a lot too short is topped up the same way. Kept with the draft; once the sale is confirmed,
+    `SaleLineBatch` says which lots the kilos really came from.
+    """
+
+    line = models.ForeignKey(SaleLine, on_delete=models.CASCADE, related_name="picks")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+
+    class Meta:
+        ordering = ["line", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["line", "batch"], name="one_pick_per_sale_line_and_batch"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="sale_line_pick_quantity_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.line} · {self.batch_id} · {self.quantity} kg"
+
+
 # ---- Finance settings (P2-T05, D-018, D-056) ----
 
 
