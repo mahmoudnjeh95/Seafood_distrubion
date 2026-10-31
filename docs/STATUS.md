@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T04a merged, D-216; P9-T04b impayé built, D-217)_
+_Last updated: 2026-10-31 (P9-T04b merged, D-217; P9-T04c rejected effets built, D-218)_
 
 ## Where we are
 
@@ -9,9 +9,10 @@ _Last updated: 2026-10-31 (P9-T04a merged, D-216; P9-T04b impayé built, D-217)_
   our effets issued · T03a (#234, D-210) "Nouveau règlement" pages, Répartir, Banques · T03b (#237, D-211) lists with
   filters/totals/Excel, detail pages, supplier void · T03c (#240, D-215) supplier receipt PDF, several plan lines paid
   at once · T04a (#241, D-216) Portefeuille, remise en banque with bordereau PDF, encaissé, retirer, débité.
-  **P9-T04b on branch `effet-unpaid`** (awaits CI, D-217): impayé of a customer effet (`sales.UnpaidEffet`,
-  `UnpaidRelease`, migration `sales/0023`): the customer and the sales owe again, bank charges as an expense, office
-  notification; Restituer; Portefeuille tab Impayés.
+  · T04b (#242, D-217) impayé of a customer effet (the customer and the sales owe again, bank charges as an expense),
+  Restituer. **P9-T04c on branch `effet-rejected`** (awaits CI, D-218): our effet rejeté by the bank
+  (`purchasing.RejectedEffet`, `RejectedRelease`, migration `purchasing/0015`): the supplier and the invoices are owed
+  again. Endorsing waits for Q29.
 - **Other work merged 2026-10-31 (other sessions):** D-194 to D-207 (owner list, PRs #217–#230), D-212 counter sale on
   several lots (#235), D-213 the office alone counts the driver's cash (#239). D-214 (#238, truck purchase stock) is
   still open in another session; the next free decision number is D-217.
@@ -28,11 +29,10 @@ _Last updated: 2026-10-31 (P9-T04a merged, D-216; P9-T04b impayé built, D-217)_
 
 ## Next step
 
-1. P9-T04b: PR from `effet-unpaid`, green CI, fetch and rebase (renumber D-217, `sales/0023` if taken), merge. On
-   staging: a customer cheque → Portefeuille › remise en banque → En banque, tick it → Impayé (motif, 5 DT de
-   frais) → the customer page shows "Effet impayé" and the balance up; Charges has the 5 DT; Impayés → Restituer.
-2. **P9-T04c** (new branch from `main`): endorse a customer effet to a supplier (a supplier payment line), our effet
-   rejeté (the supplier is owed again, like the impayé).
+1. P9-T04c: PR from `effet-rejected`, green CI, fetch and rebase (renumber D-218, `purchasing/0015` if taken), merge.
+   On staging: a supplier règlement with one of our cheques → Portefeuille › Émis → tick it → Rejeté par la banque →
+   the supplier balance is up and its invoice owes again; pay it with a new règlement.
+2. Staging checks of T04a/T04b: a remise en banque and its bordereau PDF; an impayé with charges (Charges shows them).
 3. Then T05 accounts (caisse, banks, driver cash), T06 échéancier and alerts, T07 reports.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 

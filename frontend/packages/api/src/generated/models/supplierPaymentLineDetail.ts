@@ -6,6 +6,7 @@
  */
 import type { IssuedInstrumentDetail } from './issuedInstrumentDetail';
 import type { PaymentMethodEnum } from './paymentMethodEnum';
+import type { RejectedEffet } from './rejectedEffet';
 
 export interface SupplierPaymentLineDetail {
   readonly id: number;
@@ -14,4 +15,5 @@ export interface SupplierPaymentLineDetail {
   readonly amount: string;
   readonly reference: string;
   readonly instrument: IssuedInstrumentDetail | null;
+  readonly rejected: RejectedEffet | null;
 }

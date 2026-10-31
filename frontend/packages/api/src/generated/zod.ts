@@ -16297,6 +16297,97 @@ export const GetSupplierDebtsResponse = zod.object({
 
 
 /**
+ * Our bank refused to pay this cheque or traite (owner or manager): it becomes "Rejeté" and the supplier is
+ * owed its amount again (the invoices its règlement settled owe again beyond its advance, D-218). Answers
+ * with the règlement.
+ */
+export const RejectIssuedEffetParams = zod.object({
+  "instrument_id": zod.int()
+})
+
+export const rejectIssuedEffetBodyReasonMax = 255;
+
+
+
+export const RejectIssuedEffetBody = zod.object({
+  "rejected_on": zod.iso.date().nullish(),
+  "reason": zod.string().max(rejectIssuedEffetBodyReasonMax)
+})
+
+export const rejectIssuedEffetResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rejectIssuedEffetResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rejectIssuedEffetResponseLinesItemInstrumentOneBankCodeDefault = ``;
+export const rejectIssuedEffetResponseLinesItemInstrumentOneBankNameDefault = ``;
+export const rejectIssuedEffetResponseLinesItemRejectedOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rejectIssuedEffetResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rejectIssuedEffetResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rejectIssuedEffetResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RejectIssuedEffetResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "paid_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', rejectIssuedEffetResponseAmountRegExp),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "reference": zod.string(),
+  "cash_on": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "amount": zod.stringFormat('decimal', rejectIssuedEffetResponseLinesItemAmountRegExp),
+  "reference": zod.string(),
+  "instrument": zod.union([zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank_code": zod.string().default(rejectIssuedEffetResponseLinesItemInstrumentOneBankCodeDefault),
+  "bank_name": zod.string().default(rejectIssuedEffetResponseLinesItemInstrumentOneBankNameDefault),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "events": zod.array(zod.object({
+  "from_status": zod.string(),
+  "to_status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "happened_on": zod.iso.date(),
+  "note": zod.string(),
+  "actor": zod.string()
+}).describe('One step in the life of an effet: issued, debited, rejected, cancelled...'))
+}).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()]),
+  "rejected": zod.union([zod.object({
+  "rejected_on": zod.iso.date(),
+  "reason": zod.string(),
+  "amount": zod.stringFormat('decimal', rejectIssuedEffetResponseLinesItemRejectedOneAmountRegExp)
+}).describe('The rejet of a line (D-218): when and why.'),zod.null()])
+})),
+  "allocated_amount": zod.stringFormat('decimal', rejectIssuedEffetResponseAllocatedAmountRegExp),
+  "unallocated_amount": zod.stringFormat('decimal', rejectIssuedEffetResponseUnallocatedAmountRegExp),
+  "allocations": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_reference": zod.string(),
+  "invoice_date": zod.iso.date()
+}),
+  "amount": zod.stringFormat('decimal', rejectIssuedEffetResponseAllocationsItemAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
+}).describe('One règlement with the history of each of its effets.')
+
+
+/**
  * Supplier invoices, newest first, paginated, each with its receipts, payments, paid amount and what
  * is still owed. Filter by supplier, status (`open` = posted and not fully paid), overdue, or `search`
  * (our number, the supplier's invoice number, the supplier's name).
@@ -16915,6 +17006,7 @@ export const getSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?
 export const getSupplierPaymentResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierPaymentResponseLinesItemInstrumentOneBankCodeDefault = ``;
 export const getSupplierPaymentResponseLinesItemInstrumentOneBankNameDefault = ``;
+export const getSupplierPaymentResponseLinesItemRejectedOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierPaymentResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierPaymentResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -16954,7 +17046,12 @@ export const GetSupplierPaymentResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string()
 }).describe('One step in the life of an effet: issued, debited, rejected, cancelled...'))
-}).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()])
+}).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()]),
+  "rejected": zod.union([zod.object({
+  "rejected_on": zod.iso.date(),
+  "reason": zod.string(),
+  "amount": zod.stringFormat('decimal', getSupplierPaymentResponseLinesItemRejectedOneAmountRegExp)
+}).describe('The rejet of a line (D-218): when and why.'),zod.null()])
 })),
   "allocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseAllocatedAmountRegExp),
   "unallocated_amount": zod.stringFormat('decimal', getSupplierPaymentResponseUnallocatedAmountRegExp),
@@ -17076,6 +17173,7 @@ export const voidSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(
 export const voidSupplierPaymentResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidSupplierPaymentResponseLinesItemInstrumentOneBankCodeDefault = ``;
 export const voidSupplierPaymentResponseLinesItemInstrumentOneBankNameDefault = ``;
+export const voidSupplierPaymentResponseLinesItemRejectedOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidSupplierPaymentResponseAllocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidSupplierPaymentResponseUnallocatedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const voidSupplierPaymentResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -17115,7 +17213,12 @@ export const VoidSupplierPaymentResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string()
 }).describe('One step in the life of an effet: issued, debited, rejected, cancelled...'))
-}).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()])
+}).describe('Our cheque or traite of a payment line, as the treasury follows it until the bank debits it (D-208).'),zod.null()]),
+  "rejected": zod.union([zod.object({
+  "rejected_on": zod.iso.date(),
+  "reason": zod.string(),
+  "amount": zod.stringFormat('decimal', voidSupplierPaymentResponseLinesItemRejectedOneAmountRegExp)
+}).describe('The rejet of a line (D-218): when and why.'),zod.null()])
 })),
   "allocated_amount": zod.stringFormat('decimal', voidSupplierPaymentResponseAllocatedAmountRegExp),
   "unallocated_amount": zod.stringFormat('decimal', voidSupplierPaymentResponseUnallocatedAmountRegExp),

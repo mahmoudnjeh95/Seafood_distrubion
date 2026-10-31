@@ -36,6 +36,7 @@ from apps.treasury import selectors as treasury
 from .serializers import (
     DifferenceFilterSerializer,
     DifferenceLineSerializer,
+    EffetRejectSerializer,
     FieldPurchaseCreateSerializer,
     FieldPurchaseFilterSerializer,
     FieldPurchaseListSerializer,
@@ -711,6 +712,26 @@ class SupplierPaymentDetailView(PaymentView):
     def get(self, request: Request, payment_id: int) -> Response:
         """One règlement: its means (each effet with its history), the invoices it settled, the advance left."""
         return Response(SupplierPaymentDetailSerializer(self._payment(payment_id)).data)
+
+
+class SupplierEffetRejectView(PaymentView):
+    @extend_schema(
+        operation_id="rejectIssuedEffet", request=EffetRejectSerializer, responses=SupplierPaymentDetailSerializer
+    )
+    def post(self, request: Request, instrument_id: int) -> Response:
+        """Our bank refused to pay this cheque or traite (owner or manager): it becomes "Rejeté" and the supplier is
+        owed its amount again (the invoices its règlement settled owe again beyond its advance, D-218). Answers
+        with the règlement."""
+        serializer = EffetRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rejected = services.reject_issued_effet(
+            organization=self.organization,
+            actor=self.membership.user,
+            instrument_id=instrument_id,
+            rejected_on=serializer.validated_data["rejected_on"],
+            reason=serializer.validated_data["reason"],
+        )
+        return Response(SupplierPaymentDetailSerializer(self._payment(rejected.payment_id)).data)
 
 
 class SupplierPaymentVoidView(PaymentView):

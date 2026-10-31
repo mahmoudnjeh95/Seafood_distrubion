@@ -43,6 +43,8 @@ from .models import (
     PurchaseOrderLine,
     PurchaseOrderStatus,
     ReceiptCounter,
+    RejectedEffet,
+    RejectedRelease,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -864,6 +866,9 @@ def _paid_on(invoice: SupplierInvoice) -> Decimal:
     paid = SupplierPaymentAllocation.objects.filter(invoice=invoice, payment__voided_at__isnull=True).aggregate(
         total=Sum("amount")
     )["total"]
+    released = RejectedRelease.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    if released:
+        paid = (paid or Decimal("0.000")) - released
     return paid if paid is not None else Decimal("0.000")
 
 
@@ -1267,8 +1272,7 @@ def allocate_payment(
     errors: dict[str, str] = {}
     if not allocations:
         errors["allocations"] = _("Choisissez au moins une facture.")
-    already = SupplierPaymentAllocation.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"]
-    available = payment.amount - (already if already is not None else Decimal("0.000"))
+    available = payment.amount - _rejected_of(payment) - _allocated_of(payment)
     checked = _checked_allocations(payment.organization, payment.supplier, allocations, available, errors)
     if errors:
         raise ValidationError(errors)
@@ -2121,3 +2125,98 @@ def add_field_purchase_paper(
     if previous:
         transaction.on_commit(lambda: storage.delete(previous))
     return purchase
+
+
+# ---- Our effets the bank refused (rejeté, P9-T04c, D-218) ----
+
+
+def _allocated_of(payment: SupplierPayment) -> Decimal:
+    """What the règlement settles on invoices now: its allocations less what its rejected effets took back."""
+    allocated = SupplierPaymentAllocation.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"]
+    released = RejectedRelease.objects.filter(rejected__payment=payment).aggregate(total=Sum("amount"))["total"]
+    return (allocated or ZERO) - (released or ZERO)
+
+
+def _rejected_of(payment: SupplierPayment) -> Decimal:
+    return RejectedEffet.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"] or ZERO
+
+
+@transaction.atomic
+def reject_issued_effet(
+    *, organization: Organization, actor: User | None, instrument_id: int, rejected_on: dt.date | None, reason: str
+) -> RejectedEffet:
+    """Our bank refused to pay one of our cheques or traites: the supplier is owed its amount again (D-218).
+
+    A new record, the règlement untouched: `RejectedEffet` takes the amount out of what was paid; the règlement's
+    advance left absorbs it first, then what it settled on invoices is taken back, newest allocation first
+    (`RejectedRelease`), so those invoices owe again. The effet becomes "Rejeté" in the treasury.
+    """
+    reason = " ".join(reason.split())[:255]
+    errors: dict[str, str] = {}
+    if not reason:
+        errors["reason"] = _("Indiquez le motif du rejet.")
+    line = (
+        SupplierPaymentLine.objects.select_related("payment", "payment__supplier", "instrument")
+        .filter(organization=organization, instrument_id=instrument_id)
+        .first()
+    )
+    if line is None:
+        errors["instrument"] = _("Cet effet n'est pas celui d'un règlement fournisseur.")
+    if errors:
+        raise ValidationError(errors)
+    assert line is not None
+    payment = SupplierPayment.objects.select_for_update().select_related("supplier").get(pk=line.payment_id)
+    if payment.voided_at is not None:
+        raise ValidationError({"instrument": _("Ce règlement est annulé.")})
+    treasury.mark_rejected(
+        organization=organization, actor=actor, instrument_id=instrument_id, rejected_on=rejected_on, note=reason
+    )
+    assert rejected_on is not None  # checked by the treasury
+    free = payment.amount - _rejected_of(payment) - _allocated_of(payment)
+    to_release = max(line.amount - max(free, ZERO), ZERO)
+    rejected = RejectedEffet.objects.create(
+        organization=organization,
+        payment=payment,
+        line=line,
+        supplier=payment.supplier,
+        amount=line.amount,
+        rejected_on=rejected_on,
+        reason=reason,
+        created_by=actor,
+    )
+    # Each invoice's part still settled by this règlement, the newest allocation first.
+    net: dict[int, Decimal] = {}
+    for allocation in SupplierPaymentAllocation.objects.filter(payment=payment).order_by("-id"):
+        net[allocation.invoice_id] = net.get(allocation.invoice_id, ZERO) + allocation.amount
+    for row in (
+        RejectedRelease.objects.filter(rejected__payment=payment).values("invoice_id").annotate(total=Sum("amount"))
+    ):
+        net[row["invoice_id"]] = net.get(row["invoice_id"], ZERO) - row["total"]
+    released: dict[int, Decimal] = {}
+    for invoice_id, settled in net.items():
+        if to_release <= 0:
+            break
+        part = min(settled, to_release)
+        if part <= 0:
+            continue
+        RejectedRelease.objects.create(organization=organization, rejected=rejected, invoice_id=invoice_id, amount=part)
+        released[invoice_id] = part
+        to_release -= part
+    for invoice in SupplierInvoice.objects.select_for_update().filter(pk__in=sorted(released)).order_by("id"):
+        status = _invoice_status_from_payments(invoice)
+        if status != invoice.status:
+            invoice.status = status
+            invoice.save(update_fields=["status", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="supplier_payment.rejected",
+        target=payment,
+        after={
+            "effet": str(line.instrument),
+            "amount": str(line.amount),
+            "reason": reason,
+            "released": {str(invoice_id): str(amount) for invoice_id, amount in released.items()},
+        },
+    )
+    return rejected

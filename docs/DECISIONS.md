@@ -3095,3 +3095,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   with a new règlement. Re-presenting the same paper to the bank is not offered (it would need the impayé undone).
 - API: `POST /customer-effets/<instrument_id>/unpaid` (`unpaid_on`, `reason`, `bank_charges`), owner or manager; the
   règlement's detail shows each line's `unpaid`. Endorsing to a supplier and our effets rejected move to P9-T04c.
+
+**D-218 · Our rejected effet is a new record: the supplier is owed again, its invoices owe again beyond the advance (Phase 9, P9-T04c)** · accepted · 2026-10-31
+- "Rejeté par la banque" on one of our cheques or traites still issued: the effet becomes "Rejeté" and
+  `purchasing.RejectedEffet` (day, reason, amount) is written; the règlement is never edited.
+- What was paid to the supplier leaves out the rejected amount: the règlement's advance left absorbs it first, then what
+  it settled on invoices is taken back, newest allocation first (`RejectedRelease`), and those invoices go back to
+  "partiellement payée" or "validée". The supplier balance, the invoice paid amount, advances and their automatic use,
+  the règlements list and totals, and the supplier statement ("Effet rejeté") all read it. "Chèques et traites à venir"
+  leaves rejected effets out. A règlement with a rejected effet can no longer be voided.
+- We pay the supplier again with a new règlement. Re-presenting the same paper is not offered.
+- API `POST /supplier-effets/<instrument_id>/reject` (`rejected_on`, `reason`), owner or manager; the règlement's
+  detail shows each line's `rejected`.
+- Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
+

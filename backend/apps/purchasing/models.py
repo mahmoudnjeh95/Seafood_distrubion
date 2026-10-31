@@ -347,6 +347,50 @@ class SupplierPaymentLine(OrganizationScopedModel, TimeStampedModel):
         return f"{self.payment} · {self.method} {self.amount}"
 
 
+class RejectedEffet(OrganizationScopedModel):
+    """One of our cheques or traites the bank refused to pay (rejeté, D-218): the supplier is owed its amount again.
+
+    A new record, never an edit of the règlement: this row takes the amount out of what was paid, and
+    `RejectedRelease` rows take back what the règlement had settled on invoices (beyond its advance left), so those
+    invoices owe again. We pay the supplier with a new règlement.
+    """
+
+    payment = models.ForeignKey("SupplierPayment", on_delete=models.PROTECT, related_name="rejected_effets")
+    line = models.OneToOneField(SupplierPaymentLine, on_delete=models.PROTECT, related_name="rejected")
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="rejected_effets")
+    amount = MoneyField()
+    rejected_on = models.DateField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-rejected_on", "-id"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="rejected_effet_amount_positive")]
+
+    def __str__(self) -> str:
+        return f"{self.payment} · rejeté {self.amount}"
+
+
+class RejectedRelease(OrganizationScopedModel):
+    """The part of a règlement's allocation to one invoice that a rejected effet took back: it owes it again."""
+
+    rejected = models.ForeignKey(RejectedEffet, on_delete=models.PROTECT, related_name="releases")
+    invoice = models.ForeignKey("SupplierInvoice", on_delete=models.PROTECT, related_name="rejected_releases")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["rejected", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="rejected_release_amount_positive")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.rejected} -> {self.invoice} · {self.amount}"
+
+
 class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
     """The part of a payment that settles one invoice: given with the payment, or later for an advance."""
 
