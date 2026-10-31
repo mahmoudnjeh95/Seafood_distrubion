@@ -232,7 +232,12 @@ function EstimateForm({ month, data, canWrite }: { month: string; data: ColdRoom
           />
         </Field>
         <Field label={t("admin.coldCost.estimate.reason")} htmlFor={id("reason")}>
-          <Input id={id("reason")} value={reason} onChange={(event) => setReason(event.target.value)} autoComplete="off" />
+          <Input
+            id={id("reason")}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            autoComplete="off"
+          />
         </Field>
       </div>
       <div className="flex flex-wrap gap-2">

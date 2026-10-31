@@ -175,6 +175,7 @@ def cold_room_lines(organization: Organization, *, batch_id: int, today: dt.date
     lines: list[ComputedLine] = []
     for month in _months_between(first, today):
         days = [day for day in month_days(month) if first <= day <= today]
+        estimates: Mapping[int, Decimal | None]
         if month in frozen:
             estimates = {room_id: rate.estimate_day_amount for room_id, rate in frozen[month].items()}
         else:

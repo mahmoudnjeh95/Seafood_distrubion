@@ -1535,7 +1535,8 @@ export const getGetColdRoomMonthUrl = (params?: GetColdRoomMonthParams,) => {
 
 /**
  * One month of cold-room costs: the bill if any, and per room its weight and cost for the month
- * and per day, estimated (the previous month's daily rate) until the bill is approved.
+ * and per day, estimated (the estimate typed for the month, else the previous month's daily rate) until the
+ * bill is approved; the estimate and the difference with the real bill come with it.
  */
 export const getColdRoomMonth = async (params?: GetColdRoomMonthParams, options?: Parameters<typeof apiFetch>[1]): Promise<ColdRoomMonth> => {
 
