@@ -182,7 +182,7 @@ def test_customers_still_owing_block_the_closing_until_they_pay(organization, ac
 
     with pytest.raises(ValidationError) as refused:
         close(organization, actor, batch)
-    assert "300.000" in refused.value.messages[0]
+    assert "300,000" in refused.value.messages[0]
     owed = next(
         check
         for check in selectors.closing_checks(organization, selectors.live_result(organization, batch_id=batch.pk))
