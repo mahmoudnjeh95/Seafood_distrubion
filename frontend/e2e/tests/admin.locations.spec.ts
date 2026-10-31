@@ -18,7 +18,7 @@ test("the owner sees the demo cold rooms and trucks with their drivers", async (
 
   await expect(place(page, "Chambre froide 1 (frais)")).toContainText("Vente au comptoir");
   await expect(place(page, "Camion 1 · Sami B.")).toContainText("101 TU 2001");
-  await expect(place(page, "Camion 2")).toContainText("Sans chauffeur aujourd’hui");
+  await expect(place(page, "Camion 2")).toContainText("Sans chauffeur aujourd'hui");
 });
 
 test("the owner adds a cold room and a truck, then archives the truck", async ({ page }) => {
