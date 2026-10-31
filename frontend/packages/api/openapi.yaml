@@ -25086,6 +25086,9 @@ components:
         supplier:
           type: integer
           minimum: 1
+        apply_advances:
+          type: boolean
+          default: false
       required:
       - due_date
       - invoice_date

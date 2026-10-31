@@ -30,7 +30,7 @@ import {
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useId, useMemo, useState } from "react";
+import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams, useSearchParams } from "react-router";
 
 import { sum } from "../lib/decimal";
@@ -103,6 +103,10 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
     return new Set(fromLink === null ? [] : [fromLink]);
   });
   const [errors, setErrors] = useState<Errors>({});
+  // Money already given to the supplier (at the port, advances) pays the invoice when it is validated (D-200).
+  const [applyAdvances, setApplyAdvances] = useState(true);
+  // "Valider et en faire une autre": stay on the form with the same supplier for the next invoice (D-200).
+  const again = useRef(false);
 
   const shownDueDate = dueDate || addDays(invoiceDate, DEFAULT_PAYMENT_DAYS);
   const uninvoiced = useListReceipts(
@@ -137,9 +141,18 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
             : "admin.supplierInvoices.form.createdDraft";
       toast.success(t(message, { number: saved.number }));
       await refreshPurchasing(queryClient);
+      if (again.current) {
+        again.current = false;
+        setChosen(new Set());
+        setSupplierReference("");
+        setNotes("");
+        setErrors({});
+        return;
+      }
       leave(`/achats/factures/${saved.id}`);
     },
     onError: (failure) => {
+      again.current = false;
       const fromServer = fieldErrors(failure);
       setErrors(Object.keys(fromServer).length > 0 ? fromServer : { detail: t("admin.supplierInvoices.form.error") });
     },
@@ -162,6 +175,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
       supplier_reference: supplierReference.trim(),
       notes: notes.trim(),
       post,
+      apply_advances: post && applyAdvances,
     });
   }
 
@@ -336,6 +350,16 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
           </p>
         )}
 
+        {!invoice && (
+          <label className="flex items-center justify-end gap-2 text-[0.9rem]">
+            <input
+              type="checkbox"
+              checked={applyAdvances}
+              onChange={(event) => setApplyAdvances(event.target.checked)}
+            />
+            {t("admin.supplierInvoices.form.applyAdvances")}
+          </label>
+        )}
         <p className="text-end text-[0.85rem] text-ink-2">{t("admin.supplierInvoices.form.postHint")}</p>
         <div className="flex flex-wrap justify-end gap-2">
           {embedded ? (
@@ -350,6 +374,17 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
           <Button type="submit" disabled={save.isPending}>
             {save.isPending ? t("admin.supplierInvoices.form.saving") : t("admin.supplierInvoices.form.saveDraft")}
           </Button>
+          {!invoice && (
+            <Button
+              disabled={save.isPending}
+              onClick={() => {
+                again.current = true;
+                submit(true);
+              }}
+            >
+              {t("admin.supplierInvoices.form.saveAndAgain")}
+            </Button>
+          )}
           <Button variant="primary" disabled={save.isPending} onClick={() => submit(true)}>
             {t("admin.supplierInvoices.form.saveAndPost")}
           </Button>

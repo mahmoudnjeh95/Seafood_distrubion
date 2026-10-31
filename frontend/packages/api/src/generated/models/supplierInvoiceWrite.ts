@@ -16,4 +16,5 @@ export interface SupplierInvoiceWrite {
   post?: boolean;
   /** @minimum 1 */
   supplier: number;
+  apply_advances?: boolean;
 }

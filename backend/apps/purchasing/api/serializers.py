@@ -435,6 +435,8 @@ class SupplierInvoiceUpdateSerializer(serializers.Serializer[Any]):
 
 class SupplierInvoiceWriteSerializer(SupplierInvoiceUpdateSerializer):
     supplier = serializers.IntegerField(min_value=1)
+    # With `post`: the supplier's advances (money given and on no invoice yet) pay it, oldest first (D-200).
+    apply_advances = serializers.BooleanField(required=False, default=False)
 
 
 class SupplierInvoiceFilterSerializer(serializers.Serializer[Any]):

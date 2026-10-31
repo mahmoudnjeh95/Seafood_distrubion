@@ -2879,3 +2879,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `core.money.display_money` gives the same format as the PDFs (narrow no-break space, comma, 3 decimals) and the
   20 messages that name an amount use it (credit limit, payments over what is due, allocations, closing notes…).
 - Not changed: what a user types in an amount field stays as typed; the parser already accepts "1 250,5".
+
+**D-200 · Invoices are made from the BL / BR you tick, again and again; a port purchase makes no invoice (owner list 2026-10-31, items 11 and 12)** · accepted · 2026-10-31
+- Clients: Factures › "Nouvelle facture" (`/factures/nouvelle`): pick the customer, the page lists their confirmed BL with
+  no invoice; tick one or several, "Générer le brouillon" or "Générer et émettre". The page stays on the customer, the
+  invoiced BL leave the list, and the invoices made are listed with their links, so the next one is made at once. The
+  backend already grouped BLs of one customer (D-096); only the screen is new.
+- Suppliers: the existing "Nouvelle facture fournisseur" form (tick the supplier's receipts) gets "Valider et en faire une
+  autre" (same supplier, the form empties) and "payer avec l'argent déjà donné" (on by default): `apply_advances` on
+  `POST /supplier-invoices` allocates the supplier's unallocated payments to the new posted invoice, oldest first.
+- "Achat terrain": validating records the receipt and the money given (as supplier advances), **no invoice**. The
+  constraint `field_purchase_validated_has_documents` becomes `…_has_receipt`. The purchase page links "Facturer la
+  réception" (the supplier form with that receipt ticked). When an invoice posted later holds the receipt of exactly
+  one port purchase, the purchase links it (so "Règlements fournisseurs" still shows it as "Achat terrain").
+- Not changed (provisional): a receipt typed at the office as "Dû dès la réception" still makes its invoice at once
+  (D-192); the owner said only the port purchase. The deal and due days typed on a port purchase are no longer used;
+  the due date is set on the invoice.

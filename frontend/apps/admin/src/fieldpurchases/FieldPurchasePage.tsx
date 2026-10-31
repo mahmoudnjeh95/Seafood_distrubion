@@ -91,12 +91,25 @@ function FieldPurchaseView({ purchase }: { purchase: FieldPurchase }) {
               </Link>
             </Detail>
           )}
-          {purchase.invoice && (
+          {purchase.invoice ? (
             <Detail label={t("admin.fieldPurchases.detail.invoice")} numeric>
               <Link to={`/achats/factures/${purchase.invoice.id}`} className="font-semibold text-sea hover:underline">
                 {purchase.invoice.number}
               </Link>
             </Detail>
+          ) : (
+            purchase.receipt &&
+            purchase.supplier && (
+              // Validating makes no invoice (D-200): the office makes it here, with other receipts if it wants.
+              <Detail label={t("admin.fieldPurchases.detail.invoice")}>
+                <Link
+                  to={`/achats/factures/nouvelle?fournisseur=${purchase.supplier.id}&reception=${purchase.receipt.id}`}
+                  className="font-semibold text-sea hover:underline"
+                >
+                  {t("admin.fieldPurchases.detail.makeInvoice")}
+                </Link>
+              </Detail>
+            )
           )}
           {purchase.decided_by && (
             <Detail label={t("admin.fieldPurchases.detail.decided")}>{purchase.decided_by}</Detail>

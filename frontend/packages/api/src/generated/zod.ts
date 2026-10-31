@@ -15808,7 +15808,7 @@ export const createSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const createSupplierInvoiceBodyNotesDefault = ``;
 export const createSupplierInvoiceBodyPostDefault = false;
-
+export const createSupplierInvoiceBodyApplyAdvancesDefault = false;
 
 export const CreateSupplierInvoiceBody = zod.object({
   "receipts": zod.array(zod.int().min(1)),
@@ -15817,7 +15817,8 @@ export const CreateSupplierInvoiceBody = zod.object({
   "supplier_reference": zod.string().max(createSupplierInvoiceBodySupplierReferenceMax).default(createSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(createSupplierInvoiceBodyNotesDefault),
   "post": zod.boolean().default(createSupplierInvoiceBodyPostDefault),
-  "supplier": zod.int().min(1)
+  "supplier": zod.int().min(1),
+  "apply_advances": zod.boolean().default(createSupplierInvoiceBodyApplyAdvancesDefault)
 })
 
 export const createSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');

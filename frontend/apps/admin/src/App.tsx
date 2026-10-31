@@ -25,6 +25,7 @@ import { ExpenseDetailPage } from "./expenses/ExpenseDetailPage";
 import { ExpenseEditPage, ExpenseFormPage } from "./expenses/ExpenseFormPage";
 import { ExpensesPage } from "./expenses/ExpensesPage";
 import { FinanceSettingsPage } from "./invoices/FinanceSettingsPage";
+import { InvoiceBuilderPage } from "./invoices/InvoiceBuilderPage";
 import { InvoicePage } from "./invoices/InvoicePage";
 import { InvoicesPage } from "./invoices/InvoicesPage";
 
@@ -266,6 +267,7 @@ function AppRoutes() {
         <Route path="/ventes/:saleId/modifier" element={<SaleEditPage />} />
         {/* Invoices and finance settings (P2-T05) */}
         <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
+        <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
         <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />

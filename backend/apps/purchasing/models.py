@@ -471,10 +471,10 @@ class FieldPurchase(OrganizationScopedModel, TimeStampedModel):
                 condition=models.Q(supplier__isnull=False) | ~models.Q(proposed_supplier=""),
                 name="field_purchase_has_a_supplier",
             ),
+            # The invoice comes later, made by the office from the receipts it picks (D-200).
             models.CheckConstraint(
-                condition=~models.Q(status="validated")
-                | (models.Q(receipt__isnull=False) & models.Q(invoice__isnull=False)),
-                name="field_purchase_validated_has_documents",
+                condition=~models.Q(status="validated") | models.Q(receipt__isnull=False),
+                name="field_purchase_validated_has_receipt",
             ),
         ]
 
