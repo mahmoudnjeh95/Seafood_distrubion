@@ -123,9 +123,38 @@ class DriverDaySerializer(serializers.ModelSerializer[DriverDay]):
         read_only_fields = fields
 
 
-class DriverDayOpenSerializer(serializers.Serializer[Any]):
+class DayFundSerializer(serializers.Serializer[Any]):
+    """The cash the office set for a driver's day (D-203)."""
+
+    opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    purchase_float = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    set_at = serializers.DateTimeField(source="updated_at", read_only=True)
+    # When the driver accepted it and started the day; null while it waits.
+    accepted_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
+class DayFundDriverSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, user: Any) -> str:
+        return f"{user.first_name} {user.last_name}".strip() or user.username
+
+
+class DayFundRowSerializer(serializers.Serializer[Any]):
+    """One driver on the office's "Fonds de caisse" list of a day."""
+
+    driver = DayFundDriverSerializer(read_only=True)
+    can_buy = serializers.BooleanField(read_only=True)
+    fund = DayFundSerializer(read_only=True, allow_null=True)
+    started = serializers.BooleanField(read_only=True)
+
+
+class DayFundWriteSerializer(serializers.Serializer[Any]):
+    driver = serializers.IntegerField(min_value=1)
+    date = serializers.DateField()
     opening_cash = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
-    # Money the office gave for purchases at the port (D-158); 0 for a driver who does not buy.
+    # Money for buying at the port (D-158); 0 for a driver who does not buy.
     purchase_float = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=0, required=False, default=Decimal("0.000")
     )

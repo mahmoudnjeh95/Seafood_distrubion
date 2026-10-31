@@ -3,6 +3,7 @@ import { useTranslation } from "@frutti/i18n";
 import { PageHeader } from "@frutti/ui";
 import { useOutletContext } from "react-router";
 
+import { DayFundsPanel } from "./DayFundsPanel";
 import { canEditLocations } from "./shared";
 import { TruckDayPanel } from "./TruckDayPanel";
 
@@ -14,6 +15,7 @@ export function TruckDayPage() {
     <>
       <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.truckDay.title")} />
       <TruckDayPanel canEdit={canEditLocations(session)} />
+      <DayFundsPanel canEdit={canEditLocations(session)} />
     </>
   );
 }

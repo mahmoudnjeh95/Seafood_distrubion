@@ -68,7 +68,15 @@ def day():
         organization=organization, actor=actor, name="Restaurant Le Port", credit_limit=Decimal("500.000")
     )
     api = client_for(driver)
-    assert api.post(reverse("my-day"), {"opening_cash": "50"}, format="json").status_code == 201
+    # The office sets the starting cash, the driver accepts it (D-203).
+    fleet.set_day_fund(
+        organization=organization,
+        actor=driver.user,
+        driver=driver.user,
+        date=timezone.localdate(),
+        opening_cash=Decimal("50"),
+    )
+    assert api.post(reverse("my-day"), format="json").status_code == 201
     owner = MembershipFactory.create(organization=organization, role=Role.OWNER)
     return {
         "api": api,

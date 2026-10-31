@@ -110,7 +110,15 @@ def road(clock):
     clock(at(8))
     load(road, "12")
     clock(at(8, 30))
-    assert road["api"].post(reverse("my-day"), {"opening_cash": "50"}, format="json").status_code == 201
+    organization, driver = road["organization"], road["driver"]
+    fleet.set_day_fund(
+        organization=organization,
+        actor=driver.user,
+        driver=driver.user,
+        date=timezone.localdate(),
+        opening_cash=Decimal("50"),
+    )
+    assert road["api"].post(reverse("my-day"), format="json").status_code == 201
     return road
 
 

@@ -5,7 +5,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface DriverDayOpen {
+export interface DayFundWrite {
+  /** @minimum 1 */
+  driver: number;
+  date: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   opening_cash: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

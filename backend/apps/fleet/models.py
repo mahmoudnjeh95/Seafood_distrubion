@@ -97,6 +97,33 @@ class DriverDay(OrganizationScopedModel, TimeStampedModel):
         return f"{self.date} · {self.truck.location.name} · {self.driver.username}"
 
 
+class DayFund(OrganizationScopedModel, TimeStampedModel):
+    """The cash the office hands a driver for a day, before it starts (D-203): the starting cash and the money for
+    buying at the port. The driver accepts it on the phone, which starts the day with these amounts."""
+
+    driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="day_funds")
+    date = models.DateField()
+    opening_cash = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    purchase_float = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    set_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # When the driver accepted it (and so started the day); null while it waits.
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-date", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "driver", "date"], name="one_day_fund_per_driver_per_day"),
+            models.CheckConstraint(
+                condition=models.Q(opening_cash__gte=0, purchase_float__gte=0), name="day_fund_not_negative"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.date} · {self.driver} · {self.opening_cash}"
+
+
 class LocationPing(OrganizationScopedModel, TimeStampedModel):
     """One GPS point of a driver's phone during a running day (D-164). Append-only: points are never changed.
 

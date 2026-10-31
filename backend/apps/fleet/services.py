@@ -17,7 +17,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
 
-from .models import DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
+from .models import DayFund, DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
 
 
 class _Unchanged:
@@ -359,6 +359,83 @@ def open_driver_day(
             "opening_cash": str(opening_cash),
             "purchase_float": str(purchase_float),
         },
+    )
+    return day
+
+
+@transaction.atomic
+def set_day_fund(
+    *,
+    organization: Organization,
+    actor: User,
+    driver: User,
+    date: date_type,
+    opening_cash: Decimal,
+    purchase_float: Decimal = Decimal("0.000"),
+) -> DayFund:
+    """The office sets the cash it hands a driver for a day (D-203). It changes freely until the driver accepts it
+    (which starts the day); after that the day's figures are the ones accepted."""
+    errors: dict[str, str] = {}
+    if opening_cash < 0:
+        errors["opening_cash"] = _("Le fonds de caisse ne peut pas être négatif.")
+    if purchase_float < 0:
+        errors["purchase_float"] = _("L'argent pour les achats ne peut pas être négatif.")
+    if not Membership.objects.filter(organization=organization, user=driver, role=Role.DRIVER, is_active=True).exists():
+        errors["driver"] = _("Chauffeur inconnu.")
+    if errors:
+        raise ValidationError(errors)
+    fund, _created = DayFund.objects.select_for_update().get_or_create(
+        organization=organization, driver=driver, date=date
+    )
+    if (
+        fund.accepted_at is not None
+        or DriverDay.objects.filter(organization=organization, driver=driver, date=date).exists()
+    ):
+        raise ValidationError({"opening_cash": _("Le chauffeur a déjà commencé sa journée : le fonds ne change plus.")})
+    before = {"opening_cash": str(fund.opening_cash), "purchase_float": str(fund.purchase_float)}
+    fund.opening_cash = opening_cash
+    fund.purchase_float = purchase_float
+    fund.set_by = actor
+    fund.save(update_fields=["opening_cash", "purchase_float", "set_by", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="day_fund.set",
+        target=fund,
+        before=before,
+        after={"opening_cash": str(opening_cash), "purchase_float": str(purchase_float), "date": str(date)},
+    )
+    return fund
+
+
+@transaction.atomic
+def accept_day_fund(*, organization: Organization, actor: User, truck: Truck, date: date_type) -> DriverDay:
+    """The driver accepts the cash the office set for the day and so starts it with those amounts (D-203). Refused
+    while the office has set nothing. Asking again returns the day unchanged, as `open_driver_day` does."""
+    fund = DayFund.objects.select_for_update().filter(organization=organization, driver=actor, date=date).first()
+    existing = DriverDay.objects.for_organization(organization).filter(driver=actor, date=date).first()
+    if existing is not None:
+        return existing
+    if fund is None:
+        raise ValidationError(
+            {"opening_cash": _("Le bureau n'a pas encore indiqué votre fonds de caisse : appelez le bureau.")}
+        )
+    day = open_driver_day(
+        organization=organization,
+        actor=actor,
+        truck=truck,
+        opening_cash=fund.opening_cash,
+        purchase_float=fund.purchase_float,
+        date=date,
+    )
+    fund.accepted_at = timezone.now()
+    fund.save(update_fields=["accepted_at", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="day_fund.accepted",
+        target=fund,
+        after={"opening_cash": str(fund.opening_cash), "purchase_float": str(fund.purchase_float)},
     )
     return day
 

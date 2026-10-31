@@ -39,7 +39,15 @@ def setup():
         organization=organization, actor=UserFactory.create(), name="Camion 1", plate="101 TU 2001", driver=driver.user
     )
     api = client_for(driver)
-    opened = api.post(reverse("my-day"), {"opening_cash": "50", "purchase_float": "1000"}, format="json")
+    fleet.set_day_fund(
+        organization=organization,
+        actor=owner.user,
+        driver=driver.user,
+        date=timezone.localdate(),
+        opening_cash=Decimal("50"),
+        purchase_float=Decimal("1000"),
+    )
+    opened = api.post(reverse("my-day"), format="json")
     assert opened.status_code == 201, opened.json()
     return {
         "organization": organization,
