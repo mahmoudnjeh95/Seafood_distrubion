@@ -2979,3 +2979,10 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - API enums: `PaymentMethodEnum` stays the five means (expenses, plan lines, lines); the règlement's own method is
   `SupplierPaymentMethodEnum` (adds `mixed`).
 - Supplier règlements still cannot be voided (no void before D-208 either); a void with its effets comes with T03.
+
+**D-209 · Staging deploys from the organisation repo SmartToolsAgro/SmartFeesh (owner, 2026-10-31)** · accepted · 2026-10-31
+- PRs and CI stay on `mahmoudnjeh95/Seafood_distrubion`; SmartFeesh follows its `main` by fast-forward pushes and is
+  the only repo with `STAGING_SSH_KEY` / `STAGING_KNOWN_HOSTS`, so a merge reaches staging when `main` is pushed there.
+- One deploying repo only: two deploys of the same commit at once would build twice on the shared server (#216).
+- SmartFeesh has its own key (`frutti-ci-deploy-smartfeesh`, `restrict`); the personal repo's key is to be revoked
+  (its secrets and its server line), see `docs/runbook.md` › Deploy.
