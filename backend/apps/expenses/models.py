@@ -41,6 +41,9 @@ class ExpenseCategory(OrganizationScopedModel, TimeStampedModel):
     code = models.CharField(max_length=30, blank=True)
     name = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
+    # Offered on the driver's phone (D-205): fuel, transport, handling and miscellaneous at first; the owner
+    # chooses the others.
+    for_drivers = models.BooleanField(default=False)
     # Order in lists: the default ones in the order of the brief, the owner's after them.
     position = models.PositiveSmallIntegerField(default=100)
 
@@ -121,6 +124,8 @@ class Expense(OrganizationScopedModel, TimeStampedModel):
     made_at = models.DateTimeField(null=True, blank=True)
     category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, related_name="expenses")
     amount = MoneyField()
+    # Paid by the driver out of their own pocket on the road (D-205): owed to them, not taken from the day's cash.
+    paid_by_driver = models.BooleanField(default=False)
     payment_method = models.CharField(
         max_length=20, choices=ExpensePaymentMethod.choices, default=ExpensePaymentMethod.CASH
     )

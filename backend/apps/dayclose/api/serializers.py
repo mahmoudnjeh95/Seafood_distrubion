@@ -41,6 +41,9 @@ class DaySummarySerializer(serializers.Serializer[Any]):
     other_payments = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     on_credit = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     expenses_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Expenses the driver paid out of pocket (owed back) and by card: not taken from the cash (D-205).
+    expenses_pocket = _purchase_figure()
+    expenses_other = _purchase_figure()
     # Cash already given to the office that day: counted at the sends a new load undid (D-134).
     handed_over = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # What the driver should hold now: the day's cash less `handed_over`, less what purchases took from it.

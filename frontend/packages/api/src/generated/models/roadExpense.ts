@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ExpenseStatusEnum } from './expenseStatusEnum';
+import type { PaymentMethodEnum } from './paymentMethodEnum';
 
 export interface RoadExpense {
   readonly id: number;
@@ -15,4 +16,6 @@ export interface RoadExpense {
   readonly amount: string;
   readonly description: string;
   readonly rejection_reason: string;
+  readonly payment_method: PaymentMethodEnum;
+  readonly paid_by_driver: boolean;
 }

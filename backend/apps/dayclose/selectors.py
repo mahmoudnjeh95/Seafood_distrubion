@@ -77,14 +77,19 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
     ]
     payments_cash = sum((p.amount for p in payments if p.method == "cash"), ZERO)
     payments_other = sum((p.amount for p in payments if p.method != "cash"), ZERO)
+    day_expenses = [
+        e
+        for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=day)
+        if e.status != "rejected" and inside(e.made_at or e.created_at)
+    ]
+    # Only what was paid with the day's cash leaves the cash in hand; the driver's own money is owed back to them,
+    # a card payment touches neither (D-205).
     spent = sum(
-        (
-            e.amount
-            for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=day)
-            if e.status != "rejected" and inside(e.made_at or e.created_at)
-        ),
+        (e.amount for e in day_expenses if e.payment_method == "cash" and not e.paid_by_driver),
         ZERO,
     )
+    spent_from_pocket = sum((e.amount for e in day_expenses if e.paid_by_driver), ZERO)
+    spent_other = sum((e.amount for e in day_expenses if e.payment_method != "cash" and not e.paid_by_driver), ZERO)
     names: dict[int, str] = {}
     sold: dict[int, Decimal] = {}
     for sale in day_sales:
@@ -156,6 +161,8 @@ def day_summary(organization: Organization, driver_day: "DriverDay") -> dict[str
         "other_payments": paid - cash + payments_other,
         "on_credit": sum((s.amount_due for s in day_sales), ZERO),
         "expenses_total": spent,
+        "expenses_pocket": spent_from_pocket,
+        "expenses_other": spent_other,
         "handed_over": handed_over,
         "expected_cash": in_hand - paid_from_hand,
         "purchase_float": driver_day.purchase_float,

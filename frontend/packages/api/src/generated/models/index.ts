@@ -401,6 +401,7 @@ export * from './paginatedSupplierInvoiceList';
 export * from './paginatedSupplierPaymentList';
 export * from './paginatedTransferList';
 export * from './paginatedWebRequestList';
+export * from './paidWithEnum';
 export * from './partnerBalances';
 export * from './partnerCostCategory';
 export * from './partnerCostShare';

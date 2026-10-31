@@ -2897,3 +2897,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A gap is allowed but needs a note (kept as the review note, audited). Provisional: the owner may prefer a gap to block
   the approval, or a tolerance. The API still approves without an office count (old clients, tests); the screen
   always sends one.
+
+**D-205 · Expense categories the owner edits for both apps; "Payé avec" always offered on the phone (owner list 2026-10-31, items 2 and 5)** · provisional · 2026-10-31
+- `ExpenseCategory.for_drivers`: the owner ticks "Sur le téléphone des chauffeurs" per category (fuel, transport,
+  handling and miscellaneous are ticked by a data migration, as before). The phone lists exactly those; the server
+  refuses another. The owner adds, renames, archives, and now removes a category never used
+  (`DELETE /expense-categories/<id>`); a used or default one is refused (archive it instead).
+- Provisional reading of "in both apps": the office edits the list, the driver app uses it; drivers do not add
+  categories themselves.
+- Phone expense: "Payé avec : La caisse / Ma poche / Carte" (`paid_with`), offered whatever the day's cash, also at
+  0 DT. "Ma poche" sets `Expense.paid_by_driver` (owed back to the driver); "Carte" records payment method "other".
+  Only "La caisse" lowers the cash the driver should hold. The day summary adds `expenses_pocket` and
+  `expenses_other`, shown in the office's closing window.

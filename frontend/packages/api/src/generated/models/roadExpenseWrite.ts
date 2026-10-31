@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { PaidWithEnum } from './paidWithEnum';
 
 export interface RoadExpenseWrite {
   /** @minimum 1 */
@@ -12,6 +13,7 @@ export interface RoadExpenseWrite {
   /** @maxLength 255 */
   description?: string;
   receipt?: Blob | File;
+  paid_with?: PaidWithEnum;
   /** @nullable */
   client_uuid?: string | null;
   /** @nullable */

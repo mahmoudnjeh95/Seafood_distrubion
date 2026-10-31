@@ -9,4 +9,5 @@ export interface PatchedExpenseCategoryUpdate {
   /** @maxLength 200 */
   name?: string;
   is_active?: boolean;
+  for_drivers?: boolean;
 }

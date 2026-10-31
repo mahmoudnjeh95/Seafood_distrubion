@@ -6874,6 +6874,77 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateExpenseCategoryMutationOptions(options), queryClient);
     }
 
+export const getDeleteExpenseCategoryUrl = (categoryId: number,) => {
+
+
+
+
+  return `/api/v1/expense-categories/${categoryId}`
+}
+
+/**
+ * Remove a category never used (owner only, D-205); a used one is archived instead.
+ */
+export const deleteExpenseCategory = async (categoryId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteExpenseCategoryUrl(categoryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteExpenseCategoryMutationKey = () => ['deleteExpenseCategory'] as const;
+
+export const getDeleteExpenseCategoryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteExpenseCategory>>, TError,DeleteExpenseCategoryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteExpenseCategory>>, TError,DeleteExpenseCategoryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteExpenseCategoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteExpenseCategory>>, DeleteExpenseCategoryMutationVariables> = (props) => {
+          const {categoryId} = props ?? {};
+
+          return  deleteExpenseCategory(categoryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteExpenseCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteExpenseCategory>>>
+
+    export type DeleteExpenseCategoryMutationError = unknown
+    export type DeleteExpenseCategoryMutationVariables = {categoryId: number}
+
+    export const useDeleteExpenseCategory = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteExpenseCategory>>, TError,DeleteExpenseCategoryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteExpenseCategory>>,
+        TError,
+        DeleteExpenseCategoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteExpenseCategoryMutationOptions(options), queryClient);
+    }
+
 export const getListExpensesUrl = (params?: ListExpensesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -15420,8 +15491,9 @@ export const getAddMyExpenseUrl = () => {
 }
 
 /**
- * Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
- * of the day and waits for the office to approve it.
+ * Enter an expense of today, with a photo of the receipt, paid with the day's cash, out of the driver's
+ * pocket or by card (`paid_with`, D-205). It is a cost of the driver's truck of the day and waits for the
+ * office to approve it.
  */
 export const addMyExpense = async (roadExpenseWrite: RoadExpenseWrite, options?: Parameters<typeof apiFetch>[1]): Promise<RoadExpense> => {
     const formData = new FormData();
@@ -15432,6 +15504,9 @@ if(roadExpenseWrite.description !== undefined) {
  }
 if(roadExpenseWrite.receipt !== undefined) {
  formData.append(`receipt`, roadExpenseWrite.receipt);
+ }
+if(roadExpenseWrite.paid_with !== undefined) {
+ formData.append(`paid_with`, roadExpenseWrite.paid_with);
  }
 if(roadExpenseWrite.client_uuid !== undefined && roadExpenseWrite.client_uuid !== null) {
  formData.append(`client_uuid`, roadExpenseWrite.client_uuid);

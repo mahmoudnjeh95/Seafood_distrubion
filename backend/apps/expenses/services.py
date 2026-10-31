@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.db.models import ProtectedError
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
@@ -38,7 +39,6 @@ from .models import (
     RecurringCost,
     WorkType,
 )
-from .selectors import ROAD_CATEGORY_CODES
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -66,13 +66,21 @@ DEFAULT_CATEGORIES: tuple[tuple[str, str], ...] = (
 )
 # The owner's own categories come after the default ones.
 CUSTOM_POSITION = 1000
+# Offered on the driver's phone from the start; the owner changes it per category (D-205).
+DRIVER_DEFAULT_CODES = ("fuel", "transport", "handling", "miscellaneous")
 
 
 def ensure_default_categories(*, organization: Organization) -> None:
     """Create the default categories the organization does not have yet (by code). Safe to call again."""
     ExpenseCategory.objects.bulk_create(
         [
-            ExpenseCategory(organization=organization, code=code, name=name, position=(index + 1) * 10)
+            ExpenseCategory(
+                organization=organization,
+                code=code,
+                name=name,
+                position=(index + 1) * 10,
+                for_drivers=code in DRIVER_DEFAULT_CODES,
+            )
             for index, (code, name) in enumerate(DEFAULT_CATEGORIES)
         ],
         ignore_conflicts=True,
@@ -94,27 +102,65 @@ def _checked_name(organization: Organization, name: str, *, exclude_id: int | No
 
 
 @transaction.atomic
-def create_category(*, organization: Organization, actor: User | None, name: str) -> ExpenseCategory:
-    """Add a category of the owner's own (after the default ones)."""
+def create_category(
+    *, organization: Organization, actor: User | None, name: str, for_drivers: bool = False
+) -> ExpenseCategory:
+    """Add a category of the owner's own (after the default ones), offered on the drivers' phones or not."""
     category = ExpenseCategory.objects.create(
-        organization=organization, name=_checked_name(organization, name), position=CUSTOM_POSITION
+        organization=organization,
+        name=_checked_name(organization, name),
+        position=CUSTOM_POSITION,
+        for_drivers=for_drivers,
     )
     audit.record(
-        organization=organization, actor=actor, action="expense_category.created", target=category, after={"name": name}
+        organization=organization,
+        actor=actor,
+        action="expense_category.created",
+        target=category,
+        after={"name": name, "for_drivers": for_drivers},
     )
     return category
 
 
 @transaction.atomic
+def delete_category(*, category: ExpenseCategory, actor: User | None) -> None:
+    """Remove a category of the owner's that was never used (D-205). A default one, or one an expense or a
+    monthly cost uses, is refused: archive it instead, its records keep it."""
+    category = ExpenseCategory.objects.select_for_update().get(pk=category.pk)
+    if category.code:
+        raise ValidationError(_("Une catégorie de base ne se supprime pas."))
+    snapshot = {"name": category.name}
+    try:
+        with transaction.atomic():
+            category.delete()
+    except ProtectedError:
+        raise ValidationError(_("Cette catégorie est déjà utilisée : archivez-la au lieu de la supprimer.")) from None
+    audit.record(
+        organization=category.organization,
+        actor=actor,
+        action="expense_category.deleted",
+        target=None,
+        before=snapshot,
+    )
+
+
+@transaction.atomic
 def update_category(
-    *, category: ExpenseCategory, actor: User | None, name: str | None = None, is_active: bool | None = None
+    *,
+    category: ExpenseCategory,
+    actor: User | None,
+    name: str | None = None,
+    is_active: bool | None = None,
+    for_drivers: bool | None = None,
 ) -> ExpenseCategory:
     """Rename a category or archive it (an archived one is no longer offered; its expenses keep it).
 
     The default categories can be renamed but not archived: the app relies on them.
     """
     category = ExpenseCategory.objects.select_for_update().get(pk=category.pk)
-    before = {"name": category.name, "is_active": category.is_active}
+    before = {"name": category.name, "is_active": category.is_active, "for_drivers": category.for_drivers}
+    if for_drivers is not None:
+        category.for_drivers = for_drivers
     if name is not None:
         category.name = _checked_name(category.organization, name, exclude_id=category.pk)
     if is_active is not None:
@@ -128,7 +174,7 @@ def update_category(
         action="expense_category.updated",
         target=category,
         before=before,
-        after={"name": category.name, "is_active": category.is_active},
+        after={"name": category.name, "is_active": category.is_active, "for_drivers": category.for_drivers},
     )
     return category
 
@@ -1326,10 +1372,15 @@ def submit_road_expense(
     upload: "UploadedFile[bytes] | None" = None,
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
+    payment_method: str = ExpensePaymentMethod.CASH,
+    paid_by_driver: bool = False,
 ) -> Expense:
-    """A driver's expense from the road (P3-T04): cash, today, a cost of their truck that day, waiting for the
-    office to approve it. The receipt photo, when given, is joined in the same transaction."""
-    if category.code not in ROAD_CATEGORY_CODES:
+    """A driver's expense from the road (P3-T04): today, a cost of their truck that day, waiting for the
+    office to approve it. The receipt photo, when given, is joined in the same transaction.
+
+    Paid with the day's cash, out of the driver's own pocket (`paid_by_driver`: owed to them), or by card or
+    another way (`payment_method`), whatever cash the day holds (D-205)."""
+    if not category.for_drivers or not category.is_active:
         raise ValidationError({"category": _("Cette catégorie n'est pas disponible depuis la route.")})
     if client_uuid is not None:
         # A retry of an entry already saved (a phone resending after a lost answer): answer with it as it is, even
@@ -1349,7 +1400,11 @@ def submit_road_expense(
         client_uuid=client_uuid,
         submit=True,
         made_at=made_at,
+        payment_method=payment_method,
     )
+    if paid_by_driver:
+        expense.paid_by_driver = True
+        expense.save(update_fields=["paid_by_driver", "updated_at"])
     if upload is not None:
         expense = add_expense_receipt(expense=expense, actor=actor, upload=upload)
     return expense

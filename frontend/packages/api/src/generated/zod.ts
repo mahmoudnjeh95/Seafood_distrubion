@@ -1903,6 +1903,10 @@ export const getDayClosingResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?
 export const getDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayClosingResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const getDayClosingResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayClosingResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const getDayClosingResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayClosingResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -1968,6 +1972,8 @@ export const GetDayClosingResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', getDayClosingResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', getDayClosingResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', getDayClosingResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', getDayClosingResponseSummaryOneExpensesPocketRegExp).default(getDayClosingResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', getDayClosingResponseSummaryOneExpensesOtherRegExp).default(getDayClosingResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', getDayClosingResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', getDayClosingResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', getDayClosingResponseSummaryOnePurchaseFloatRegExp).default(getDayClosingResponseSummaryOnePurchaseFloatDefault),
@@ -2052,6 +2058,10 @@ export const approveDayClosingResponseSummaryOnePaymentsCashRegExp = new RegExp(
 export const approveDayClosingResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveDayClosingResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const approveDayClosingResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveDayClosingResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const approveDayClosingResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const approveDayClosingResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -2117,6 +2127,8 @@ export const ApproveDayClosingResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneExpensesPocketRegExp).default(approveDayClosingResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneExpensesOtherRegExp).default(approveDayClosingResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', approveDayClosingResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', approveDayClosingResponseSummaryOnePurchaseFloatRegExp).default(approveDayClosingResponseSummaryOnePurchaseFloatDefault),
@@ -2194,6 +2206,10 @@ export const requestDayJustificationResponseSummaryOnePaymentsCashRegExp = new R
 export const requestDayJustificationResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const requestDayJustificationResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const requestDayJustificationResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const requestDayJustificationResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const requestDayJustificationResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const requestDayJustificationResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -2259,6 +2275,8 @@ export const RequestDayJustificationResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneExpensesPocketRegExp).default(requestDayJustificationResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneExpensesOtherRegExp).default(requestDayJustificationResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', requestDayJustificationResponseSummaryOnePurchaseFloatRegExp).default(requestDayJustificationResponseSummaryOnePurchaseFloatDefault),
@@ -2624,6 +2642,10 @@ export const listDayOverviewResponsePaymentsCashRegExp = new RegExp('^-?\\d{0,11
 export const listDayOverviewResponseOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayOverviewResponseOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayOverviewResponseExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listDayOverviewResponseExpensesPocketDefault = `0.000`;
+export const listDayOverviewResponseExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listDayOverviewResponseExpensesOtherDefault = `0.000`;
+export const listDayOverviewResponseExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayOverviewResponseHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayOverviewResponseExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayOverviewResponsePurchaseFloatDefault = `0.000`;
@@ -2662,6 +2684,8 @@ export const ListDayOverviewResponseItem = zod.object({
   "other_payments": zod.stringFormat('decimal', listDayOverviewResponseOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', listDayOverviewResponseOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', listDayOverviewResponseExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', listDayOverviewResponseExpensesPocketRegExp).default(listDayOverviewResponseExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', listDayOverviewResponseExpensesOtherRegExp).default(listDayOverviewResponseExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', listDayOverviewResponseHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', listDayOverviewResponseExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', listDayOverviewResponsePurchaseFloatRegExp).default(listDayOverviewResponsePurchaseFloatDefault),
@@ -2706,6 +2730,10 @@ export const getDayOverviewResponsePaymentsCashRegExp = new RegExp('^-?\\d{0,11}
 export const getDayOverviewResponseOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponseOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponseExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayOverviewResponseExpensesPocketDefault = `0.000`;
+export const getDayOverviewResponseExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayOverviewResponseExpensesOtherDefault = `0.000`;
+export const getDayOverviewResponseExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponseHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponseExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponsePurchaseFloatDefault = `0.000`;
@@ -2758,6 +2786,8 @@ export const GetDayOverviewResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', getDayOverviewResponseOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', getDayOverviewResponseOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', getDayOverviewResponseExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', getDayOverviewResponseExpensesPocketRegExp).default(getDayOverviewResponseExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', getDayOverviewResponseExpensesOtherRegExp).default(getDayOverviewResponseExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', getDayOverviewResponseHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', getDayOverviewResponseExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', getDayOverviewResponsePurchaseFloatRegExp).default(getDayOverviewResponsePurchaseFloatDefault),
@@ -3395,7 +3425,8 @@ export const ListExpenseCategoriesResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
-  "is_active": zod.boolean()
+  "is_active": zod.boolean(),
+  "for_drivers": zod.boolean()
 })
 export const ListExpenseCategoriesResponse = zod.array(ListExpenseCategoriesResponseItem)
 
@@ -3405,17 +3436,19 @@ export const ListExpenseCategoriesResponse = zod.array(ListExpenseCategoriesResp
  */
 export const createExpenseCategoryBodyNameMax = 200;
 
-
+export const createExpenseCategoryBodyForDriversDefault = false;
 
 export const CreateExpenseCategoryBody = zod.object({
-  "name": zod.string().max(createExpenseCategoryBodyNameMax)
+  "name": zod.string().max(createExpenseCategoryBodyNameMax),
+  "for_drivers": zod.boolean().default(createExpenseCategoryBodyForDriversDefault)
 })
 
 export const CreateExpenseCategoryResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
-  "is_active": zod.boolean()
+  "is_active": zod.boolean(),
+  "for_drivers": zod.boolean()
 })
 
 
@@ -3432,15 +3465,27 @@ export const updateExpenseCategoryBodyNameMax = 200;
 
 export const UpdateExpenseCategoryBody = zod.object({
   "name": zod.string().max(updateExpenseCategoryBodyNameMax).optional(),
-  "is_active": zod.boolean().optional()
+  "is_active": zod.boolean().optional(),
+  "for_drivers": zod.boolean().optional()
 })
 
 export const UpdateExpenseCategoryResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
-  "is_active": zod.boolean()
+  "is_active": zod.boolean(),
+  "for_drivers": zod.boolean()
 })
+
+
+/**
+ * Remove a category never used (owner only, D-205); a used one is archived instead.
+ */
+export const DeleteExpenseCategoryParams = zod.object({
+  "category_id": zod.int()
+})
+
+export const DeleteExpenseCategoryResponse = zod.void()
 
 
 /**
@@ -8682,6 +8727,10 @@ export const closeMyDayResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\\d
 export const closeMyDayResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeMyDayResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const closeMyDayResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeMyDayResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const closeMyDayResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyDayResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -8727,6 +8776,8 @@ export const CloseMyDayResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', closeMyDayResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', closeMyDayResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', closeMyDayResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', closeMyDayResponseSummaryOneExpensesPocketRegExp).default(closeMyDayResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', closeMyDayResponseSummaryOneExpensesOtherRegExp).default(closeMyDayResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', closeMyDayResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', closeMyDayResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', closeMyDayResponseSummaryOnePurchaseFloatRegExp).default(closeMyDayResponseSummaryOnePurchaseFloatDefault),
@@ -8777,6 +8828,10 @@ export const getMyDaySummaryResponseSummaryOnePaymentsCashRegExp = new RegExp('^
 export const getMyDaySummaryResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyDaySummaryResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const getMyDaySummaryResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyDaySummaryResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const getMyDaySummaryResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyDaySummaryResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -8822,6 +8877,8 @@ export const GetMyDaySummaryResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneExpensesPocketRegExp).default(getMyDaySummaryResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneExpensesOtherRegExp).default(getMyDaySummaryResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', getMyDaySummaryResponseSummaryOnePurchaseFloatRegExp).default(getMyDaySummaryResponseSummaryOnePurchaseFloatDefault),
@@ -8975,6 +9032,10 @@ export const getMyPastDayResponseSummaryOnePaymentsCashRegExp = new RegExp('^-?\
 export const getMyPastDayResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyPastDayResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyPastDayResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyPastDayResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const getMyPastDayResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyPastDayResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const getMyPastDayResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyPastDayResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyPastDayResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getMyPastDayResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -9020,6 +9081,8 @@ export const GetMyPastDayResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneExpensesPocketRegExp).default(getMyPastDayResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneExpensesOtherRegExp).default(getMyPastDayResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', getMyPastDayResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', getMyPastDayResponseSummaryOnePurchaseFloatRegExp).default(getMyPastDayResponseSummaryOnePurchaseFloatDefault),
@@ -9083,6 +9146,10 @@ export const closeMyPastDayResponseSummaryOnePaymentsCashRegExp = new RegExp('^-
 export const closeMyPastDayResponseSummaryOneOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyPastDayResponseSummaryOneOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyPastDayResponseSummaryOneExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeMyPastDayResponseSummaryOneExpensesPocketDefault = `0.000`;
+export const closeMyPastDayResponseSummaryOneExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const closeMyPastDayResponseSummaryOneExpensesOtherDefault = `0.000`;
+export const closeMyPastDayResponseSummaryOneExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyPastDayResponseSummaryOneHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyPastDayResponseSummaryOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const closeMyPastDayResponseSummaryOnePurchaseFloatDefault = `0.000`;
@@ -9128,6 +9195,8 @@ export const CloseMyPastDayResponse = zod.object({
   "other_payments": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneOtherPaymentsRegExp),
   "on_credit": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneOnCreditRegExp),
   "expenses_total": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneExpensesPocketRegExp).default(closeMyPastDayResponseSummaryOneExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneExpensesOtherRegExp).default(closeMyPastDayResponseSummaryOneExpensesOtherDefault),
   "handed_over": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneHandedOverRegExp),
   "expected_cash": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOneExpectedCashRegExp),
   "purchase_float": zod.stringFormat('decimal', closeMyPastDayResponseSummaryOnePurchaseFloatRegExp).default(closeMyPastDayResponseSummaryOnePurchaseFloatDefault),
@@ -9687,26 +9756,30 @@ export const ListMyExpensesResponseItem = zod.object({
   "category_name": zod.string(),
   "amount": zod.stringFormat('decimal', listMyExpensesResponseAmountRegExp),
   "description": zod.string(),
-  "rejection_reason": zod.string()
+  "rejection_reason": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "paid_by_driver": zod.boolean()
 })
 export const ListMyExpensesResponse = zod.array(ListMyExpensesResponseItem)
 
 
 /**
- * Enter an expense paid in cash today, with a photo of the receipt. It is a cost of the driver's truck
- * of the day and waits for the office to approve it.
+ * Enter an expense of today, with a photo of the receipt, paid with the day's cash, out of the driver's
+ * pocket or by card (`paid_with`, D-205). It is a cost of the driver's truck of the day and waits for the
+ * office to approve it.
  */
 
 export const addMyExpenseBodyDescriptionDefault = ``;
 export const addMyExpenseBodyDescriptionMax = 255;
 
-
+export const addMyExpenseBodyPaidWithDefault = `cash`;
 
 export const AddMyExpenseBody = zod.object({
   "category": zod.int().min(1),
   "amount": zod.string(),
   "description": zod.string().max(addMyExpenseBodyDescriptionMax).default(addMyExpenseBodyDescriptionDefault),
   "receipt": zod.instanceof(Blob).optional(),
+  "paid_with": zod.enum(['cash', 'pocket', 'card']).describe('* `cash` - cash\n* `pocket` - pocket\n* `card` - card').default(addMyExpenseBodyPaidWithDefault),
   "client_uuid": zod.uuid().nullish(),
   "made_at": zod.iso.datetime({"offset":true}).nullish()
 })
@@ -9721,7 +9794,9 @@ export const AddMyExpenseResponse = zod.object({
   "category_name": zod.string(),
   "amount": zod.stringFormat('decimal', addMyExpenseResponseAmountRegExp),
   "description": zod.string(),
-  "rejection_reason": zod.string()
+  "rejection_reason": zod.string(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "paid_by_driver": zod.boolean()
 })
 
 

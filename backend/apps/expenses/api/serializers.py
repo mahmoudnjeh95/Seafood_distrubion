@@ -30,7 +30,7 @@ class ExpenseCategorySerializer(serializers.ModelSerializer[ExpenseCategory]):
     class Meta:
         model = ExpenseCategory
         # `code` is set on the default categories only ("fuel", "day_labour"...); empty for the owner's.
-        fields = ("id", "code", "name", "is_active")
+        fields = ("id", "code", "name", "is_active", "for_drivers")
         read_only_fields = fields
 
 
@@ -40,11 +40,14 @@ class ExpenseCategoryFilterSerializer(serializers.Serializer[Any]):
 
 class ExpenseCategoryWriteSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=200)
+    # Offered on the drivers' phones (D-205).
+    for_drivers = serializers.BooleanField(required=False, default=False)
 
 
 class ExpenseCategoryUpdateSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=200, required=False)
     is_active = serializers.BooleanField(required=False)
+    for_drivers = serializers.BooleanField(required=False)
 
 
 # ---- Expenses (P5-T01) ----
@@ -349,7 +352,17 @@ class RoadExpenseSerializer(serializers.ModelSerializer[Expense]):
 
     class Meta:
         model = Expense
-        fields = ("id", "number", "status", "category_name", "amount", "description", "rejection_reason")
+        fields = (
+            "id",
+            "number",
+            "status",
+            "category_name",
+            "amount",
+            "description",
+            "rejection_reason",
+            "payment_method",
+            "paid_by_driver",
+        )
         read_only_fields = fields
 
 
@@ -360,6 +373,8 @@ class RoadExpenseWriteSerializer(serializers.Serializer[Any]):
     description = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
     # A photo of the receipt.
     receipt = UploadedFileField(required=False)
+    # How it was paid (D-205): the day's cash, the driver's own pocket (owed to them), or a card / another way.
+    paid_with = serializers.ChoiceField(choices=["cash", "pocket", "card"], required=False, default="cash")
     # Sent by the app that may retry: the same value never makes two expenses.
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
     # When the driver's phone says it happened (D-133); the server checks it.
