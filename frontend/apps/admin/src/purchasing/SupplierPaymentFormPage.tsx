@@ -2,11 +2,12 @@ import {
   type PaymentMethodEnum,
   recordSupplierPayment,
   type SupplierPaymentWrite,
+  useListBanks,
   useListSupplierInvoices,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -27,13 +28,25 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { ConfirmPaymentDialog } from "../payments/ConfirmPaymentDialog";
+import {
+  describeLine,
+  errorsByLine,
+  type LineProblem,
+  lineProblems,
+  linesPayload,
+  linesTotal,
+  newLine,
+  type PaymentLine,
+} from "../payments/lines";
+import { PaymentLinesEditor } from "../payments/PaymentLinesEditor";
+import { TotalsBar } from "../payments/TotalsBar";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import {
   type Allocations,
   allocationPayload,
   asTyped,
   byDueDate,
-  compare,
   errorsByInvoice,
   hasAllocationProblem,
   spread,
@@ -41,11 +54,13 @@ import {
 import { AllocationTable } from "./AllocationTable";
 import { idFrom, refreshPurchasing } from "./shared";
 
-const METHODS: readonly PaymentMethodEnum[] = ["cash", "cheque", "transfer", "bill", "other"];
+const METHODS: readonly PaymentMethodEnum[] = ["cash", "cheque", "bill", "transfer", "other"];
 
 type Errors = Record<string, string>;
+type Line = PaymentLine<PaymentMethodEnum>;
 
-/** Record a payment to a supplier and the invoices it settles. Owners and managers only; the server checks it. */
+/** Record a règlement to a supplier: its means line by line (cash, our cheques and traites, a transfer...) and
+ * the invoices it settles (D-043, D-208). Owners and managers only; the server checks it. */
 export function SupplierPaymentFormPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
@@ -61,14 +76,19 @@ export function SupplierPaymentFormPage() {
   const planMethod = METHODS.find((one) => one === params.get("mode")) ?? "";
 
   const suppliers = useListSuppliers({ status: "all" });
+  const banks = useListBanks();
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [paidOn, setPaidOn] = useState(todayInTunis);
-  const [amount, setAmount] = useState(asTyped(planAmount));
-  const [method, setMethod] = useState<PaymentMethodEnum | "">(planAmount ? planMethod : "");
-  const [reference, setReference] = useState(planAmount ? (params.get("ref") ?? "") : "");
-  // The day a cheque or a traite may be cashed (D-159): asked only for those two.
-  const [cashOn, setCashOn] = useState(planAmount ? (params.get("encaisse") ?? "") : "");
-  const postDated = method === "cheque" || method === "bill";
+  const [lines, setLines] = useState<Line[]>(() => [
+    planAmount
+      ? {
+          ...newLine<PaymentMethodEnum>(planMethod, asTyped(planAmount)),
+          number: params.get("ref") ?? "",
+          reference: params.get("ref") ?? "",
+          dueOn: params.get("encaisse") ?? "",
+        }
+      : newLine<PaymentMethodEnum>(),
+  ]);
   const [notes, setNotes] = useState("");
   const [allocations, setAllocations] = useState<Allocations>(
     planAmount && fromInvoice ? { [fromInvoice]: asTyped(planAmount) } : {},
@@ -77,7 +97,10 @@ export function SupplierPaymentFormPage() {
   // A plan line brings its own amount, so it counts as typed.
   const [touched, setTouched] = useState(planAmount !== "");
   const [errors, setErrors] = useState<Errors>({});
-  const [lineErrors, setLineErrors] = useState<Record<number, string>>({});
+  const [serverLineErrors, setServerLineErrors] = useState<Record<number, Record<string, string>>>({});
+  const [checked, setChecked] = useState(false);
+  const [invoiceErrors, setInvoiceErrors] = useState<Record<number, string>>({});
+  const [confirming, setConfirming] = useState<SupplierPaymentWrite | null>(null);
 
   const open = useListSupplierInvoices(
     { supplier: Number(supplier), status: "open", limit: 200 },
@@ -85,17 +108,32 @@ export function SupplierPaymentFormPage() {
   );
   const invoices = useMemo(() => byDueDate(open.data?.results ?? []), [open.data]);
   const preset = touched ? undefined : invoices.find((invoice) => invoice.id === fromInvoice);
-  const shownAmount = preset ? asTyped(preset.outstanding) : amount;
+  // The invoice the person came from fills the first line's amount, once, until they type.
+  const shownLines: Line[] =
+    preset && lines.length === 1 && lines[0] && lines[0].amount === ""
+      ? [{ ...lines[0], amount: asTyped(preset.outstanding) }]
+      : lines;
   const shownAllocations: Allocations = preset ? { [preset.id]: asTyped(preset.outstanding) } : allocations;
 
-  const parsedAmount = parseDecimalInput(shownAmount.trim(), 3);
+  const total = linesTotal(shownLines);
   const readable = allocationPayload(invoices, shownAllocations) ?? [];
   const allocated = sum(
     readable.filter(({ amount: value }) => !value.startsWith("-")).map(({ amount: value }) => value),
   );
-  const remaining = parsedAmount && !parsedAmount.startsWith("-") ? subtract(parsedAmount, allocated) : null;
-  const overAllocated = remaining !== null && remaining.startsWith("-");
+  const remaining = subtract(total, allocated);
+  const overAllocated = remaining.startsWith("-");
   const allocationsError = overAllocated ? t("admin.supplierPayments.form.overAllocated") : errors.allocations;
+
+  const problems = lineProblems(shownLines);
+  const describe = (problem: LineProblem) => t(`admin.treasury.lines.problems.${problem}`);
+  const lineErrors: Record<number, Record<string, string>> = {};
+  shownLines.forEach((_line, index) => {
+    const fromBrowser = checked
+      ? Object.fromEntries(Object.entries(problems[index] ?? {}).map(([field, code]) => [field, describe(code)]))
+      : {};
+    lineErrors[index] = { ...(serverLineErrors[index] ?? {}), ...fromBrowser };
+  });
+  const bankRows = banks.data ?? [];
 
   const save = useMutation({
     mutationFn: (payload: SupplierPaymentWrite) => recordSupplierPayment(payload),
@@ -105,9 +143,12 @@ export function SupplierPaymentFormPage() {
       void navigate(fromInvoice ? `/achats/factures/${fromInvoice}` : "/achats/paiements");
     },
     onError: (failure, payload) => {
+      setConfirming(null);
       const fromServer = fieldErrors(failure);
-      setLineErrors(errorsByInvoice(fromServer, payload.allocations ?? []));
-      setErrors(Object.keys(fromServer).length > 0 ? fromServer : { detail: t("admin.supplierPayments.form.error") });
+      const { lines: byLine, rest } = errorsByLine(fromServer);
+      setServerLineErrors(byLine);
+      setInvoiceErrors(errorsByInvoice(rest, payload.allocations ?? []));
+      setErrors(Object.keys(fromServer).length > 0 ? rest : { detail: t("admin.supplierPayments.form.error") });
     },
   });
 
@@ -116,7 +157,7 @@ export function SupplierPaymentFormPage() {
   function touch() {
     if (touched) return;
     // Keep what the preset showed, so typing changes it rather than starting from nothing.
-    setAmount(shownAmount);
+    setLines(shownLines);
     setAllocations(shownAllocations);
     setTouched(true);
   }
@@ -126,22 +167,19 @@ export function SupplierPaymentFormPage() {
     const found: Errors = {};
     if (!supplier) found.supplier = t("admin.supplierPayments.form.required");
     if (!paidOn) found.paid_on = t("admin.supplierPayments.form.required");
-    if (!method) found.method = t("admin.supplierPayments.form.required");
-    if (parsedAmount === null || parsedAmount.startsWith("-")) found.amount = t("admin.supplierPayments.form.money");
-    else if (compare(parsedAmount, "0") === 0) found.amount = t("admin.supplierPayments.form.positive");
     const payload = allocationPayload(invoices, shownAllocations);
     // A refused allocation already shows its message on its own row.
     const rowsRefused = payload === null || hasAllocationProblem(invoices, shownAllocations);
     setErrors(found);
-    setLineErrors({});
-    if (Object.keys(found).length > 0 || rowsRefused || overAllocated || !method || parsedAmount === null) return;
-    save.mutate({
+    setChecked(true);
+    setServerLineErrors({});
+    setInvoiceErrors({});
+    if (Object.keys(found).length > 0 || Object.keys(problems).length > 0 || rowsRefused || overAllocated) return;
+    setConfirming({
       supplier: Number(supplier),
       paid_on: paidOn,
-      amount: parsedAmount,
-      method,
-      reference: reference.trim(),
-      cash_on: postDated && cashOn ? cashOn : null,
+      amount: total,
+      lines: linesPayload(shownLines),
       notes: notes.trim(),
       allocations: payload,
       plan_line: planAmount ? planLine : null,
@@ -149,6 +187,7 @@ export function SupplierPaymentFormPage() {
   }
 
   const id = (name: string) => `${formId}-${name}`;
+  const supplierName = (suppliers.data ?? []).find((one) => String(one.id) === supplier)?.name ?? "";
 
   return (
     <>
@@ -189,59 +228,26 @@ export function SupplierPaymentFormPage() {
               aria-invalid={errors.paid_on ? true : undefined}
             />
           </Field>
-          <Field label={t("admin.supplierPayments.form.amount")} htmlFor={id("amount")} error={errors.amount}>
-            <Input
-              id={id("amount")}
-              inputMode="decimal"
-              value={shownAmount}
-              onChange={(event) => {
-                touch();
-                setAmount(event.target.value);
-              }}
-              aria-invalid={errors.amount ? true : undefined}
-              autoComplete="off"
-              className="num"
-            />
-          </Field>
-          <Field label={t("admin.supplierPayments.form.method")} htmlFor={id("method")} error={errors.method}>
-            <Select value={method} onValueChange={(value) => setMethod(value as PaymentMethodEnum)}>
-              <SelectTrigger id={id("method")} aria-invalid={errors.method ? true : undefined}>
-                <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
-              </SelectTrigger>
-              <SelectContent>
-                {METHODS.map((choice) => (
-                  <SelectItem key={choice} value={choice}>
-                    {t(`admin.supplierPayments.method.${choice}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field
-            label={t("admin.supplierPayments.form.reference")}
-            htmlFor={id("reference")}
-            error={errors.reference}
-            className={postDated ? undefined : "col-span-full"}
-          >
-            <Input
-              id={id("reference")}
-              value={reference}
-              maxLength={50}
-              onChange={(event) => setReference(event.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-          {postDated && (
-            <Field label={t("admin.supplierPayments.form.cashOn")} htmlFor={id("cash_on")} error={errors.cash_on}>
-              <Input
-                id={id("cash_on")}
-                type="date"
-                min={paidOn}
-                value={cashOn}
-                onChange={(event) => setCashOn(event.target.value)}
-                aria-invalid={errors.cash_on ? true : undefined}
-              />
-            </Field>
+        </Card>
+
+        <Card className="flex flex-col gap-3">
+          <CardTitle className="mb-0">{t("admin.treasury.lines.title")}</CardTitle>
+          <p className="text-[0.85rem] text-ink-2">{t("admin.treasury.lines.supplierHint")}</p>
+          <PaymentLinesEditor
+            idPrefix={formId}
+            lines={shownLines}
+            onChange={(next) => {
+              touch();
+              setLines(next);
+            }}
+            methods={METHODS}
+            methodLabel={(method) => t(`admin.supplierPayments.method.${method}`)}
+            banks={bankRows}
+            errors={lineErrors}
+            issuedOn={paidOn}
+          />
+          {(errors.amount ?? errors.lines) && (
+            <p className="text-[0.78rem] font-semibold text-bad">{errors.amount ?? errors.lines}</p>
           )}
         </Card>
 
@@ -251,11 +257,10 @@ export function SupplierPaymentFormPage() {
             {invoices.length > 0 && (
               <Button
                 className="ms-auto"
-                disabled={parsedAmount === null || parsedAmount.startsWith("-")}
+                disabled={total === "0.000"}
                 onClick={() => {
-                  if (parsedAmount === null) return;
                   const shares = spread(
-                    parsedAmount,
+                    total,
                     invoices.map((invoice) => invoice.outstanding),
                   );
                   touch();
@@ -280,7 +285,7 @@ export function SupplierPaymentFormPage() {
               idPrefix={formId}
               invoices={invoices}
               values={shownAllocations}
-              errors={lineErrors}
+              errors={invoiceErrors}
               onChange={(invoiceId, value) => {
                 touch();
                 setAllocations((current) => ({ ...(touched ? current : shownAllocations), [invoiceId]: value }));
@@ -288,26 +293,6 @@ export function SupplierPaymentFormPage() {
             />
           )}
           {allocationsError && <p className="text-[0.78rem] font-semibold text-bad">{allocationsError}</p>}
-          <dl className="ms-auto flex flex-wrap gap-x-8 gap-y-2">
-            <div>
-              <dt className="text-[0.78rem] font-semibold text-ink-2">
-                {t("admin.supplierPayments.form.amountTotal")}
-              </dt>
-              <dd className="num font-bold">
-                {parsedAmount && !parsedAmount.startsWith("-") ? formatMoney(parsedAmount) : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[0.78rem] font-semibold text-ink-2">
-                {t("admin.supplierPayments.form.allocatedTotal")}
-              </dt>
-              <dd className="num">{formatMoney(allocated)}</dd>
-            </div>
-            <div>
-              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.supplierPayments.form.remaining")}</dt>
-              <dd className="num">{remaining !== null && !overAllocated ? formatMoney(remaining) : "—"}</dd>
-            </div>
-          </dl>
         </Card>
 
         <Card>
@@ -322,13 +307,23 @@ export function SupplierPaymentFormPage() {
           </Field>
         </Card>
 
-        {errors.detail && (
+        {(errors.detail ?? errors.plan_line) && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">
-            {errors.detail}
+            {errors.detail ?? errors.plan_line}
           </p>
         )}
 
-        <div className="flex justify-end gap-2">
+        <TotalsBar
+          total={total}
+          allocated={allocated}
+          remaining={remaining}
+          overAllocated={overAllocated}
+          labels={{
+            total: t("admin.treasury.form.paidTotal"),
+            allocated: t("admin.supplierPayments.form.allocatedTotal"),
+            remaining: t("admin.treasury.form.advance"),
+          }}
+        >
           <Button asChild>
             <Link to={fromInvoice ? `/achats/factures/${fromInvoice}` : "/achats/paiements"}>
               {t("admin.supplierPayments.form.cancel")}
@@ -337,8 +332,28 @@ export function SupplierPaymentFormPage() {
           <Button type="submit" variant="primary" disabled={save.isPending}>
             {save.isPending ? t("admin.supplierPayments.form.saving") : t("admin.supplierPayments.form.save")}
           </Button>
-        </div>
+        </TotalsBar>
       </form>
+
+      <ConfirmPaymentDialog
+        open={confirming !== null}
+        title={t("admin.treasury.form.confirmSupplier", { name: supplierName })}
+        rows={[
+          [t("admin.treasury.form.paidTotal"), formatMoney(total)],
+          [t("admin.supplierPayments.form.allocatedTotal"), formatMoney(allocated)],
+          [t("admin.treasury.form.advance"), formatMoney(remaining)],
+        ]}
+        means={shownLines.map((line) =>
+          describeLine(line, {
+            methodLabel: (method) => t(`admin.supplierPayments.method.${method}`),
+            banks: bankRows,
+            formatDate,
+          }),
+        )}
+        pending={save.isPending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => confirming && save.mutate(confirming)}
+      />
     </>
   );
 }

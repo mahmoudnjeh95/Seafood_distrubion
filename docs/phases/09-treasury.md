@@ -77,22 +77,30 @@ cash only on the phone (as today, D-133).
 - [x] Receipt "payer maintenant" (D-192) and port purchases (D-176) write lines too (one line each, as now).
 - [x] Data migration as in T01. Tests. (Void: supplier règlements had none; it comes with the T03 screens.)
 
-### P9-T03 · Office: the règlement screens (clients and fournisseurs) · L
-- [ ] "Nouveau règlement" full page (not a small dialog): customer (or supplier) picker with its balance, encours and
-      credit limit; left, the open invoices (number, date, due day, total, retenue, already paid, rest, days late)
-      with a tick and an amount each; right, the payment lines (add Espèces / Chèque / Traite / Virement / Carte;
-      cheque and traite ask number, bank from the list, drawer prefilled with the customer, due day); a "Répartir"
-      helper for N effets of equal amounts monthly; bottom bar "Total reçu · Affecté · Reste en avance" live, red
-      when the affecté exceeds the total. "Affecter automatiquement" fills oldest due first.
-- [ ] Confirm window with the summary (D-179 style), keyboard friendly (Tab through lines, Enter adds a line).
+### P9-T03a · Office: the "Nouveau règlement" forms and the banks · M
+- [x] "Nouveau règlement client" full page (`/reglements/nouveau`, D-210): customer picker with balance, overdue,
+      effets in portfolio, encours (solde + effets, red over the credit limit) and credit limit; the open invoices and
+      BLs not invoiced (due day, days late, rest) with an amount each and "Solder"; the payment lines (shared editor:
+      Espèces / Chèque / Traite / Virement / Carte; cheque and traite ask number, bank, due day, drawer prefilled with
+      the customer); "Répartir" for N effets of equal amounts a month apart (numbers counted on, odd millimes on the
+      last); bottom bar "Total reçu · Affecté · Reste en crédit" live, red when the affecté exceeds the total;
+      "Affecter automatiquement" fills oldest due first.
+- [x] The supplier form (`/achats/paiements/nouveau`) uses the same lines editor, "Répartir" and bar ("Reste en
+      avance"); a plan line still fills its one line.
+- [x] Confirm window with the summary (D-179) before either is sent.
+- [x] Banques page (`/tresorerie/banques`, side menu Finance › Banques, link from Paramètres): list, add, rename,
+      take off / put back. Owner and manager write; the accountant reads.
+- [x] i18n FR. Vitest for the lines, the totals and "Répartir". E2E of the supplier payment updated.
+
+### P9-T03b · Office: règlement lists, detail pages and the supplier void · M
 - [ ] Règlements clients / fournisseurs list pages: filters (party, dates, method, status, search), totals of the
       filter, columns number, day, party, total, moyens (chips), affecté, avance, state; Excel export.
 - [ ] Règlement detail page: lines with each effet's state and history, affectation, avance left with "Affecter",
       "Annuler" (reason), PDF reçu de règlement (lines and invoices), link to the customer statement.
-- [ ] Settings › Banques: list, add, rename, deactivate.
 - [ ] Void a supplier règlement (D-208: none existed): reason, its allocations undone (invoice status back), its
-      plan lines open again, its effets cancelled; refused once an effet was debited. Same rules as the customer void.
-- [ ] i18n FR. Vitest for the totals and the "Répartir" helper.
+      plan lines open again, its effets cancelled; refused once an effet was debited. Every supplier balance, debt,
+      statement and report reads only the règlements not voided.
+- [ ] "Payer" several plan lines at once from "Règlements fournisseurs" (the API takes `plan_lines`, D-208).
 
 ### P9-T04 · Portefeuille: the life of an effet · L
 - [ ] Page Trésorerie › Portefeuille: tabs À remettre (portfolio), En banque, Encaissés, Impayés, Émis (ours); filters
