@@ -23,6 +23,7 @@ from apps.inventory.services import LocationKind
 from . import cost_selectors
 from .costing import first_of_month, last_of_month, room_month_amounts
 from .models import (
+    ColdRoomEstimate,
     ColdRoomMonthRate,
     ColdRoomWeight,
     DayLabourEntry,
@@ -858,6 +859,41 @@ def set_cold_room_shares(
     ]
 
 
+@transaction.atomic
+def set_cold_room_estimate(
+    *, organization: Organization, actor: User | None, month: dt.date, amount: Number, reason: str = ""
+) -> ColdRoomEstimate:
+    """Type the electricity estimate of a month for all the cold rooms (D-227): the rooms share it by weight
+    and the lots are charged it until the month's bill is approved. The month must be the current one or
+    an earlier one; once the bill is approved the estimate is frozen."""
+    _month(month, "month")
+    if month > first_of_month(timezone.localdate()):
+        raise ValidationError({"month": _("L'estimation se saisit pour le mois en cours ou un mois passé.")})
+    if ElectricityBill.objects.for_organization(organization).filter(month=month, finalized_at__isnull=False).exists():
+        raise ValidationError({"month": _("La facture de ce mois est approuvée : l'estimation est figée.")})
+    try:
+        value = checked_amount(amount)
+    except (ValueError, TypeError):
+        raise ValidationError({"amount": _("Indiquez un montant en DT, au millime près.")}) from None
+    if value <= 0:
+        raise ValidationError({"amount": _("Indiquez un montant supérieur à zéro.")})
+    row = ColdRoomEstimate.objects.for_organization(organization).filter(month=month).first()
+    before = str(row.amount) if row is not None else None
+    if row is None:
+        row = ColdRoomEstimate(organization=organization, month=month)
+    row.amount = value
+    row.save()
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="cold_room_estimate.set",
+        target=row,
+        before={"amount": before},
+        after={"month": month.isoformat(), "amount": str(value), "reason": reason.strip()},
+    )
+    return row
+
+
 # ---- Electricity bills ----
 
 
@@ -999,7 +1035,9 @@ def finalize_bill(*, bill: ElectricityBill, actor: User | None) -> list[LotCostA
     if not weights:
         raise ValidationError(_("Aucune chambre froide : créez-en une avant d'approuver la facture."))
     amounts = room_month_amounts(bill.expense.amount, weights)
-    source, estimates = cost_selectors.estimate_for_new_bill(organization, month=bill.month)
+    estimate = cost_selectors.estimate_for_new_bill(organization, month=bill.month)
+    source = estimate.source_month
+    estimates = estimate.day_amounts
     ColdRoomMonthRate.objects.bulk_create(
         ColdRoomMonthRate(
             organization=organization,
@@ -1043,6 +1081,7 @@ def finalize_bill(*, bill: ElectricityBill, actor: User | None) -> list[LotCostA
             "rooms": {str(room_id): str(amount) for room_id, amount in amounts.items()},
             "adjustments": len(adjustments),
             "estimate_source_month": source.isoformat() if source is not None else None,
+            "estimate_typed": estimate.typed,
         },
     )
     return adjustments

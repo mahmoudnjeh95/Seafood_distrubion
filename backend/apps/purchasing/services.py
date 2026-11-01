@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import StockLocation
     from apps.partners.models import Supplier
-    from apps.treasury.models import Bank
+    from apps.treasury.models import Bank, TreasuryAccount
 
 ZERO = Decimal("0.000")
 # The methods one line, a plan line or a sum given at the port may use: every method but "several" (D-208).
@@ -1001,6 +1001,9 @@ class PaymentLineFields(TypedDict, total=False):
     number: str
     bank: "Bank | None"
     due_on: dt.date | None
+    # The account the money leaves (D-219): a Caisse for cash, a bank account for the rest (for our cheque or
+    # traite, the one the bank will debit). Empty: the Caisse, the account of the effet's bank, the main one.
+    account: "TreasuryAccount | None"
 
 
 # At most this many lines in one règlement.
@@ -1055,6 +1058,9 @@ def _checked_settlement_lines(
             for field, message in found.items():
                 errors[line_error_key(index, field)] = message
             taken.append((method, bank.pk if bank else None, number.strip()))
+        message = treasury.line_account_error(organization, method, line.get("account"))
+        if message:
+            errors[line_error_key(index, "account")] = message
         checked.append((method, value, line))
     return checked
 
@@ -1065,8 +1071,10 @@ def _write_lines(
     checked: Sequence[tuple[str, Decimal, PaymentLineFields]],
     *,
     partial: bool,
+    post_to_treasury: bool = True,
 ) -> None:
-    """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier."""
+    """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier, the money of the
+    others leaves its account at once (D-219)."""
     for method, value, line in checked:
         instrument = None
         if method in INSTRUMENT_METHODS:
@@ -1084,8 +1092,9 @@ def _write_lines(
                 supplier=payment.supplier,
                 source_number=payment.number,
                 partial=partial,
+                account=line.get("account"),
             )
-        SupplierPaymentLine.objects.create(
+        row = SupplierPaymentLine.objects.create(
             organization_id=payment.organization_id,
             payment=payment,
             method=method,
@@ -1093,6 +1102,65 @@ def _write_lines(
             reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
             instrument=instrument,
         )
+        if instrument is None and post_to_treasury:
+            _post_line_money(payment, row, line.get("account"), actor)
+
+
+# The treasury movement of a supplier règlement line paid in cash, by transfer or by card (D-219).
+PAYMENT_LINE_SOURCE = "purchasing.payment_line"
+
+
+def _post_line_money(
+    payment: SupplierPayment, line: SupplierPaymentLine, account: "TreasuryAccount | None", actor: User | None
+) -> None:
+    """The money of a line leaves an account the day it was paid: the one chosen, else the Caisse for cash, the
+    main bank account for a transfer or a card. Our cheque or traite leaves only when the bank debits it."""
+    organization = payment.organization
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, line.method, account),
+        day=payment.paid_on,
+        amount=-line.amount,
+        kind="supplier_payment",
+        label=f"{payment.number} · {payment.supplier.name}",
+        reference=payment.number,
+        source=PAYMENT_LINE_SOURCE,
+        source_id=line.pk,
+        actor=actor,
+    )
+
+
+def _reverse_line_money(payment: SupplierPayment, actor: User | None, day: dt.date) -> None:
+    treasury.reverse_movements(
+        organization=payment.organization,
+        source=PAYMENT_LINE_SOURCE,
+        source_ids=list(
+            SupplierPaymentLine.objects.filter(payment=payment, instrument__isnull=True).values_list("pk", flat=True)
+        ),
+        day=day,
+        actor=actor,
+        label=_("Annulation"),
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the treasury movements of the supplier règlements recorded before the accounts existed (D-219), and
+    undo those of the voided ones on the day they were voided. The money given at the port is the driver's (written
+    with the driver's day). Safe to run again."""
+    done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
+    lines = (
+        SupplierPaymentLine.objects.filter(
+            organization=organization, instrument__isnull=True, payment__field_purchase_payment__isnull=True
+        )
+        .select_related("payment__organization", "payment__supplier", "payment__created_by")
+        .order_by("id")
+    )
+    for line in lines:
+        payment = line.payment
+        if line.pk not in done:
+            _post_line_money(payment, line, None, payment.created_by)
+        if payment.voided_at is not None:
+            _reverse_line_money(payment, payment.voided_by, timezone.localtime(payment.voided_at).date())
 
 
 @transaction.atomic
@@ -1111,6 +1179,7 @@ def record_payment(
     cash_on: dt.date | None = None,
     plan_line: SupplierPaymentPlanLine | None = None,
     plan_lines: Sequence[SupplierPaymentPlanLine] = (),
+    post_to_treasury: bool = True,
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles (D-043, D-208).
 
@@ -1126,6 +1195,9 @@ def record_payment(
 
     `plan_lines` (or one `plan_line`) are open plan lines (D-192) this payment settles: each one's invoice must be
     among the allocations (with an amount) and its supplier the payment's; they become `paid`, linked to it.
+
+    The money of its cash, transfer and card lines leaves our accounts at once (D-219); `post_to_treasury` False
+    leaves that to the caller (the port purchase: the driver's money).
     """
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
@@ -1186,7 +1258,7 @@ def record_payment(
         notes=notes.strip(),
         created_by=actor,
     )
-    _write_lines(payment, actor, checked, partial=partial)
+    _write_lines(payment, actor, checked, partial=partial, post_to_treasury=post_to_treasury)
     _allocate(payment, actor, allocated)
     for line in settled:
         line.status = PlanLineStatus.PAID
@@ -1282,6 +1354,7 @@ def void_payment(*, payment: SupplierPayment, actor: User | None, reason: str) -
             happened_on=timezone.localdate(),
             note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
         )
+    _reverse_line_money(payment, actor, timezone.localdate())
     invoice_ids = sorted(
         set(SupplierPaymentAllocation.objects.filter(payment=payment).values_list("invoice_id", flat=True))
     )
@@ -1884,6 +1957,8 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
             cash_on=payment.cash_on,
             notes=_("Donné au port, achat terrain %(number)s") % {"number": purchase.number},
             allocations=[],
+            # The driver's purchase money, written with the driver's day (P9-T05b).
+            post_to_treasury=False,
         )
         payment.save(update_fields=["supplier_payment"])
     purchase.status = FieldPurchaseStatus.VALIDATED

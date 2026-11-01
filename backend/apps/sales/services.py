@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import Batch, StockLocation, Transfer
     from apps.partners.models import Customer
-    from apps.treasury.models import Bank
+    from apps.treasury.models import Bank, TreasuryAccount
 
 # ---- Quotes (P2-T03, D-050) ----
 
@@ -2684,6 +2684,8 @@ class PaymentLineFields(TypedDict, total=False):
     bank: "Bank | None"
     drawer: str
     due_on: dt.date | None
+    # Cash, a transfer, a card: the account the money went to (D-219); empty: the Caisse, the main bank account.
+    account: "TreasuryAccount | None"
 
 
 # At most this many lines in one règlement.
@@ -2910,6 +2912,10 @@ def _checked_payment_lines(
             for field, message in found.items():
                 errors[line_error_key(index, field)] = message
             taken.append((method, bank.pk if bank else None, number.strip()))
+        else:
+            message = treasury.line_account_error(organization, method, line.get("account"))
+            if message:
+                errors[line_error_key(index, "account")] = message
         checked.append((method, value, line))
     return checked
 
@@ -3020,7 +3026,7 @@ def record_customer_payment(
                 customer=customer,
                 source_number=number,
             )
-        CustomerPaymentLine.objects.create(
+        row = CustomerPaymentLine.objects.create(
             organization=organization,
             payment=payment,
             method=line_method,
@@ -3028,6 +3034,8 @@ def record_customer_payment(
             reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
             instrument=instrument,
         )
+        if instrument is None:
+            _post_line_money(payment, row, line.get("account"), actor)
     _allocate(payment, paid, allocations)
     audit.record(
         organization=organization,
@@ -3037,6 +3045,60 @@ def record_customer_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+# The treasury movement of a règlement line paid in cash, by transfer or by card (D-219).
+PAYMENT_LINE_SOURCE = "sales.payment_line"
+
+
+def _post_line_money(
+    payment: CustomerPayment, line: CustomerPaymentLine, account: "TreasuryAccount | None", actor: User | None
+) -> None:
+    """The money of a line goes in an account the day it was received: the one chosen, else the cash a driver took
+    goes to that driver's cash (D-133), other cash to the Caisse, a transfer or a card to the main bank account. A
+    cheque or a traite moves money only when the bank pays it (the treasury)."""
+    organization = payment.organization
+    driver = payment.created_by if payment.made_at is not None else None
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, line.method, account, driver=driver),
+        day=payment.received_on,
+        amount=line.amount,
+        kind="customer_payment",
+        label=f"{payment.number} · {payment.customer.name}",
+        reference=payment.number,
+        source=PAYMENT_LINE_SOURCE,
+        source_id=line.pk,
+        actor=actor,
+    )
+
+
+def _reverse_line_money(payment: CustomerPayment, actor: User | None, day: dt.date) -> None:
+    treasury.reverse_movements(
+        organization=payment.organization,
+        source=PAYMENT_LINE_SOURCE,
+        source_ids=list(payment.lines.filter(instrument__isnull=True).values_list("pk", flat=True)),
+        day=day,
+        actor=actor,
+        label=_("Annulation"),
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the treasury movements of the règlements recorded before the accounts existed (D-219), and undo those
+    of the voided ones on the day they were voided. Safe to run again."""
+    done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
+    lines = (
+        CustomerPaymentLine.objects.filter(organization=organization, instrument__isnull=True)
+        .select_related("payment__organization", "payment__customer", "payment__created_by")
+        .order_by("id")
+    )
+    for line in lines:
+        payment = line.payment
+        if line.pk not in done:
+            _post_line_money(payment, line, None, payment.created_by)
+        if payment.voided_at is not None:
+            _reverse_line_money(payment, payment.voided_by, timezone.localtime(payment.voided_at).date())
 
 
 def _locked_payment(payment: CustomerPayment) -> CustomerPayment:
@@ -3091,6 +3153,7 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
             happened_on=timezone.localdate(),
             note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
         )
+    _reverse_line_money(payment, actor, timezone.localdate())
     sale_ids = list(payment.allocations.values_list("sale_id", flat=True))
     payment.voided_at = timezone.now()
     payment.voided_by = actor

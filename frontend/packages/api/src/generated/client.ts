@@ -24,6 +24,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountStatement,
+  AccountTransfer,
+  AccountTransferWrite,
   AdjustmentWrite,
   AllocateWrite,
   ApprovedMonth,
@@ -34,10 +37,13 @@ import type {
   BoxAdjustmentWrite,
   BoxBalance,
   BoxMovement,
+  CashCount,
+  CashCountWrite,
   CashFlow,
   Category,
   ChangePassword,
   CloseLot,
+  ColdRoomEstimateWrite,
   ColdRoomMonth,
   ColdRoomSharesWrite,
   ColdRoomWeight,
@@ -92,6 +98,7 @@ import type {
   ExpenseReject,
   ExpenseTotals,
   ExpenseWrite,
+  ExportAccountStatementParams,
   ExportCashFlowReportParams,
   ExportCustomerPaymentsParams,
   ExportLossesReportParams,
@@ -111,6 +118,7 @@ import type {
   GeneralCostWrite,
   GenerateRecurring,
   GeneratedMonth,
+  GetAccountStatementParams,
   GetCashFlowReportParams,
   GetColdRoomMonthParams,
   GetCustomerPaymentTotalsParams,
@@ -140,9 +148,11 @@ import type {
   InvoiceDetail,
   Justification,
   LastCost,
+  ListAccountTransfersParams,
   ListBanksParams,
   ListBatchesParams,
   ListBoxMovementsParams,
+  ListCashCountsParams,
   ListCountsParams,
   ListCreditNotesParams,
   ListCustomerPaymentsParams,
@@ -186,6 +196,7 @@ import type {
   ListSupplierSettlementsParams,
   ListSuppliersParams,
   ListTransfersParams,
+  ListTreasuryAccountsParams,
   ListTruckAssignmentsParams,
   ListTrucksParams,
   ListWebRequestsParams,
@@ -234,8 +245,10 @@ import type {
   Order,
   OrderWrite,
   Organization,
+  PaginatedAccountTransferList,
   PaginatedBatchList,
   PaginatedBoxMovementList,
+  PaginatedCashCountList,
   PaginatedCountList,
   PaginatedCreditNoteList,
   PaginatedCustomerPaymentList,
@@ -353,6 +366,8 @@ import type {
   SyncProblemWrite,
   TransferDetail,
   TransferWrite,
+  TreasuryAccount,
+  TreasuryAccountWrite,
   Truck,
   TruckAssignment,
   TruckAssignmentWrite,
@@ -363,6 +378,7 @@ import type {
   UnpaidWrite,
   Unread,
   VatProducts,
+  VoidTransfer,
   VoidWrite,
   WebRequest,
   WebRequestStatus,
@@ -1536,7 +1552,8 @@ export const getGetColdRoomMonthUrl = (params?: GetColdRoomMonthParams,) => {
 
 /**
  * One month of cold-room costs: the bill if any, and per room its weight and cost for the month
- * and per day, estimated (the previous month's daily rate) until the bill is approved.
+ * and per day, estimated (the estimate typed for the month, else the previous month's daily rate) until the
+ * bill is approved; the estimate and the difference with the real bill come with it.
  */
 export const getColdRoomMonth = async (params?: GetColdRoomMonthParams, options?: Parameters<typeof apiFetch>[1]): Promise<ColdRoomMonth> => {
 
@@ -1624,6 +1641,92 @@ export function useGetColdRoomMonth<TData = Awaited<ReturnType<typeof getColdRoo
 
 
 
+
+export const getUpdateColdRoomEstimateUrl = () => {
+
+
+
+
+  return `/api/v1/cold-room-estimate`
+}
+
+/**
+ * Type the electricity estimate of a month for all the cold rooms (owner or manager), until the month's
+ * bill is approved: the rooms share it by weight, as the bill is shared (D-227).
+ */
+export const updateColdRoomEstimate = async (coldRoomEstimateWrite: ColdRoomEstimateWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ColdRoomMonth> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ColdRoomMonth>(getUpdateColdRoomEstimateUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(coldRoomEstimateWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateColdRoomEstimateMutationKey = () => ['updateColdRoomEstimate'] as const;
+
+export const getUpdateColdRoomEstimateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomEstimate>>, TError,UpdateColdRoomEstimateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomEstimate>>, TError,UpdateColdRoomEstimateMutationVariables, TContext> => {
+
+const mutationKey = getUpdateColdRoomEstimateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateColdRoomEstimate>>, UpdateColdRoomEstimateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateColdRoomEstimate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateColdRoomEstimateMutationResult = NonNullable<Awaited<ReturnType<typeof updateColdRoomEstimate>>>
+    export type UpdateColdRoomEstimateMutationBody = ColdRoomEstimateWrite
+    export type UpdateColdRoomEstimateMutationError = unknown
+    export type UpdateColdRoomEstimateMutationVariables = {data: ColdRoomEstimateWrite}
+
+    export const useUpdateColdRoomEstimate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateColdRoomEstimate>>, TError,UpdateColdRoomEstimateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateColdRoomEstimate>>,
+        TError,
+        UpdateColdRoomEstimateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateColdRoomEstimateMutationOptions(options), queryClient);
+    }
 
 export const getUpdateColdRoomSharesUrl = () => {
 
@@ -30140,6 +30243,611 @@ export function useGetTruckDay<TData = Awaited<ReturnType<typeof getTruckDay>>, 
 
 
 
+export const getListTreasuryAccountsUrl = (params?: ListTreasuryAccountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/accounts?${stringifiedParams}` : `/api/v1/treasury/accounts`
+}
+
+/**
+ * Our accounts (Caisses, bank accounts, drivers' cash), each with its balance at the end of today or `on`;
+ * `active_only` leaves out those taken off the lists.
+ */
+export const listTreasuryAccounts = async (params?: ListTreasuryAccountsParams, options?: Parameters<typeof apiFetch>[1]): Promise<TreasuryAccount[]> => {
+
+  return apiFetch<TreasuryAccount[]>(getListTreasuryAccountsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTreasuryAccountsQueryKey = (params?: ListTreasuryAccountsParams,) => {
+    return [
+    `/api/v1/treasury/accounts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTreasuryAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listTreasuryAccounts>>, TError = unknown>(params?: ListTreasuryAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTreasuryAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTreasuryAccountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTreasuryAccounts>>> = ({ signal }) => listTreasuryAccounts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTreasuryAccounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTreasuryAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listTreasuryAccounts>>>
+export type ListTreasuryAccountsQueryError = unknown
+
+
+export function useListTreasuryAccounts<TData = Awaited<ReturnType<typeof listTreasuryAccounts>>, TError = unknown>(
+ params: undefined |  ListTreasuryAccountsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTreasuryAccounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTreasuryAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof listTreasuryAccounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTreasuryAccounts<TData = Awaited<ReturnType<typeof listTreasuryAccounts>>, TError = unknown>(
+ params?: ListTreasuryAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTreasuryAccounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTreasuryAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof listTreasuryAccounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTreasuryAccounts<TData = Awaited<ReturnType<typeof listTreasuryAccounts>>, TError = unknown>(
+ params?: ListTreasuryAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTreasuryAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTreasuryAccounts<TData = Awaited<ReturnType<typeof listTreasuryAccounts>>, TError = unknown>(
+ params?: ListTreasuryAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTreasuryAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTreasuryAccountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTreasuryAccountUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/accounts`
+}
+
+/**
+ * Add a Caisse or a bank account (owner or manager), with its bank, RIB and what it held on its opening
+ * day.
+ */
+export const createTreasuryAccount = async (treasuryAccountWrite: TreasuryAccountWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TreasuryAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TreasuryAccount>(getCreateTreasuryAccountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(treasuryAccountWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateTreasuryAccountMutationKey = () => ['createTreasuryAccount'] as const;
+
+export const getCreateTreasuryAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTreasuryAccount>>, TError,CreateTreasuryAccountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTreasuryAccount>>, TError,CreateTreasuryAccountMutationVariables, TContext> => {
+
+const mutationKey = getCreateTreasuryAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTreasuryAccount>>, CreateTreasuryAccountMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTreasuryAccount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTreasuryAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createTreasuryAccount>>>
+    export type CreateTreasuryAccountMutationBody = TreasuryAccountWrite
+    export type CreateTreasuryAccountMutationError = unknown
+    export type CreateTreasuryAccountMutationVariables = {data: TreasuryAccountWrite}
+
+    export const useCreateTreasuryAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTreasuryAccount>>, TError,CreateTreasuryAccountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createTreasuryAccount>>,
+        TError,
+        CreateTreasuryAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTreasuryAccountMutationOptions(options), queryClient);
+    }
+
+export const getGetTreasuryAccountUrl = (accountId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/accounts/${accountId}`
+}
+
+/**
+ * One account with its balance today.
+ */
+export const getTreasuryAccount = async (accountId: number, options?: Parameters<typeof apiFetch>[1]): Promise<TreasuryAccount> => {
+
+  return apiFetch<TreasuryAccount>(getGetTreasuryAccountUrl(accountId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTreasuryAccountQueryKey = (accountId: number,) => {
+    return [
+    `/api/v1/treasury/accounts/${accountId}`
+    ] as const;
+    }
+
+
+export const getGetTreasuryAccountQueryOptions = <TData = Awaited<ReturnType<typeof getTreasuryAccount>>, TError = unknown>(accountId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTreasuryAccount>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTreasuryAccountQueryKey(accountId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTreasuryAccount>>> = ({ signal }) => getTreasuryAccount(accountId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: accountId !== null && accountId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTreasuryAccount>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTreasuryAccountQueryResult = NonNullable<Awaited<ReturnType<typeof getTreasuryAccount>>>
+export type GetTreasuryAccountQueryError = unknown
+
+
+export function useGetTreasuryAccount<TData = Awaited<ReturnType<typeof getTreasuryAccount>>, TError = unknown>(
+ accountId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTreasuryAccount>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTreasuryAccount>>,
+          TError,
+          Awaited<ReturnType<typeof getTreasuryAccount>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTreasuryAccount<TData = Awaited<ReturnType<typeof getTreasuryAccount>>, TError = unknown>(
+ accountId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTreasuryAccount>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTreasuryAccount>>,
+          TError,
+          Awaited<ReturnType<typeof getTreasuryAccount>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTreasuryAccount<TData = Awaited<ReturnType<typeof getTreasuryAccount>>, TError = unknown>(
+ accountId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTreasuryAccount>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetTreasuryAccount<TData = Awaited<ReturnType<typeof getTreasuryAccount>>, TError = unknown>(
+ accountId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTreasuryAccount>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTreasuryAccountQueryOptions(accountId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTreasuryAccountUrl = (accountId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/accounts/${accountId}`
+}
+
+/**
+ * Rename an account, give its bank, RIB and opening, take it off the lists or make it the default of its
+ * kind (owner or manager). Its kind and its movements never change.
+ */
+export const updateTreasuryAccount = async (accountId: number,
+    treasuryAccountWrite: TreasuryAccountWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TreasuryAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TreasuryAccount>(getUpdateTreasuryAccountUrl(accountId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(treasuryAccountWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateTreasuryAccountMutationKey = () => ['updateTreasuryAccount'] as const;
+
+export const getUpdateTreasuryAccountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTreasuryAccount>>, TError,UpdateTreasuryAccountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTreasuryAccount>>, TError,UpdateTreasuryAccountMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTreasuryAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTreasuryAccount>>, UpdateTreasuryAccountMutationVariables> = (props) => {
+          const {accountId,data} = props ?? {};
+
+          return  updateTreasuryAccount(accountId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTreasuryAccountMutationResult = NonNullable<Awaited<ReturnType<typeof updateTreasuryAccount>>>
+    export type UpdateTreasuryAccountMutationBody = TreasuryAccountWrite
+    export type UpdateTreasuryAccountMutationError = unknown
+    export type UpdateTreasuryAccountMutationVariables = {accountId: number;data: TreasuryAccountWrite}
+
+    export const useUpdateTreasuryAccount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTreasuryAccount>>, TError,UpdateTreasuryAccountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTreasuryAccount>>,
+        TError,
+        UpdateTreasuryAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTreasuryAccountMutationOptions(options), queryClient);
+    }
+
+export const getGetAccountStatementUrl = (accountId: number,
+    params?: GetAccountStatementParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/accounts/${accountId}/movements?${stringifiedParams}` : `/api/v1/treasury/accounts/${accountId}/movements`
+}
+
+/**
+ * The account's movements between two days (inclusive), oldest first, each with the balance after it; the
+ * balance at the start and the end, the money in and out. `kind` and `search` narrow the rows shown.
+ */
+export const getAccountStatement = async (accountId: number,
+    params?: GetAccountStatementParams, options?: Parameters<typeof apiFetch>[1]): Promise<AccountStatement> => {
+
+  return apiFetch<AccountStatement>(getGetAccountStatementUrl(accountId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAccountStatementQueryKey = (accountId: number,
+    params?: GetAccountStatementParams,) => {
+    return [
+    `/api/v1/treasury/accounts/${accountId}/movements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAccountStatementQueryOptions = <TData = Awaited<ReturnType<typeof getAccountStatement>>, TError = unknown>(accountId: number,
+    params?: GetAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccountStatement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAccountStatementQueryKey(accountId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccountStatement>>> = ({ signal }) => getAccountStatement(accountId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: accountId !== null && accountId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccountStatement>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAccountStatementQueryResult = NonNullable<Awaited<ReturnType<typeof getAccountStatement>>>
+export type GetAccountStatementQueryError = unknown
+
+
+export function useGetAccountStatement<TData = Awaited<ReturnType<typeof getAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params: undefined |  GetAccountStatementParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccountStatement>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAccountStatement>>,
+          TError,
+          Awaited<ReturnType<typeof getAccountStatement>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAccountStatement<TData = Awaited<ReturnType<typeof getAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params?: GetAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccountStatement>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAccountStatement>>,
+          TError,
+          Awaited<ReturnType<typeof getAccountStatement>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAccountStatement<TData = Awaited<ReturnType<typeof getAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params?: GetAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccountStatement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAccountStatement<TData = Awaited<ReturnType<typeof getAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params?: GetAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAccountStatement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAccountStatementQueryOptions(accountId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportAccountStatementUrl = (accountId: number,
+    params?: ExportAccountStatementParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/accounts/${accountId}/movements/export?${stringifiedParams}` : `/api/v1/treasury/accounts/${accountId}/movements/export`
+}
+
+/**
+ * The same movements as an Excel file: the opening balance, one row each with the balance after it, the
+ * totals.
+ */
+export const exportAccountStatement = async (accountId: number,
+    params?: ExportAccountStatementParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportAccountStatementUrl(accountId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAccountStatementQueryKey = (accountId: number,
+    params?: ExportAccountStatementParams,) => {
+    return [
+    `/api/v1/treasury/accounts/${accountId}/movements/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportAccountStatementQueryOptions = <TData = Awaited<ReturnType<typeof exportAccountStatement>>, TError = unknown>(accountId: number,
+    params?: ExportAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAccountStatement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAccountStatementQueryKey(accountId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAccountStatement>>> = ({ signal }) => exportAccountStatement(accountId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: accountId !== null && accountId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAccountStatement>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportAccountStatementQueryResult = NonNullable<Awaited<ReturnType<typeof exportAccountStatement>>>
+export type ExportAccountStatementQueryError = unknown
+
+
+export function useExportAccountStatement<TData = Awaited<ReturnType<typeof exportAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params: undefined |  ExportAccountStatementParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAccountStatement>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportAccountStatement>>,
+          TError,
+          Awaited<ReturnType<typeof exportAccountStatement>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportAccountStatement<TData = Awaited<ReturnType<typeof exportAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params?: ExportAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAccountStatement>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportAccountStatement>>,
+          TError,
+          Awaited<ReturnType<typeof exportAccountStatement>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportAccountStatement<TData = Awaited<ReturnType<typeof exportAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params?: ExportAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAccountStatement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportAccountStatement<TData = Awaited<ReturnType<typeof exportAccountStatement>>, TError = unknown>(
+ accountId: number,
+    params?: ExportAccountStatementParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportAccountStatement>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportAccountStatementQueryOptions(accountId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListBanksUrl = (params?: ListBanksParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -30416,6 +31124,197 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateBankMutationOptions(options), queryClient);
     }
 
+export const getListCashCountsUrl = (params?: ListCashCountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/cash-counts?${stringifiedParams}` : `/api/v1/treasury/cash-counts`
+}
+
+/**
+ * Arrêtés de caisse, newest first, paginated; `account` keeps those of one Caisse.
+ */
+export const listCashCounts = async (params?: ListCashCountsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedCashCountList> => {
+
+  return apiFetch<PaginatedCashCountList>(getListCashCountsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCashCountsQueryKey = (params?: ListCashCountsParams,) => {
+    return [
+    `/api/v1/treasury/cash-counts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCashCountsQueryOptions = <TData = Awaited<ReturnType<typeof listCashCounts>>, TError = unknown>(params?: ListCashCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCashCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCashCountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCashCounts>>> = ({ signal }) => listCashCounts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCashCounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCashCountsQueryResult = NonNullable<Awaited<ReturnType<typeof listCashCounts>>>
+export type ListCashCountsQueryError = unknown
+
+
+export function useListCashCounts<TData = Awaited<ReturnType<typeof listCashCounts>>, TError = unknown>(
+ params: undefined |  ListCashCountsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCashCounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCashCounts>>,
+          TError,
+          Awaited<ReturnType<typeof listCashCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCashCounts<TData = Awaited<ReturnType<typeof listCashCounts>>, TError = unknown>(
+ params?: ListCashCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCashCounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCashCounts>>,
+          TError,
+          Awaited<ReturnType<typeof listCashCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCashCounts<TData = Awaited<ReturnType<typeof listCashCounts>>, TError = unknown>(
+ params?: ListCashCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCashCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCashCounts<TData = Awaited<ReturnType<typeof listCashCounts>>, TError = unknown>(
+ params?: ListCashCountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCashCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCashCountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCashCountUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/cash-counts`
+}
+
+/**
+ * Arrêté de caisse (owner or manager): the cash counted at the end of a day. A gap from what the movements
+ * say needs its reason and is written as an "Écart de caisse" movement.
+ */
+export const createCashCount = async (cashCountWrite: CashCountWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CashCount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CashCount>(getCreateCashCountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cashCountWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateCashCountMutationKey = () => ['createCashCount'] as const;
+
+export const getCreateCashCountMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCashCount>>, TError,CreateCashCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCashCount>>, TError,CreateCashCountMutationVariables, TContext> => {
+
+const mutationKey = getCreateCashCountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCashCount>>, CreateCashCountMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCashCount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCashCountMutationResult = NonNullable<Awaited<ReturnType<typeof createCashCount>>>
+    export type CreateCashCountMutationBody = CashCountWrite
+    export type CreateCashCountMutationError = unknown
+    export type CreateCashCountMutationVariables = {data: CashCountWrite}
+
+    export const useCreateCashCount = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCashCount>>, TError,CreateCashCountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createCashCount>>,
+        TError,
+        CreateCashCountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCashCountMutationOptions(options), queryClient);
+    }
+
 export const getListDepositsUrl = (params?: ListDepositsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -30530,8 +31429,9 @@ export const getCreateDepositUrl = () => {
 }
 
 /**
- * Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
- * them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+ * Hand received effets in portfolio to one of our bank accounts (owner or manager): a bordereau RB-...
+ * holding them; each one becomes "Remis en banque", and the account is credited when they are cashed. Its PDF
+ * is the document kind `bank_deposit`.
  */
 export const createDeposit = async (depositWrite: DepositWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Deposit> => {
 
@@ -31256,6 +32156,284 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getWithdrawInstrumentsMutationOptions(options), queryClient);
+    }
+
+export const getListAccountTransfersUrl = (params?: ListAccountTransfersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/transfers?${stringifiedParams}` : `/api/v1/treasury/transfers`
+}
+
+/**
+ * Versements, retraits and virements between our accounts, newest first, paginated; `account` keeps those
+ * of one account.
+ */
+export const listAccountTransfers = async (params?: ListAccountTransfersParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedAccountTransferList> => {
+
+  return apiFetch<PaginatedAccountTransferList>(getListAccountTransfersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAccountTransfersQueryKey = (params?: ListAccountTransfersParams,) => {
+    return [
+    `/api/v1/treasury/transfers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAccountTransfersQueryOptions = <TData = Awaited<ReturnType<typeof listAccountTransfers>>, TError = unknown>(params?: ListAccountTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccountTransfers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAccountTransfersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccountTransfers>>> = ({ signal }) => listAccountTransfers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAccountTransfers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAccountTransfersQueryResult = NonNullable<Awaited<ReturnType<typeof listAccountTransfers>>>
+export type ListAccountTransfersQueryError = unknown
+
+
+export function useListAccountTransfers<TData = Awaited<ReturnType<typeof listAccountTransfers>>, TError = unknown>(
+ params: undefined |  ListAccountTransfersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccountTransfers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAccountTransfers>>,
+          TError,
+          Awaited<ReturnType<typeof listAccountTransfers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAccountTransfers<TData = Awaited<ReturnType<typeof listAccountTransfers>>, TError = unknown>(
+ params?: ListAccountTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccountTransfers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAccountTransfers>>,
+          TError,
+          Awaited<ReturnType<typeof listAccountTransfers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAccountTransfers<TData = Awaited<ReturnType<typeof listAccountTransfers>>, TError = unknown>(
+ params?: ListAccountTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccountTransfers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListAccountTransfers<TData = Awaited<ReturnType<typeof listAccountTransfers>>, TError = unknown>(
+ params?: ListAccountTransfersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccountTransfers>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAccountTransfersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAccountTransferUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/transfers`
+}
+
+/**
+ * Move money between two of our accounts on a day (owner or manager): a versement (cash to the bank), a
+ * retrait (bank to cash) or a virement. One movement out, one in.
+ */
+export const createAccountTransfer = async (accountTransferWrite: AccountTransferWrite, options?: Parameters<typeof apiFetch>[1]): Promise<AccountTransfer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AccountTransfer>(getCreateAccountTransferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(accountTransferWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateAccountTransferMutationKey = () => ['createAccountTransfer'] as const;
+
+export const getCreateAccountTransferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountTransfer>>, TError,CreateAccountTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccountTransfer>>, TError,CreateAccountTransferMutationVariables, TContext> => {
+
+const mutationKey = getCreateAccountTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccountTransfer>>, CreateAccountTransferMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAccountTransfer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountTransferMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountTransfer>>>
+    export type CreateAccountTransferMutationBody = AccountTransferWrite
+    export type CreateAccountTransferMutationError = unknown
+    export type CreateAccountTransferMutationVariables = {data: AccountTransferWrite}
+
+    export const useCreateAccountTransfer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountTransfer>>, TError,CreateAccountTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createAccountTransfer>>,
+        TError,
+        CreateAccountTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAccountTransferMutationOptions(options), queryClient);
+    }
+
+export const getVoidAccountTransferUrl = (transferId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/transfers/${transferId}/void`
+}
+
+/**
+ * Cancel a transfer typed by mistake (owner or manager, with a reason): two opposite movements today.
+ */
+export const voidAccountTransfer = async (transferId: number,
+    voidTransfer: VoidTransfer, options?: Parameters<typeof apiFetch>[1]): Promise<AccountTransfer> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AccountTransfer>(getVoidAccountTransferUrl(transferId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(voidTransfer)
+  }
+);}
+
+
+
+
+
+export const getVoidAccountTransferMutationKey = () => ['voidAccountTransfer'] as const;
+
+export const getVoidAccountTransferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidAccountTransfer>>, TError,VoidAccountTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voidAccountTransfer>>, TError,VoidAccountTransferMutationVariables, TContext> => {
+
+const mutationKey = getVoidAccountTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voidAccountTransfer>>, VoidAccountTransferMutationVariables> = (props) => {
+          const {transferId,data} = props ?? {};
+
+          return  voidAccountTransfer(transferId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoidAccountTransferMutationResult = NonNullable<Awaited<ReturnType<typeof voidAccountTransfer>>>
+    export type VoidAccountTransferMutationBody = VoidTransfer
+    export type VoidAccountTransferMutationError = unknown
+    export type VoidAccountTransferMutationVariables = {transferId: number;data: VoidTransfer}
+
+    export const useVoidAccountTransfer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidAccountTransfer>>, TError,VoidAccountTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof voidAccountTransfer>>,
+        TError,
+        VoidAccountTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVoidAccountTransferMutationOptions(options), queryClient);
     }
 
 export const getListTruckAssignmentsUrl = (params?: ListTruckAssignmentsParams,) => {

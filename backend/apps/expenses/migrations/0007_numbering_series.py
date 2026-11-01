@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0006_numbering'),
-        ('expenses', '0005_driver_categories'),
+        ('expenses', '0006_cold_room_estimate'),
     ]
 
     operations = [

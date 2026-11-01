@@ -23,4 +23,9 @@ export interface SupplierPaymentLineWrite {
   bank?: number | null;
   /** @nullable */
   due_on?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  account?: number | null;
 }

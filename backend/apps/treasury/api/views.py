@@ -1,4 +1,5 @@
-"""Treasury: the banks list and the effets (D-197, P9-T01).
+"""Treasury: the banks list and the effets (D-197, P9-T01); our accounts, their movements, transfers and
+arrêtés de caisse (D-219, P9-T05).
 
 Office data: the owner and the manager write, the accountant reads, drivers get 403.
 """
@@ -7,9 +8,10 @@ from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import ListAPIView
@@ -20,19 +22,31 @@ from rest_framework.views import APIView
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 
 from .. import selectors, services
-from ..models import Deposit, Instrument
+from ..models import AccountTransfer, Bank, CashCount, Deposit, Instrument, TreasuryAccount
 from .serializers import (
+    AccountFilterSerializer,
+    AccountStatementSerializer,
+    AccountTransferSerializer,
+    AccountTransferWriteSerializer,
     BankFilterSerializer,
     BankSerializer,
     BankWriteSerializer,
+    CashCountSerializer,
+    CashCountWriteSerializer,
     DepositSerializer,
     DepositWriteSerializer,
     InstrumentBatchSerializer,
     InstrumentFilterSerializer,
     InstrumentSerializer,
     InstrumentTotalsSerializer,
+    StatementFilterSerializer,
+    TransferFilterSerializer,
+    TreasuryAccountSerializer,
+    TreasuryAccountWriteSerializer,
+    VoidTransferSerializer,
 )
 
 
@@ -215,8 +229,9 @@ class DepositListView(OfficeView, ListAPIView[Deposit]):
 
     @extend_schema(operation_id="createDeposit", request=DepositWriteSerializer, responses={201: DepositSerializer})
     def post(self, request: Request) -> Response:
-        """Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
-        them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`."""
+        """Hand received effets in portfolio to one of our bank accounts (owner or manager): a bordereau RB-...
+        holding them; each one becomes "Remis en banque", and the account is credited when they are cashed. Its PDF
+        is the document kind `bank_deposit`."""
         serializer = DepositWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -233,6 +248,7 @@ class DepositListView(OfficeView, ListAPIView[Deposit]):
             bank=bank,
             deposited_on=data["deposited_on"],
             notes=data["notes"],
+            account=_account_or_none(self.organization, data["account"], "account"),
         )
         return Response(
             DepositSerializer(selectors.deposit_of(self.organization, deposit.pk)).data, status=status.HTTP_201_CREATED
@@ -263,3 +279,255 @@ class InstrumentListView(OfficeView, ListAPIView[Instrument]):
         status (comma separated), customer, supplier, bank, bordereau, due days (inclusive) or `search` (number,
         drawer, règlement, party)."""
         return super().get(request, *args, **kwargs)
+
+
+def _account_or_none(organization: Organization, account_id: int | None, field: str) -> TreasuryAccount | None:
+    """The account of the organization named on `field`; an unknown one is an error on that field."""
+    if account_id is None:
+        return None
+    try:
+        return selectors.account_of(organization, account_id)
+    except ObjectDoesNotExist:
+        raise ValidationError({field: _("Compte inconnu.")}) from None
+
+
+def _account(organization: Organization, account_id: int) -> TreasuryAccount:
+    try:
+        return selectors.account_of(organization, account_id)
+    except ObjectDoesNotExist:
+        raise Http404 from None
+
+
+def _bank_or_none(organization: Organization, bank_id: int | None) -> Bank | None:
+    if bank_id is None:
+        return None
+    try:
+        return selectors.bank_of(organization, bank_id)
+    except ObjectDoesNotExist:
+        raise ValidationError({"bank": _("Banque inconnue.")}) from None
+
+
+class AccountListView(OfficeView):
+    @extend_schema(
+        operation_id="listTreasuryAccounts",
+        parameters=[AccountFilterSerializer],
+        responses=TreasuryAccountSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Our accounts (Caisses, bank accounts, drivers' cash), each with its balance at the end of today or `on`;
+        `active_only` leaves out those taken off the lists."""
+        filters = AccountFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        accounts = selectors.accounts_of(
+            self.organization, active_only=filters.validated_data["active_only"], on=filters.validated_data.get("on")
+        )
+        return Response(TreasuryAccountSerializer(accounts, many=True).data)
+
+    @extend_schema(
+        operation_id="createTreasuryAccount",
+        request=TreasuryAccountWriteSerializer,
+        responses={201: TreasuryAccountSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Add a Caisse or a bank account (owner or manager), with its bank, RIB and what it held on its opening
+        day."""
+        serializer = TreasuryAccountWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        account = services.create_account(
+            organization=self.organization,
+            actor=self.membership.user,
+            kind=data["kind"],
+            name=data["name"],
+            bank=_bank_or_none(self.organization, data["bank"]),
+            rib=data["rib"],
+            opening_balance=data["opening_balance"],
+            opening_on=data["opening_on"],
+        )
+        return Response(
+            TreasuryAccountSerializer(selectors.account_of(self.organization, account.pk)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AccountDetailView(OfficeView):
+    @extend_schema(operation_id="getTreasuryAccount", responses=TreasuryAccountSerializer)
+    def get(self, request: Request, account_id: int) -> Response:
+        """One account with its balance today."""
+        return Response(TreasuryAccountSerializer(_account(self.organization, account_id)).data)
+
+    @extend_schema(
+        operation_id="updateTreasuryAccount",
+        request=TreasuryAccountWriteSerializer,
+        responses=TreasuryAccountSerializer,
+    )
+    def put(self, request: Request, account_id: int) -> Response:
+        """Rename an account, give its bank, RIB and opening, take it off the lists or make it the default of its
+        kind (owner or manager). Its kind and its movements never change."""
+        account = _account(self.organization, account_id)
+        serializer = TreasuryAccountWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.update_account(
+            account=account,
+            actor=self.membership.user,
+            name=data["name"],
+            bank=_bank_or_none(self.organization, data["bank"]),
+            rib=data["rib"],
+            opening_balance=data["opening_balance"],
+            opening_on=data["opening_on"],
+            is_active=data["is_active"],
+            is_default=data["is_default"],
+        )
+        return Response(TreasuryAccountSerializer(selectors.account_of(self.organization, account.pk)).data)
+
+
+def _statement(organization: Organization, account_id: int, request: Request) -> selectors.AccountStatement:
+    account = _account(organization, account_id)
+    filters = StatementFilterSerializer(data=request.query_params)
+    filters.is_valid(raise_exception=True)
+    data: dict[str, Any] = filters.validated_data
+    return selectors.account_statement(
+        account,
+        date_from=data.get("date_from"),
+        date_to=data.get("date_to"),
+        kind=data.get("kind"),
+        search=data["search"],
+    )
+
+
+class AccountMovementsView(OfficeView):
+    @extend_schema(
+        operation_id="getAccountStatement", parameters=[StatementFilterSerializer], responses=AccountStatementSerializer
+    )
+    def get(self, request: Request, account_id: int) -> Response:
+        """The account's movements between two days (inclusive), oldest first, each with the balance after it; the
+        balance at the start and the end, the money in and out. `kind` and `search` narrow the rows shown."""
+        return Response(AccountStatementSerializer(_statement(self.organization, account_id, request)).data)
+
+
+class AccountMovementsExportView(OfficeView):
+    @extend_schema(
+        operation_id="exportAccountStatement",
+        parameters=[StatementFilterSerializer],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, account_id: int) -> HttpResponse:
+        """The same movements as an Excel file: the opening balance, one row each with the balance after it, the
+        totals."""
+        statement = _statement(self.organization, account_id, request)
+        rows: list[list[Any]] = [["", _("Solde au début"), "", "", "", "", statement.opening]]
+        for row in statement.rows:
+            movement = row.movement
+            rows.append(
+                [
+                    movement.day,
+                    movement.label,
+                    movement.get_kind_display(),
+                    movement.reference,
+                    movement.amount if movement.amount > 0 else None,
+                    -movement.amount if movement.amount < 0 else None,
+                    row.balance,
+                ]
+            )
+        content = workbook_bytes(
+            title=str(statement.account),
+            headers=[_("Date"), _("Libellé"), _("Nature"), _("Référence"), _("Entrée"), _("Sortie"), _("Solde")],
+            rows=rows,
+            totals=["", _("Total"), "", "", statement.total_in, statement.total_out, statement.closing],
+        )
+        return xlsx_response(f"compte-{statement.account.pk}", content)
+
+
+class TransferListView(OfficeView, ListAPIView[AccountTransfer]):
+    serializer_class = AccountTransferSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[AccountTransfer]:
+        filters = TransferFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.transfers_of(self.organization, account_id=filters.validated_data.get("account"))
+
+    @extend_schema(operation_id="listAccountTransfers", parameters=[TransferFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Versements, retraits and virements between our accounts, newest first, paginated; `account` keeps those
+        of one account."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createAccountTransfer",
+        request=AccountTransferWriteSerializer,
+        responses={201: AccountTransferSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Move money between two of our accounts on a day (owner or manager): a versement (cash to the bank), a
+        retrait (bank to cash) or a virement. One movement out, one in."""
+        serializer = AccountTransferWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        transfer = services.transfer_between(
+            organization=self.organization,
+            actor=self.membership.user,
+            from_account=_account_or_none(self.organization, data["from_account"], "from_account"),
+            to_account=_account_or_none(self.organization, data["to_account"], "to_account"),
+            amount=data["amount"],
+            transferred_on=data["transferred_on"],
+            reference=data["reference"],
+            notes=data["notes"],
+        )
+        return Response(
+            AccountTransferSerializer(selectors.transfer_of(self.organization, transfer.pk)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class TransferVoidView(OfficeView):
+    @extend_schema(
+        operation_id="voidAccountTransfer", request=VoidTransferSerializer, responses=AccountTransferSerializer
+    )
+    def post(self, request: Request, transfer_id: int) -> Response:
+        """Cancel a transfer typed by mistake (owner or manager, with a reason): two opposite movements today."""
+        try:
+            transfer = selectors.transfer_of(self.organization, transfer_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        serializer = VoidTransferSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.void_transfer(
+            transfer=transfer, actor=self.membership.user, reason=serializer.validated_data["reason"]
+        )
+        return Response(AccountTransferSerializer(selectors.transfer_of(self.organization, transfer.pk)).data)
+
+
+class CashCountListView(OfficeView, ListAPIView[CashCount]):
+    serializer_class = CashCountSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[CashCount]:
+        filters = TransferFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.counts_of(self.organization, account_id=filters.validated_data.get("account"))
+
+    @extend_schema(operation_id="listCashCounts", parameters=[TransferFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Arrêtés de caisse, newest first, paginated; `account` keeps those of one Caisse."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createCashCount", request=CashCountWriteSerializer, responses={201: CashCountSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """Arrêté de caisse (owner or manager): the cash counted at the end of a day. A gap from what the movements
+        say needs its reason and is written as an "Écart de caisse" movement."""
+        serializer = CashCountWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        count = services.count_cash(
+            organization=self.organization,
+            actor=self.membership.user,
+            account=_account_or_none(self.organization, data["account"], "account"),
+            counted_on=data["counted_on"],
+            counted=data["counted"],
+            reason=data["reason"],
+        )
+        return Response(CashCountSerializer(count).data, status=status.HTTP_201_CREATED)

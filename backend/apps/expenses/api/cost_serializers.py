@@ -93,11 +93,26 @@ class ColdRoomMonthSerializer(serializers.Serializer[Any]):
     month = serializers.DateField(read_only=True)
     days = serializers.IntegerField(read_only=True)
     bill = ElectricityBillSerializer(read_only=True, allow_null=True)
-    # True until the month's bill is approved: the amounts are the previous month's daily rate.
+    # True until the month's bill is approved: the amounts are the estimate (typed, or the previous month's daily rate).
     estimated = serializers.BooleanField(read_only=True)
+    # The estimate the owner typed for the month (empty when none), and whether it is the one in use.
+    typed_amount = serializers.DecimalField(read_only=True, allow_null=True, max_digits=14, decimal_places=3)
+    estimate_typed = serializers.BooleanField(read_only=True)
     estimate_source_month = serializers.DateField(read_only=True, allow_null=True)
     rooms = ColdRoomMonthRowSerializer(many=True, read_only=True)
+    # Real once the bill is approved, else the estimate.
     total = serializers.DecimalField(read_only=True, allow_null=True, max_digits=14, decimal_places=3)
+    # What the month was estimated at, and the real bill minus that estimate (once approved).
+    estimate_total = serializers.DecimalField(read_only=True, allow_null=True, max_digits=14, decimal_places=3)
+    difference = serializers.DecimalField(read_only=True, allow_null=True, max_digits=14, decimal_places=3)
+
+
+class ColdRoomEstimateWriteSerializer(serializers.Serializer[Any]):
+    # The first day of the month (the current month or an earlier one).
+    month = serializers.DateField()
+    # An amount in DT as a string ("512.350"), checked by the service.
+    amount = serializers.CharField(allow_blank=True)
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
 
 
 # ---- General costs ----
