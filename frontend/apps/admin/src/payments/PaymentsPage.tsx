@@ -36,6 +36,7 @@ import { Link, useOutletContext } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { useDebounced } from "../lib/useDebounced";
+import { TresorerieRibbon } from "../treasury/TresorerieRibbon";
 import { filterParams, isFiltered, type ListFilters, NO_FILTERS } from "./listFilters";
 import { MeansChips, PaymentListFilters, PaymentTotalsCard } from "./ListParts";
 import { PaymentDialog } from "./PaymentDialog";
@@ -212,6 +213,7 @@ export function PaymentsPage() {
 
   return (
     <>
+      <TresorerieRibbon active="encaissement" />
       <PageHeader eyebrow={t("admin.groups.sales")} title={t("admin.payments.title")}>
         {canWrite && (
           <Button variant="primary" asChild>

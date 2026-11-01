@@ -1207,7 +1207,6 @@ justification, after which the driver sends again with a note. Status names: sub
 **Not done:** approving a day does not yet block further sales or expenses by that driver the same day (**provisional**);
 the day's customer payments collected by the driver ("other payments") wait for a driver collection screen.
 
-
 **D-073 · Month-end stock valuation and cost of goods sold (P6-T05)** · accepted · 2026-10-11
 
 - **Profit is never purchases − sales.** The month's result is: sales (revenue without VAT) − cost of the goods
@@ -1467,7 +1466,6 @@ office like the others (kind `payment`, D-099). **In the day's cash:** expected 
 payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
 driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
 later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
-
 
 **D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
 `GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
@@ -3134,6 +3132,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   movement (`salary` kind, source `hr.salary_payment`) and the screen line "Débité de la trésorerie : N DT (compte, date)".
   No second ledger is built here; that line follows once `post_movement` is on `origin/main` (see D-229).
 
+**D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
+- Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
+  versement, the états des factures). The flow and the rules stay ours: effets, bordereaux, impayés and the ledger of
+  P9-T01 to T04 are not changed, and no migration is added.
+- `TresorerieRibbon` sits at the top of the screens Encaissement (`/reglements`), Décaissement (`/achats/paiements`),
+  Banque, Portefeuille, Ordre de paiement (`/achats/reglements`), Bordereau de versement and the two états.
+- Bordereau de versement (`/tresorerie/bordereau`): En attente (at the bank) · Encaissé · Impayé, with the same steps
+  and dialogs as the Portefeuille. Facture de vente and Facture d'achat (`/tresorerie/etats/ventes`, `/achats`): the
+  invoices grouped by customer or supplier, net à payer, réglé, restant, state, with totals.
+- Not on the ribbon yet: Agence bancaire, Caisse liquide and the journals (journal des banques, journal des caisses).
+  They need the treasury accounts of P9-T05, which are not merged. Excel export of the états is later.
+- The sidebar is unchanged: the e2e spec lists the modules by name. The treasury is reached from Règlements clients,
+  Règlements fournisseurs, Portefeuille and Banques.
 **D-222 · The e-mail window sends to every address the party has, and the office can drop or add some for one send (owner point 4, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
 - The party's own address and each of its contacts' addresses are offered (`Customer.email_addresses()`,
   `Supplier.email_addresses()`: the party's first, then the contacts' in order; blank and repeated ones, case ignored,

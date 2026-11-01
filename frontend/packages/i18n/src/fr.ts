@@ -2683,6 +2683,76 @@ export const fr = {
       },
     },
     treasury: {
+      // The ribbon of the treasury module and its screens (P9-T08).
+      ribbon: {
+        label: "Trésorerie",
+        groups: {
+          treasury: "Trésorerie",
+          invoices: "États des factures",
+        },
+        screens: {
+          encaissement: "Encaissement",
+          decaissement: "Décaissement",
+          banque: "Banque",
+          portefeuille: "Portefeuille",
+          bordereau: "Bordereau de versement",
+          ordre: "Ordre de paiement",
+          factureVente: "Facture de vente",
+          factureAchat: "Facture d'achat",
+        },
+      },
+      bordereau: {
+        title: "Bordereau de versement",
+        intro:
+          "Les chèques et traites remis en banque, par où ils en sont. Cochez des effets dans une colonne, puis agissez sur eux.",
+        columns: {
+          atBank: "En attente",
+          cashed: "Encaissé",
+          unpaid: "Impayé",
+        },
+        kinds: {
+          cheque: "Chèque",
+          bill: "Traite",
+        },
+        total: "Total : {{amount}}",
+        empty: "Aucun effet dans cette colonne.",
+        pick: "Choisir l'effet {{number}}",
+        actions: {
+          cash: "Encaissé",
+          unpaid: "Impayé",
+          return: "Restituer",
+        },
+      },
+      etats: {
+        sales: {
+          title: "Facture de vente",
+          intro: "Les factures de nos clients, par client : ce qui est réglé et ce qui reste à encaisser.",
+        },
+        purchases: {
+          title: "Facture d'achat",
+          intro: "Les factures de nos fournisseurs, par fournisseur : ce qui est payé et ce qui reste à payer.",
+        },
+        columns: {
+          number: "N° facture",
+          date: "Date",
+          due: "Échéance",
+          total: "Net à payer",
+          paid: "Réglé",
+          remaining: "Restant",
+          state: "État",
+        },
+        status: {
+          draft: "Brouillon",
+          issued: "Émise",
+          posted: "Enregistrée",
+          partly_paid: "Partiellement payée",
+          paid: "Payée",
+          cancelled: "Annulée",
+        },
+        total: "Total",
+        empty: "Aucune facture.",
+        truncated: "Les {{shown}} factures les plus récentes sur {{count}} sont affichées.",
+      },
       lines: {
         title: "Moyens de paiement",
         supplierHint:

@@ -31,6 +31,7 @@ import { Link, useNavigate, useOutletContext, useSearchParams } from "react-rout
 
 import { sum } from "../lib/decimal";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
+import { TresorerieRibbon } from "../treasury/TresorerieRibbon";
 import { PlanDialog } from "./PlanDialog";
 import { refreshPurchasing } from "./shared";
 
@@ -128,6 +129,7 @@ export function SupplierSettlementsPage() {
 
   const header = (
     <>
+      <TresorerieRibbon active="ordre" />
       <PageHeader eyebrow={t("admin.nav.purchases")} title={t("admin.supplierSettlements.title")} />
       <p className="text-ink-2">{t("admin.supplierSettlements.intro")}</p>
     </>
