@@ -185,7 +185,7 @@ function AccountDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+        <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-3">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{t("admin.treasury.accounts.dialog.body")}</DialogDescription>
           <Field label={t("admin.treasury.accounts.dialog.name")} htmlFor={`${id}-name`} error={errors.name}>
@@ -305,7 +305,7 @@ function CashCountDialog({ account, onClose }: { account: TreasuryAccount; onClo
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+        <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-3">
           <DialogTitle>{t("admin.treasury.accounts.count_title", { name: account.name })}</DialogTitle>
           <DialogDescription>
             {t("admin.treasury.accounts.count_expected", { amount: formatMoney(account.balance) })}
