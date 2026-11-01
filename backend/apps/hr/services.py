@@ -249,7 +249,7 @@ def _record_snapshot(record: SalaryRecord) -> dict[str, Any]:
 
 @transaction.atomic
 def generate_month(*, organization: Organization, actor: User | None, month: dt.date) -> list[SalaryRecord]:
-    """Create the draft salary records of a month for every active employee who has none yet.
+    """Create the salary records of a month for every active employee who has none yet, approved (D-228).
 
     The base is each employee's monthly salary today; an employee hired after the month, or without a salary,
     is left out. Running it twice creates nothing the second time. Returns the records created.
@@ -287,6 +287,10 @@ def generate_month(*, organization: Organization, actor: User | None, month: dt.
             employer_cnss=cnss,
             employee_cnss=own,
             net=net,
+            # Approved by default (D-228): adjusted by an adjustment, then paid. A draft is only left from before.
+            status=SalaryStatus.APPROVED,
+            approved_at=timezone.now(),
+            approved_by=actor,
             created_by=actor,
         )
         created.append(record)

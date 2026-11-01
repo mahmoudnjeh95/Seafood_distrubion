@@ -131,6 +131,23 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
     ]
 
 
+def test_a_bl_sold_with_vat_shows_its_vat_and_totals_in_the_api(api, organization, customer, counter, crevette):
+    batch = receive(organization, crevette, counter, "10")
+    batch.bought_with_vat = True
+    batch.save(update_fields=["bought_with_vat"])
+
+    body = create(api, counter, [{"product": crevette.pk, "quantity": "5"}], customer=customer.pk).json()
+
+    assert (body["amount_excl_tax"], body["vat_total"], body["total_incl_tax"]) == ("210.000", "39.900", "249.900")
+    (line,) = body["lines"]
+    assert (line["vat_rate"], line["amount_excl_tax"], line["vat_amount"], line["amount_incl_tax"]) == (
+        "19.00",
+        "210.000",
+        "39.900",
+        "249.900",
+    )
+
+
 def test_a_counter_sale_without_customer_goes_to_the_walk_in_customer(api, organization, counter, crevette):
     receive(organization, crevette, counter, "10")
 

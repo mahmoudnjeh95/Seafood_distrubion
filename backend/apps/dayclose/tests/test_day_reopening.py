@@ -485,11 +485,18 @@ def test_a_sale_made_before_the_closing_and_received_after_it_counts_on_that_day
     assert refused.status_code == 400
 
     clock(at(16))
-    assert close(road, "178.000").status_code == 201
+    # The records moved after the send: the driver does not send the day again, the office corrects it (D-220).
+    assert close(road).status_code == 403
+    corrected = road["office"].post(
+        reverse("day-closing-correct", args=[detail["id"]]),
+        {"reason": "Vente hors réseau reçue après l'envoi", "office_counted_cash": "178.000"},
+        format="json",
+    )
+    assert corrected.status_code == 200, corrected.json()
 
     detail = office_detail(road)
     assert (detail["status"], detail["office_difference"], detail["changes_since_sent"]) == ("submitted", "0.000", [])
-    assert timezone.localtime(driver_day(road).ended_at) == at(12)  # sent again, the day still ends at its first send
+    assert timezone.localtime(driver_day(road).ended_at) == at(12)  # the day still ends at its first send
     approved = road["office"].post(reverse("day-closing-approve", args=[detail["id"]])).json()
     assert (approved["status"], approved["expected_cash"]) == ("approved", "178.000")
     late_again = sell(road, "1", "28.000", made_at=at(11, 30))  # nothing more on an approved day
@@ -522,11 +529,22 @@ def test_the_day_sent_again_after_a_justification_takes_the_late_sale(road, cloc
     assert (asked["closing"]["status"], asked["summary"]["expected_cash"]) == ("justification", "178.000")
 
     clock(at(16))
+    # Moved since the send: the driver does not send it again; the office corrects it (D-220).
+    refused = road["api"].post(
+        reverse("my-past-day-closing", args=[day_id]), {"note": "Vente hors réseau"}, format="json"
+    )
+    assert refused.status_code == 403
+    corrected = road["office"].post(
+        reverse("day-closing-correct", args=[office_row(road)["id"]]),
+        {"reason": "Vente reçue après l'envoi", "office_counted_cash": "178.000"},
+        format="json",
+    )
+    assert corrected.status_code == 200, corrected.json()
+    # Corrected, the day waits for the driver's answer to the question: the driver sends it again with the note.
     resent = road["api"].post(
         reverse("my-past-day-closing", args=[day_id]), {"note": "Vente hors réseau"}, format="json"
     )
     assert resent.status_code == 201
-    assert count(road, "178.000").status_code == 200
 
     summary = resent.json()["summary"]
     assert (summary["sales_count"], summary["expected_cash"]) == (2, "178.000")

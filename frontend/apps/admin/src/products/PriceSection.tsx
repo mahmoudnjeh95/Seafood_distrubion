@@ -1,6 +1,6 @@
 import { type Product, setProductPrice, useListProductPrices } from "@frutti/api";
 import { formatDateTime, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Field, Input, Pill, toast } from "@frutti/ui";
+import { Button, Field, MoneyInput, Pill, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 
@@ -51,7 +51,7 @@ export function PriceSection({ product, canEdit }: { product: Product; canEdit: 
             error={error}
             className="min-w-40 flex-1"
           >
-            <Input
+            <MoneyInput
               id="new-price"
               inputMode="decimal"
               autoComplete="off"

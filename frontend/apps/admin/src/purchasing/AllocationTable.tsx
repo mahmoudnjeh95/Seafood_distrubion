@@ -1,6 +1,6 @@
 import type { SupplierInvoice } from "@frutti/api";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { cn, Input, Pill, Table, Td, Th } from "@frutti/ui";
+import { cn, MoneyInput, Pill, Table, Td, Th } from "@frutti/ui";
 
 import { type AllocationProblem, allocationProblem, type Allocations } from "./allocation";
 
@@ -67,7 +67,7 @@ export function AllocationTable({
                 {formatMoney(invoice.outstanding)}
               </Td>
               <Td numeric className="w-40">
-                <Input
+                <MoneyInput
                   id={inputId}
                   inputMode="decimal"
                   aria-label={t("admin.supplierPayments.form.allocationFor", { number: invoice.number })}

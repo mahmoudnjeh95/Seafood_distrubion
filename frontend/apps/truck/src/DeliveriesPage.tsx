@@ -7,7 +7,7 @@ import {
   useListMyDeliveries,
 } from "@frutti/api";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -232,7 +232,7 @@ export function Delivery({ sale }: { sale: SaleDetail }) {
           <label htmlFor={`paid-${sale.id}`} className="font-semibold">
             {t("truck.deliveries.paid")}
           </label>
-          <Input
+          <MoneyInput
             id={`paid-${sale.id}`}
             inputMode="decimal"
             placeholder="0"

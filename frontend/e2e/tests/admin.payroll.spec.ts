@@ -50,7 +50,7 @@ test("the owner sees the demo employees, creates one and records a day on a lot 
   await expect(row).toContainText("1,00");
 });
 
-test("the owner generates the month, edits a draft, approves it and pays it", async ({ page }) => {
+test("the owner generates the month, adjusts the approved salary and pays it", async ({ page }) => {
   const name = `Paie E2E ${Date.now()}`;
   await openEmployees(page);
   await createEmployee(page, name, "1 300");
@@ -59,32 +59,27 @@ test("the owner generates the month, edits a draft, approves it and pays it", as
   await expect(page.getByRole("heading", { name: "Paie du mois", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Générer le mois" }).click();
 
-  // The new employee gets a draft at their fixed salary; the demo ones already have theirs.
+  // The new employee gets an approved salary at their fixed salary (D-228); the demo ones already have theirs.
   const row = page.getByRole("row").filter({ hasText: name });
-  await expect(row).toContainText("Brouillon");
-  await expect(row).toContainText(/1\s300,000\sDT/);
-
-  await row.getByRole("button", { name: "Modifier" }).click();
-  const edit = page.getByRole("dialog", { name: `Paie de ${name}` });
-  await edit.getByLabel("Prime (DT)").fill("100");
-  await edit.getByLabel("Retenues (DT)").fill("50");
-  // 1 400 gross, employer 17,07 % = 238,980; the employee's own CNSS 9,18 % = 128,520 is withheld on its own line,
-  // then the 50 of deductions: net 1 221,480.
-  await expect(edit.getByText(/238,980\sDT/)).toBeVisible();
-  await expect(edit.getByText(/128,520\sDT/)).toBeVisible();
-  await edit.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText("Paie enregistrée.")).toBeVisible();
-  await expect(row).toContainText(/1\s221,480\sDT/);
-
-  await row.getByRole("button", { name: "Approuver" }).click();
   await expect(row).toContainText("Approuvée");
-  await expect(row).toContainText("Impayé");
-  // An approved salary no longer has an edit button: corrections are adjustments.
+  await expect(row).toContainText(/1\s300,000\sDT/);
+  // An approved salary has no edit button: corrections are adjustments.
   await expect(row.getByRole("button", { name: "Modifier" })).toHaveCount(0);
+
+  // 1 300 gross, the employee's own CNSS 9,18 % = 119,340 withheld: net 1 180,660.
+  await expect(row).toContainText(/1\s180,660\sDT/);
+  await row.getByRole("button", { name: "Ajuster" }).click();
+  const adjust = page.getByRole("dialog", { name: `Ajuster la paie de ${name}` });
+  await adjust.getByLabel("Montant (DT, négatif pour réduire)").fill("100");
+  await adjust.getByLabel("Motif").fill("Prime de fin d'année");
+  await adjust.getByRole("button", { name: "Enregistrer l'ajustement" }).click();
+  await expect(page.getByText("Ajustement enregistré.")).toBeVisible();
+  await expect(row).toContainText(/1\s280,660\sDT/);
 
   await row.getByRole("button", { name: "Payer" }).click();
   const pay = page.getByRole("dialog", { name: `Payer ${name}` });
-  await expect(pay.getByLabel("Montant (DT)")).toHaveValue("1221,480");
+  // The amount field shows its thousands separator (D-221).
+  await expect(pay.getByLabel("Montant (DT)")).toHaveValue(/^1\s280,660$/);
   await pay.getByRole("button", { name: "Enregistrer le paiement" }).click();
   await expect(page.getByText(/Paiement PS-\d{4}-\d{4} enregistré\./)).toBeVisible();
   await expect(row).toContainText("Soldé");

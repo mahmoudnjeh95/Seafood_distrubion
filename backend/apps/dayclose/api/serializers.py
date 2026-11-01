@@ -5,7 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.dayclose import selectors
-from apps.dayclose.models import DayClosing, DayClosingStatus, DayReopening, SyncProblem
+from apps.dayclose.models import DayClosing, DayClosingRevision, DayClosingStatus, DayReopening, SyncProblem
 
 
 class DayProductSerializer(serializers.Serializer[Any]):
@@ -195,11 +195,27 @@ class DayReopeningSerializer(serializers.ModelSerializer[DayReopening]):
         return _person(reopening.reviewed_by)
 
 
+class DayClosingRevisionSerializer(serializers.ModelSerializer[DayClosingRevision]):
+    """An office correction of the day (D-220): who, when, why, and the figures before and after."""
+
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DayClosingRevision
+        fields = ("number", "actor_name", "reason", "before", "after", "created_at")
+        read_only_fields = fields
+
+    def get_actor_name(self, revision: DayClosingRevision) -> str:
+        return _person(revision.actor)
+
+
 class DayClosingDetailSerializer(DayClosingRowSerializer):
     summary = DaySummarySerializer(read_only=True)
     reviewed_by_name = serializers.SerializerMethodField()
     # The earlier sends of this day that a new load undid, oldest first.
     reopenings = DayReopeningSerializer(many=True, read_only=True)
+    # The office's corrections of the day, oldest first (D-220).
+    revisions = DayClosingRevisionSerializer(many=True, read_only=True)
     # Where the day's records now differ from `summary`, the figures as sent (a sale received after the send,
     # D-134). Empty when nothing changed, and once approved.
     changes_since_sent = serializers.SerializerMethodField()
@@ -216,6 +232,7 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
             "reviewed_by_name",
             "summary",
             "reopenings",
+            "revisions",
             "changes_since_sent",
             "changed_since_sent",
         )
@@ -243,6 +260,17 @@ class DayClosingFilterSerializer(serializers.Serializer[Any]):
 class DayClosingCountSerializer(serializers.Serializer[Any]):
     # What the office counted when the driver handed the cash over (D-213).
     office_counted_cash = serializers.DecimalField(max_digits=14, decimal_places=3)
+    office_counted_purchase_cash = serializers.DecimalField(
+        max_digits=14, decimal_places=3, required=False, allow_null=True, default=None
+    )
+
+
+class DayClosingCorrectSerializer(serializers.Serializer[Any]):
+    # Why the office corrects the day: kept with the revision (D-220). The counts change here only once saved.
+    reason = serializers.CharField(max_length=300)
+    office_counted_cash = serializers.DecimalField(
+        max_digits=14, decimal_places=3, required=False, allow_null=True, default=None
+    )
     office_counted_purchase_cash = serializers.DecimalField(
         max_digits=14, decimal_places=3, required=False, allow_null=True, default=None
     )

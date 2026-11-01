@@ -952,6 +952,27 @@ export const fr = {
       gapNote: "Expliquez l'écart avec ce que le chauffeur doit avoir",
       saveCount: "Enregistrer le comptage",
       countSaved: "Comptage enregistré",
+      countedHint: "Le comptage est saisi : pour le changer, utilisez « Corriger la journée » (avec une raison).",
+      // The office corrects a driver's day; each correction is kept as a revision (D-220).
+      correct: {
+        title: "Corriger la journée",
+        hint: "Le chauffeur ne renvoie plus une journée envoyée. La correction prend les chiffres tels qu'ils sont maintenant et garde une trace : qui, quand, pourquoi, avant et après.",
+        open: "Corriger la journée",
+        cash: "Argent compté (vide : inchangé, DT)",
+        purchase: "Argent des achats compté (vide : inchangé, DT)",
+        reason: "Raison de la correction",
+        save: "Enregistrer la correction",
+        cancel: "Annuler",
+        saved: "Journée corrigée : la correction est gardée dans l'historique.",
+        invalid: "Un montant compté doit être un nombre.",
+      },
+      revisions: {
+        title: "Corrections du bureau",
+        by: "Correction n°{{number}} · {{name}} · {{when}}",
+        reason: "Raison : {{reason}}",
+        before: "Avant",
+        after: "Après",
+      },
       officeCounted: "Compté par le bureau",
       officeGap: "Écart bureau / attendu",
       statusFilter: "Filtrer par état",
@@ -1017,7 +1038,7 @@ export const fr = {
       // The day's records against the closing as sent (D-132, D-134).
       changed: {
         title: "Les chiffres ont changé depuis l'envoi du chauffeur",
-        body: "Une vente faite avant l'envoi est arrivée après, ou le bureau a corrigé quelque chose. La journée garde les chiffres envoyés : le chauffeur doit la renvoyer avant l'approbation. Vous pouvez lui demander une justification.",
+        body: "Une vente faite avant l'envoi est arrivée après, ou le bureau a changé quelque chose. La journée garde les chiffres envoyés, et le chauffeur ne la renvoie plus : corrigez-la (« Corriger la journée ») avant de compter ou d'approuver.",
         figure: "Chiffre",
         sent: "Envoyé",
         live: "Maintenant",
@@ -1874,6 +1895,9 @@ export const fr = {
         costTotal: "Coût des marchandises",
         margin: "Marge",
         costLater: "à la confirmation",
+        vatRate: "TVA %",
+        vatAmount: "Montant TVA",
+        totalInclTax: "Total TTC",
         followUp: "Suivi",
         customer: "Client",
         location: "Depuis",
@@ -3932,8 +3956,8 @@ export const fr = {
         next: "Mois suivant",
         generate: "Générer le mois",
         approveAll: "Tout approuver",
-        generated_one: "{{count}} paie créée en brouillon.",
-        generated_other: "{{count}} paies créées en brouillon.",
+        generated_one: "{{count}} paie créée et approuvée.",
+        generated_other: "{{count}} paies créées et approuvées.",
         nothingToGenerate: "Toutes les paies du mois existent déjà.",
         approvedCount_one: "{{count}} paie approuvée.",
         approvedCount_other: "{{count}} paies approuvées.",
@@ -3955,7 +3979,7 @@ export const fr = {
         unpaidAll_one: "{{amount}} de salaires impayés ({{count}} paie)",
         unpaidAll_other: "{{amount}} de salaires impayés ({{count}} paies)",
         empty: "Aucune paie pour ce mois",
-        emptyBody: "Générez le mois : une paie en brouillon est créée pour chaque employé actif, à son salaire fixe.",
+        emptyBody: "Générez le mois : une paie approuvée est créée pour chaque employé actif, à son salaire fixe.",
         emptyBodyReadOnly: "Le propriétaire n'a pas encore généré les paies de ce mois.",
         columns: {
           employee: "Employé",
@@ -5125,6 +5149,8 @@ export const fr = {
       paidWith: "Payé avec",
       paid: { cash: "La caisse", pocket: "Ma poche", card: "Carte" },
       pocketHint: "Payé avec votre argent : le bureau vous le rembourse, la caisse ne baisse pas.",
+      // The day started with 0 DT, or not at all: the box has nothing to pay from (D-220).
+      cashOff: "« La caisse » n'est pas possible : votre journée n'a pas de fonds de caisse (0 DT, ou pas commencée).",
       save: "Enregistrer la dépense",
       saved: "Dépense enregistrée. Le bureau doit l'approuver.",
       kept: "Pas de réseau : dépense gardée sur le téléphone, elle partira toute seule.",
@@ -5232,7 +5258,7 @@ export const fr = {
       waitRetrying: "L'envoi se fait tout seul, dès que possible.",
       retrySend: "Réessayer l'envoi",
       changed:
-        "Les chiffres de la journée ont changé depuis l'envoi (une vente arrivée après, une correction du bureau). Recomptez la caisse et renvoyez la journée.",
+        "Les chiffres de la journée ont changé depuis l'envoi (une vente arrivée après, une correction du bureau). Le bureau corrige la journée : vous ne pouvez plus la renvoyer.",
       // A new load opened the sent day again (D-134).
       reopened: "Journée rouverte : le camion a été rechargé. Vendez, puis renvoyez la journée à la fin.",
       handedOverHint:
