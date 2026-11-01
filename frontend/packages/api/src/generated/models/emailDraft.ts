@@ -7,7 +7,7 @@
 import type { SentEmailRow } from './sentEmailRow';
 
 export interface EmailDraft {
-  readonly to: string;
+  readonly to: readonly string[];
   readonly subject: string;
   readonly body: string;
   readonly sent: readonly SentEmailRow[];
