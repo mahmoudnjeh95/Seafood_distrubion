@@ -1207,7 +1207,6 @@ justification, after which the driver sends again with a note. Status names: sub
 **Not done:** approving a day does not yet block further sales or expenses by that driver the same day (**provisional**);
 the day's customer payments collected by the driver ("other payments") wait for a driver collection screen.
 
-
 **D-073 · Month-end stock valuation and cost of goods sold (P6-T05)** · accepted · 2026-10-11
 
 - **Profit is never purchases − sales.** The month's result is: sales (revenue without VAT) − cost of the goods
@@ -1467,7 +1466,6 @@ office like the others (kind `payment`, D-099). **In the day's cash:** expected 
 payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
 driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
 later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
-
 
 **D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
 `GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
@@ -3193,6 +3191,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   with no day; a driver with no day pays with "Ma poche" or "Carte".
 - Migration `dayclose/0009_dayclosingrevision`. API `correctDayClosing` (generated client). Tests:
   `dayclose/tests/test_day_correction.py`, `expenses/tests/test_road_expense_cash.py`, the phone's `expensePaid.test.ts`.
+
+**D-228 · A salary is approved when it is generated; adjust it, then pay it (owner point 12, provisional parts marked)** · accepted (provisional parts marked) · 2026-11-01
+- "Générer le mois" creates **approved** salary records (`approved_at`, `approved_by` set): no draft step any more.
+  Drafts made before this change stay drafts and keep their edit, approve and delete actions (nothing creates new ones).
+- An approved salary is corrected only by a `SalaryAdjustment` (signed amount, reason), then paid as before. The
+  record never changes (ARCHITECTURE §4.5).
+- The month's expense, the unpaid badges and the demo seed read approved records as before. The demo's night hours are
+  now an adjustment "Heures de nuit" (the record is approved).
+- **Not in this PR (waits for PR #246, treasury ledger, D-219, `ec` session):** the payment writing its treasury
+  movement (`salary` kind, source `hr.salary_payment`) and the screen line "Débité de la trésorerie : N DT (compte, date)".
+  No second ledger is built here; that line follows once `post_movement` is on `origin/main` (see D-229).
 **D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
 - `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when
   first needed). Its balance is the opening balance plus its movements from the opening day on; older movements stay
