@@ -3146,6 +3146,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the amounts without VAT; the invoice shows the unit price without VAT. This setting is rarely used.
 - Not changed: the sale form's live preview (no VAT computed in the browser; the VAT appears on the sale page after saving).
 
+**D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
+- Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
+  versement, the états des factures). The flow and the rules stay ours: effets, bordereaux, impayés and the ledger of
+  P9-T01 to T04 are not changed, and no migration is added.
+- `TresorerieRibbon` sits at the top of the screens Encaissement (`/reglements`), Décaissement (`/achats/paiements`),
+  Banque, Portefeuille, Ordre de paiement (`/achats/reglements`), Bordereau de versement and the two états.
+- Bordereau de versement (`/tresorerie/bordereau`): En attente (at the bank) · Encaissé · Impayé, with the same steps
+  and dialogs as the Portefeuille. Facture de vente and Facture d'achat (`/tresorerie/etats/ventes`, `/achats`): the
+  invoices grouped by customer or supplier, net à payer, réglé, restant, state, with totals.
+- Not on the ribbon yet: Agence bancaire, Caisse liquide and the journals (journal des banques, journal des caisses).
+  They need the treasury accounts of P9-T05, which are not merged. Excel export of the états is later.
+- The sidebar is unchanged: the e2e spec lists the modules by name. The treasury is reached from Règlements clients,
+  Règlements fournisseurs, Portefeuille and Banques.
 **D-222 · The e-mail window sends to every address the party has, and the office can drop or add some for one send (owner point 4, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
 - The party's own address and each of its contacts' addresses are offered (`Customer.email_addresses()`,
   `Supplier.email_addresses()`: the party's first, then the contacts' in order; blank and repeated ones, case ignored,
