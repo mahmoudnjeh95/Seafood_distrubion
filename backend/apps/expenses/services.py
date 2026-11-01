@@ -18,6 +18,7 @@ from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
+from apps.fleet import selectors as fleet
 from apps.inventory.services import LocationKind
 
 from . import cost_selectors
@@ -1381,6 +1382,21 @@ def delete_general_cost(*, period: GeneralCostPeriod, actor: User | None) -> Non
     delete_expense(expense=period.expense, actor=actor, linked=True)
 
 
+def _refuse_cash_without_fund(*, organization: Organization, driver: User, on: dt.date) -> None:
+    """Cash paid from the box needs cash in the day: a driver whose day started with 0 DT, or has not started, has
+    none to pay from (D-220). The driver pays with "Ma poche" or "Carte" then."""
+    day = fleet.driver_days_of(organization, driver_id=driver.pk).filter(date=on).first()
+    other_ways = _("Payez avec « Ma poche » ou « Carte ».")
+    if day is None:
+        raise ValidationError(
+            {"paid_with": _("« La caisse » n'est pas possible : votre journée n'est pas commencée. ") + other_ways}
+        )
+    if day.opening_cash == 0:
+        raise ValidationError(
+            {"paid_with": _("« La caisse » n'est pas possible : votre journée a démarré avec 0 DT. ") + other_ways}
+        )
+
+
 @transaction.atomic
 def submit_road_expense(
     *,
@@ -1400,7 +1416,8 @@ def submit_road_expense(
     office to approve it. The receipt photo, when given, is joined in the same transaction.
 
     Paid with the day's cash, out of the driver's own pocket (`paid_by_driver`: owed to them), or by card or
-    another way (`payment_method`), whatever cash the day holds (D-205)."""
+    another way (`payment_method`). "La caisse" is refused on a day that started with 0 DT or has not started
+    (D-220); the other ways stay whatever cash the day holds (D-205)."""
     if not category.for_drivers or not category.is_active:
         raise ValidationError({"category": _("Cette catégorie n'est pas disponible depuis la route.")})
     if client_uuid is not None:
@@ -1409,11 +1426,14 @@ def submit_road_expense(
         existing = Expense.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
         if existing is not None:
             return existing
+    # Dated by the moment it was spent (the phone's time, when there is one), else today.
+    spent_on = timezone.localtime(made_at or timezone.now()).date()
+    if payment_method == ExpensePaymentMethod.CASH and not paid_by_driver:
+        _refuse_cash_without_fund(organization=organization, driver=actor, on=spent_on)
     expense = create_expense(
         organization=organization,
         actor=actor,
-        # Dated by the moment it was spent (the phone's time, when there is one), else today.
-        spent_on=timezone.localtime(made_at or timezone.now()).date(),
+        spent_on=spent_on,
         category=category,
         amount=amount,
         description=description,

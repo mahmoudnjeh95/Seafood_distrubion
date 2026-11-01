@@ -1,6 +1,17 @@
 import type { PaymentMethodEnum } from "@frutti/api";
 import { formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, Field, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  MoneyInput,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@frutti/ui";
 
 import { blankPayLine, GIVEN_METHODS, hasPaper, type PaidMode, type PayLine } from "./purchasePay";
 
@@ -70,7 +81,7 @@ export function PaidNow({ mode, lines, total, paid, rest, overpaid, onMode, onLi
                 </p>
               ) : (
                 <Field label={t("truck.purchase.amount")} htmlFor={`pay-amount-${line.key}`}>
-                  <Input
+                  <MoneyInput
                     id={`pay-amount-${line.key}`}
                     inputMode="decimal"
                     className="text-xl"

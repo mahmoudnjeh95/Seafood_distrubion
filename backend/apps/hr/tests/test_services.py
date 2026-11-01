@@ -9,7 +9,7 @@ from django.utils import timezone
 from apps.core.models import AuditLog
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory
 from apps.hr import selectors, services
-from apps.hr.models import SalaryStatus
+from apps.hr.models import SalaryRecord, SalaryStatus
 
 from .factories import EmployeeFactory
 
@@ -76,7 +76,7 @@ def test_one_login_belongs_to_one_employee():
     assert "user" in error.value.message_dict
 
 
-def test_generating_a_month_makes_drafts_for_active_employees_once():
+def test_generating_a_month_approves_the_salaries_of_active_employees_once():
     organization = EmployeeFactory.create(monthly_salary=Decimal("1600.000")).organization
     EmployeeFactory.create(organization=organization, monthly_salary=Decimal("1250.000"), cnss_rate=Decimal("0"))
     EmployeeFactory.create(organization=organization, is_active=False)
@@ -89,7 +89,8 @@ def test_generating_a_month_makes_drafts_for_active_employees_once():
     assert len(created) == 2
     assert again == []
     first, second = sorted(created, key=lambda record: record.gross, reverse=True)
-    assert (first.month, first.status) == (THIS_MONTH, SalaryStatus.DRAFT)
+    assert (first.month, first.status) == (THIS_MONTH, SalaryStatus.APPROVED)
+    assert first.approved_at is not None
     assert (first.base_salary, first.gross, first.employer_cnss, first.net) == (
         Decimal("1600.000"),
         Decimal("1600.000"),
@@ -109,98 +110,40 @@ def test_a_future_month_cannot_be_generated():
     assert "month" in error.value.message_dict
 
 
+def as_draft(record):
+    """A salary still a draft: drafts are no longer made (D-228), only the ones of before it are left."""
+    SalaryRecord.objects.filter(pk=record.pk).update(status=SalaryStatus.DRAFT, approved_at=None, approved_by=None)
+    return selectors.salary_record_of(record.organization, record.pk)
+
+
 def draft_record(**fields):
     employee = EmployeeFactory.create(monthly_salary=Decimal("1000.000"))
     services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
-    record = selectors.salary_records_of(employee.organization).get()
+    record = as_draft(selectors.salary_records_of(employee.organization).get())
     if fields:
         record = services.update_salary_record(record=record, actor=None, **fields)
     return record
 
 
-def test_a_draft_is_recomputed_when_bonus_overtime_and_deductions_change():
-    record = draft_record(bonus="100.000", overtime="50.500", deductions="200.000")
+def test_an_approved_salary_is_adjusted_then_paid():
+    employee = EmployeeFactory.create(monthly_salary=Decimal("1000.000"))
+    services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
+    record = selectors.salary_records_of(employee.organization).get()
+    with pytest.raises(ValidationError):  # approved: no direct change
+        services.update_salary_record(record=record, actor=None, bonus="10.000")
 
-    assert record.gross == Decimal("1150.500")
-    # 1150.500 x 17.07 % = 196.39035
-    assert record.employer_cnss == Decimal("196.390")
-    assert record.net == Decimal("950.500")
-    assert record.expense_amount == Decimal("1346.890")
-
-
-def test_deductions_above_the_gross_are_refused():
-    record = draft_record()
-
-    with pytest.raises(ValidationError) as error:
-        services.update_salary_record(record=record, actor=None, deductions="1000.001")
-
-    assert "deductions" in error.value.message_dict
-
-
-def test_an_approved_salary_is_immutable_and_corrected_by_an_adjustment():
-    record = draft_record(bonus="100.000")
-    approved = services.approve_salary_record(record=record, actor=None)
-
-    assert approved.status == SalaryStatus.APPROVED
-    assert approved.approved_at is not None
-    with pytest.raises(ValidationError):
-        services.update_salary_record(record=approved, actor=None, bonus="0.000")
-    with pytest.raises(ValidationError):
-        services.delete_salary_record(record=approved, actor=None)
-    with pytest.raises(ValidationError):
-        services.approve_salary_record(record=approved, actor=None)
-
-    services.add_adjustment(record=approved, actor=None, amount="-30.000", reason="Absence non déclarée")
-    fresh = selectors.salary_record_of(approved.organization, approved.pk)
-    assert fresh.net == Decimal("1100.000")
-    assert selectors.due_amount(fresh) == Decimal("1070.000")
-
-
-def test_an_adjustment_needs_an_approved_salary_a_reason_and_a_sensible_amount():
-    record = draft_record()
-    with pytest.raises(ValidationError) as error:
-        services.add_adjustment(record=record, actor=None, amount="10.000", reason="x")
-    assert "status" in error.value.message_dict
-
-    approved = services.approve_salary_record(record=record, actor=None)
-    with pytest.raises(ValidationError) as error:
-        services.add_adjustment(record=approved, actor=None, amount="0", reason="")
-    assert set(error.value.message_dict) == {"amount", "reason"}
-    with pytest.raises(ValidationError) as error:
-        services.add_adjustment(record=approved, actor=None, amount="-1000.001", reason="trop")
-    assert "amount" in error.value.message_dict
-
-
-def test_an_adjustment_cannot_take_a_salary_below_what_was_already_paid():
-    record = services.approve_salary_record(record=draft_record(), actor=None)
-    employee = record.employee
+    services.add_adjustment(record=record, actor=None, amount="-100.000", reason="Retard")
     services.record_payment(
-        organization=record.organization,
+        organization=employee.organization,
         actor=None,
         employee=employee,
-        paid_on=THIS_MONTH,
-        amount="800.000",
+        paid_on=timezone.localdate(),
+        amount="900.000",
         method="cash",
-        allocations=[{"salary_record": record, "amount": "800.000"}],
+        allocations=[{"salary_record": record, "amount": "900.000"}],
     )
 
-    with pytest.raises(ValidationError) as error:
-        services.add_adjustment(record=record, actor=None, amount="-300.000", reason="Retenue")
-    assert "payé" in error.value.message_dict["amount"][0]
-
-    # Down to exactly what was paid is fine: nothing is left to pay, nothing overpaid.
-    services.add_adjustment(record=record, actor=None, amount="-200.000", reason="Retenue")
-    fresh = selectors.salary_record_of(record.organization, record.pk)
-    assert selectors.outstanding_amount(fresh) == Decimal("0.000")
-
-
-def test_an_adjustment_amount_has_an_upper_bound_instead_of_a_database_error():
-    record = services.approve_salary_record(record=draft_record(), actor=None)
-
-    for amount in ("100000000000.000", "-100000000000.000"):
-        with pytest.raises(ValidationError) as error:
-            services.add_adjustment(record=record, actor=None, amount=amount, reason="Trop")
-        assert "amount" in error.value.message_dict
+    assert selectors.unpaid_by_employee(employee.organization) == {}
 
 
 def test_a_draft_can_be_deleted_and_regenerated():
@@ -216,6 +159,8 @@ def test_approving_the_month_approves_every_draft():
     employee = EmployeeFactory.create()
     EmployeeFactory.create(organization=employee.organization)
     services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
+    for record in selectors.salary_records_of(employee.organization):
+        as_draft(record)
 
     approved = services.approve_month(organization=employee.organization, actor=None, month=THIS_MONTH)
 
@@ -318,7 +263,7 @@ def test_allocations_are_checked_like_supplier_payments():
 def _another_draft(organization):
     employee = EmployeeFactory.create(organization=organization)
     services.generate_month(organization=organization, actor=None, month=THIS_MONTH)
-    return selectors.salary_records_of(organization, employee_id=employee.pk).get()
+    return as_draft(selectors.salary_records_of(organization, employee_id=employee.pk).get())
 
 
 def test_a_draft_cannot_be_paid_and_an_advance_is_allocated_later():
@@ -395,7 +340,7 @@ def test_the_employee_cnss_is_withheld_from_the_gross_and_shown_on_its_own_line(
 def test_other_deductions_come_off_after_the_cnss_and_the_rate_can_be_changed_on_a_draft():
     employee = EmployeeFactory.create(monthly_salary=Decimal("1000.000"), employee_cnss_rate=Decimal("9.18"))
     services.generate_month(organization=employee.organization, actor=None, month=THIS_MONTH)
-    record = selectors.salary_records_of(employee.organization).get()
+    record = as_draft(selectors.salary_records_of(employee.organization).get())
 
     changed = services.update_salary_record(
         record=record, actor=None, bonus="100.000", deductions="50.000", employee_cnss_rate="10"

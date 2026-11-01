@@ -41,6 +41,12 @@ export interface SaleDetail {
   readonly tax_amount: string | null;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly amount_excl_tax: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly vat_total: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly total_incl_tax: string;
   /**
      * @nullable
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$

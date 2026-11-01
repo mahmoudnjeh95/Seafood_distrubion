@@ -82,3 +82,50 @@ export function parseDecimalInput(text: string, maxDecimals: number): string | n
   const decimals = maxDecimals > 0 ? `(\\.\\d{1,${maxDecimals}})?` : "";
   return new RegExp(`^-?\\d+${decimals}$`).test(compact) ? compact : null;
 }
+
+/** The thousands separator of the French format (Intl's no-break space), as amount fields show it while typing. */
+const THOUSANDS_SEPARATOR =
+  new Intl.NumberFormat(LOCALES.fr).formatToParts(1000).find((part) => part.type === "group")?.value ?? NO_BREAK_SPACE;
+
+/** The sign, the whole digits and the decimals of a typed amount. Only the first decimal separator counts. */
+function splitTypedAmount(typed: string): { negative: boolean; whole: string; decimals: string | null } {
+  const compact = typed.replace(/\s/g, "");
+  const negative = compact.startsWith("-");
+  const body = negative ? compact.slice(1) : compact;
+  const separator = body.search(/[.,٫]/);
+  const whole = (separator === -1 ? body : body.slice(0, separator)).replace(/\D/g, "");
+  const decimals = separator === -1 ? null : body.slice(separator + 1).replace(/\D/g, "");
+  return { negative, whole, decimals };
+}
+
+/**
+ * What an amount field shows while the person types: "1250" → "1 250", "1250.5" → "1 250,5",
+ * "1250000" → "1 250 000".
+ * The decimal comma stays and nothing is cut: a fourth decimal is still shown, and parseDecimalInput refuses it.
+ * The API never gets this text: it gets the string parseDecimalInput returns from it.
+ */
+export function formatMoneyInput(typed: string): string {
+  const { negative, whole, decimals } = splitTypedAmount(typed);
+  const digits = whole.replace(/^0+(?=\d)/, "");
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR);
+  return `${negative ? "-" : ""}${grouped}${decimals === null ? "" : `,${decimals}`}`;
+}
+
+/**
+ * Where the caret goes in the formatted text: after the same sign, digits and decimal comma that were before
+ * the caret in the typed text. `caret` is the typed text's caret position; `formatted` is formatMoneyInput(typed).
+ */
+export function moneyInputCaret(typed: string, caret: number, formatted: string): number {
+  const before = splitTypedAmount(typed.slice(0, caret));
+  const passed =
+    (before.negative ? 1 : 0) + before.whole.length + (before.decimals === null ? 0 : 1 + before.decimals.length);
+  let position = 0;
+  let seen = 0;
+  for (let index = 0; index < formatted.length && seen < passed; index += 1) {
+    if (/[-\d,]/.test(formatted.charAt(index))) {
+      seen += 1;
+      position = index + 1;
+    }
+  }
+  return position;
+}

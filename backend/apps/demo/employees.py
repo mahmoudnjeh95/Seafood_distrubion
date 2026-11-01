@@ -2,7 +2,7 @@
 
 Seven employees (the owner and the external accountant of the sample are not paid by the company here).
 Last month is generated, approved and mostly paid, two salaries are left unpaid so the "impayé" badge
-shows; this month is generated as drafts. A few days on a lot show the days × salary / 26 cost.
+shows; this month is generated, approved too (D-228). A few days on a lot show the days × salary / 26 cost.
 Known by the employee reference, so the seed adds them only once.
 """
 
@@ -26,7 +26,7 @@ EMPLOYEES = [
     ("E-008", "Karim S.", "Manutentionnaire", "950.000", dt.date(2024, 8, 19), "10890123-47"),
 ]
 DRIVER_REFERENCE = "E-003"  # Sami B., the `driver` login
-OVERTIME = {"E-006": "40.000"}
+OVERTIME = {"E-006": "40.000"}  # night hours, an adjustment of the approved salary (D-228)
 UNPAID = {"E-007", "E-008"}
 # reference, days on the lot, N days ago
 LOT_DAYS = [("E-006", "1", 2), ("E-008", "0.5", 2), ("E-006", "0.5", 1)]
@@ -56,8 +56,7 @@ def seed_employees(*, organization: Organization, actor: User | None, driver: Us
     for record in services.generate_month(organization=organization, actor=actor, month=last_month):
         overtime = OVERTIME.get(record.employee.reference)
         if overtime:
-            services.update_salary_record(record=record, actor=actor, overtime=overtime, notes="Heures de nuit")
-    services.approve_month(organization=organization, actor=actor, month=last_month)
+            services.add_adjustment(record=record, actor=actor, amount=overtime, reason="Heures de nuit")
     for record in selectors.salary_records_of(organization, month=last_month):
         if record.employee.reference in UNPAID:
             continue

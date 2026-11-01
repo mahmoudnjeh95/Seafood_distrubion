@@ -22,6 +22,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -221,13 +222,14 @@ export function ProductDialog({
   function input(
     name: keyof FormValues,
     label: string,
-    kind: "text" | "decimal" | "arabic" = "text",
+    kind: "text" | "decimal" | "money" | "arabic" = "text",
     disabled = false,
   ) {
     const id = `${formId}-${name}`;
+    const Control = kind === "money" ? MoneyInput : Input;
     return (
       <Field label={label} htmlFor={id} error={errors[name]}>
-        <Input
+        <Control
           id={id}
           name={name}
           value={values[name]}
@@ -236,8 +238,8 @@ export function ProductDialog({
           autoComplete="off"
           disabled={disabled}
           placeholder={disabled && !product ? t("admin.numbering.auto") : undefined}
-          inputMode={kind === "decimal" ? "decimal" : undefined}
-          className={kind === "decimal" ? "num" : undefined}
+          inputMode={kind === "decimal" || kind === "money" ? "decimal" : undefined}
+          className={kind === "decimal" || kind === "money" ? "num" : undefined}
           dir={kind === "arabic" ? "rtl" : undefined}
           lang={kind === "arabic" ? "ar" : undefined}
         />
@@ -317,7 +319,7 @@ export function ProductDialog({
           )}
         </Field>
 
-        {!product && input("sale_price", t("admin.products.form.salePrice"), "decimal")}
+        {!product && input("sale_price", t("admin.products.form.salePrice"), "money")}
         {input("min_stock", t("admin.products.form.minStock"), "decimal")}
         <div className="col-span-full">
           {input("vat_rate", t("admin.products.form.vatRate"), "decimal")}

@@ -25,6 +25,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -378,24 +379,34 @@ export function FieldPurchaseForm({
     label: string,
     value: string,
     onChange: (value: string) => void,
-    options: { numeric?: boolean; placeholder?: string; type?: string; min?: string; max?: string } = {},
-  ) => (
-    <Field label={label} htmlFor={id(name)} error={errors[name]}>
-      <Input
-        id={id(name)}
-        type={options.type ?? "text"}
-        inputMode={options.numeric ? "decimal" : undefined}
-        value={value}
-        placeholder={options.placeholder}
-        min={options.min}
-        max={options.max}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={errors[name] ? true : undefined}
-        autoComplete="off"
-        className={options.numeric ? "num" : undefined}
-      />
-    </Field>
-  );
+    options: {
+      numeric?: boolean;
+      money?: boolean;
+      placeholder?: string;
+      type?: string;
+      min?: string;
+      max?: string;
+    } = {},
+  ) => {
+    const Control = options.money ? MoneyInput : Input;
+    return (
+      <Field label={label} htmlFor={id(name)} error={errors[name]}>
+        <Control
+          id={id(name)}
+          type={options.type ?? "text"}
+          inputMode={options.numeric ? "decimal" : undefined}
+          value={value}
+          placeholder={options.placeholder}
+          min={options.min}
+          max={options.max}
+          onChange={(event) => onChange(event.target.value)}
+          aria-invalid={errors[name] ? true : undefined}
+          autoComplete="off"
+          className={options.numeric ? "num" : undefined}
+        />
+      </Field>
+    );
+  };
   const busy = save.isPending || refuse.isPending;
 
   return (
@@ -539,7 +550,7 @@ export function FieldPurchaseForm({
                   t("admin.fieldPurchases.form.cost"),
                   line.unit_cost,
                   (value) => setLine(line.key, { unit_cost: value }),
-                  { numeric: true },
+                  { numeric: true, money: true },
                 )}
                 <div className="flex items-end self-stretch max-[960px]:col-span-2 max-[960px]:justify-end">
                   <Button
@@ -637,7 +648,7 @@ export function FieldPurchaseForm({
                 t("admin.fieldPurchases.form.paymentAmount"),
                 payment.amount,
                 (value) => setPayment(payment.key, { amount: value }),
-                { numeric: true },
+                { numeric: true, money: true },
               )}
               {textInput(
                 paymentKey(index, "reference"),

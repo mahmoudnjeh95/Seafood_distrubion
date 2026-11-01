@@ -296,6 +296,11 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         "location": sale.location,
         "lines": lines,
         "has_discount": any(line.discount_rate for line in lines),
+        # VAT shows only when a line is sold with VAT (D-224): a BL without any looks as it always did.
+        "has_vat": any(line.vat_rate is not None for line in lines),
+        "amount_excl_tax": sale.amount_excl_tax,
+        "vat_total": sale.vat_total,
+        "total_incl_tax": sale.total_incl_tax,
         "total_kg": sum((line.quantity for line in lines), Decimal("0.000")),
         "cancelled": sale.status == SaleStatus.CANCELLED,
         "provisional": provisional,
