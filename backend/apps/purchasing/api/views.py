@@ -368,7 +368,8 @@ def _plan_lines(organization: Organization, line_ids: list[int]) -> list[Supplie
 
 
 def _payment_lines(organization: Organization, lines: list[dict[str, Any]]) -> list[services.PaymentLineFields]:
-    """The règlement's lines with their bank resolved in the organization; an unknown bank is an error on its line."""
+    """The règlement's lines with their bank and account resolved in the organization; an unknown one is an error
+    on its line."""
     errors: dict[str, str] = {}
     resolved: list[services.PaymentLineFields] = []
     for index, line in enumerate(lines):
@@ -379,12 +380,18 @@ def _payment_lines(organization: Organization, lines: list[dict[str, Any]]) -> l
             "number": line["number"],
             "due_on": line["due_on"],
             "bank": None,
+            "account": None,
         }
         if line["bank"] is not None:
             try:
                 row["bank"] = treasury.bank_of(organization, line["bank"])
             except ObjectDoesNotExist:
                 errors[services.line_error_key(index, "bank")] = _("Banque inconnue.")
+        if line.get("account") is not None:
+            try:
+                row["account"] = treasury.account_of(organization, line["account"])
+            except ObjectDoesNotExist:
+                errors[services.line_error_key(index, "account")] = _("Compte inconnu.")
         resolved.append(row)
     if errors:
         raise ValidationError(errors)
