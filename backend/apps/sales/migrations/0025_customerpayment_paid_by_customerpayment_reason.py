@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sales', '0023_unpaid_effets'),
+        ('sales', '0024_sale_vat_snapshot'),
     ]
 
     operations = [
