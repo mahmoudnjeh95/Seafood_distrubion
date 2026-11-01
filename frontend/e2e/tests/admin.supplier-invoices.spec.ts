@@ -51,7 +51,7 @@ test("the demo invoice is partly paid and the supplier page shows what is still 
   await page.getByRole("link", { name: "Mareyeur Port de Sfax" }).click();
   await expect(page.getByRole("heading", { name: "Mareyeur Port de Sfax", level: 1 })).toBeVisible();
   await expect(page.getByText("Solde fournisseur")).toBeVisible();
-  await expect(page.getByText("Solde dû")).toBeVisible();
+  await expect(page.getByText("Total à régler")).toBeVisible();
   await expect(page.getByText(/^971,500\sDT$/).first()).toBeVisible();
   await expect(page.getByText(/soldes séparés/)).toBeVisible();
 });
