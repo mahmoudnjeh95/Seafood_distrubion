@@ -3123,6 +3123,31 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+**D-227 · Cold-room electricity: the month's estimate is typed, the real invoice counts as the month's expense (owner point 11, provisional parts marked)** · accepted (provisional parts marked) · 2026-10-31
+- **Why:** the owner wants the month's cold-room estimate editable, and the real invoice entered in its own section; the
+  real amount counts as the month's expense and the difference with the estimate is shown and booked as before (D-058).
+- **Estimate:** new `expenses.ColdRoomEstimate` (one per organization and month, `amount` for all rooms). Typed by the owner or
+  manager (`PUT /cold-room-estimate`, `set_cold_room_estimate`) for the current or an earlier month, positive, to the millime.
+  While the month is not billed it replaces the copied daily rate: the rooms share it by weight (as a bill), each day's rate
+  is its room's part / days. It is changed freely until the month's bill is approved, then frozen (the rates keep the daily
+  amount used). Every change is audited (`cold_room_estimate.set`, before/after, optional reason).
+- **Real invoice:** the existing electricity bill (one expense of category cold storage + its month). Its section is "Facture
+  chambre froide réelle"; a draft is edited there; "Enregistrer et compter en dépense" approves it at once, so it counts in the
+  month's expenses. Only approved bills count (unchanged).
+- **Month view:** the estimate (typed or copied), the real total, and the difference (real minus estimate, `estimate_total`,
+  `difference`, `estimate_typed`, `typed_amount`) are shown; the lots keep the correction line `cold_room_adjustment` = real
+  minus the estimate in force at approval (unchanged mechanism, D-041/D-058).
+- **Provisional:** (1) the real bill's approval is now the default button (drafts still possible), so a wrong approved bill is
+  corrected by a new record, as before, not edited. (2) **Gap, open for the owner:** an estimate changed after a lot of that
+  month was already closed (its cost frozen in the closing) leaves the closed lot on the old estimate, while the correction at
+  approval uses the estimate in force then; the month's total can then differ by that change. Options: lock the estimate once a
+  lot of the month is closed, or accept. (3) Not built: the bill's date and an invoice reference (the bill is dated the last day
+  of the month, the reference goes in notes, as before). (4) Rounding: each room's daily rate is rounded to the millime, so the
+  estimate charged to the lots can differ from the typed amount by a few millimes until approval (the correction absorbs it).
+- Not touched: per-room weights and shares, the hour-by-hour split (D-142), treasury (no treasury posting in this change).
+
+
+
 **D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
 - `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when
   first needed). Its balance is the opening balance plus its movements from the opening day on; older movements stay

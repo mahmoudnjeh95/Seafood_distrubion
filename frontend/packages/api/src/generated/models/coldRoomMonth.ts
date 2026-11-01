@@ -12,6 +12,12 @@ export interface ColdRoomMonth {
   readonly days: number;
   readonly bill: ElectricityBill | null;
   readonly estimated: boolean;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly typed_amount: string | null;
+  readonly estimate_typed: boolean;
   /** @nullable */
   readonly estimate_source_month: string | null;
   readonly rooms: readonly ColdRoomMonthRow[];
@@ -20,4 +26,14 @@ export interface ColdRoomMonth {
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
   readonly total: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly estimate_total: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly difference: string | null;
 }
