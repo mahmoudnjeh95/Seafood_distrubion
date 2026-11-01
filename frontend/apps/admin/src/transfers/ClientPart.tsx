@@ -18,6 +18,7 @@ import { useId } from "react";
 import { BoxCountsFields } from "../boxes/BoxCountsFields";
 import { sum } from "../lib/decimal";
 import { amountsOf, filled, type Line, shownPrice } from "../lib/lines";
+import { lotColumn } from "../lib/lotColumn";
 import { LinesGrid } from "../lib/LinesGrid";
 import { pickable } from "../lib/pickable";
 import type { PlaceKilos } from "../lib/placeStock";
@@ -38,6 +39,7 @@ export function ClientPart({
   stock,
   places,
   errors,
+  lotRoom,
   onChange,
   onRemove,
 }: {
@@ -52,6 +54,8 @@ export function ClientPart({
   stock?: Map<string, string>;
   places?: Map<string, PlaceKilos[]>;
   errors: Record<string, string>;
+  /** The place the kg leave from, where lots are picked; undefined when they cannot be (D-215). */
+  lotRoom: string | undefined;
   onChange: (next: Part) => void;
   onRemove: () => void;
 }) {
@@ -140,6 +144,7 @@ export function ClientPart({
         places={places}
         errors={own}
         hint={priceHint}
+        extra={lotColumn(t("admin.sales.counterSale.lot"), lotRoom)}
       />
       {own.lines && <p className="text-[0.78rem] font-semibold text-bad">{own.lines}</p>}
       <dl className="ms-auto text-end">

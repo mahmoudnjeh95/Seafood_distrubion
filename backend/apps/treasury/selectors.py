@@ -1,15 +1,29 @@
-"""Read queries of the treasury: banks and effets (D-197)."""
+"""Read queries of the treasury: banks and effets (D-197); our accounts and their movements (D-219)."""
 
 import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from django.db.models import Count, Prefetch, Q, QuerySet, Sum
+from django.db.models import Count, DecimalField, F, OuterRef, Prefetch, Q, QuerySet, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 
 from apps.core.models import Organization
 
-from .models import Bank, Deposit, Instrument, InstrumentDirection, InstrumentKind, InstrumentStatus
+from .models import (
+    AccountKind,
+    AccountTransfer,
+    Bank,
+    CashCount,
+    Deposit,
+    Instrument,
+    InstrumentDirection,
+    InstrumentKind,
+    InstrumentStatus,
+    MovementKind,
+    TreasuryAccount,
+    TreasuryMovement,
+)
 
 
 def banks_of(organization: Organization, *, active_only: bool = False) -> QuerySet[Bank]:
@@ -105,7 +119,7 @@ def deposits_of(organization: Organization) -> QuerySet[Deposit]:
     effets = Instrument.objects.select_related("bank", "customer").order_by("due_on", "id")
     return (
         Deposit.objects.for_organization(organization)
-        .select_related("bank", "created_by")
+        .select_related("bank", "account", "created_by")
         .prefetch_related(Prefetch("instruments", queryset=effets))
         .annotate(effets_count=Count("instruments"), effets_total=Sum("instruments__amount"))
         .order_by("-deposited_on", "-id")
@@ -121,3 +135,133 @@ def deposit_of(organization: Organization, deposit_id: int) -> Deposit:
 INSTRUMENT_KIND_CHOICES = InstrumentKind.choices
 INSTRUMENT_STATUS_CHOICES = InstrumentStatus.choices
 INSTRUMENT_DIRECTION_CHOICES = InstrumentDirection.choices
+
+
+# ---- Accounts and movements (D-219) ----
+
+ZERO = Decimal("0.000")
+MONEY = DecimalField(max_digits=14, decimal_places=3)
+
+
+def _counted(movements: QuerySet[TreasuryMovement]) -> QuerySet[TreasuryMovement]:
+    """The movements an account's balance counts: those from its opening day on (all of them without one)."""
+    return movements.filter(Q(account__opening_on__isnull=True) | Q(day__gte=F("account__opening_on")))
+
+
+def accounts_of(
+    organization: Organization, *, active_only: bool = False, on: dt.date | None = None
+) -> QuerySet[TreasuryAccount]:
+    """Our accounts in the list's order (Caisses, bank accounts, drivers' cash), each with its `balance` at the end
+    of `on` (today's when None)."""
+    movements = _counted(TreasuryMovement.objects.filter(account=OuterRef("pk")))
+    if on is not None:
+        movements = movements.filter(day__lte=on)
+    total = movements.order_by().values("account").annotate(total=Sum("amount")).values("total")
+    rows = (
+        TreasuryAccount.objects.for_organization(organization)
+        .select_related("bank", "driver")
+        .annotate(balance=F("opening_balance") + Coalesce(Subquery(total, output_field=MONEY), Value(ZERO)))
+    )
+    return rows.filter(is_active=True) if active_only else rows
+
+
+def account_of(organization: Organization, account_id: int) -> TreasuryAccount:
+    """One account with its balance. Raises TreasuryAccount.DoesNotExist outside the organization."""
+    return accounts_of(organization).get(pk=account_id)
+
+
+def account_balance(account: TreasuryAccount, *, on: dt.date) -> Decimal:
+    """What the account holds at the end of `on`."""
+    total = _counted(TreasuryMovement.objects.filter(account=account, day__lte=on)).aggregate(total=Sum("amount"))
+    return account.opening_balance + (total["total"] or ZERO)
+
+
+@dataclass(frozen=True)
+class MovementRow:
+    movement: TreasuryMovement
+    # The account's balance just after this movement.
+    balance: Decimal
+
+
+@dataclass(frozen=True)
+class AccountStatement:
+    """An account's movements over a period with the balance after each one."""
+
+    account: TreasuryAccount
+    date_from: dt.date | None
+    date_to: dt.date | None
+    # The balance at the start of `date_from` (the opening balance without one).
+    opening: Decimal
+    total_in: Decimal
+    total_out: Decimal
+    closing: Decimal
+    rows: list[MovementRow]
+
+
+def account_statement(
+    account: TreasuryAccount,
+    *,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    kind: str | None = None,
+    search: str = "",
+) -> AccountStatement:
+    """The movements of `account` between the two days (inclusive), oldest first, each with the balance after it.
+    `kind` and `search` (label, reference) narrow the rows shown and their totals; the balances stay the
+    account's own."""
+    counted = _counted(TreasuryMovement.objects.filter(account=account)).select_related("created_by")
+    opening = account.opening_balance
+    if date_from is not None:
+        before = counted.filter(day__lt=date_from).aggregate(total=Sum("amount"))["total"]
+        opening += before or ZERO
+        counted = counted.filter(day__gte=date_from)
+    if date_to is not None:
+        counted = counted.filter(day__lte=date_to)
+    search = search.strip().casefold()
+    balance = opening
+    rows: list[MovementRow] = []
+    for movement in counted.order_by("day", "id"):
+        balance += movement.amount
+        if kind and movement.kind != kind:
+            continue
+        if search and search not in movement.label.casefold() and search not in movement.reference.casefold():
+            continue
+        rows.append(MovementRow(movement=movement, balance=balance))
+    return AccountStatement(
+        account=account,
+        date_from=date_from,
+        date_to=date_to,
+        opening=opening,
+        total_in=sum((row.movement.amount for row in rows if row.movement.amount > 0), ZERO),
+        total_out=-sum((row.movement.amount for row in rows if row.movement.amount < 0), ZERO),
+        closing=balance,
+        rows=rows,
+    )
+
+
+def transfers_of(organization: Organization, *, account_id: int | None = None) -> QuerySet[AccountTransfer]:
+    """Moves between our accounts, newest first; `account_id` keeps those in or out of one account."""
+    rows = AccountTransfer.objects.for_organization(organization).select_related(
+        "from_account", "to_account", "created_by", "voided_by"
+    )
+    if account_id is not None:
+        rows = rows.filter(Q(from_account_id=account_id) | Q(to_account_id=account_id))
+    return rows.order_by("-transferred_on", "-id")
+
+
+def transfer_of(organization: Organization, transfer_id: int) -> AccountTransfer:
+    """One transfer. Raises AccountTransfer.DoesNotExist outside the organization."""
+    return transfers_of(organization).get(pk=transfer_id)
+
+
+def counts_of(organization: Organization, *, account_id: int | None = None) -> QuerySet[CashCount]:
+    """Arrêtés de caisse, newest first."""
+    rows = CashCount.objects.for_organization(organization).select_related("account", "created_by")
+    if account_id is not None:
+        rows = rows.filter(account_id=account_id)
+    return rows.order_by("-counted_on", "-id")
+
+
+# The choices of an account and a movement, for other apps' serializers.
+ACCOUNT_KIND_CHOICES = AccountKind.choices
+MOVEMENT_KIND_CHOICES = MovementKind.choices

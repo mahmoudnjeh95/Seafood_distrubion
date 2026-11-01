@@ -1,4 +1,4 @@
-"""A new organization starts with the list of Tunisian banks (D-197)."""
+"""A new organization starts with the list of Tunisian banks (D-197), a Caisse and a bank account (D-219)."""
 
 from typing import Any
 
@@ -14,3 +14,4 @@ from . import services
 def give_default_banks(sender: type[Organization], instance: Organization, created: bool, **kwargs: Any) -> None:
     if created and not kwargs.get("raw", False):
         services.ensure_default_banks(organization=instance)
+        services.ensure_default_accounts(organization=instance)
