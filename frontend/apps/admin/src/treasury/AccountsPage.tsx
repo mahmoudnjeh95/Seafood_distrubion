@@ -1,4 +1,5 @@
 import {
+  type CashTypeEnum,
   type TreasuryAccount,
   type TreasuryAccountWrite,
   createCashCount,
@@ -157,7 +158,7 @@ function AccountDialog({
   const [bank, setBank] = useState(account?.bank ? String(account.bank.id) : "");
   const [rib, setRib] = useState(account?.rib ?? "");
   const [iban, setIban] = useState(account?.iban ?? "");
-  const [cashType, setCashType] = useState(account?.cash_type || "principal");
+  const [cashType, setCashType] = useState<CashTypeEnum>(account?.cash_type || "principal");
   const [opening, setOpening] = useState(account?.opening_balance ?? "0.000");
   const [openingOn, setOpeningOn] = useState(account?.opening_on ?? "");
   const [active, setActive] = useState(account ? (account.is_active ? "yes" : "no") : "yes");
@@ -174,7 +175,7 @@ function AccountDialog({
       bank: kind === "bank" && bank ? Number(bank) : null,
       rib: kind === "bank" ? rib.trim() : "",
       iban: kind === "bank" ? iban.trim() : "",
-      cash_type: kind === "cash" ? (cashType as TreasuryAccountWrite["cash_type"]) : "",
+      cash_type: kind === "cash" ? cashType : "",
       opening_balance: opening.trim().replace(",", ".") || "0",
       opening_on: openingOn || null,
       is_active: active === "yes",
@@ -247,7 +248,7 @@ function AccountDialog({
               htmlFor={`${id}-cash-type`}
               error={errors.cash_type}
             >
-              <Select value={cashType} onValueChange={setCashType}>
+              <Select value={cashType} onValueChange={(value) => setCashType(value as CashTypeEnum)}>
                 <SelectTrigger id={`${id}-cash-type`}>
                   <SelectValue />
                 </SelectTrigger>
