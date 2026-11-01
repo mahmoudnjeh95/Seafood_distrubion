@@ -241,6 +241,7 @@ import type {
   PaginatedWebRequestList,
   PartnerBalances,
   PartnerReport,
+  PartyDocuments,
   PatchedCategory,
   PatchedCustomerWrite,
   PatchedEmployeeWrite,
@@ -29528,6 +29529,106 @@ export function useListInstruments<TData = Awaited<ReturnType<typeof listInstrum
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListInstrumentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPartyDocumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/party-documents`
+}
+
+/**
+ * What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+ * confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+ * drafts) with their total. A party with no such document is not listed.
+ */
+export const listPartyDocuments = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PartyDocuments> => {
+
+  return apiFetch<PartyDocuments>(getListPartyDocumentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPartyDocumentsQueryKey = () => {
+    return [
+    `/api/v1/treasury/party-documents`
+    ] as const;
+    }
+
+
+export const getListPartyDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPartyDocumentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPartyDocuments>>> = ({ signal }) => listPartyDocuments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPartyDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listPartyDocuments>>>
+export type ListPartyDocumentsQueryError = unknown
+
+
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartyDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listPartyDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartyDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listPartyDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPartyDocumentsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

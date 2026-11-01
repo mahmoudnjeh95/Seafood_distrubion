@@ -1,5 +1,5 @@
 import { Select as SelectPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { Icon } from "../icons";
 import { cn } from "../lib/cn";
@@ -42,7 +42,13 @@ export function SelectContent({ className, children, ...props }: ComponentProps<
   );
 }
 
-export function SelectItem({ className, children, ...props }: ComponentProps<typeof SelectPrimitive.Item>) {
+/** `detail` is drawn in the list beside the item's text only: the trigger shows the text alone. */
+export function SelectItem({
+  className,
+  children,
+  detail,
+  ...props
+}: ComponentProps<typeof SelectPrimitive.Item> & { detail?: ReactNode }) {
   return (
     <SelectPrimitive.Item
       className={cn(
@@ -52,6 +58,7 @@ export function SelectItem({ className, children, ...props }: ComponentProps<typ
       {...props}
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      {detail}
       <SelectPrimitive.ItemIndicator>
         <Icon name="check" className="size-4" />
       </SelectPrimitive.ItemIndicator>

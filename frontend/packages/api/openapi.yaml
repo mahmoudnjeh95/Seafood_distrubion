@@ -9196,6 +9196,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedInstrumentList'
           description: ''
+  /api/v1/treasury/party-documents:
+    get:
+      operationId: listPartyDocuments
+      description: |-
+        What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+        confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+        drafts) with their total. A party with no such document is not listed.
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyDocuments'
+          description: ''
   /api/v1/truck-assignments:
     get:
       operationId: listTruckAssignments
@@ -19953,6 +19971,46 @@ components:
       - phone
       - tax_id
       - trade_register
+    PartyDocumentRow:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        deliveries:
+          type: integer
+          readOnly: true
+        invoices:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - deliveries
+      - id
+      - invoices
+      - total
+    PartyDocuments:
+      type: object
+      description: 'Per customer: its BL, invoices and net to pay. Per supplier: its
+        BR, invoices and invoiced total (D-211).'
+      properties:
+        customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartyDocumentRow'
+          readOnly: true
+        suppliers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartyDocumentRow'
+          readOnly: true
+      required:
+      - customers
+      - suppliers
     PartyRef:
       type: object
       properties:

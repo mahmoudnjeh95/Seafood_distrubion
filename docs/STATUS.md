@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T02 merged, D-208; P9-T03a règlement forms and banks built, D-210)_
+_Last updated: 2026-11-01 (D-211 règlement lists show BL/BR, invoices and total per party, branch `party-document-counts`)_
 
 ## Where we are
 
+- **D-211 on branch `party-document-counts` (awaits CI):** in "Nouveau règlement client" and "Nouveau paiement
+  fournisseur", each customer and supplier in the list shows its BL (or BR), invoices and total. New read endpoint
+  `treasury/party-documents`; the total is provisional (see D-211). Merge once CI is green; nothing else depends on it.
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
   **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app; T02 (#231, D-208) supplier règlement
   lines, our effets issued. **P9-T03a on branch `payment-screens`** (awaits CI, D-210): "Nouveau règlement client"

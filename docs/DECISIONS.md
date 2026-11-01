@@ -3004,3 +3004,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   means. The supplier form moved to the same editor: its single "Montant / Mode" fields are gone.
 - Banques: a page under Finance (`/tresorerie/banques`), where T04 adds the Portefeuille. Owner and manager write.
 - The list and detail pages, the supplier void and paying several plan lines at once moved to P9-T03b.
+
+**D-211 · The règlement lists show each customer's and supplier's documents: BL or BR, invoices and total (owner request, 2026-11-01)** · accepted (total provisional) · 2026-11-01
+- "Nouveau règlement client" (client list) and "Nouveau paiement fournisseur" (supplier list) show, beside each name,
+  how many BL (customers) or BR (suppliers), how many invoices, and their total. Zeros are shown too. The owner's
+  "in bank" was read as these règlement pages, where the lists are.
+- Counted: a customer's confirmed BL and issued invoices; a supplier's goods receipts (all) and its invoices (not
+  drafts). Cancelled documents and drafts are not counted.
+- Total (provisional): a customer's invoices' net to pay, as on the Documents page; a supplier's invoices' total. The
+  BL are not added on top, since they are invoiced. What is owed stays on the balance and the encours.
+- `GET /api/v1/treasury/party-documents` (`listPartyDocuments`): owner, manager and accountant; a party with no document
+  is not listed (the screens show zeros). The counts do not move with payments, only with new BL, receipts or invoices.

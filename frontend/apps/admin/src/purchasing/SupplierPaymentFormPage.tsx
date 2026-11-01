@@ -3,6 +3,7 @@ import {
   recordSupplierPayment,
   type SupplierPaymentWrite,
   useListBanks,
+  useListPartyDocuments,
   useListSupplierInvoices,
   useListSuppliers,
 } from "@frutti/api";
@@ -29,6 +30,7 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { ConfirmPaymentDialog } from "../payments/ConfirmPaymentDialog";
+import { countsOf, PartyDocumentCounts } from "../payments/PartyDocumentCounts";
 import {
   describeLine,
   errorsByLine,
@@ -77,6 +79,7 @@ export function SupplierPaymentFormPage() {
 
   const suppliers = useListSuppliers({ status: "all" });
   const banks = useListBanks();
+  const documents = useListPartyDocuments();
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [paidOn, setPaidOn] = useState(todayInTunis);
   const [lines, setLines] = useState<Line[]>(() => [
@@ -211,7 +214,13 @@ export function SupplierPaymentFormPage() {
                 {(suppliers.data ?? [])
                   .filter((one) => one.is_active || String(one.id) === supplier)
                   .map((one) => (
-                    <SelectItem key={one.id} value={String(one.id)}>
+                    <SelectItem
+                      key={one.id}
+                      value={String(one.id)}
+                      detail={
+                        <PartyDocumentCounts counts={countsOf(documents.data?.suppliers, one.id)} side="supplier" />
+                      }
+                    >
                       {one.name}
                     </SelectItem>
                   ))}

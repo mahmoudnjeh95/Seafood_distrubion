@@ -430,6 +430,8 @@ export * from './partnershipPartner';
 export * from './partnershipStatusEnum';
 export * from './partnerSideEnum';
 export * from './party';
+export * from './partyDocumentRow';
+export * from './partyDocuments';
 export * from './partyRef';
 export * from './patchedCategory';
 export * from './patchedCustomerWrite';

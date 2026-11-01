@@ -3,7 +3,7 @@
 import datetime as dt
 import uuid
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -26,7 +26,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, Tone, document_key
+from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
 
 from .models import (
@@ -1082,3 +1082,31 @@ def customer_statement(
     from . import statements
 
     return statements.customer_statement(organization, customer_id, date_from=date_from, date_to=date_to)
+
+
+# ---- Customer documents for the règlement forms (D-211) ----
+
+
+def customer_documents(organization: Organization) -> dict[int, PartyDocuments]:
+    """Per customer with a BL or an invoice: its confirmed BL, its issued invoices and their net to pay (D-211)."""
+    documents: dict[int, PartyDocuments] = {}
+    deliveries = (
+        Sale.objects.for_organization(organization)
+        .filter(status=SaleStatus.CONFIRMED)
+        .values("customer_id")
+        .annotate(count=Count("id"))
+        .order_by()
+    )
+    for row in deliveries:
+        documents[row["customer_id"]] = PartyDocuments(party_id=row["customer_id"], deliveries=row["count"])
+    invoices = (
+        Invoice.objects.for_organization(organization)
+        .filter(status=InvoiceStatus.ISSUED)
+        .values("customer_id")
+        .annotate(count=Count("id"), total=Sum("net_to_pay"))
+        .order_by()
+    )
+    for row in invoices:
+        current = documents.get(row["customer_id"], PartyDocuments(party_id=row["customer_id"]))
+        documents[row["customer_id"]] = replace(current, invoices=row["count"], total=row["total"])
+    return documents

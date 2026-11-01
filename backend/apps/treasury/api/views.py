@@ -18,6 +18,8 @@ from rest_framework.views import APIView
 from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
+from apps.purchasing import selectors as purchasing
+from apps.sales import selectors as sales
 
 from .. import selectors, services
 from ..models import Instrument
@@ -27,6 +29,7 @@ from .serializers import (
     BankWriteSerializer,
     InstrumentFilterSerializer,
     InstrumentSerializer,
+    PartyDocumentsSerializer,
 )
 
 
@@ -65,6 +68,19 @@ class BankListView(OfficeView):
             name=serializer.validated_data["name"],
         )
         return Response(BankSerializer(bank).data, status=status.HTTP_201_CREATED)
+
+
+class PartyDocumentsView(OfficeView):
+    @extend_schema(operation_id="listPartyDocuments", responses=PartyDocumentsSerializer)
+    def get(self, request: Request) -> Response:
+        """What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+        confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+        drafts) with their total. A party with no such document is not listed."""
+        answer = {
+            "customers": list(sales.customer_documents(self.organization).values()),
+            "suppliers": list(purchasing.supplier_documents(self.organization).values()),
+        }
+        return Response(PartyDocumentsSerializer(answer).data)
 
 
 class BankDetailView(OfficeView):
