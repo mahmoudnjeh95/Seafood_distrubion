@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0006_numbering'),
-        ('purchasing', '0015_rejected_effets'),
+        ('purchasing', '0016_supplierpayment_reason'),
     ]
 
     operations = [
