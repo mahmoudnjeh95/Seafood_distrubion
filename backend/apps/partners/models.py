@@ -5,6 +5,18 @@ from django.db.models.functions import Lower
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 
 
+def unique_emails(*addresses: str) -> list[str]:
+    """The non-empty addresses, each once (case ignored), in the order given: the party's own first (D-222)."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for address in addresses:
+        value = address.strip()
+        if value and value.lower() not in seen:
+            seen.add(value.lower())
+            result.append(value)
+    return result
+
+
 class Supplier(OrganizationScopedModel, TimeStampedModel):
     """Someone the company buys seafood from: a fisherman, a wholesaler at the port, a fish farm, an importer.
 
@@ -36,6 +48,10 @@ class Supplier(OrganizationScopedModel, TimeStampedModel):
                 name="supplier_tax_id_unique_per_organization",
             ),
         ]
+
+    def email_addresses(self) -> list[str]:
+        """Every address the party has: its own, then each contact's (D-222). The e-mail window offers them all."""
+        return unique_emails(self.email, *(contact.email for contact in self.contacts.all()))
 
     def __str__(self) -> str:
         return f"{self.reference} · {self.name}"
@@ -119,6 +135,10 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
                 name="customer_place_has_both_coordinates",
             ),
         ]
+
+    def email_addresses(self) -> list[str]:
+        """Every address the customer has: its own, then each contact's (D-222). The e-mail window offers them all."""
+        return unique_emails(self.email, *(contact.email for contact in self.contacts.all()))
 
     def __str__(self) -> str:
         return f"{self.reference} · {self.name}"
