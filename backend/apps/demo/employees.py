@@ -80,8 +80,7 @@ def seed_employees(*, organization: Organization, actor: User | None, driver: Us
             organization=organization,
             actor=actor,
             employee=by_reference[reference],
-            # In this month, whose payroll is still a draft: last month's is approved above.
-            work_date=max(today.replace(day=1), today - dt.timedelta(days=ago)),
+            work_date=today - dt.timedelta(days=ago),
             days=days,
             batch=batch,
             notes="Tri et glaçage",

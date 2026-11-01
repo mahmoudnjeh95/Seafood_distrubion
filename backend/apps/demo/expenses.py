@@ -119,7 +119,7 @@ def seed_expenses(*, organization: Organization, actor: User | None) -> int:
             organization=organization,
             actor=actor,
             labourer=labourers[name],
-            # Never before the 1st either: an unapproved day dated last month would block that month's review.
+            # Never before the 1st either: a day left waiting in last month would block that month's review.
             worked_on=max(today.replace(day=1), today - dt.timedelta(days=days_ago)),
             amount=paid,
             batch=_lot_of(organization, lot) if lot else None,
