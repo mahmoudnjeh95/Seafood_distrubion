@@ -40,7 +40,10 @@ def test_an_approved_cash_expense_leaves_the_caisse_the_day_it_was_spent(organiz
 
 
 def test_a_cash_expense_the_driver_paid_leaves_the_drivers_cash(organization, actor, fuel):
-    expense = spend(organization, actor, fuel, Decimal("7.000"), payment_method="cash", paid_by_driver=True)
+    expense = spend(organization, actor, fuel, Decimal("7.000"), payment_method="cash")
+    # The road path sets the flag after saving the expense.
+    expense.paid_by_driver = True
+    expense.save(update_fields=["paid_by_driver"])
 
     services.approve_expense(expense=expense, actor=actor)
 
