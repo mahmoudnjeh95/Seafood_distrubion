@@ -86,9 +86,10 @@ def test_the_real_bill_counts_as_an_expense_and_the_difference_with_the_typed_es
     adjustment = lines_of(organization, lot, "cold_room_adjustment")
     assert len(adjustment) == 1
     assert estimated[0].amount + adjustment[0].amount == D("200.000")
-    assert selectors.lot_cost_total(selectors.lot_cost_lines(organization, batch_id=lot.pk)) == D("200.000") + sum(
-        (line.amount for line in estimated[1:]), D("0")
-    )
+    # Both sides come from one read: today's part of the estimate moves by the minute.
+    lines = selectors.lot_cost_lines(organization, batch_id=lot.pk)
+    room_lines = [line for line in lines if line.kind in ("cold_room", "cold_room_adjustment")]
+    assert selectors.lot_cost_total(lines) == sum((line.amount for line in room_lines), D("0"))
 
 
 def test_a_typed_estimate_is_frozen_once_the_bill_is_approved(organization, actor, cold_room):
