@@ -1442,6 +1442,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayClosingDetail'
           description: ''
+  /api/v1/day-closings/{closing_id}/correct:
+    post:
+      operationId: correctDayClosing
+      description: |-
+        The office corrects a driver's day (owner or manager, D-220): the driver never changes a sent day. The
+        day's figures are taken as the records say now, and the counts are changed when given. Needs a `reason`;
+        the correction is kept as a revision with the figures before and after. Refused for a day a new load
+        reopened.
+      parameters:
+      - in: path
+        name: closing_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-closings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayClosingCorrect'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayClosingCorrect'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayClosingCorrect'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayClosingDetail'
+          description: ''
   /api/v1/day-closings/{closing_id}/count:
     post:
       operationId: countDayClosing
@@ -13713,6 +13750,24 @@ components:
           type: string
           default: ''
           maxLength: 300
+    DayClosingCorrect:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+        office_counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        office_counted_purchase_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - reason
     DayClosingCount:
       type: object
       properties:
@@ -13806,6 +13861,11 @@ components:
           items:
             $ref: '#/components/schemas/DayReopening'
           readOnly: true
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayClosingRevision'
+          readOnly: true
         changes_since_sent:
           type: array
           items:
@@ -13831,6 +13891,7 @@ components:
       - review_note
       - reviewed_at
       - reviewed_by_name
+      - revisions
       - status
       - submitted_at
       - summary
@@ -13905,6 +13966,35 @@ components:
       - office_purchase_difference
       - status
       - truck_name
+    DayClosingRevision:
+      type: object
+      description: 'An office correction of the day (D-220): who, when, why, and the
+        figures before and after.'
+      properties:
+        number:
+          type: integer
+          readOnly: true
+        actor_name:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        before:
+          readOnly: true
+        after:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_name
+      - after
+      - before
+      - created_at
+      - number
+      - reason
     DayClosingRow:
       type: object
       properties:

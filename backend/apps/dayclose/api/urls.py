@@ -23,6 +23,7 @@ urlpatterns = [
     path("day-closings/<int:closing_id>", views.DayClosingDetailView.as_view(), name="day-closing-detail"),
     path("day-closings/<int:closing_id>/approve", views.DayClosingApproveView.as_view(), name="day-closing-approve"),
     path("day-closings/<int:closing_id>/count", views.DayClosingCountView.as_view(), name="day-closing-count"),
+    path("day-closings/<int:closing_id>/correct", views.DayClosingCorrectView.as_view(), name="day-closing-correct"),
     path(
         "day-closings/<int:closing_id>/request-justification",
         views.DayClosingJustificationView.as_view(),
