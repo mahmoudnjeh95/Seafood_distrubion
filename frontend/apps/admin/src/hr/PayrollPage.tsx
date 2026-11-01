@@ -293,9 +293,7 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
         {dialog?.kind === "edit" && <SalaryRecordDialog record={dialog.record} onDone={() => setDialog(null)} />}
         {dialog?.kind === "pay" && <SalaryPaymentDialog record={dialog.record} onDone={() => setDialog(null)} />}
         {dialog?.kind === "adjust" && <AdjustmentDialog record={dialog.record} onDone={() => setDialog(null)} />}
-        {dialog?.kind === "prime" && (
-          <AdjustmentDialog prime record={dialog.record} onDone={() => setDialog(null)} />
-        )}
+        {dialog?.kind === "prime" && <AdjustmentDialog prime record={dialog.record} onDone={() => setDialog(null)} />}
       </Dialog>
     </>
   );
