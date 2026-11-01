@@ -36,14 +36,12 @@ test("the owner sees the demo catalogue with today's prices and searches it", as
 });
 
 test("the owner creates a product with a photo, changes its price and archives it", async ({ page }) => {
-  // The development database is kept between runs: a new reference every time.
-  const reference = `E2E-${Date.now()}`;
-  const name = `Pageot ${reference}`;
+  // The development database is kept between runs: a new name every time. The reference is given by the server.
+  const name = `Pageot E2E-${Date.now()}`;
   await openCatalogue(page);
 
   await page.getByRole("button", { name: "Nouveau produit" }).click();
   const dialog = page.getByRole("dialog", { name: "Nouveau produit" });
-  await dialog.getByLabel("Référence").fill(reference);
   await dialog.getByLabel("Nom (français)").fill(name);
   await dialog.getByLabel("Nom (arabe)").fill("باجو");
   await dialog.getByRole("combobox", { name: "Catégorie" }).click();
@@ -82,17 +80,11 @@ test("the owner creates a product with a photo, changes its price and archives i
   await expect(card(page, name)).toContainText("Archivé");
 });
 
-test("a reference already used is refused by the server on its field", async ({ page }) => {
+test("a new product's reference is given by the numbering, not typed", async ({ page }) => {
   await openCatalogue(page);
 
   await page.getByRole("button", { name: "Nouveau produit" }).click();
   const dialog = page.getByRole("dialog", { name: "Nouveau produit" });
-  await dialog.getByLabel("Référence").fill("cr-001");
-  await dialog.getByLabel("Nom (français)").fill("Doublon");
-  await dialog.getByRole("combobox", { name: "Catégorie" }).click();
-  await page.getByRole("option", { name: "Crustacés" }).click();
-  await dialog.getByLabel("Prix de vente (DT / kg)").fill("1");
-  await dialog.getByRole("button", { name: "Enregistrer" }).click();
-
-  await expect(dialog.getByText("Un autre produit porte déjà cette référence.")).toBeVisible();
+  await expect(dialog.getByLabel("Référence")).toBeDisabled();
+  await expect(dialog.getByLabel("Référence")).toHaveAttribute("placeholder", "Automatique");
 });

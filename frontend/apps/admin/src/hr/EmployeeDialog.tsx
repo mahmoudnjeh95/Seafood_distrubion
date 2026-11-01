@@ -113,7 +113,14 @@ export function EmployeeDialog({ employee, onDone }: { employee?: Employee; onDo
   function input(
     name: TextField,
     label: string,
-    options: { hint?: string; type?: string; inputMode?: "decimal"; money?: boolean; className?: string } = {},
+    options: {
+      hint?: string;
+      type?: string;
+      inputMode?: "decimal";
+      money?: boolean;
+      className?: string;
+      disabled?: boolean;
+    } = {},
   ) {
     const id = `${formId}-${name}`;
     const Control = options.money ? MoneyInput : Input;
@@ -129,6 +136,7 @@ export function EmployeeDialog({ employee, onDone }: { employee?: Employee; onDo
           aria-invalid={errors[name] ? true : undefined}
           aria-describedby={options.hint ? `${id}-hint` : undefined}
           autoComplete="off"
+          disabled={options.disabled}
         />
         {options.hint && (
           <p id={`${id}-hint`} className="text-[0.8rem] text-ink-2">
@@ -148,6 +156,7 @@ export function EmployeeDialog({ employee, onDone }: { employee?: Employee; onDo
         {input("name", t("admin.hr.form.name"))}
         {input("reference", t("admin.hr.form.reference"), {
           hint: employee ? undefined : t("admin.hr.form.referenceHint"),
+          disabled: true,
         })}
         {input("position", t("admin.hr.form.position"))}
         {input("phone", t("admin.hr.form.phone"), { type: "tel" })}

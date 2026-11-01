@@ -38,6 +38,7 @@ import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
+import { NumberingPage } from "./settings/NumberingPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { AccountsPage } from "./treasury/AccountsPage";
 import { BordereauPage } from "./treasury/BordereauPage";
@@ -259,6 +260,14 @@ function AppRoutes() {
           element={
             <OwnerOnly>
               <UsersPage />
+            </OwnerOnly>
+          }
+        />
+        <Route
+          path="/parametres/numerotation"
+          element={
+            <OwnerOnly>
+              <NumberingPage />
             </OwnerOnly>
           }
         />

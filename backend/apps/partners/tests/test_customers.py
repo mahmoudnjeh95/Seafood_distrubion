@@ -5,6 +5,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
+from apps.core import services as core_services
 from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
 from apps.partners import selectors, services
@@ -211,3 +212,11 @@ def test_status_and_kind_filters_and_the_walk_in_customer_comes_last(organizatio
     assert list(selectors.customers_of(organization)) == [hotel, walk_in]
     assert list(selectors.customers_of(organization, status="archived")) == [archived]
     assert list(selectors.customers_of(organization, kind="hotel")) == [hotel]
+
+
+def test_a_new_prefix_for_customers_goes_on_from_the_counter(organization, actor):
+    new_customer(organization, actor)  # C-001
+
+    core_services.set_number_prefixes(organization=organization, actor=actor, prefixes=[("customer", "CL")])
+
+    assert new_customer(organization, actor, name="Hôtel Thyna").reference == "CL-002"

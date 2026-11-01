@@ -166,3 +166,37 @@ class JobRun(models.Model):
 
     def __str__(self) -> str:
         return f"{self.job} · {'ok' if self.ok else 'failed'} · {self.ran_at:%Y-%m-%d %H:%M}"
+
+
+class NumberSeries(OrganizationScopedModel):
+    """The last number given to one kind of number in an organization (D-223): customers, suppliers, products and
+    every document kind. A yearly kind has one row per year; the others use year 0. Its row is locked while a number
+    is taken (`numbering.next_number`), so two records saved at the same moment never share one."""
+
+    kind = models.CharField(max_length=30)
+    year = models.PositiveIntegerField(default=0)
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "kind", "year"], name="one_number_series_per_kind_year"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization} · {self.kind} · {self.year} · {self.last_number}"
+
+
+class NumberPrefix(OrganizationScopedModel):
+    """The prefix printed before the numbers of one kind, set on the Paramètres page (D-223). A kind without a row
+    uses its default prefix (`numbering.NUMBER_KINDS`)."""
+
+    kind = models.CharField(max_length=30)
+    prefix = models.CharField(max_length=6)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "kind"], name="one_number_prefix_per_kind"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization} · {self.kind} · {self.prefix}"

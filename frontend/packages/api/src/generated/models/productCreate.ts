@@ -8,7 +8,7 @@ import type { IllustrationEnum } from './illustrationEnum';
 
 export interface ProductCreate {
   /** @maxLength 30 */
-  reference: string;
+  reference?: string;
   /** @maxLength 150 */
   name: string;
   /** @maxLength 150 */

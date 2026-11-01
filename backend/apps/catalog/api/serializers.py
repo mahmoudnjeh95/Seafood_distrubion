@@ -93,7 +93,8 @@ class OrganizationCategoryField(serializers.PrimaryKeyRelatedField[Category]):
 
 
 class ProductUpdateSerializer(serializers.Serializer[Any]):
-    reference = serializers.CharField(max_length=30)
+    # Empty on creation: the server gives the next product number (D-223). Left out of a change: kept as it is.
+    reference = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
     name = serializers.CharField(max_length=150)
     name_ar = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
     category = OrganizationCategoryField()

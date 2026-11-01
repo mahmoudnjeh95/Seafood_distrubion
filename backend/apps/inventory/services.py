@@ -16,7 +16,7 @@ from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity
@@ -25,9 +25,7 @@ from . import selectors
 from .models import (
     FIFO_ORDER,
     Batch,
-    BatchCounter,
     CountStatus,
-    DocumentCounter,
     LossStatus,
     StockCount,
     StockCountLine,
@@ -53,8 +51,6 @@ if TYPE_CHECKING:
 
     from apps.catalog.models import Product
     from apps.partners.models import Customer, Supplier
-
-BATCH_NUMBER_PREFIX = "L-"
 
 
 def _snapshot(location: StockLocation) -> dict[str, Any]:
@@ -158,19 +154,6 @@ def set_location_active(*, location: StockLocation, actor: User | None, is_activ
     return location
 
 
-def _next_batch_number(organization: Organization) -> str:
-    """L-0001, L-0002... per organization, taken under a row lock so two receipts never share a number.
-
-    Four digits at least, like the prototype's "L-0912"; the 10 000th batch is simply L-10000.
-    """
-    # Creates the counter the first time without failing when another transaction creates it at once.
-    BatchCounter.objects.bulk_create([BatchCounter(organization=organization)], ignore_conflicts=True)
-    counter = BatchCounter.objects.select_for_update().get(organization=organization)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{BATCH_NUMBER_PREFIX}{counter.last_number:04d}"
-
-
 def _batch_snapshot(batch: Batch) -> dict[str, Any]:
     return {
         "number": batch.number,
@@ -225,7 +208,7 @@ def create_batch(
 
     batch = Batch.objects.create(
         organization=organization,
-        number=_next_batch_number(organization),
+        number=numbering.next_number(organization, "batch"),
         product=product,
         supplier=supplier,
         receipt_reference=receipt_reference.strip(),
@@ -535,8 +518,6 @@ def _difference_entry(difference: selectors.OnHandDifference, quantity: Decimal)
 
 # ---- Transfers between locations (P1-T09, D-044) ----
 
-TRANSFER_SERIES = "TR"
-
 # Sent when a load into a truck is validated, inside the same transaction, with `transfer` and `actor`. Apps
 # that depend on inventory react to it there (the driver's sent day opens again, D-134); a receiver that
 # raises refuses the validation.
@@ -604,17 +585,6 @@ def checked_lot_picks(
     if quantity is not None and sum((kg for _batch, kg in checked), Decimal("0")) > quantity:
         errors.setdefault(key, _("Les lots choisis dépassent le poids de la ligne."))
     return checked
-
-
-def _next_document_number(organization: Organization, series: str) -> str:
-    """TR-0001, TR-0002... per organization and series, taken under a row lock (same scheme as batches)."""
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
 
 
 def transfer_kind(from_location: StockLocation, to_location: StockLocation) -> str:
@@ -919,7 +889,7 @@ def create_transfer(
     )
     transfer = Transfer.objects.create(
         organization=organization,
-        number=_next_document_number(organization, TRANSFER_SERIES),
+        number=numbering.next_number(organization, "transfer"),
         kind=kind,
         from_location=from_location,
         from_cold_rooms=from_cold_rooms,
@@ -1170,8 +1140,6 @@ def cancel_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
 
 # ---- Losses (P1-T10, D-045) ----
 
-LOSS_SERIES = "PE"
-
 
 @transaction.atomic
 def update_stock_settings(
@@ -1296,7 +1264,7 @@ def record_loss(
     immediate = may_approve or amount <= selectors.stock_settings(organization).loss_approval_threshold
     loss = StockLoss.objects.create(
         organization=organization,
-        number=_next_document_number(organization, LOSS_SERIES),
+        number=numbering.next_number(organization, "loss"),
         status=LossStatus.APPROVED if immediate else LossStatus.PENDING,
         location=location,
         product=product,
@@ -1415,8 +1383,6 @@ def report_road_loss(
 
 # ---- Stock counts (P1-T10, D-045) ----
 
-COUNT_SERIES = "INV"
-
 
 class CountedFields(TypedDict):
     line: int
@@ -1452,7 +1418,7 @@ def start_count(
         raise ValidationError(errors)
     count = StockCount.objects.create(
         organization=organization,
-        number=_next_document_number(organization, COUNT_SERIES),
+        number=numbering.next_number(organization, "count"),
         location=location,
         counted_on=counted_on,
         notes=notes.strip(),
