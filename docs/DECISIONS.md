@@ -3124,7 +3124,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
 
-**D-219 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
+**D-231 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
 - A transfer line may name lots, each with the kilos to take from it, as a counter-sale line does (D-212): `TransferLinePick`
   (one row per line and lot), written as `picks: [{batch, quantity}]` on `TransferLineWrite`, in the kept part and in each
   client's part of a load. Picks take their kilos in the order given, each up to what it holds; what they leave over
