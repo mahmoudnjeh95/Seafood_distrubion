@@ -1,10 +1,12 @@
 // The état of the invoices as a CSV file that Excel opens (P9-T08): `;` between cells, French decimal commas, a
 // byte-order mark so the accents survive.
 
+const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
+
 /** The file's text: one line per row, every cell quoted when it holds a `;`, a quote or a line break. */
 export function csvFile(rows: readonly (readonly string[])[]): string {
   const body = rows.map((row) => row.map(cell).join(";")).join("\r\n");
-  return `﻿${body}\r\n`;
+  return `${BYTE_ORDER_MARK}${body}\r\n`;
 }
 
 function cell(value: string): string {
