@@ -728,3 +728,53 @@ def test_my_stock_shows_the_price_a_customer_pays_when_the_driver_asks_for_them(
 
     assert (daily[0]["unit_price"], for_corail[0]["unit_price"]) == ("28.000", "25.000")
     assert unknown.status_code == 400
+
+
+def test_lots_picked_on_a_load_leave_first_then_the_oldest_first(organization, actor, cold_room, truck, dorade):
+    old = receive(organization, dorade, cold_room, "5", days_ago=3)
+    recent = receive(organization, dorade, cold_room, "20", days_ago=1)
+    receive(organization, dorade, cold_room, "10")
+
+    load = transfer(
+        organization,
+        actor,
+        cold_room,
+        truck,
+        [{"product": dorade, "quantity": "8", "picks": [{"batch": recent, "quantity": "3"}]}],
+        validate=True,
+    )
+
+    line = load.lines.get()
+    moved = selectors.movements_from_sources([line])[line.pk]
+    assert [(movement.batch, movement.quantity) for movement in moved] == [
+        (recent, Decimal("3.000")),
+        (old, Decimal("5.000")),
+    ]
+
+
+def test_lots_picked_on_a_line_asking_more_than_the_line_are_refused(organization, actor, cold_room, truck, dorade):
+    first = receive(organization, dorade, cold_room, "10")
+    second = receive(organization, dorade, cold_room, "10")
+    picks = [{"batch": first, "quantity": "3"}, {"batch": second, "quantity": "3"}]
+
+    with pytest.raises(ValidationError) as refused:
+        transfer(organization, actor, cold_room, truck, [{"product": dorade, "quantity": "5", "picks": picks}])
+
+    assert "lines.0.picks" in refused.value.message_dict
+    assert on_hand(organization, cold_room, dorade) == Decimal("20.000")
+
+
+def test_lots_cannot_be_picked_on_a_load_from_several_cold_rooms(organization, actor, cold_room, truck, dorade):
+    lot = receive(organization, dorade, cold_room, "10")
+
+    with pytest.raises(ValidationError) as refused:
+        transfer(
+            organization,
+            actor,
+            cold_room,
+            truck,
+            [{"product": dorade, "quantity": "2", "picks": [{"batch": lot, "quantity": "2"}]}],
+            from_cold_rooms=True,
+        )
+
+    assert "lines.0.picks" in refused.value.message_dict

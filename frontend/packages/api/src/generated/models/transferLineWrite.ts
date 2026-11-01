@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { TransferLinePickWrite } from './transferLinePickWrite';
 
 export interface TransferLineWrite {
   /** @minimum 1 */
@@ -11,4 +12,5 @@ export interface TransferLineWrite {
   quantity: string;
   /** @nullable */
   unit_price?: string | null;
+  picks?: TransferLinePickWrite[];
 }

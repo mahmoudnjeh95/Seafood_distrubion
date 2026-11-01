@@ -229,6 +229,9 @@ SPECTACULAR_SETTINGS = {
         "InstrumentKindEnum": "apps.treasury.models.InstrumentKind",
         "InstrumentStatusEnum": "apps.treasury.models.InstrumentStatus",
         "InstrumentDirectionEnum": "apps.treasury.models.InstrumentDirection",
+        "AccountKindEnum": "apps.treasury.models.AccountKind",
+        "MovementKindEnum": "apps.treasury.models.MovementKind",
+        "AccountTransferKindEnum": "apps.treasury.models.TransferKind",
         "SalePriceSourceEnum": "apps.sales.models.PriceSource",
         # P2-T05 · invoices
         "InvoiceStatusEnum": "apps.sales.models.InvoiceStatus",

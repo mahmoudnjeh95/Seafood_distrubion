@@ -132,17 +132,28 @@ cash only on the phone (as today, D-133).
 - [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement. **Waits for the owner
       (Q29: may customer traites be endorsed to suppliers?)**; not built, per the open-question rule.
 
-### P9-T05 · Accounts and movements · L
-- [ ] `TreasuryAccount`: Caisse (one per organization, more allowed), bank accounts (bank, RIB, label), each driver's
-      cash; opening balance and day. `TreasuryMovement`: append-only (account, day, signed amount, kind, source).
-- [ ] Movements written by: customer and supplier cash lines, transfers and cards (to the bank chosen), effets
-      cashed or debited, salaries, approved expenses paid, partner settlements, port purchases paid in cash, bank
-      charges. A backfill command writes the history from the existing records.
-- [ ] Driver cash: money a driver collects goes to that driver's account; the approved day closing moves it to the
-      Caisse (D-134 reopening reverses it by a new movement).
-- [ ] Versement espèces → banque, transfer between accounts, retrait; arrêté de caisse (counted vs expected, gap
-      recorded with a reason).
-- [ ] Trésorerie › Comptes page: balance per account, movements with running balance, filters, Excel export.
+### P9-T05a · Accounts and movements (backend) · M
+- [x] `TreasuryAccount` (Caisse, bank accounts with bank and RIB, each driver's cash; opening balance and day; one
+      default per kind), `TreasuryMovement` append-only (account, day, signed amount, kind, source), D-219. Every
+      organization starts with "Caisse" and "Banque principale" (provisional names).
+- [x] Movements written by: customer and supplier cash, transfer and card lines (to the account chosen, else the
+      default), the cash a driver takes (that driver's cash), effets cashed (the remise's account; at the counter: the
+      Caisse), taken back after cashing, our effets debited (their account, else their bank's). A voided règlement
+      writes the opposite movements. `backfill_treasury` writes the history (run at each staging start, safe again).
+- [x] Versement espèces → banque, retrait, virement between accounts (MT-…, annulable); arrêté de caisse (counted vs
+      expected, gap as a movement with its reason).
+- [x] API: accounts, statement with running balance and its Excel export, transfers, arrêtés; `account` on règlement
+      lines and on the remise. Tests.
+
+### P9-T05b · Driver cash, salaries, expenses, partners, port purchases · M
+- [ ] Driver cash: the approved day closing moves the cash the office counted to the Caisse (D-213); the D-134
+      reopening keeps it (that cash already reached the office); the day's fund given to the driver.
+- [ ] Movements written by: sales paid on the spot, salaries, approved expenses paid (bank charges included),
+      partner settlements, port purchases paid by the driver; the backfill writes their history.
+
+### P9-T05c · Trésorerie › Comptes page · M
+- [ ] Balance per account, movements with running balance, filters, Excel export; new account, versement / retrait /
+      virement, arrêté de caisse; "Compte" in the règlement forms and the remise en banque.
 
 ### P9-T06 · Échéancier and alerts · M
 - [ ] Trésorerie › Échéancier: by week and month, effets to cash (in) and to pay (out), plan lines (D-192), and the
