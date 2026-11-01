@@ -1,17 +1,14 @@
-import { addMyExpense, ApiError, useListMyExpenses, useListRoadCategories } from "@frutti/api";
+import { addMyExpense, ApiError, useGetMyDaySummary, useListMyExpenses, useListRoadCategories } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { cashOffOn, PAID_WITH, type PaidWith, paidWithOn } from "./expensePaid";
 import { sendOrKeep } from "./sendOrKeep";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
-
-// How the driver paid (D-205): always offered, also on a day started at 0 DT.
-const PAID_WITH = ["cash", "pocket", "card"] as const;
-type PaidWith = (typeof PAID_WITH)[number];
 
 // "Dépense": what the driver paid on the road, in four taps and a photo of the receipt.
 export function ExpensePage() {
@@ -21,6 +18,7 @@ export function ExpensePage() {
   const truck = session.data?.truck ?? null;
   const categories = useListRoadCategories();
   const expenses = useListMyExpenses();
+  const day = useGetMyDaySummary({ query: { retry: false } });
   const [category, setCategory] = useState<number | null>(null);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -39,12 +37,15 @@ export function ExpensePage() {
   }
   const amountValue = parseDecimalInput(amount.trim(), 3);
   const ready = category !== null && amountValue !== null && Number(amountValue) > 0;
+  // The day's starting cash decides whether "La caisse" can pay (D-220); the server refuses it the same way.
+  const cashOff = cashOffOn(day.data?.summary.opening_cash);
+  const paid = paidWithOn(paidWith, cashOff);
 
   const save = async () => {
     if (category === null || amountValue === null) return;
     setSaving(true);
     setError("");
-    const data = { category, amount: amountValue, description, receipt: photo, client_uuid: uuid, paid_with: paidWith };
+    const data = { category, amount: amountValue, description, receipt: photo, client_uuid: uuid, paid_with: paid };
     try {
       const outcome = await sendOrKeep(
         {
@@ -96,7 +97,7 @@ export function ExpensePage() {
           <label htmlFor="expense-amount" className="font-semibold">
             {t("truck.expense.amount")}
           </label>
-          <Input
+          <MoneyInput
             id="expense-amount"
             inputMode="decimal"
             placeholder="0"
@@ -111,16 +112,18 @@ export function ExpensePage() {
             {PAID_WITH.map((value) => (
               <Button
                 key={value}
-                variant={paidWith === value ? "primary" : "secondary"}
+                variant={paid === value ? "primary" : "secondary"}
                 className="py-3"
-                aria-pressed={paidWith === value}
+                aria-pressed={paid === value}
+                disabled={value === "cash" && cashOff}
                 onClick={() => setPaidWith(value)}
               >
                 {t(`truck.expense.paid.${value}`)}
               </Button>
             ))}
           </div>
-          {paidWith === "pocket" ? <p className="text-sm text-ink-2">{t("truck.expense.pocketHint")}</p> : null}
+          {cashOff && !day.isLoading ? <p className="text-sm text-warn">{t("truck.expense.cashOff")}</p> : null}
+          {paid === "pocket" ? <p className="text-sm text-ink-2">{t("truck.expense.pocketHint")}</p> : null}
         </div>
         <div className="space-y-1">
           <label htmlFor="expense-note" className="font-semibold">
@@ -149,7 +152,7 @@ export function ExpensePage() {
           title={categories.data?.find((item) => item.id === category)?.name}
           rows={[
             [t("truck.expense.amount"), formatMoney(amountValue ?? "0")],
-            [t("truck.expense.paidWith"), t(`truck.expense.paid.${paidWith}`)],
+            [t("truck.expense.paidWith"), t(`truck.expense.paid.${paid}`)],
           ]}
           onConfirm={() => void save()}
         >

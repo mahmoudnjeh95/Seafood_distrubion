@@ -1207,7 +1207,6 @@ justification, after which the driver sends again with a note. Status names: sub
 **Not done:** approving a day does not yet block further sales or expenses by that driver the same day (**provisional**);
 the day's customer payments collected by the driver ("other payments") wait for a driver collection screen.
 
-
 **D-073 · Month-end stock valuation and cost of goods sold (P6-T05)** · accepted · 2026-10-11
 
 - **Profit is never purchases − sales.** The month's result is: sales (revenue without VAT) − cost of the goods
@@ -1467,7 +1466,6 @@ office like the others (kind `payment`, D-099). **In the day's cash:** expected 
 payments collected − expenses; non-cash payments collected are added to "other payments"; `payments_cash` is shown on the
 driver's closing screen and on `/journees`. An approved day refuses new payments (D-095). The walk-in customer cannot pay
 later (the service refuses it). Cash only on the phone for now (cheques and transfers are entered at the office).
-
 
 **D-104 · The owner's dashboard (P7-T01)** · accepted · 2026-10-12
 `GET /dashboard` (owner and accountant; a manager gets 403 and the page falls back to the welcome) answers for the current
@@ -3122,6 +3120,193 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - API `POST /supplier-effets/<instrument_id>/reject` (`rejected_on`, `reason`), owner or manager; the règlement's
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
+
+**D-227 · Cold-room electricity: the month's estimate is typed, the real invoice counts as the month's expense (owner point 11, provisional parts marked)** · accepted (provisional parts marked) · 2026-10-31
+- **Why:** the owner wants the month's cold-room estimate editable, and the real invoice entered in its own section; the
+  real amount counts as the month's expense and the difference with the estimate is shown and booked as before (D-058).
+- **Estimate:** new `expenses.ColdRoomEstimate` (one per organization and month, `amount` for all rooms). Typed by the owner or
+  manager (`PUT /cold-room-estimate`, `set_cold_room_estimate`) for the current or an earlier month, positive, to the millime.
+  While the month is not billed it replaces the copied daily rate: the rooms share it by weight (as a bill), each day's rate
+  is its room's part / days. It is changed freely until the month's bill is approved, then frozen (the rates keep the daily
+  amount used). Every change is audited (`cold_room_estimate.set`, before/after, optional reason).
+- **Real invoice:** the existing electricity bill (one expense of category cold storage + its month). Its section is "Facture
+  chambre froide réelle"; a draft is edited there; "Enregistrer et compter en dépense" approves it at once, so it counts in the
+  month's expenses. Only approved bills count (unchanged).
+- **Month view:** the estimate (typed or copied), the real total, and the difference (real minus estimate, `estimate_total`,
+  `difference`, `estimate_typed`, `typed_amount`) are shown; the lots keep the correction line `cold_room_adjustment` = real
+  minus the estimate in force at approval (unchanged mechanism, D-041/D-058).
+- **Provisional:** (1) the real bill's approval is now the default button (drafts still possible), so a wrong approved bill is
+  corrected by a new record, as before, not edited. (2) **Gap, open for the owner:** an estimate changed after a lot of that
+  month was already closed (its cost frozen in the closing) leaves the closed lot on the old estimate, while the correction at
+  approval uses the estimate in force then; the month's total can then differ by that change. Options: lock the estimate once a
+  lot of the month is closed, or accept. (3) Not built: the bill's date and an invoice reference (the bill is dated the last day
+  of the month, the reference goes in notes, as before). (4) Rounding: each room's daily rate is rounded to the millime, so the
+  estimate charged to the lots can differ from the typed amount by a few millimes until approval (the correction absorbs it).
+- Not touched: per-room weights and shares, the hour-by-hour split (D-142), treasury (no treasury posting in this change).
+
+**D-221 · Every amount field shows thousands separators while the person types (owner point 3, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
+- Typing 1250 shows "1 250", 1250,5 shows "1 250,5", 1250000 shows "1 250 000" (the `formatMoney` French format).
+  `MoneyInput` (`packages/ui`, on the `Input` element) does it; `typeMoney` does the same on a plain cell (the
+  LinesGrid unit price, the receipt unit cost). Pure helpers `formatMoneyInput` and `moneyInputCaret` live in
+  `packages/i18n/src/format.ts`, with vitest tests.
+- The form state keeps the shown text, so `parseDecimalInput` reads it unchanged (spaces ignored, dot or comma). The API
+  still gets the plain decimal string ("1250.500"). This replaces the D-199 note "what a user types stays as typed".
+- The caret stays after the same digits and comma while the separators move. Backspace or Delete on a separator
+  removes the digit beside it too.
+- Changed: the money fields only (DT amounts and unit prices per kg). Kilos, percentages (VAT, CNSS, withholding,
+  discounts, partner shares), temperatures, counts, days and months are not money and keep their inputs. The public
+  site has no money field.
+- The one place that rewrote a typed amount before sending it (the bank charges of an unpaid effet) removes the
+  spaces first, so the API receives what it did before.
+- Provisional: Arabic typing uses the French format too (the Arabic separators are not typed yet).
+- Provisional: a second decimal separator is ignored ("1.250.000" shows "1,250000"); decimals are not cut, so a
+  fourth decimal is still shown and refused by the parser as before.
+
+**D-220 · Only the office corrects a driver's day, every correction is a revision; "La caisse" is off on a 0 DT day (owner list 2026-10-31, points 1 and 2; changes D-134's re-send, D-132, D-205)** · accepted, provisional parts marked · 2026-10-31
+- **The driver never sends a sent day again when its records moved.** `submit_day_closing` raises 403 "Le bureau corrige
+  la journée. Vous ne pouvez plus l'envoyer." for a submitted or justification day whose `changed_since_sent` is true.
+  The re-send with no change (after a justification) and a reopened day (a new load, D-134) stay as they were. The phone
+  shows the sent figures (`day_answer`: as sent unless the day reopened) and "Le bureau corrige la journée" in place of
+  the send button.
+- **The office corrects it, with a revision.** `POST /day-closings/<id>/correct` (owner or manager; `reason` required,
+  optional `office_counted_cash` / `office_counted_purchase_cash`; an empty count stays) takes the day's records as they
+  are now (`summary`, `expected_cash`, `expected_purchase_cash`), sets the counts and the gaps, and writes a
+  `DayClosingRevision` (number per day, actor, reason, `before` and `after` as strings: the day's figures and the
+  office's counts) plus the audit `day_closing.corrected`. A correction changing nothing is refused. The day's detail
+  lists `revisions` (who, when, why, before and after) for the office's day window. Refused on a reopened day.
+- **A saved count changes only by a correction** (`_refuse_recount`): counting, approving with counts, and recounting
+  refuse a different figure than the one saved. The count inputs are disabled once counted.
+- **Provisional:** a correction keeps the status: an approved day stays approved (the revision stands, no new
+  approval), a day to check stays to check. The owner may prefer a correction to send the day back to the review.
+- **Provisional:** the correction takes the records as they are now rather than typed figures: only the counts are typed.
+- **"La caisse" on the phone and the server (owner point 2).** The day's accepted starting cash (`DriverDay.opening_cash`)
+  of 0 DT, or no day started, turns "La caisse" off: the phone's expense "Payé avec" disables it and falls back to "Ma
+  poche" (`cashOffOn`, `paidWithOn`), and `expenses.services.submit_road_expense` refuses a cash expense not paid by the
+  driver with "« La caisse » n'est pas possible : …" on `paid_with` (400). This reverses the "always offered" part of
+  D-205 for the expense only.
+- **Provisional scope:** "La caisse" is the expense choice, the only one labelled so. Customer receipts (sales, payments,
+  delivery cash) and purchases paid in cash from the purchase money (D-158) stay open: they bring money in, or are paid
+  from the purchase float, not from the box. The owner may want the purchase cash and the receipts blocked too.
+- **Provisional:** no day started counts as 0 DT (the office has not handed any cash yet), though D-133 accepts a sale
+  with no day; a driver with no day pays with "Ma poche" or "Carte".
+- Migration `dayclose/0009_dayclosingrevision`. API `correctDayClosing` (generated client). Tests:
+  `dayclose/tests/test_day_correction.py`, `expenses/tests/test_road_expense_cash.py`, the phone's `expensePaid.test.ts`.
+
+**D-228 · A salary is approved when it is generated; adjust it, then pay it (owner point 12, provisional parts marked)** · accepted (provisional parts marked) · 2026-11-01
+- "Générer le mois" creates **approved** salary records (`approved_at`, `approved_by` set): no draft step any more.
+  Drafts made before this change stay drafts and keep their edit, approve and delete actions (nothing creates new ones).
+- An approved salary is corrected only by a `SalaryAdjustment` (signed amount, reason), then paid as before. The
+  record never changes (ARCHITECTURE §4.5).
+- The month's expense, the unpaid badges and the demo seed read approved records as before. The demo's night hours are
+  now an adjustment "Heures de nuit" (the record is approved).
+- **Not in this PR (waits for PR #246, treasury ledger, D-219, `ec` session):** the payment writing its treasury
+  movement (`salary` kind, source `hr.salary_payment`) and the screen line "Débité de la trésorerie : N DT (compte, date)".
+  No second ledger is built here; that line follows once `post_movement` is on `origin/main` (see D-229).
+**D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
+- `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when
+  first needed). Its balance is the opening balance plus its movements from the opening day on; older movements stay
+  listed in the database but are not counted, so the office may set the real opening after the backfill.
+  Provisional: every organization starts with "Caisse" and "Banque principale" (the owner's list of accounts is Q29).
+- `treasury.TreasuryMovement`: (account, day, signed amount, kind, label, reference, source, source_id, role), never
+  edited; unique per (source, source_id, role), so writing a record's movements again is a no-op. A correction is an
+  opposite movement (role `void`).
+- Who writes: customer règlement lines in cash, transfer, card (+; a line may name its account, else the Caisse for
+  cash, the main bank account otherwise; cash a driver took on the phone goes to that driver's cash); supplier lines
+  (−, same rule; our cheque or traite keeps the account the bank will debit). Effets: cashed (+ on the remise's
+  account; cashed from the portfolio at the drawer's counter: the Caisse), impayé after cashing (− on the account
+  credited), ours debited (− on its account, else the account of its bank, else the main one). A voided règlement
+  undoes its movements on the day it is voided. Port purchases are left to P9-T05b (the driver's money).
+- `AccountTransfer` "MT-YYYY-NNNN": versement (cash → bank), retrait (bank → cash), virement (any other pair), kind
+  from the two accounts; annulé with a reason writes the two opposite movements.
+- `CashCount` (arrêté de caisse) on a Caisse or a driver's cash: expected = balance at the end of the day, gap =
+  counted − expected; a gap needs its reason and is written as a movement "Écart de caisse".
+- `manage.py backfill_treasury` writes the history; the staging backend runs it at each start (idempotent).
+- API under `treasury/accounts`, `treasury/accounts/<id>/movements` (+ `/export`), `treasury/transfers`,
+  `treasury/cash-counts`; `account` on règlement lines and on `treasury/deposits`. Owner and manager write, the
+  accountant reads.
+
+**D-224 · A BL shows the VAT of the lines sold with VAT from the moment it is prepared (owner point 6)** · accepted, provisional parts marked · 2026-10-31
+- **Snapshot on the lines:** `SaleLine.vat_rate` (empty = no VAT on that line) is set when the line is written: a draft
+  created or changed, and the BL of a truck load at the load. It is the product's own rate, else the settings' rate in
+  force on the sale's day, and only when the product is sold with VAT (`inventory.selectors.vat_product_ids`, D-202:
+  kilos in stock bought with VAT). Later rate or price changes never move it.
+- **One VAT computation:** each line's `amount_excl_tax`, `vat_amount`, `amount_incl_tax` come from `invoicing.compute`,
+  the invoice's own arithmetic (`_apply_bl_vat`). The sale has `vat_total`, `total_incl_tax` and `prices_include_vat`
+  (the settings' flag on its day); `Sale.amount_excl_tax` is total with VAT minus VAT. `Sale.total` and
+  `total_excl_tax` keep their meaning (charged, without VAT).
+- **Delivery (D-178):** the kept lines keep their rate and get their VAT recomputed on the kilos left.
+- **Screens and PDF:** the BL PDF and the sale page show "TVA %" and "Montant TVA" per line, then "Total HT", "Total TVA",
+  "Total TTC". A BL with no VAT line looks as before. The API sale and line carry the new fields as strings.
+- **Existing sales:** no rate on their lines, so their BL shows no VAT; `total_incl_tax` is backfilled to `total`.
+- **Provisional, the owner confirms:** the rule is D-202 (product of a lot bought with VAT, the stock at the moment the
+  line is written), not per lot. The invoice is not changed: it still applies VAT to every line when "Facture avec TVA"
+  is ticked (its default), so a mixed BL (VAT and non-VAT products) can invoice more VAT than its BL shows. Whether the
+  invoice should follow the BL's lines is open.
+- **Provisional:** "Reste dû" and the customer balance stay without VAT until the invoice (D-062): a BL with VAT shows
+  its total with VAT but what is still owed is not yet computed with it.
+- **Provisional:** with prices including VAT, the BL's unit price column still shows the price charged (with VAT) next to
+  the amounts without VAT; the invoice shows the unit price without VAT. This setting is rarely used.
+- Not changed: the sale form's live preview (no VAT computed in the browser; the VAT appears on the sale page after saving).
+
+**D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
+- Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
+  versement, the états des factures). The flow and the rules stay ours: effets, bordereaux, impayés and the ledger of
+  P9-T01 to T04 are not changed, and no migration is added.
+- `TresorerieRibbon` sits at the top of the screens Encaissement (`/reglements`), Décaissement (`/achats/paiements`),
+  Banque, Portefeuille, Ordre de paiement (`/achats/reglements`), Bordereau de versement and the two états.
+- Bordereau de versement (`/tresorerie/bordereau`): En attente (at the bank) · Encaissé · Impayé, with the same steps
+  and dialogs as the Portefeuille. Facture de vente and Facture d'achat (`/tresorerie/etats/ventes`, `/achats`): the
+  invoices grouped by customer or supplier, net à payer, réglé, restant, state, with totals.
+- Not on the ribbon yet: Agence bancaire, Caisse liquide and the journals (journal des banques, journal des caisses).
+  They need the treasury accounts of P9-T05, which are not merged. Excel export of the états is later.
+- The sidebar is unchanged: the e2e spec lists the modules by name. The treasury is reached from Règlements clients,
+  Règlements fournisseurs, Portefeuille and Banques.
+**D-222 · The e-mail window sends to every address the party has, and the office can drop or add some for one send (owner point 4, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
+- The party's own address and each of its contacts' addresses are offered (`Customer.email_addresses()`,
+  `Supplier.email_addresses()`: the party's first, then the contacts' in order; blank and repeated ones, case ignored,
+  are dropped). Every provider of a PDF (sales, purchasing, the partner statement) fills `Printable.email_to` with them.
+- The window ticks all of them. Unticking one or typing an extra one (several at once, separated by commas, spaces or
+  semicolons) changes this send only; the party, its contacts and the stored addresses are not touched. An added
+  address can be removed again before sending.
+- One message goes to the ticked addresses in its `to` (no copy per address). The send accepts 1 to 10 addresses
+  (the server refuses more, the window says so); the same address twice is sent once. The draft returns `to` as a list.
+- Provisional: the list is shown with a checkbox row even when the party has one address (no separate one-address
+  layout); the party's own page is not changed (its e-mail field and contacts feed the list). A party with one address
+  works as before.
+- Sent addresses are still kept as one text on `documents.SentEmail` (the history row).
+
+**D-232 · Treasury forms take the Perfaxis panels; the états export as a CSV that Excel opens (Phase 9, P9-T08)** · accepted · 2026-11-01
+- The Encaissement and Décaissement forms show a toolbar (Enregistrer, Retour) and two titled panels: the payment
+  information (the date) beside the customer or supplier, the lines and the open items below. The logic is unchanged.
+- "Exporter (Excel)" on the états writes the rows on screen as a CSV: `;` between cells, French decimal commas, a
+  byte-order mark, so Excel opens it with accents right. Provisional: a real `.xlsx` would need a backend endpoint and
+  a regenerated client; the CSV covers the need until the accountant asks for `.xlsx`.
+- Export covers the invoices loaded on the page (the 200 most recent), as the screen does.
+**D-231 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
+- A transfer line may name lots, each with the kilos to take from it, as a counter-sale line does (D-212): `TransferLinePick`
+  (one row per line and lot), written as `picks: [{batch, quantity}]` on `TransferLineWrite`, in the kept part and in each
+  client's part of a load. Picks take their kilos in the order given, each up to what it holds; what they leave over
+  comes from the other lots, oldest first (FIFO), and a picked lot short is topped up the same way. Stock never goes
+  negative. Validation posts the line's picks first, then FIFO, through `inventory.services.post_fifo_movements`.
+- It replaces the rule of D-009 that nobody picks batches by hand, for transfers too, as D-212 did for sales.
+- Refused on the line: picks above the line's weight, a lot picked twice, a lot of another product or organization,
+  a pick without kilos above zero, and any pick on a load from several cold rooms (D-174): the kg there come from
+  whichever rooms hold them, so there is no one place to pick a lot from.
+- The check is one function, `inventory.services.checked_lot_picks`, used by the counter sale and by transfers.
+- Migration `inventory.0011_transfer_line_picks` creates the table. A draft's picks go with its lines when it is
+  changed; a validated transfer keeps the movements that really moved.
+- The transfer form shows the lot column on every line grid, lots of the place the kg leave from; with several cold
+  rooms the column shows the oldest lots and cannot be picked.
+- Provisional: the kilos the picks leave over come from the oldest lots only, as for a sale.
+
+**D-233 · The bank and cash accounts and their journals are screens of the treasury: Agence bancaire, Caisse liquide, Journal des banques, Journal des caisses (Phase 9, P9-T08 follow-up to P9-T05a)** · accepted · 2026-11-01
+- Agence bancaire and Caisse liquide list the accounts of their kind (`bank`, `cash`; the driver accounts stay on the
+  phone and the expenses side). Add and rename, take off (not deleted: its movements stay). A bank account keeps its
+  bank and RIB; a cash box can be counted (arrêté de caisse): the counted cash goes against the expected balance and
+  the gap is kept with its reason.
+- Journal des banques and Journal des caisses show one account's statement: the movements in order with the running
+  balance, the opening and closing balances, a date range and a search. The Excel link is the server's statement file.
+- Provisional: the screens use the P9-T05 API as it is; no backend change.
 
 
 **D-225 · Motif on a supplier règlement; Motif and Payé par on a customer règlement (owner points 7 and 8, reglement-fields)** · accepted (provisional parts marked) · 2026-11-01

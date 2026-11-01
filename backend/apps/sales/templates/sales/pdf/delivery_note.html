@@ -17,7 +17,7 @@
 
 <table class="lines">
   <thead>
-    <tr><th>Désignation</th>{% if to_deliver or delivered %}<th class="r">Commandé (kg)</th><th class="r">Livré (kg)</th>{% else %}<th class="r">Qté (kg)</th>{% endif %}<th class="r">P.U. (DT/kg)</th>{% if has_discount %}<th class="r">Remise</th>{% endif %}<th class="r">Montant HT</th></tr>
+    <tr><th>Désignation</th>{% if to_deliver or delivered %}<th class="r">Commandé (kg)</th><th class="r">Livré (kg)</th>{% else %}<th class="r">Qté (kg)</th>{% endif %}<th class="r">P.U. (DT/kg)</th>{% if has_discount %}<th class="r">Remise</th>{% endif %}<th class="r">Montant HT</th>{% if has_vat %}<th class="r">TVA %</th><th class="r">Montant TVA</th>{% endif %}</tr>
   </thead>
   <tbody>
     {% for line in lines %}
@@ -28,7 +28,8 @@
       {% else %}<td class="r num">{{ line.quantity|kilos }}</td>{% endif %}
       <td class="r num">{{ line.unit_price|money }}</td>
       {% if has_discount %}<td class="r num">{% if line.discount_rate %}{{ line.discount_rate|percent }}{% endif %}</td>{% endif %}
-      <td class="r num">{{ line.amount|money }}</td>
+      <td class="r num">{{ line.amount_excl_tax|money }}</td>
+      {% if has_vat %}{% if line.vat_rate is not None %}<td class="r num">{{ line.vat_rate|rate }}</td><td class="r num">{{ line.vat_amount|money }}</td>{% else %}<td></td><td></td>{% endif %}{% endif %}
     </tr>
     {% endfor %}
     {% if delivered %}{% for row in removed %}
@@ -38,6 +39,7 @@
       <td class="r num">{{ row.unit_price|money }}</td>
       {% if has_discount %}<td></td>{% endif %}
       <td class="r num">0,000</td>
+      {% if has_vat %}<td></td><td class="r num">0,000</td>{% endif %}
     </tr>
     {% endfor %}{% endif %}
   </tbody>
@@ -47,7 +49,13 @@
   <div><span>{% if to_deliver %}Poids commandé{% else %}Poids total{% endif %}</span><span>{{ total_kg|kilos }} kg</span></div>
   {% if sale.discount_total %}<div><span>Total avant remise</span><span>{{ sale.subtotal|money }}</span></div>
   <div><span>Remises</span><span>− {{ sale.discount_total|money }}</span></div>{% endif %}
+  {% if has_vat %}
+  <div><span>{% if to_deliver %}Total HT si tout est livré{% else %}Total HT{% endif %}</span><span>{{ amount_excl_tax|money }} DT</span></div>
+  <div><span>Total TVA</span><span>{{ vat_total|money }} DT</span></div>
+  <div class="grand"><span>{% if to_deliver %}Total TTC si tout est livré{% else %}Total TTC{% endif %}</span><span>{{ total_incl_tax|money }} DT</span></div>
+  {% else %}
   <div class="grand"><span>{% if to_deliver %}Total HT si tout est livré{% else %}Total HT{% endif %}</span><span>{{ sale.total|money }} DT</span></div>
+  {% endif %}
   {% if sale.amount_paid %}<div><span>Payé à la livraison</span><span>{{ sale.amount_paid|money }}</span></div>
   <div><span>Reste dû</span><span>{{ sale.amount_due|money }} DT</span></div>{% endif %}
 </div>

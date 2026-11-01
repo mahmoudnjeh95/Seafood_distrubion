@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from .serializers import (
     DayClosingApproveSerializer,
+    DayClosingCorrectSerializer,
     DayClosingCountSerializer,
     DayClosingDetailSerializer,
     DayClosingFilterSerializer,
@@ -267,6 +268,23 @@ class DayClosingCountView(DayClosingView):
         serializer = DayClosingCountSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         services.record_office_count(
+            closing=self.closing(closing_id), actor=self.membership.user, **serializer.validated_data
+        )
+        return self.answer(closing_id)
+
+
+class DayClosingCorrectView(DayClosingView):
+    @extend_schema(
+        operation_id="correctDayClosing", request=DayClosingCorrectSerializer, responses=DayClosingDetailSerializer
+    )
+    def post(self, request: Request, closing_id: int) -> Response:
+        """The office corrects a driver's day (owner or manager, D-220): the driver never changes a sent day. The
+        day's figures are taken as the records say now, and the counts are changed when given. Needs a `reason`;
+        the correction is kept as a revision with the figures before and after. Refused for a day a new load
+        reopened."""
+        serializer = DayClosingCorrectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.correct_day_closing(
             closing=self.closing(closing_id), actor=self.membership.user, **serializer.validated_data
         )
         return self.answer(closing_id)

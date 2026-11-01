@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -112,12 +113,13 @@ export function EmployeeDialog({ employee, onDone }: { employee?: Employee; onDo
   function input(
     name: TextField,
     label: string,
-    options: { hint?: string; type?: string; inputMode?: "decimal"; className?: string } = {},
+    options: { hint?: string; type?: string; inputMode?: "decimal"; money?: boolean; className?: string } = {},
   ) {
     const id = `${formId}-${name}`;
+    const Control = options.money ? MoneyInput : Input;
     return (
       <Field label={label} htmlFor={id} error={errors[name]} className={options.className}>
-        <Input
+        <Control
           id={id}
           name={name}
           type={options.type ?? "text"}
@@ -153,6 +155,7 @@ export function EmployeeDialog({ employee, onDone }: { employee?: Employee; onDo
         {input("monthly_salary", t("admin.hr.form.salary"), {
           hint: t("admin.hr.form.salaryHint"),
           inputMode: "decimal",
+          money: true,
         })}
         {input("cnss_number", t("admin.hr.form.cnssNumber"))}
         {input("cnss_rate", t("admin.hr.form.cnssRate"), {

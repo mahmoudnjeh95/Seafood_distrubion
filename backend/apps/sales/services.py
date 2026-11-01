@@ -24,6 +24,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.core.money import Number, checked_amount, checked_quantity, display_money, line_total, money
 from apps.expenses import selectors as expenses_selectors
 from apps.expenses import services as expenses
+from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.notifications import services as notifications
 from apps.partners import services as partners
@@ -75,7 +76,7 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import Batch, StockLocation, Transfer
     from apps.partners.models import Customer
-    from apps.treasury.models import Bank
+    from apps.treasury.models import Bank, TreasuryAccount
 
 # ---- Quotes (P2-T03, D-050) ----
 
@@ -724,37 +725,21 @@ def _checked_picks(
     checked_lines: list[dict[str, Any]],
     errors: dict[str, str],
 ) -> None:
-    """Check each sale line's lots picked by hand (D-208): of that organization and the line's product, each lot
-    once, with kilos above zero, and together no more kilos than the line asks. A single `batch` (D-121) is one
-    pick of the line's whole weight.
+    """Check each sale line's lots picked by hand (D-212): the shared check of `inventory.checked_lot_picks`. A
+    single `batch` (D-121) is one pick of the line's whole weight.
 
     Mutates `checked_lines` in place, adding `picks` as `[(batch, kg)]` (empty keeps FIFO, the default).
     """
     for index, (line, checked) in enumerate(zip(lines, checked_lines, strict=True)):
         key = line_error_key(index, "picks")
-        product = checked.get("product")
-        picks: list[tuple[Batch, Decimal]] = []
         if line.get("picks"):
-            for pick in line["picks"]:
-                batch = pick["batch"]
-                try:
-                    kg = checked_quantity(pick["quantity"])
-                except (ValueError, TypeError):
-                    errors.setdefault(key, _("Indiquez un poids en kg pour chaque lot, supérieur à zéro."))
-                    continue
-                if batch.organization_id != organization.pk:
-                    errors.setdefault(key, _("Lot inconnu."))
-                elif product is not None and batch.product_id != product.pk:
-                    errors.setdefault(key, _("Ce lot ne correspond pas au produit de la ligne."))
-                elif any(batch.pk == picked.pk for picked, _kg in picks):
-                    errors.setdefault(key, _("Un lot ne peut être choisi qu'une fois par ligne."))
-                else:
-                    picks.append((batch, kg))
+            checked["picks"] = inventory.checked_lot_picks(
+                organization, checked.get("product"), line["picks"], checked.get("quantity"), errors, key
+            )
         elif checked.get("requested_batch") is not None and "quantity" in checked:
-            picks = [(checked["requested_batch"], checked["quantity"])]
-        checked["picks"] = picks
-        if "quantity" in checked and sum((kg for _batch, kg in picks), Decimal("0")) > checked["quantity"]:
-            errors.setdefault(key, _("Les lots choisis dépassent le poids de la ligne."))
+            checked["picks"] = [(checked["requested_batch"], checked["quantity"])]
+        else:
+            checked["picks"] = []
 
 
 def _prepared_sale(
@@ -823,8 +808,51 @@ def _post_sale_boxes(sale: Sale, actor: User | None, kind: str, *, from_customer
         raise ValidationError({"boxes": error.messages}) from error
 
 
+def _settings_on_day_of(organization: Organization, sold_at: dt.datetime) -> FinanceSettings:
+    """The finance settings in force the day the sale was made (D-224): its prices' VAT and its rates."""
+    day = timezone.localdate(sold_at)
+    return selectors.finance_settings_on(organization, day) or ensure_finance_settings(organization=organization)
+
+
+def _line_vat_rate(product: "Product", vat_product_ids: set[int], version: FinanceSettings) -> Decimal | None:
+    """The VAT rate a BL line takes (D-224): none unless its product is sold with VAT (kilos bought with VAT,
+    D-202), else the rate the invoice would propose (`_default_rate`)."""
+    return _default_rate(product, version) if product.pk in vat_product_ids else None
+
+
+def _apply_bl_vat(lines: Sequence[SaleLine], *, prices_include_vat: bool) -> None:
+    """The VAT of a BL's lines (D-224), from the rate each line snapshotted: the invoice's own arithmetic
+    (`invoicing.compute`), so a BL and its invoice agree. A line without a rate carries no VAT."""
+    amounts = invoicing.compute(
+        [
+            invoicing.LineInput(
+                amount=line.amount,
+                vat_rate=line.vat_rate if line.vat_rate is not None else invoicing.NO_RATE,
+            )
+            for line in lines
+        ],
+        apply_vat=True,
+        prices_include_vat=prices_include_vat,
+        fiscal_stamp=Decimal("0.000"),
+        withholding_rate=None,
+    )
+    for line, result in zip(lines, amounts.lines, strict=True):
+        line.amount_excl_tax = result.amount_excl_tax
+        line.vat_amount = result.vat_amount
+        line.amount_incl_tax = result.amount_incl_tax
+
+
+def _set_bl_vat_totals(sale: Sale, lines: Sequence[SaleLine]) -> None:
+    """The sale's VAT total and total with VAT, the sum of its lines (D-224)."""
+    sale.vat_total = sum((line.vat_amount for line in lines), Decimal("0.000"))
+    sale.total_incl_tax = sum((line.amount_incl_tax for line in lines), Decimal("0.000"))
+
+
 def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dict[str, Any]) -> None:
-    """Replace the lines and set the sale's totals and payment from them (no VAT yet: P2-T05)."""
+    """Replace the lines and set the sale's totals, VAT snapshot and payment from them. The VAT of the lines
+    sold with VAT is written now, from the settings of the sale's day, and kept (D-224)."""
+    version = _settings_on_day_of(sale.organization, sale.sold_at)
+    vat_ids = set(inventory_selectors.vat_product_ids(sale.organization))
     new_lines = [
         SaleLine(
             organization_id=sale.organization_id,
@@ -839,9 +867,11 @@ def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dic
             gross_amount=values["gross_amount"],
             discount_amount=values["discount_amount"],
             amount=values["amount"],
+            vat_rate=_line_vat_rate(values["product"], vat_ids, version),
         )
         for values in checked_lines
     ]
+    _apply_bl_vat(new_lines, prices_include_vat=version.prices_include_vat)
     SaleLine.objects.bulk_create(new_lines)
     SaleLinePick.objects.bulk_create(
         [
@@ -853,10 +883,12 @@ def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dic
     sale.subtotal = sum((values["gross_amount"] for values in checked_lines), Decimal("0.000"))
     sale.discount_total = sum((values["discount_amount"] for values in checked_lines), Decimal("0.000"))
     sale.total_excl_tax = sale.subtotal - sale.discount_total
-    # VAT, the fiscal stamp and the withholding live on the sale's invoice (D-057); `tax_amount` is set when
-    # that invoice is issued.
+    # The fiscal stamp and the withholding live on the sale's invoice (D-057); `tax_amount` is set when that
+    # invoice is issued. The VAT of the lines sold with VAT is on the BL already (D-224).
     sale.tax_amount = None
     sale.total = sale.total_excl_tax
+    sale.prices_include_vat = version.prices_include_vat
+    _set_bl_vat_totals(sale, new_lines)
     sale.amount_paid = paid["amount_paid"]
     sale.payment_method = paid["payment_method"]
     sale.payment_reference = paid["payment_reference"]
@@ -1141,6 +1173,11 @@ def deliver_sale(
             line.discount_amount = priced["discount_amount"]
             line.amount = priced["amount"]
             line.save(update_fields=["quantity", "gross_amount", "discount_amount", "amount"])
+    kept_lines = [line for line, _kg in kept]
+    # The VAT rate snapshot stays; the VAT follows the kilos left (D-224).
+    _apply_bl_vat(kept_lines, prices_include_vat=sale.prices_include_vat)
+    SaleLine.objects.bulk_update(kept_lines, ["amount_excl_tax", "vat_amount", "amount_incl_tax"])
+    _set_bl_vat_totals(sale, kept_lines)
     sale.subtotal = sum((line.gross_amount for line, _kg in kept), Decimal("0.000"))
     sale.discount_total = sum((line.discount_amount for line, _kg in kept), Decimal("0.000"))
     sale.total_excl_tax = sale.subtotal - sale.discount_total
@@ -1417,6 +1454,7 @@ def create_opening_receivable(
         subtotal=total,
         total_excl_tax=total,
         total=total,
+        total_incl_tax=total,
         cost_total=Decimal("0.000"),
         amount_due=total,
         is_opening=True,
@@ -2073,9 +2111,9 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
     )
 
 
-def _default_rate(line: InvoiceLine, version: FinanceSettings) -> Decimal:
+def _default_rate(product: "Product", version: FinanceSettings) -> Decimal:
     """The rate a line takes when none is typed: the product's own (0 = exempt), else the settings'."""
-    own: Decimal | None = line.product.vat_rate
+    own: Decimal | None = product.vat_rate
     return own if own is not None else version.vat_rate
 
 
@@ -2087,7 +2125,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     rates: list[Decimal] = []
     rate_typed: list[bool] = []
     for line, typed in zip(lines, overrides.vat_rates, strict=True):
-        default = _default_rate(line, version)
+        default = _default_rate(line.product, version)
         rates.append(typed if typed is not None else default)
         rate_typed.append(typed is not None and typed != default)
     stamp = overrides.fiscal_stamp if overrides.fiscal_stamp is not None else version.fiscal_stamp
@@ -2742,6 +2780,8 @@ class PaymentLineFields(TypedDict, total=False):
     bank: "Bank | None"
     drawer: str
     due_on: dt.date | None
+    # Cash, a transfer, a card: the account the money went to (D-219); empty: the Caisse, the main bank account.
+    account: "TreasuryAccount | None"
 
 
 # At most this many lines in one règlement.
@@ -2970,6 +3010,10 @@ def _checked_payment_lines(
             for field, message in found.items():
                 errors[line_error_key(index, field)] = message
             taken.append((method, bank.pk if bank else None, number.strip()))
+        else:
+            message = treasury.line_account_error(organization, method, line.get("account"))
+            if message:
+                errors[line_error_key(index, "account")] = message
         checked.append((method, value, line))
     return checked
 
@@ -3084,7 +3128,7 @@ def record_customer_payment(
                 customer=customer,
                 source_number=number,
             )
-        CustomerPaymentLine.objects.create(
+        row = CustomerPaymentLine.objects.create(
             organization=organization,
             payment=payment,
             method=line_method,
@@ -3092,6 +3136,8 @@ def record_customer_payment(
             reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
             instrument=instrument,
         )
+        if instrument is None:
+            _post_line_money(payment, row, line.get("account"), actor)
     _allocate(payment, paid, allocations)
     audit.record(
         organization=organization,
@@ -3101,6 +3147,60 @@ def record_customer_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+# The treasury movement of a règlement line paid in cash, by transfer or by card (D-219).
+PAYMENT_LINE_SOURCE = "sales.payment_line"
+
+
+def _post_line_money(
+    payment: CustomerPayment, line: CustomerPaymentLine, account: "TreasuryAccount | None", actor: User | None
+) -> None:
+    """The money of a line goes in an account the day it was received: the one chosen, else the cash a driver took
+    goes to that driver's cash (D-133), other cash to the Caisse, a transfer or a card to the main bank account. A
+    cheque or a traite moves money only when the bank pays it (the treasury)."""
+    organization = payment.organization
+    driver = payment.created_by if payment.made_at is not None else None
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, line.method, account, driver=driver),
+        day=payment.received_on,
+        amount=line.amount,
+        kind="customer_payment",
+        label=f"{payment.number} · {payment.customer.name}",
+        reference=payment.number,
+        source=PAYMENT_LINE_SOURCE,
+        source_id=line.pk,
+        actor=actor,
+    )
+
+
+def _reverse_line_money(payment: CustomerPayment, actor: User | None, day: dt.date) -> None:
+    treasury.reverse_movements(
+        organization=payment.organization,
+        source=PAYMENT_LINE_SOURCE,
+        source_ids=list(payment.lines.filter(instrument__isnull=True).values_list("pk", flat=True)),
+        day=day,
+        actor=actor,
+        label=_("Annulation"),
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the treasury movements of the règlements recorded before the accounts existed (D-219), and undo those
+    of the voided ones on the day they were voided. Safe to run again."""
+    done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
+    lines = (
+        CustomerPaymentLine.objects.filter(organization=organization, instrument__isnull=True)
+        .select_related("payment__organization", "payment__customer", "payment__created_by")
+        .order_by("id")
+    )
+    for line in lines:
+        payment = line.payment
+        if line.pk not in done:
+            _post_line_money(payment, line, None, payment.created_by)
+        if payment.voided_at is not None:
+            _reverse_line_money(payment, payment.voided_by, timezone.localtime(payment.voided_at).date())
 
 
 def _locked_payment(payment: CustomerPayment) -> CustomerPayment:
@@ -3155,6 +3255,7 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
             happened_on=timezone.localdate(),
             note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
         )
+    _reverse_line_money(payment, actor, timezone.localdate())
     sale_ids = list(payment.allocations.values_list("sale_id", flat=True))
     payment.voided_at = timezone.now()
     payment.voided_by = actor

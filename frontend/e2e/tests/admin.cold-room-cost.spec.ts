@@ -13,7 +13,7 @@ test("cold-room cost shows the approved bill of last month, the room shares and 
   await page.goto("/charges/froid");
   await expect(page.getByRole("heading", { name: "Chambres froides : coût", level: 1 })).toBeVisible();
 
-  const bill = page.getByRole("region", { name: /Facture d'électricité de/ });
+  const bill = page.getByRole("region", { name: /Facture chambre froide réelle de/ });
   await expect(bill).toContainText("Approuvée");
   await expect(bill).toContainText(/684,250\sDT/);
 

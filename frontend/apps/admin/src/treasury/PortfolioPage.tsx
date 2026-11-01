@@ -28,6 +28,7 @@ import {
   EmptyState,
   Field,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Select,
@@ -52,10 +53,11 @@ import { useDebounced } from "../lib/useDebounced";
 import { NO_CHOICE, statusTone } from "../payments/listFilters";
 import { canCollect, todayInput } from "../payments/shared";
 import { type PortfolioTab, TABS, TAB_QUERY, waitingLate } from "./portfolio";
+import { TresorerieRibbon } from "./TresorerieRibbon";
 
 const PAGE_SIZE = 100;
 
-type Step = "deposit" | "cash" | "withdraw" | "debit" | "unpaid" | "return" | "reject";
+export type Step = "deposit" | "cash" | "withdraw" | "debit" | "unpaid" | "return" | "reject";
 
 /** The actions each tab offers on the ticked effets. */
 const STEPS: Record<PortfolioTab, Step[]> = {
@@ -122,6 +124,7 @@ export function PortfolioPage() {
 
   return (
     <>
+      <TresorerieRibbon active="portefeuille" />
       <PageHeader eyebrow={t("admin.groups.finance")} title={t("admin.treasury.portfolio.title")} />
       <p className="text-ink-2">{t("admin.treasury.portfolio.intro")}</p>
 
@@ -398,7 +401,7 @@ export function PortfolioPage() {
 }
 
 /** The day (and, for a remise, the bank) of the step, a last look at what moves, then "Confirmer". */
-function StepDialog({
+export function StepDialog({
   step,
   effets,
   banks,
@@ -446,7 +449,7 @@ function StepDialog({
         await recordUnpaidEffet(only.id, {
           unpaid_on: day,
           reason: notes.trim(),
-          bank_charges: charges.trim().replace(",", "."),
+          bank_charges: charges.trim().replace(/\s/g, "").replace(",", "."),
         });
         toast.success(t("admin.treasury.portfolio.done.unpaid", { count: 1 }));
       } else {
@@ -534,7 +537,7 @@ function StepDialog({
                 />
               </Field>
               <Field label={t("admin.treasury.portfolio.bankCharges")} htmlFor={`${id}-charges`}>
-                <Input
+                <MoneyInput
                   id={`${id}-charges`}
                   inputMode="decimal"
                   value={charges}

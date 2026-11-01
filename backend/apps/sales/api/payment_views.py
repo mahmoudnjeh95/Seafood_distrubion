@@ -81,20 +81,25 @@ def _allocations(organization: Any, data: Any) -> Any:
 
 
 def _lines(organization: Any, data: Any) -> Any:
-    """The règlement's lines with their bank as a row of the organization; an unknown bank is an error on
-    `lines.<index>.bank`. None stays None (the single `amount` and `method` make the line)."""
+    """The règlement's lines with their bank and account as rows of the organization; an unknown one is an error on
+    `lines.<index>.bank` or `.account`. None stays None (the single `amount` and `method` make the line)."""
     if data is None:
         return None
     errors: dict[str, str] = {}
     rows = []
     for index, item in enumerate(data):
-        bank = None
+        bank = account = None
         if item["bank"] is not None:
             try:
                 bank = treasury.bank_of(organization, item["bank"])
             except ObjectDoesNotExist:
                 errors[f"lines.{index}.bank"] = _("Banque inconnue.")
-        rows.append({**item, "bank": bank})
+        if item.get("account") is not None:
+            try:
+                account = treasury.account_of(organization, item["account"])
+            except ObjectDoesNotExist:
+                errors[f"lines.{index}.account"] = _("Compte inconnu.")
+        rows.append({**item, "bank": bank, "account": account})
     if errors:
         raise ValidationError(errors)
     return rows

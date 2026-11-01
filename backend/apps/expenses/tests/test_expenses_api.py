@@ -1,6 +1,7 @@
 import io
 import shutil
 import tempfile
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -190,6 +191,15 @@ def test_a_driver_enters_a_road_expense_with_a_photo_and_it_waits_for_approval(o
     fleet_services.assign_truck(
         organization=organization, actor=actor, truck=truck, driver=driver.user, date=timezone.localdate()
     )
+    # The day starts with cash, so "La caisse" (the default) pays (D-220).
+    fleet_services.set_day_fund(
+        organization=organization,
+        actor=actor,
+        driver=driver.user,
+        date=timezone.localdate(),
+        opening_cash=Decimal("50"),
+    )
+    fleet_services.accept_day_fund(organization=organization, actor=driver.user, truck=truck, date=timezone.localdate())
     api = client_for(driver)
     categories = api.get(reverse("my-expense-categories")).json()
     assert {c["name"] for c in categories} >= {"Carburant", "Divers"}
@@ -258,6 +268,15 @@ def test_a_road_expense_sent_again_with_its_photo_after_the_office_decided_it_an
     fleet_services.assign_truck(
         organization=organization, actor=actor, truck=truck, driver=driver.user, date=timezone.localdate()
     )
+    # The day starts with cash, so "La caisse" (the default) pays (D-220).
+    fleet_services.set_day_fund(
+        organization=organization,
+        actor=actor,
+        driver=driver.user,
+        date=timezone.localdate(),
+        opening_cash=Decimal("50"),
+    )
+    fleet_services.accept_day_fund(organization=organization, actor=driver.user, truck=truck, date=timezone.localdate())
     api = client_for(driver)
     fuel = next(c["id"] for c in api.get(reverse("my-expense-categories")).json() if c["name"] == "Carburant")
     buffer = io.BytesIO()

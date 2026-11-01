@@ -17,6 +17,7 @@ import { useDebounced } from "../lib/useDebounced";
 import { filterParams, isFiltered, type ListFilters, NO_FILTERS } from "../payments/listFilters";
 import { MeansChips, PaymentListFilters, PaymentTotalsCard } from "../payments/ListParts";
 import { canRecordReceipts } from "../receipts/shared";
+import { TresorerieRibbon } from "../treasury/TresorerieRibbon";
 import { AllocateDialog } from "./AllocateDialog";
 import { compare } from "./allocation";
 import { PurchasingTabs } from "./PurchasingTabs";
@@ -59,6 +60,7 @@ export function SupplierPaymentsPage() {
 
   return (
     <>
+      <TresorerieRibbon active="decaissement" />
       <PageHeader eyebrow={t("admin.nav.purchases")} title={t("admin.supplierPayments.title")}>
         {canRecord && (
           <Button

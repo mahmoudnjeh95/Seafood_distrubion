@@ -19,8 +19,9 @@ ENV VITE_SENTRY_DSN=$SENTRY_DSN_FRONTEND \
     VITE_SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT \
     VITE_RELEASE=$RELEASE
 # One app at a time, with a capped Node heap: building the three together (tsc + vite each) took the shared
-# staging VPS down on CPU and RAM. Slower, but the server stays up.
-ENV NODE_OPTIONS=--max-old-space-size=1024
+# staging VPS down on CPU and RAM. Slower, but the server stays up. 1536 MB since the treasury screens (#246):
+# the admin type check ran out of heap at 1024 MB; the VPS has about 2.9 GB free and builds one app at a time.
+ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN pnpm --filter @frutti/admin run build \
     && pnpm --filter @frutti/truck run build \
     && pnpm --filter @frutti/site run build

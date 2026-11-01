@@ -19,6 +19,7 @@ import {
   EmptyState,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -343,7 +344,7 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
                   />
                 </Field>
                 <Field label={t("truck.purchase.price")} htmlFor={`purchase-price-${line.key}`}>
-                  <Input
+                  <MoneyInput
                     id={`purchase-price-${line.key}`}
                     inputMode="decimal"
                     className="text-xl"

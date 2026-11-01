@@ -30,6 +30,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Table,
@@ -286,7 +287,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
                   htmlFor={`${formId}-amount-${row.rate}`}
                   error={errors[`vat_amounts.${row.rate}`]}
                 >
-                  <Input
+                  <MoneyInput
                     id={`${formId}-amount-${row.rate}`}
                     inputMode="decimal"
                     value={values.amounts[row.rate] ?? ""}
@@ -301,7 +302,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         )}
 
         <Field label={t("admin.invoices.form.stamp")} htmlFor={`${formId}-stamp`} error={errors.fiscal_stamp}>
-          <Input
+          <MoneyInput
             id={`${formId}-stamp`}
             inputMode="decimal"
             value={values.stamp}
@@ -312,7 +313,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         </Field>
 
         <Field label={t("admin.invoices.form.fees")} htmlFor={`${formId}-fees`} error={errors.fees}>
-          <Input
+          <MoneyInput
             id={`${formId}-fees`}
             inputMode="decimal"
             value={values.fees}

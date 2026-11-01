@@ -17,6 +17,7 @@ import {
   Combobox,
   Field,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Table,
@@ -31,6 +32,7 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { asTyped, compare, spread } from "../purchasing/allocation";
+import { FormPanel } from "../treasury/FormPanel";
 import { ConfirmPaymentDialog } from "./ConfirmPaymentDialog";
 import { Figure } from "./Figure";
 import {
@@ -166,55 +168,88 @@ export function CustomerPaymentFormPage() {
       <PageHeader eyebrow={t("admin.groups.sales")} title={t("admin.treasury.form.customerTitle")} />
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <Card className="grid grid-cols-[2fr_1fr] gap-4 max-[640px]:grid-cols-1">
-          <Field label={t("admin.treasury.form.customer")} htmlFor={id("customer")} error={errors.customer}>
-            <Combobox
-              id={id("customer")}
-              value={customer}
-              onValueChange={(value) => {
-                setCustomer(value);
-                setAllocations({});
-              }}
-              options={(customers.data ?? [])
-                .filter((one) => !one.is_walk_in && (one.is_active || String(one.id) === customer))
-                .map((one) => ({ value: String(one.id), label: `${one.name} · ${one.reference}` }))}
-              empty={t("admin.treasury.form.noCustomer")}
-              aria-invalid={errors.customer ? true : undefined}
-            />
-          </Field>
-          <Field label={t("admin.payments.dialog.receivedOn")} htmlFor={id("day")} error={errors.received_on}>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="primary" disabled={save.isPending}>
+            {t("admin.treasury.form.save")}
+          </Button>
+          <Button asChild>
+            <Link to="/reglements">{t("admin.treasury.form.back")}</Link>
+          </Button>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+          <FormPanel title={t("admin.treasury.form.paymentInfo")}>
+            <Field label={t("admin.payments.dialog.receivedOn")} htmlFor={id("day")} error={errors.received_on}>
+              <Input
+                id={id("day")}
+                type="date"
+                max={todayInput()}
+                value={receivedOn}
+                onChange={(event) => setReceivedOn(event.target.value)}
+              />
+            </Field>
+          </FormPanel>
+          <FormPanel title={t("admin.treasury.form.customerInfo")}>
+            <Field label={t("admin.treasury.form.customer")} htmlFor={id("customer")} error={errors.customer}>
+              <Combobox
+                id={id("customer")}
+                value={customer}
+                onValueChange={(value) => {
+                  setCustomer(value);
+                  setAllocations({});
+                }}
+                options={(customers.data ?? [])
+                  .filter((one) => !one.is_walk_in && (one.is_active || String(one.id) === customer))
+                  .map((one) => ({ value: String(one.id), label: `${one.name} · ${one.reference}` }))}
+                empty={t("admin.treasury.form.noCustomer")}
+                aria-invalid={errors.customer ? true : undefined}
+              />
+            </Field>
+            {chosen && balance.data && (
+              <dl className="col-span-full grid grid-cols-5 gap-3 rounded-control bg-surface-2 p-3 max-[900px]:grid-cols-2">
+                <Figure label={t("admin.treasury.form.toPay")} value={formatMoney(toPay)} />
+                <Figure
+                  label={t("admin.treasury.form.overdue")}
+                  value={formatMoney(balance.data.overdue)}
+                  bad={compare(balance.data.overdue, "0") > 0}
+                />
+                <Figure label={t("admin.treasury.form.inPortfolio")} value={formatMoney(inPortfolio)} />
+                <Figure
+                  label={t("admin.treasury.form.exposure")}
+                  value={formatMoney(exposure)}
+                  bad={compare(balance.data.credit_limit, "0") > 0 && compare(exposure, balance.data.credit_limit) > 0}
+                />
+                <Figure
+                  label={t("admin.treasury.form.creditLimit")}
+                  value={
+                    compare(balance.data.credit_limit, "0") > 0
+                      ? formatMoney(balance.data.credit_limit)
+                      : t("admin.treasury.form.noLimit")
+                  }
+                />
+              </dl>
+            )}
+          </FormPanel>
+        </div>
+
+        <Card className="grid grid-cols-2 gap-4 max-[640px]:grid-cols-1">
+          <Field label={t("admin.treasury.form.reason")} htmlFor={id("reason")} error={errors.reason}>
             <Input
-              id={id("day")}
-              type="date"
-              max={todayInput()}
-              value={receivedOn}
-              onChange={(event) => setReceivedOn(event.target.value)}
+              id={id("reason")}
+              value={reason}
+              maxLength={200}
+              onChange={(event) => setReason(event.target.value)}
+              autoComplete="off"
             />
           </Field>
-          {chosen && balance.data && (
-            <dl className="col-span-full grid grid-cols-5 gap-3 rounded-control bg-surface-2 p-3 max-[900px]:grid-cols-2">
-              <Figure label={t("admin.treasury.form.toPay")} value={formatMoney(toPay)} />
-              <Figure
-                label={t("admin.treasury.form.overdue")}
-                value={formatMoney(balance.data.overdue)}
-                bad={compare(balance.data.overdue, "0") > 0}
-              />
-              <Figure label={t("admin.treasury.form.inPortfolio")} value={formatMoney(inPortfolio)} />
-              <Figure
-                label={t("admin.treasury.form.exposure")}
-                value={formatMoney(exposure)}
-                bad={compare(balance.data.credit_limit, "0") > 0 && compare(exposure, balance.data.credit_limit) > 0}
-              />
-              <Figure
-                label={t("admin.treasury.form.creditLimit")}
-                value={
-                  compare(balance.data.credit_limit, "0") > 0
-                    ? formatMoney(balance.data.credit_limit)
-                    : t("admin.treasury.form.noLimit")
-                }
-              />
-            </dl>
-          )}
+          <Field label={t("admin.treasury.form.paidBy")} htmlFor={id("paid-by")} error={errors.paid_by}>
+            <Input
+              id={id("paid-by")}
+              value={paidBy}
+              maxLength={120}
+              onChange={(event) => setPaidBy(event.target.value)}
+              autoComplete="off"
+            />
+          </Field>
         </Card>
 
         <Card className="grid grid-cols-2 gap-4 max-[640px]:grid-cols-1">
@@ -322,7 +357,7 @@ export function CustomerPaymentFormPage() {
                       </Td>
                       <Td numeric className="w-40">
                         <div className="flex items-center gap-1">
-                          <Input
+                          <MoneyInput
                             id={id(`allocation-${item.key}`)}
                             inputMode="decimal"
                             aria-label={t("admin.supplierPayments.form.allocationFor", { number: item.number })}

@@ -11,6 +11,7 @@ import {
   CardTitle,
   Field,
   Input,
+  MoneyInput,
   PageHeader,
   Select,
   SelectContent,
@@ -92,20 +93,23 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
   });
 
   const mayEdit = overview.may_edit;
-  const field = (key: string, label: string, value: string, set: (value: string) => void, hint?: string) => (
-    <Field label={label} htmlFor={`${formId}-${key}`} error={errors[key]}>
-      <Input
-        id={`${formId}-${key}`}
-        value={value}
-        disabled={!mayEdit}
-        inputMode={["vat_rate", "fiscal_stamp", "withholding_rate"].includes(key) ? "decimal" : undefined}
-        onChange={(event) => set(event.target.value)}
-        aria-invalid={errors[key] ? true : undefined}
-        autoComplete="off"
-      />
-      {hint && <p className="text-[0.78rem] text-ink-2">{hint}</p>}
-    </Field>
-  );
+  const field = (key: string, label: string, value: string, set: (value: string) => void, hint?: string) => {
+    const Control = key === "fiscal_stamp" ? MoneyInput : Input;
+    return (
+      <Field label={label} htmlFor={`${formId}-${key}`} error={errors[key]}>
+        <Control
+          id={`${formId}-${key}`}
+          value={value}
+          disabled={!mayEdit}
+          inputMode={["vat_rate", "fiscal_stamp", "withholding_rate"].includes(key) ? "decimal" : undefined}
+          onChange={(event) => set(event.target.value)}
+          aria-invalid={errors[key] ? true : undefined}
+          autoComplete="off"
+        />
+        {hint && <p className="text-[0.78rem] text-ink-2">{hint}</p>}
+      </Field>
+    );
+  };
 
   return (
     <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1">

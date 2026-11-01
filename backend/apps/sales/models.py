@@ -270,6 +270,12 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
         max_digits=14, decimal_places=3, null=True, blank=True
     )
     total = MoneyField(default=Decimal("0.000"))
+    # The VAT of the BL (D-224), from the lines' snapshot: whether the prices of the sale hold VAT (the settings
+    # in force on its day), the VAT of the lines sold with VAT, and the total with VAT. `total` above stays as
+    # charged; `amount_excl_tax` is the total without VAT.
+    prices_include_vat = models.BooleanField(default=False)
+    vat_total = MoneyField(default=Decimal("0.000"))
+    total_incl_tax = MoneyField(default=Decimal("0.000"))
     # Cost of the goods sold (FIFO batches × their cost per kg), known once confirmed.
     cost_total = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
@@ -359,6 +365,11 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     def __str__(self) -> str:
         return self.number
 
+    @property
+    def amount_excl_tax(self) -> Decimal:
+        """The total without VAT: the total with VAT less the VAT of the lines (D-224)."""
+        return self.total_incl_tax - self.vat_total
+
 
 class SaleBoxLine(OrganizationScopedModel):
     """Boxes left with the client for one sale, per box type (D-122): a count, not kg. Written with the draft,
@@ -406,6 +417,13 @@ class SaleLine(OrganizationScopedModel):
     discount_amount = MoneyField(default=Decimal("0.000"))
     # gross − discount, without VAT: the line's revenue.
     amount = MoneyField()
+    # VAT snapshot (D-224): the rate in percent when the product is sold with VAT (kilos bought with VAT, D-202),
+    # empty for a line without VAT. Set when the line is written, so later price or rate changes never move it.
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    # `amount` without VAT, its VAT and `amount` with VAT: the invoice's arithmetic (`invoicing.compute`).
+    amount_excl_tax = MoneyField(default=Decimal("0.000"))
+    vat_amount = MoneyField(default=Decimal("0.000"))
+    amount_incl_tax = MoneyField(default=Decimal("0.000"))
     # Cost of the goods of this line (sum of its batches), known once confirmed.
     cost_amount = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
@@ -427,6 +445,10 @@ class SaleLine(OrganizationScopedModel):
             models.CheckConstraint(
                 condition=models.Q(gross_amount__gte=0, discount_amount__gte=0, amount__gte=0),
                 name="sale_line_amounts_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(vat_rate__isnull=True) | models.Q(vat_rate__gte=0, vat_rate__lte=100),
+                name="sale_line_vat_rate_percent",
             ),
         ]
 

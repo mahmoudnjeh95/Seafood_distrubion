@@ -19,7 +19,7 @@ from apps.documents.words import dinars_in_words, number_in_words
 from apps.inventory import services as stock
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
-from apps.partners.tests.factories import CustomerFactory
+from apps.partners.tests.factories import CustomerContactFactory, CustomerFactory
 from apps.sales import services as sales
 from apps.sales.models import CreditNoteKind, CreditNoteStock, FinanceSettings, SalePaymentMethod
 from apps.sales.printing import customer_type, unique_identifier
@@ -480,11 +480,11 @@ def test_an_invoice_goes_by_email_with_its_pdf_from_the_company_address(api, org
     email_url = reverse("document-email", args=["invoice", invoice.pk])
 
     draft = api.get(email_url).json()
-    assert draft["to"] == "corail@example.tn"
+    assert draft["to"] == ["corail@example.tn"]
     assert draft["subject"] == f"Facture {invoice.number} - {organization.name}"
     assert invoice.number in draft["body"]
 
-    sent = api.post(email_url, {"to": [draft["to"]], "subject": draft["subject"], "body": draft["body"]}, format="json")
+    sent = api.post(email_url, {"to": draft["to"], "subject": draft["subject"], "body": draft["body"]}, format="json")
     assert sent.status_code == 204
     (message,) = mailoutbox
     assert message.to == ["corail@example.tn"]
@@ -495,3 +495,45 @@ def test_an_invoice_goes_by_email_with_its_pdf_from_the_company_address(api, org
     assert attachment[2] == "application/pdf"
     assert api.get(email_url).json()["sent"][0]["to"] == "corail@example.tn"
     assert api.post(email_url, {"to": [], "subject": "x", "body": ""}, format="json").status_code == 400
+
+
+def test_every_address_of_the_customer_is_offered_and_one_send_goes_to_the_chosen_ones(
+    api, organization, invoice, mailoutbox
+):
+    invoice.customer.email = "corail@example.tn"
+    invoice.customer.save()
+    CustomerContactFactory.create(organization=organization, customer=invoice.customer, email="chef@example.tn")
+    # Same address as the party's, in another case, and a contact with no address: listed once, or not at all.
+    CustomerContactFactory.create(organization=organization, customer=invoice.customer, email="CORAIL@example.tn")
+    CustomerContactFactory.create(organization=organization, customer=invoice.customer, email="")
+    email_url = reverse("document-email", args=["invoice", invoice.pk])
+
+    draft = api.get(email_url).json()
+    assert draft["to"] == ["corail@example.tn", "chef@example.tn"]
+
+    # For this send only: the chef is dropped, a new address is added.
+    chosen = ["corail@example.tn", "compta@example.tn"]
+    sent = api.post(email_url, {"to": chosen, "subject": "Facture", "body": ""}, format="json")
+    assert sent.status_code == 204
+    (message,) = mailoutbox
+    assert message.to == ["corail@example.tn", "compta@example.tn"]
+    # The party itself is unchanged.
+    invoice.customer.refresh_from_db()
+    assert invoice.customer.email == "corail@example.tn"
+    assert api.get(email_url).json()["to"] == ["corail@example.tn", "chef@example.tn"]
+
+
+def test_an_address_given_twice_is_sent_once_and_too_many_are_refused(api, invoice, mailoutbox):
+    email_url = reverse("document-email", args=["invoice", invoice.pk])
+
+    sent = api.post(
+        email_url, {"to": ["a@example.tn", "A@example.tn"], "subject": "Facture", "body": ""}, format="json"
+    )
+    assert sent.status_code == 204
+    (message,) = mailoutbox
+    assert message.to == ["a@example.tn"]
+
+    too_many = [f"client{number}@example.tn" for number in range(11)]
+    refused = api.post(email_url, {"to": too_many, "subject": "Facture", "body": ""}, format="json")
+    assert refused.status_code == 400
+    assert len(mailoutbox) == 1

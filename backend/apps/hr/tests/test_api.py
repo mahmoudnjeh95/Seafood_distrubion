@@ -127,37 +127,24 @@ def test_archiving_hides_an_employee_from_the_default_list(api):
     assert len(api.get(reverse("employee-list"), {"status": "all"}).json()) == 1
 
 
-def test_payroll_month_flow_generate_approve_adjust_pay(api):
+def test_payroll_month_flow_generate_adjust_pay(api):
     create_employee(api, name="Rim K.", monthly_salary="1600.000")
     create_employee(api, name="Anis M.", monthly_salary="1250.000")
 
     generated = api.post(reverse("salary-record-generate"), {"month": MONTH}, format="json").json()
     assert generated["created"] == 2
     assert [record["net"] for record in generated["records"]] == ["1250.000", "1600.000"]
+    # Approved by default (D-228): no draft step.
+    assert {record["status"] for record in generated["records"]} == {"approved"}
     again = api.post(reverse("salary-record-generate"), {"month": MONTH}, format="json").json()
     assert again["created"] == 0
 
     record = next(item for item in generated["records"] if item["employee"]["name"] == "Rim K.")
-    edited = api.patch(
-        reverse("salary-record-detail", args=[record["id"]]), {"bonus": "100.000", "deductions": "50"}, format="json"
-    )
-    assert edited.status_code == 200
-    assert (edited.json()["gross"], edited.json()["employer_cnss"], edited.json()["net"]) == (
-        "1700.000",
-        "290.190",
-        "1650.000",
-    )
-    assert edited.json()["outstanding"] == "0.000"  # a draft is not owed yet
-
-    approved = api.post(reverse("salary-record-approve", args=[record["id"]])).json()
-    assert (approved["status"], approved["outstanding"], approved["expense_amount"]) == (
-        "approved",
-        "1650.000",
-        "1990.190",
-    )
-    locked = api.patch(reverse("salary-record-detail", args=[record["id"]]), {"bonus": "0"}, format="json")
-    assert locked.status_code == 400
-    assert api.delete(reverse("salary-record-detail", args=[record["id"]])).status_code == 400
+    detail = reverse("salary-record-detail", args=[record["id"]])
+    # An approved salary changes by an adjustment only: no patch, no approval, no delete.
+    assert api.patch(detail, {"bonus": "100.000"}, format="json").status_code == 400
+    assert api.post(reverse("salary-record-approve", args=[record["id"]])).status_code == 400
+    assert api.delete(detail).status_code == 400
 
     adjusted = api.post(
         reverse("salary-record-adjust", args=[record["id"]]),
@@ -165,7 +152,7 @@ def test_payroll_month_flow_generate_approve_adjust_pay(api):
         format="json",
     )
     assert adjusted.status_code == 201
-    assert api.get(reverse("salary-record-detail", args=[record["id"]])).json()["outstanding"] == "1600.000"
+    assert api.get(detail).json()["outstanding"] == "1550.000"
 
     payment = api.post(
         reverse("salary-payment-list"),
@@ -181,22 +168,23 @@ def test_payroll_month_flow_generate_approve_adjust_pay(api):
     assert payment.status_code == 201
     assert payment.json()["number"] == f"PS-{YEAR}-0001"
     assert payment.json()["unallocated"] == "0.000"
+    assert api.get(detail).json()["outstanding"] == "550.000"
 
     summary = api.get(reverse("payroll-summary"), {"month": MONTH}).json()
     assert (summary["records"], summary["drafts"], summary["paid"], summary["outstanding"]) == (
         2,
-        1,
+        0,
         "1000.000",
-        "600.000",
+        "1800.000",
     )
-    assert (summary["unpaid_total"], summary["unpaid_records"]) == ("600.000", 1)
+    assert (summary["unpaid_total"], summary["unpaid_records"]) == ("1800.000", 2)
     employee = next(item for item in api.get(reverse("employee-list")).json() if item["id"] == record["employee"]["id"])
-    assert employee["unpaid"] == "600.000"
+    assert employee["unpaid"] == "550.000"
 
     month = api.post(reverse("salary-record-approve-month"), {"month": MONTH}, format="json").json()
-    assert month["approved"] == 1
+    assert month["approved"] == 0
     actions = set(AuditLog.objects.values_list("action", flat=True))
-    assert {"salary.month_generated", "salary.approved", "salary.adjusted", "salary_payment.recorded"} <= actions
+    assert {"salary.month_generated", "salary.adjusted", "salary_payment.recorded"} <= actions
 
 
 def test_payment_errors_come_back_on_the_allocation_line(api):

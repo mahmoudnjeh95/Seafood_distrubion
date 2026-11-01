@@ -1,39 +1,36 @@
 # Project status
 
-_Last updated: 2026-10-31 (P9-T04b merged, D-217; P9-T04c rejected effets built, D-218)_
+_Last updated: 2026-11-01 (P9-T08 Trésorerie in the Perfaxis layout, D-230, on branch `treasury-perfaxis`)_
 
 ## Where we are
 
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
-  **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app · T02 (#231, D-208) supplier lines,
-  our effets issued · T03a (#234, D-210) "Nouveau règlement" pages, Répartir, Banques · T03b (#237, D-211) lists with
-  filters/totals/Excel, detail pages, supplier void · T03c (#240, D-215) supplier receipt PDF, several plan lines paid
-  at once · T04a (#241, D-216) Portefeuille, remise en banque with bordereau PDF, encaissé, retirer, débité.
-  · T04b (#242, D-217) impayé of a customer effet (the customer and the sales owe again, bank charges as an expense),
-  Restituer. **P9-T04c on branch `effet-rejected`** (awaits CI, D-218): our effet rejeté by the bank
-  (`purchasing.RejectedEffet`, `RejectedRelease`, migration `purchasing/0015`): the supplier and the invoices are owed
-  again. Endorsing waits for Q29.
-- **Other work merged 2026-10-31 (other sessions):** D-194 to D-207 (owner list, PRs #217–#230), D-212 counter sale on
-  several lots (#235), D-213 the office alone counts the driver's cash (#239). D-214 (#245, port purchases on the truck and
-  the day; replaces #238, still open, to close) awaits CI; the next free decision number is D-219.
-- **Earlier, check on staging:** D-193 price floor override, D-192 Règlements fournisseurs, D-191 general cost by day,
-  D-190 payment in "Convertir en vente", D-189 UI units, D-188 site request → quote, D-187 Bilan des caisses, D-186
-  public site, D-185 load BLs, D-184 empty truck, D-181 purchase paid limit, D-179 money confirm window.
+  **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
+  issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c
+  (#240) supplier receipt PDF, several plan lines at once · T04a (#241) Portefeuille, remise en banque, encaissé,
+  retirer, débité · T04b (#242) impayé, Restituer · T04c (#243, D-218) our effet rejected by the bank.
+- **P9-T08 merged (#259, D-230; #260 forms and CSV export, D-232):** the Perfaxis layout: a ribbon of icon buttons on
+  every treasury screen (`TresorerieRibbon`), the Bordereau de versement, the états des factures, the forms in panels.
+- **P9-T05a merged (#246, D-219):** the accounts and the movement ledger. The ribbon now has Agence bancaire, Caisse
+  liquide and the two journals (D-233, on branch `treasury-accounts-ribbon`). Decisions D-220 to D-229 are the other
+  session's stack; do not reuse them.
+- **Other work on main (other sessions):** D-214 port purchases on the truck and the day (#245), D-213 the office alone
+  counts the driver's cash, D-212 counter sale on several lots, D-194 to D-207 owner list.
 - **Phases:** 1 done except P1-T14 owner decisions; 2 mostly done; 3: open T08 field test, T09 Arabic review,
-  T10 printing; 9 in progress (T04b to T07 left).
+  T10 printing; 9 in progress (T05 to T07 left, plus T08 review).
 - **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver http://ch.fruttidelmare.com,
   demo logins `owner` / `driver` (password in `~/frutti-staging/.env`). Every merge to `main` deploys staging.
 - **Working rules:** no tests or e2e locally, CI checks the PR; one branch and one PR per task; merge only after green.
-  Several sessions work at once: Phase 9 happens in the worktree `C:\Mahmoud_workspace\wt-treasury`; recheck the
-  decision and migration numbers right before merging.
+  Several sessions work at once; recheck decision and migration numbers right before merging.
 
 ## Next step
 
-1. P9-T04c: PR from `effet-rejected`, green CI, fetch and rebase (renumber D-218, `purchasing/0015` if taken), merge.
-   On staging: a supplier règlement with one of our cheques → Portefeuille › Émis → tick it → Rejeté par la banque →
-   the supplier balance is up and its invoice owes again; pay it with a new règlement.
-2. Staging checks of T04a/T04b: a remise en banque and its bordereau PDF; an impayé with charges (Charges shows them).
-3. Then T05 accounts (caisse, banks, driver cash), T06 échéancier and alerts, T07 reports.
+1. P9-T08: open the PR from `treasury-perfaxis`, wait for green CI, rebase on main, merge. On staging: Règlements
+   clients (the ribbon at the top), Règlements fournisseurs, Portefeuille › Bordereau de versement (tick an effet in
+   "En attente" → Encaissé; tick one → Impayé), Facture de vente and Facture d'achat (grouped totals).
+2. P9-T05 (other session, branch `treasury-accounts`): when merged, add Agence bancaire, Caisse liquide and the
+   journals to the ribbon.
+3. Then T06 échéancier and alerts, T07 reports.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
