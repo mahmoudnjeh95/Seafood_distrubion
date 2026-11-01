@@ -4,6 +4,9 @@ _Last updated: 2026-11-01 (P9-T08 Trésorerie in the Perfaxis layout, D-230, on 
 
 ## Where we are
 
+- **D-235 on branch `party-document-counts` (awaits CI):** in "Nouveau règlement client" and "Nouveau paiement
+  fournisseur", each customer and supplier in the list shows its BL (or BR), invoices and total. New read endpoint
+  `treasury/party-documents`; the total is provisional (see D-235).
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
   **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
   issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c

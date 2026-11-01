@@ -20053,6 +20053,31 @@ export const WithdrawInstrumentsResponse = zod.array(WithdrawInstrumentsResponse
 
 
 /**
+ * What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+ * confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+ * drafts) with their total. A party with no such document is not listed.
+ */
+export const listPartyDocumentsResponseCustomersItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listPartyDocumentsResponseSuppliersItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPartyDocumentsResponse = zod.object({
+  "customers": zod.array(zod.object({
+  "id": zod.int(),
+  "deliveries": zod.int(),
+  "invoices": zod.int(),
+  "total": zod.stringFormat('decimal', listPartyDocumentsResponseCustomersItemTotalRegExp)
+})),
+  "suppliers": zod.array(zod.object({
+  "id": zod.int(),
+  "deliveries": zod.int(),
+  "invoices": zod.int(),
+  "total": zod.stringFormat('decimal', listPartyDocumentsResponseSuppliersItemTotalRegExp)
+}))
+}).describe('Per customer: its BL, invoices and net to pay. Per supplier: its BR, invoices and invoiced total (D-211).')
+
+
+/**
  * Versements, retraits and virements between our accounts, newest first, paginated; `account` keeps those
  * of one account.
  */

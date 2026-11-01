@@ -92,6 +92,20 @@ class InstrumentSerializer(serializers.ModelSerializer[Instrument]):
         read_only_fields: tuple[str, ...] = fields
 
 
+class PartyDocumentRowSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="party_id", read_only=True)
+    deliveries = serializers.IntegerField(read_only=True)
+    invoices = serializers.IntegerField(read_only=True)
+    total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class PartyDocumentsSerializer(serializers.Serializer[Any]):
+    """Per customer: its BL, invoices and net to pay. Per supplier: its BR, invoices and invoiced total (D-211)."""
+
+    customers = PartyDocumentRowSerializer(many=True, read_only=True)
+    suppliers = PartyDocumentRowSerializer(many=True, read_only=True)
+
+
 class InstrumentFilterSerializer(serializers.Serializer[Any]):
     direction = serializers.ChoiceField(choices=InstrumentDirection.choices, required=False)
     kind = serializers.ChoiceField(choices=InstrumentKind.choices, required=False)

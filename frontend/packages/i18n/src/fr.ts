@@ -2939,6 +2939,12 @@ export const fr = {
         apply: "Ajouter les effets",
         cancel: "Fermer",
       },
+      documents: {
+        bl: "{{count}} BL",
+        br: "{{count}} BR",
+        invoices_one: "{{count}} facture",
+        invoices_other: "{{count}} factures",
+      },
       form: {
         new: "Nouveau règlement",
         detailed: "Règlement détaillé",

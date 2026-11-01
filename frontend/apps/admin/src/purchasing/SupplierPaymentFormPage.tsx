@@ -3,6 +3,7 @@ import {
   recordSupplierPayment,
   type SupplierPaymentWrite,
   useListBanks,
+  useListPartyDocuments,
   useListSupplierInvoices,
   useListSupplierSettlements,
   useGetSupplierBalance,
@@ -31,6 +32,8 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { ConfirmPaymentDialog } from "../payments/ConfirmPaymentDialog";
+import { PartyDocumentCounts } from "../payments/PartyDocumentCounts";
+import { countsOf } from "../payments/partyCounts";
 import { FormPanel } from "../treasury/FormPanel";
 import {
   describeLine,
@@ -82,6 +85,7 @@ export function SupplierPaymentFormPage() {
   const planMethod = METHODS.find((one) => one === params.get("mode")) ?? "";
 
   const suppliers = useListSuppliers({ status: "all" });
+  const documents = useListPartyDocuments();
   const banks = useListBanks();
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [paidOn, setPaidOn] = useState(todayInTunis);
@@ -299,7 +303,13 @@ export function SupplierPaymentFormPage() {
                   {(suppliers.data ?? [])
                     .filter((one) => one.is_active || String(one.id) === supplier)
                     .map((one) => (
-                      <SelectItem key={one.id} value={String(one.id)}>
+                      <SelectItem
+                        key={one.id}
+                        value={String(one.id)}
+                        detail={
+                          <PartyDocumentCounts counts={countsOf(documents.data?.suppliers, one.id)} side="supplier" />
+                        }
+                      >
                         {one.name}
                       </SelectItem>
                     ))}

@@ -6,6 +6,7 @@ import {
   useListBanks,
   useListCustomers,
   useListInstruments,
+  useListPartyDocuments,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -46,6 +47,8 @@ import {
   type PaymentLine,
 } from "./lines";
 import { type OpenItem, openItems } from "./openItems";
+import { PartyDocumentCounts } from "./PartyDocumentCounts";
+import { countsOf } from "./partyCounts";
 import { PaymentLinesEditor } from "./PaymentLinesEditor";
 import { canCollect, CUSTOMER_PAYMENT_METHODS, refreshAfterPayment, todayInput } from "./shared";
 import { TotalsBar } from "./TotalsBar";
@@ -64,6 +67,7 @@ export function CustomerPaymentFormPage() {
   const [params] = useSearchParams();
   const customers = useListCustomers({ status: "all" });
   const banks = useListBanks();
+  const documents = useListPartyDocuments();
   const [customer, setCustomer] = useState(params.get("client") ?? "");
   const [receivedOn, setReceivedOn] = useState(todayInput);
   const [lines, setLines] = useState<Line[]>(() => [newLine<CustomerPaymentMethodEnum>("cash")]);
@@ -199,7 +203,19 @@ export function CustomerPaymentFormPage() {
                 }}
                 options={(customers.data ?? [])
                   .filter((one) => !one.is_walk_in && (one.is_active || String(one.id) === customer))
-                  .map((one) => ({ value: String(one.id), label: `${one.name} · ${one.reference}` }))}
+                  .map((one) => {
+                    const label = `${one.name} · ${one.reference}`;
+                    return {
+                      value: String(one.id),
+                      label,
+                      detail: (
+                        <span className="flex items-center gap-3">
+                          {label}
+                          <PartyDocumentCounts counts={countsOf(documents.data?.customers, one.id)} side="customer" />
+                        </span>
+                      ),
+                    };
+                  })}
                 empty={t("admin.treasury.form.noCustomer")}
                 aria-invalid={errors.customer ? true : undefined}
               />

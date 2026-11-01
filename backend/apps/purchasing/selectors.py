@@ -1,12 +1,13 @@
 """Reusable read queries of purchases."""
 
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal
 
 from django.db.models import (
     Case,
+    Count,
     DecimalField,
     Exists,
     ExpressionWrapper,
@@ -24,7 +25,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core.documents import DocumentFilters, DocumentRow, Tone, document_key
+from apps.core.documents import DocumentFilters, DocumentRow, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
 
 from .models import (
@@ -1107,3 +1108,27 @@ def undefined_settlements_late(organization: Organization, *, now: dt.datetime |
 def plan_line_of(organization: Organization, line_id: int) -> SupplierPaymentPlanLine:
     """One plan line. Raises SupplierPaymentPlanLine.DoesNotExist outside the organization."""
     return SupplierPaymentPlanLine.objects.for_organization(organization).select_related("invoice").get(pk=line_id)
+
+
+# ---- Supplier documents for the règlement forms (D-211) ----
+
+
+def supplier_documents(organization: Organization) -> dict[int, PartyDocuments]:
+    """Per supplier with a BR or an invoice: its goods receipts, its invoices (not drafts) and their total (D-211)."""
+    documents: dict[int, PartyDocuments] = {}
+    receipts = (
+        GoodsReceipt.objects.for_organization(organization).values("supplier_id").annotate(count=Count("id")).order_by()
+    )
+    for row in receipts:
+        documents[row["supplier_id"]] = PartyDocuments(party_id=row["supplier_id"], deliveries=row["count"])
+    invoices = (
+        SupplierInvoice.objects.for_organization(organization)
+        .exclude(status=SupplierInvoiceStatus.DRAFT)
+        .values("supplier_id")
+        .annotate(count=Count("id"), total=Sum("total"))
+        .order_by()
+    )
+    for row in invoices:
+        current = documents.get(row["supplier_id"], PartyDocuments(party_id=row["supplier_id"]))
+        documents[row["supplier_id"]] = replace(current, invoices=row["count"], total=row["total"])
+    return documents
