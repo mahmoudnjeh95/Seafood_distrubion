@@ -917,6 +917,7 @@ def _payment_snapshot(payment: SupplierPayment) -> dict[str, Any]:
         "method": payment.method,
         "reference": payment.reference,
         "cash_on": payment.cash_on.isoformat() if payment.cash_on else None,
+        "reason": payment.reason,
         "lines": [
             _payment_line_snapshot(line)
             for line in SupplierPaymentLine.objects.filter(payment=payment).select_related("instrument__bank")
@@ -1176,6 +1177,7 @@ def record_payment(
     allocations: Sequence[AllocationFields] | None = (),
     reference: str = "",
     notes: str = "",
+    reason: str = "",
     cash_on: dt.date | None = None,
     plan_line: SupplierPaymentPlanLine | None = None,
     plan_lines: Sequence[SupplierPaymentPlanLine] = (),
@@ -1256,6 +1258,7 @@ def record_payment(
         reference=_header_reference(reference if partial else None, checked),
         cash_on=only.get("due_on") if only is not None and checked[0][0] in INSTRUMENT_METHODS else None,
         notes=notes.strip(),
+        reason=reason.strip(),
         created_by=actor,
     )
     _write_lines(payment, actor, checked, partial=partial, post_to_treasury=post_to_treasury)

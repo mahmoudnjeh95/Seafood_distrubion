@@ -67,6 +67,8 @@ export function CustomerPaymentFormPage() {
   const [lines, setLines] = useState<Line[]>(() => [newLine<CustomerPaymentMethodEnum>("cash")]);
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
+  const [reason, setReason] = useState("");
+  const [paidBy, setPaidBy] = useState("");
   const [checked, setChecked] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverLineErrors, setServerLineErrors] = useState<Record<number, Record<string, string>>>({});
@@ -145,6 +147,8 @@ export function CustomerPaymentFormPage() {
       amount: total,
       lines: linesPayload(lines, { withDrawer: true }),
       notes: notes.trim(),
+      reason: reason.trim(),
+      paid_by: paidBy.trim(),
       allocations: typed.flatMap(({ item, value }) =>
         value === null || compare(value, "0") <= 0
           ? []
@@ -222,6 +226,27 @@ export function CustomerPaymentFormPage() {
             )}
           </FormPanel>
         </div>
+
+        <Card className="grid grid-cols-2 gap-4 max-[640px]:grid-cols-1">
+          <Field label={t("admin.treasury.form.reason")} htmlFor={id("reason")} error={errors.reason}>
+            <Input
+              id={id("reason")}
+              value={reason}
+              maxLength={200}
+              onChange={(event) => setReason(event.target.value)}
+              autoComplete="off"
+            />
+          </Field>
+          <Field label={t("admin.treasury.form.paidBy")} htmlFor={id("paid-by")} error={errors.paid_by}>
+            <Input
+              id={id("paid-by")}
+              value={paidBy}
+              maxLength={120}
+              onChange={(event) => setPaidBy(event.target.value)}
+              autoComplete="off"
+            />
+          </Field>
+        </Card>
 
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.treasury.lines.title")}</CardTitle>

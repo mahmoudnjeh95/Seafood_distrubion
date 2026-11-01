@@ -1021,6 +1021,8 @@ export const RecordUnpaidEffetResponse = zod.object({
   "received_on": zod.iso.date(),
   "reference": zod.string(),
   "notes": zod.string(),
+  "reason": zod.string(),
+  "paid_by": zod.string(),
   "allocated_total": zod.stringFormat('decimal', recordUnpaidEffetResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', recordUnpaidEffetResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', recordUnpaidEffetResponseRemainingRegExp),
@@ -1111,6 +1113,8 @@ export const ListCustomerPaymentsResponse = zod.object({
   "received_on": zod.iso.date(),
   "reference": zod.string(),
   "notes": zod.string(),
+  "reason": zod.string(),
+  "paid_by": zod.string(),
   "allocated_total": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemRemainingRegExp),
@@ -1149,6 +1153,13 @@ export const createCustomerPaymentBodyReferenceDefault = ``;
 export const createCustomerPaymentBodyReferenceMax = 50;
 
 export const createCustomerPaymentBodyNotesDefault = ``;
+export const createCustomerPaymentBodyReasonDefault = ``;
+export const createCustomerPaymentBodyReasonMax = 200;
+
+export const createCustomerPaymentBodyPaidByDefault = ``;
+export const createCustomerPaymentBodyPaidByMax = 120;
+
+
 
 export const CreateCustomerPaymentBody = zod.object({
   "allocations": zod.array(zod.object({
@@ -1171,7 +1182,9 @@ export const CreateCustomerPaymentBody = zod.object({
   "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
   "received_on": zod.iso.date().nullish(),
   "reference": zod.string().max(createCustomerPaymentBodyReferenceMax).default(createCustomerPaymentBodyReferenceDefault),
-  "notes": zod.string().default(createCustomerPaymentBodyNotesDefault)
+  "notes": zod.string().default(createCustomerPaymentBodyNotesDefault),
+  "reason": zod.string().max(createCustomerPaymentBodyReasonMax).default(createCustomerPaymentBodyReasonDefault),
+  "paid_by": zod.string().max(createCustomerPaymentBodyPaidByMax).default(createCustomerPaymentBodyPaidByDefault)
 })
 
 export const createCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1234,6 +1247,8 @@ export const CreateCustomerPaymentResponse = zod.object({
   "received_on": zod.iso.date(),
   "reference": zod.string(),
   "notes": zod.string(),
+  "reason": zod.string(),
+  "paid_by": zod.string(),
   "allocated_total": zod.stringFormat('decimal', createCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', createCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', createCustomerPaymentResponseRemainingRegExp),
@@ -1322,6 +1337,8 @@ export const GetCustomerPaymentResponse = zod.object({
   "received_on": zod.iso.date(),
   "reference": zod.string(),
   "notes": zod.string(),
+  "reason": zod.string(),
+  "paid_by": zod.string(),
   "allocated_total": zod.stringFormat('decimal', getCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', getCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', getCustomerPaymentResponseRemainingRegExp),
@@ -1423,6 +1440,8 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "received_on": zod.iso.date(),
   "reference": zod.string(),
   "notes": zod.string(),
+  "reason": zod.string(),
+  "paid_by": zod.string(),
   "allocated_total": zod.stringFormat('decimal', allocateCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', allocateCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', allocateCustomerPaymentResponseRemainingRegExp),
@@ -1520,6 +1539,8 @@ export const VoidCustomerPaymentResponse = zod.object({
   "received_on": zod.iso.date(),
   "reference": zod.string(),
   "notes": zod.string(),
+  "reason": zod.string(),
+  "paid_by": zod.string(),
   "allocated_total": zod.stringFormat('decimal', voidCustomerPaymentResponseAllocatedTotalRegExp),
   "unallocated": zod.stringFormat('decimal', voidCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', voidCustomerPaymentResponseRemainingRegExp),
@@ -16784,6 +16805,7 @@ export const RejectIssuedEffetResponse = zod.object({
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
+  "reason": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
@@ -17295,6 +17317,7 @@ export const ListSupplierPaymentsResponse = zod.object({
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
+  "reason": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
@@ -17353,6 +17376,10 @@ export const recordSupplierPaymentBodyLinesItemNumberMax = 50;
 
 
 export const recordSupplierPaymentBodyNotesDefault = ``;
+export const recordSupplierPaymentBodyReasonDefault = ``;
+export const recordSupplierPaymentBodyReasonMax = 200;
+
+
 export const recordSupplierPaymentBodyAutoAllocateDefault = false;
 
 
@@ -17374,6 +17401,7 @@ export const RecordSupplierPaymentBody = zod.object({
   "account": zod.int().min(1).nullish()
 }).describe('One means of the règlement (D-208). Our cheque or traite gives its number, bank and échéance.')).optional(),
   "notes": zod.string().default(recordSupplierPaymentBodyNotesDefault),
+  "reason": zod.string().max(recordSupplierPaymentBodyReasonMax).default(recordSupplierPaymentBodyReasonDefault),
   "allocations": zod.array(zod.object({
   "invoice": zod.int().min(1),
   "amount": zod.string()
@@ -17406,6 +17434,7 @@ export const RecordSupplierPaymentResponse = zod.object({
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
+  "reason": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
@@ -17474,6 +17503,7 @@ export const GetSupplierPaymentResponse = zod.object({
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
+  "reason": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
@@ -17563,6 +17593,7 @@ export const AllocateSupplierPaymentResponse = zod.object({
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
+  "reason": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
@@ -17641,6 +17672,7 @@ export const VoidSupplierPaymentResponse = zod.object({
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
+  "reason": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),

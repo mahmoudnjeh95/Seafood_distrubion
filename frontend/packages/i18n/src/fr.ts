@@ -1709,6 +1709,7 @@ export const fr = {
       previous: "Précédent",
       next: "Suivant",
       columns: {
+        reason: "Motif",
         number: "N°",
         date: "Date",
         customer: "Client",
@@ -2939,6 +2940,10 @@ export const fr = {
         new: "Nouveau règlement",
         detailed: "Règlement détaillé",
         customerTitle: "Nouveau règlement client",
+        reason: "Motif (optionnel)",
+        paidBy: "Payé par (optionnel)",
+        reasonLabel: "Motif",
+        paidByLabel: "Payé par",
         paymentInfo: "Informations encaissement",
         customerInfo: "Informations client",
         decaissementInfo: "Informations décaissement",
@@ -3161,6 +3166,7 @@ export const fr = {
         mixed: "Plusieurs moyens",
       },
       columns: {
+        reason: "Motif",
         number: "N°",
         date: "Date",
         supplier: "Fournisseur",
