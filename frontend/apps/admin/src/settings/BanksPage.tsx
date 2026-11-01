@@ -134,10 +134,14 @@ function BankDialog({
   const formId = useId();
   const [code, setCode] = useState(bank?.code ?? "");
   const [name, setName] = useState(bank?.name ?? "");
+  const [swift, setSwift] = useState(bank?.swift ?? "");
+  const [address, setAddress] = useState(bank?.address ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation({
     mutationFn: () =>
-      bank ? updateBank(bank.id, { code, name, is_active: bank.is_active }) : createBank({ code, name }),
+      bank
+        ? updateBank(bank.id, { code, name, swift, address, is_active: bank.is_active })
+        : createBank({ code, name, swift, address }),
     onSuccess: async (saved) => {
       toast.success(t("admin.treasury.banks.saved", { code: saved.code }));
       await onSaved();
@@ -175,6 +179,26 @@ function BankDialog({
                 value={name}
                 maxLength={100}
                 onChange={(event) => setName(event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-[1fr_2fr] gap-3 max-[520px]:grid-cols-1">
+            <Field label={t("admin.treasury.banks.swift")} htmlFor={`${formId}-swift`} error={errors.swift}>
+              <Input
+                id={`${formId}-swift`}
+                value={swift}
+                maxLength={11}
+                onChange={(event) => setSwift(event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label={t("admin.treasury.banks.address")} htmlFor={`${formId}-address`} error={errors.address}>
+              <Input
+                id={`${formId}-address`}
+                value={address}
+                maxLength={255}
+                onChange={(event) => setAddress(event.target.value)}
                 autoComplete="off"
               />
             </Field>

@@ -11378,14 +11378,22 @@ components:
         name:
           type: string
           readOnly: true
+        swift:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
         is_active:
           type: boolean
           readOnly: true
       required:
+      - address
       - code
       - id
       - is_active
       - name
+      - swift
     BankWrite:
       type: object
       properties:
@@ -11395,6 +11403,14 @@ components:
         name:
           type: string
           maxLength: 200
+        swift:
+          type: string
+          default: ''
+          maxLength: 20
+        address:
+          type: string
+          default: ''
+          maxLength: 255
         is_active:
           type: boolean
           default: true
@@ -12043,6 +12059,14 @@ components:
       - cash_out
       - key
       - net
+    CashTypeEnum:
+      enum:
+      - principal
+      - secondary
+      type: string
+      description: |-
+        * `principal` - Principale
+        * `secondary` - Secondaire
     Category:
       type: object
       properties:
@@ -29302,6 +29326,13 @@ components:
         rib:
           type: string
           readOnly: true
+        iban:
+          type: string
+          readOnly: true
+        cash_type:
+          allOf:
+          - $ref: '#/components/schemas/CashTypeEnum'
+          readOnly: true
         driver:
           type: string
           readOnly: true
@@ -29329,7 +29360,9 @@ components:
       required:
       - balance
       - bank
+      - cash_type
       - driver
+      - iban
       - id
       - is_active
       - is_default
@@ -29356,6 +29389,15 @@ components:
           type: string
           default: ''
           maxLength: 40
+        iban:
+          type: string
+          default: ''
+          maxLength: 60
+        cash_type:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/CashTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         opening_balance:
           type: string
           default: '0'

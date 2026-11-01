@@ -19077,9 +19077,13 @@ export const ListTreasuryAccountsResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "rib": zod.string(),
+  "iban": zod.string(),
+  "cash_type": zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),
   "driver": zod.string(),
   "opening_balance": zod.stringFormat('decimal', listTreasuryAccountsResponseOpeningBalanceRegExp),
   "opening_on": zod.iso.date().nullable(),
@@ -19101,6 +19105,10 @@ export const createTreasuryAccountBodyNameMax = 200;
 export const createTreasuryAccountBodyRibDefault = ``;
 export const createTreasuryAccountBodyRibMax = 40;
 
+export const createTreasuryAccountBodyIbanDefault = ``;
+export const createTreasuryAccountBodyIbanMax = 60;
+
+export const createTreasuryAccountBodyCashTypeDefault = ``;
 export const createTreasuryAccountBodyOpeningBalanceDefault = `0`;
 export const createTreasuryAccountBodyOpeningBalanceMax = 30;
 
@@ -19112,6 +19120,8 @@ export const CreateTreasuryAccountBody = zod.object({
   "name": zod.string().max(createTreasuryAccountBodyNameMax),
   "bank": zod.int().min(1).nullish(),
   "rib": zod.string().max(createTreasuryAccountBodyRibMax).default(createTreasuryAccountBodyRibDefault),
+  "iban": zod.string().max(createTreasuryAccountBodyIbanMax).default(createTreasuryAccountBodyIbanDefault),
+  "cash_type": zod.union([zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),zod.enum([''])]).default(createTreasuryAccountBodyCashTypeDefault),
   "opening_balance": zod.string().max(createTreasuryAccountBodyOpeningBalanceMax).default(createTreasuryAccountBodyOpeningBalanceDefault),
   "opening_on": zod.iso.date().nullish(),
   "is_active": zod.boolean().default(createTreasuryAccountBodyIsActiveDefault),
@@ -19130,9 +19140,13 @@ export const CreateTreasuryAccountResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "rib": zod.string(),
+  "iban": zod.string(),
+  "cash_type": zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),
   "driver": zod.string(),
   "opening_balance": zod.stringFormat('decimal', createTreasuryAccountResponseOpeningBalanceRegExp),
   "opening_on": zod.iso.date().nullable(),
@@ -19161,9 +19175,13 @@ export const GetTreasuryAccountResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "rib": zod.string(),
+  "iban": zod.string(),
+  "cash_type": zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),
   "driver": zod.string(),
   "opening_balance": zod.stringFormat('decimal', getTreasuryAccountResponseOpeningBalanceRegExp),
   "opening_on": zod.iso.date().nullable(),
@@ -19188,6 +19206,10 @@ export const updateTreasuryAccountBodyNameMax = 200;
 export const updateTreasuryAccountBodyRibDefault = ``;
 export const updateTreasuryAccountBodyRibMax = 40;
 
+export const updateTreasuryAccountBodyIbanDefault = ``;
+export const updateTreasuryAccountBodyIbanMax = 60;
+
+export const updateTreasuryAccountBodyCashTypeDefault = ``;
 export const updateTreasuryAccountBodyOpeningBalanceDefault = `0`;
 export const updateTreasuryAccountBodyOpeningBalanceMax = 30;
 
@@ -19199,6 +19221,8 @@ export const UpdateTreasuryAccountBody = zod.object({
   "name": zod.string().max(updateTreasuryAccountBodyNameMax),
   "bank": zod.int().min(1).nullish(),
   "rib": zod.string().max(updateTreasuryAccountBodyRibMax).default(updateTreasuryAccountBodyRibDefault),
+  "iban": zod.string().max(updateTreasuryAccountBodyIbanMax).default(updateTreasuryAccountBodyIbanDefault),
+  "cash_type": zod.union([zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),zod.enum([''])]).default(updateTreasuryAccountBodyCashTypeDefault),
   "opening_balance": zod.string().max(updateTreasuryAccountBodyOpeningBalanceMax).default(updateTreasuryAccountBodyOpeningBalanceDefault),
   "opening_on": zod.iso.date().nullish(),
   "is_active": zod.boolean().default(updateTreasuryAccountBodyIsActiveDefault),
@@ -19217,9 +19241,13 @@ export const UpdateTreasuryAccountResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "rib": zod.string(),
+  "iban": zod.string(),
+  "cash_type": zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),
   "driver": zod.string(),
   "opening_balance": zod.stringFormat('decimal', updateTreasuryAccountResponseOpeningBalanceRegExp),
   "opening_on": zod.iso.date().nullable(),
@@ -19268,9 +19296,13 @@ export const GetAccountStatementResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "rib": zod.string(),
+  "iban": zod.string(),
+  "cash_type": zod.enum(['principal', 'secondary']).describe('* `principal` - Principale\n* `secondary` - Secondaire'),
   "driver": zod.string(),
   "opening_balance": zod.stringFormat('decimal', getAccountStatementResponseAccountOneOpeningBalanceRegExp),
   "opening_on": zod.iso.date().nullable(),
@@ -19333,6 +19365,8 @@ export const ListBanksResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 })
 export const ListBanksResponse = zod.array(ListBanksResponseItem)
@@ -19345,11 +19379,19 @@ export const createBankBodyCodeMax = 40;
 
 export const createBankBodyNameMax = 200;
 
+export const createBankBodySwiftDefault = ``;
+export const createBankBodySwiftMax = 20;
+
+export const createBankBodyAddressDefault = ``;
+export const createBankBodyAddressMax = 255;
+
 export const createBankBodyIsActiveDefault = true;
 
 export const CreateBankBody = zod.object({
   "code": zod.string().max(createBankBodyCodeMax),
   "name": zod.string().max(createBankBodyNameMax),
+  "swift": zod.string().max(createBankBodySwiftMax).default(createBankBodySwiftDefault),
+  "address": zod.string().max(createBankBodyAddressMax).default(createBankBodyAddressDefault),
   "is_active": zod.boolean().default(createBankBodyIsActiveDefault)
 })
 
@@ -19357,6 +19399,8 @@ export const CreateBankResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 })
 
@@ -19372,11 +19416,19 @@ export const updateBankBodyCodeMax = 40;
 
 export const updateBankBodyNameMax = 200;
 
+export const updateBankBodySwiftDefault = ``;
+export const updateBankBodySwiftMax = 20;
+
+export const updateBankBodyAddressDefault = ``;
+export const updateBankBodyAddressMax = 255;
+
 export const updateBankBodyIsActiveDefault = true;
 
 export const UpdateBankBody = zod.object({
   "code": zod.string().max(updateBankBodyCodeMax),
   "name": zod.string().max(updateBankBodyNameMax),
+  "swift": zod.string().max(updateBankBodySwiftMax).default(updateBankBodySwiftDefault),
+  "address": zod.string().max(updateBankBodyAddressMax).default(updateBankBodyAddressDefault),
   "is_active": zod.boolean().default(updateBankBodyIsActiveDefault)
 })
 
@@ -19384,6 +19436,8 @@ export const UpdateBankResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 })
 
@@ -19491,6 +19545,8 @@ export const ListDepositsResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),
   "account": zod.union([zod.object({
@@ -19511,6 +19567,8 @@ export const ListDepositsResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -19577,6 +19635,8 @@ export const CreateDepositResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),
   "account": zod.union([zod.object({
@@ -19597,6 +19657,8 @@ export const CreateDepositResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -19646,6 +19708,8 @@ export const GetDepositResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),
   "account": zod.union([zod.object({
@@ -19666,6 +19730,8 @@ export const GetDepositResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -19745,6 +19811,8 @@ export const ListInstrumentsResponse = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -19803,6 +19871,8 @@ export const CashInstrumentsResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -19861,6 +19931,8 @@ export const DebitInstrumentsResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -19919,6 +19991,8 @@ export const ReturnInstrumentsResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),
@@ -20023,6 +20097,8 @@ export const WithdrawInstrumentsResponseItem = zod.object({
   "id": zod.int(),
   "code": zod.string(),
   "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
   "is_active": zod.boolean()
 }),zod.null()]),
   "drawer": zod.string(),

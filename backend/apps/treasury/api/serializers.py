@@ -11,6 +11,7 @@ from apps.treasury.models import (
     AccountTransfer,
     Bank,
     CashCount,
+    CashType,
     Deposit,
     Instrument,
     InstrumentDirection,
@@ -31,13 +32,16 @@ def _person(user: User | None) -> str:
 class BankSerializer(serializers.ModelSerializer[Bank]):
     class Meta:
         model = Bank
-        fields: tuple[str, ...] = ("id", "code", "name", "is_active")
+        fields: tuple[str, ...] = ("id", "code", "name", "swift", "address", "is_active")
         read_only_fields: tuple[str, ...] = fields
 
 
 class BankWriteSerializer(serializers.Serializer[Any]):
     code = serializers.CharField(allow_blank=True, max_length=40)
     name = serializers.CharField(allow_blank=True, max_length=200)
+    # The SWIFT code (8 or 11 characters) and the branch address; both may be left blank.
+    swift = serializers.CharField(required=False, allow_blank=True, default="", max_length=20)
+    address = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
     # Only on a change: off takes the bank off the lists.
     is_active = serializers.BooleanField(required=False, default=True)
 
@@ -210,6 +214,8 @@ class TreasuryAccountSerializer(serializers.ModelSerializer[TreasuryAccount]):
             "name",
             "bank",
             "rib",
+            "iban",
+            "cash_type",
             "driver",
             "opening_balance",
             "opening_on",
@@ -229,6 +235,9 @@ class TreasuryAccountWriteSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(allow_blank=True, max_length=200)
     bank = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
     rib = serializers.CharField(required=False, allow_blank=True, default="", max_length=40)
+    # A bank account's IBAN (spaces allowed), and a Caisse's type (principale or secondaire): checked by the service.
+    iban = serializers.CharField(required=False, allow_blank=True, default="", max_length=60)
+    cash_type = serializers.ChoiceField(choices=CashType.choices, required=False, allow_blank=True, default="")
     # A string ("1250.000", "-300.000" for an overdraft), checked by the service.
     opening_balance = serializers.CharField(required=False, allow_blank=True, default="0", max_length=30)
     opening_on = serializers.DateField(required=False, allow_null=True, default=None)

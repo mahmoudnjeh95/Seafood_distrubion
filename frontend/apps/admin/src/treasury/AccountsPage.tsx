@@ -1,4 +1,5 @@
 import {
+  type CashTypeEnum,
   type TreasuryAccount,
   type TreasuryAccountWrite,
   createCashCount,
@@ -76,6 +77,7 @@ export function AccountsPage({ kind }: { kind: Kind }) {
                 <Th>{t("admin.treasury.accounts.columns.name")}</Th>
                 {kind === "bank" && <Th>{t("admin.treasury.accounts.columns.bank")}</Th>}
                 {kind === "bank" && <Th>{t("admin.treasury.accounts.columns.rib")}</Th>}
+                {kind === "bank" && <Th>{t("admin.treasury.accounts.columns.iban")}</Th>}
                 <Th numeric>{t("admin.treasury.accounts.columns.opening")}</Th>
                 <Th numeric>{t("admin.treasury.accounts.columns.balance")}</Th>
                 <Th>{t("admin.treasury.accounts.columns.state")}</Th>
@@ -85,9 +87,20 @@ export function AccountsPage({ kind }: { kind: Kind }) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id}>
-                  <Td className="font-semibold">{row.name}</Td>
+                  <Td className="font-semibold">
+                    {row.name}
+                    {kind === "cash" && (
+                      <span className="font-normal text-ink-2">
+                        {" · "}
+                        {row.cash_type === "secondary"
+                          ? t("admin.treasury.accounts.cashType.secondary")
+                          : t("admin.treasury.accounts.cashType.principal")}
+                      </span>
+                    )}
+                  </Td>
                   {kind === "bank" && <Td>{row.bank ? `${row.bank.code} · ${row.bank.name}` : "—"}</Td>}
                   {kind === "bank" && <Td className="num">{row.rib || "—"}</Td>}
+                  {kind === "bank" && <Td className="num">{row.iban || "—"}</Td>}
                   <Td numeric className="num">
                     {formatMoney(row.opening_balance)}
                   </Td>
@@ -144,6 +157,8 @@ function AccountDialog({
   const [name, setName] = useState(account?.name ?? "");
   const [bank, setBank] = useState(account?.bank ? String(account.bank.id) : "");
   const [rib, setRib] = useState(account?.rib ?? "");
+  const [iban, setIban] = useState(account?.iban ?? "");
+  const [cashType, setCashType] = useState<CashTypeEnum>(account?.cash_type || "principal");
   const [opening, setOpening] = useState(account?.opening_balance ?? "0.000");
   const [openingOn, setOpeningOn] = useState(account?.opening_on ?? "");
   const [active, setActive] = useState(account ? (account.is_active ? "yes" : "no") : "yes");
@@ -159,6 +174,8 @@ function AccountDialog({
       name: name.trim(),
       bank: kind === "bank" && bank ? Number(bank) : null,
       rib: kind === "bank" ? rib.trim() : "",
+      iban: kind === "bank" ? iban.trim() : "",
+      cash_type: kind === "cash" ? cashType : "",
       opening_balance: opening.trim().replace(",", ".") || "0",
       opening_on: openingOn || null,
       is_active: active === "yes",
@@ -215,7 +232,32 @@ function AccountDialog({
                   onChange={(event) => setRib(event.target.value)}
                 />
               </Field>
+              <Field label={t("admin.treasury.accounts.dialog.iban")} htmlFor={`${id}-iban`} error={errors.iban}>
+                <Input
+                  id={`${id}-iban`}
+                  value={iban}
+                  maxLength={40}
+                  onChange={(event) => setIban(event.target.value)}
+                />
+              </Field>
             </>
+          )}
+          {kind === "cash" && (
+            <Field
+              label={t("admin.treasury.accounts.dialog.cashType")}
+              htmlFor={`${id}-cash-type`}
+              error={errors.cash_type}
+            >
+              <Select value={cashType} onValueChange={(value) => setCashType(value as CashTypeEnum)}>
+                <SelectTrigger id={`${id}-cash-type`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="principal">{t("admin.treasury.accounts.cashType.principal")}</SelectItem>
+                  <SelectItem value="secondary">{t("admin.treasury.accounts.cashType.secondary")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
           )}
           <Field
             label={t("admin.treasury.accounts.dialog.opening")}

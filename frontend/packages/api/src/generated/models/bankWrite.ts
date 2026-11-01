@@ -10,5 +10,9 @@ export interface BankWrite {
   code: string;
   /** @maxLength 200 */
   name: string;
+  /** @maxLength 20 */
+  swift?: string;
+  /** @maxLength 255 */
+  address?: string;
   is_active?: boolean;
 }

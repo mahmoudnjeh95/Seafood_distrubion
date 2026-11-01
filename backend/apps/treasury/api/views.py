@@ -86,6 +86,8 @@ class BankListView(OfficeView):
             actor=self.membership.user,
             code=serializer.validated_data["code"],
             name=serializer.validated_data["name"],
+            swift=serializer.validated_data["swift"],
+            address=serializer.validated_data["address"],
         )
         return Response(BankSerializer(bank).data, status=status.HTTP_201_CREATED)
 
@@ -119,6 +121,8 @@ class BankDetailView(OfficeView):
             code=serializer.validated_data["code"],
             name=serializer.validated_data["name"],
             is_active=serializer.validated_data["is_active"],
+            swift=serializer.validated_data["swift"],
+            address=serializer.validated_data["address"],
         )
         return Response(BankSerializer(bank).data)
 
@@ -357,6 +361,8 @@ class AccountListView(OfficeView):
             name=data["name"],
             bank=_bank_or_none(self.organization, data["bank"]),
             rib=data["rib"],
+            iban=data["iban"],
+            cash_type=data["cash_type"],
             opening_balance=data["opening_balance"],
             opening_on=data["opening_on"],
         )
@@ -390,6 +396,8 @@ class AccountDetailView(OfficeView):
             name=data["name"],
             bank=_bank_or_none(self.organization, data["bank"]),
             rib=data["rib"],
+            iban=data["iban"],
+            cash_type=data["cash_type"],
             opening_balance=data["opening_balance"],
             opening_on=data["opening_on"],
             is_active=data["is_active"],

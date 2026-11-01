@@ -19,6 +19,9 @@ class Bank(OrganizationScopedModel, TimeStampedModel):
     # Short name printed on lists ("BIAT", "STB").
     code = models.CharField(max_length=20)
     name = models.CharField(max_length=100)
+    # The SWIFT code (8 or 11 characters) and the branch's address, as the bank's documents show them.
+    swift = models.CharField(max_length=11, blank=True)
+    address = models.CharField(max_length=255, blank=True)
     # A bank no longer offered in the lists; effets already drawn on it keep it.
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0)
@@ -187,6 +190,12 @@ class AccountKind(models.TextChoices):
     DRIVER = "driver", _("Caisse chauffeur")
 
 
+class CashType(models.TextChoices):
+    # The main cash box, and the others (a secondary Caisse, e.g. at the port).
+    PRINCIPAL = "principal", _("Principale")
+    SECONDARY = "secondary", _("Secondaire")
+
+
 class TreasuryAccount(OrganizationScopedModel, TimeStampedModel):
     """Where our money is: a Caisse, a bank account, a driver's cash (D-219).
 
@@ -199,6 +208,10 @@ class TreasuryAccount(OrganizationScopedModel, TimeStampedModel):
     # A bank account: its bank and its RIB (20 digits).
     bank = models.ForeignKey(Bank, null=True, blank=True, on_delete=models.PROTECT, related_name="accounts")
     rib = models.CharField(max_length=20, blank=True)
+    # A bank account's IBAN, as the bank writes it (spaces are dropped when saved).
+    iban = models.CharField(max_length=40, blank=True)
+    # A Caisse: the main one or a secondary one.
+    cash_type = models.CharField(max_length=10, choices=CashType.choices, blank=True)
     # A driver's cash: whose.
     driver = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

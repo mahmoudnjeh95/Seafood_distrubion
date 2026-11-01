@@ -9,5 +9,7 @@ export interface Bank {
   readonly id: number;
   readonly code: string;
   readonly name: string;
+  readonly swift: string;
+  readonly address: string;
   readonly is_active: boolean;
 }

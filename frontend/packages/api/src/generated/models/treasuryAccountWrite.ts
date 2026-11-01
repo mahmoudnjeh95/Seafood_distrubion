@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { AccountKindEnum } from './accountKindEnum';
+import type { TreasuryAccountWriteCashType } from './treasuryAccountWriteCashType';
 
 export interface TreasuryAccountWrite {
   kind?: AccountKindEnum;
@@ -17,6 +18,9 @@ export interface TreasuryAccountWrite {
   bank?: number | null;
   /** @maxLength 40 */
   rib?: string;
+  /** @maxLength 60 */
+  iban?: string;
+  cash_type?: typeof TreasuryAccountWriteCashType[keyof typeof TreasuryAccountWriteCashType];
   /** @maxLength 30 */
   opening_balance?: string;
   /** @nullable */
