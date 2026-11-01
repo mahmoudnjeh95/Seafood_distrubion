@@ -133,7 +133,8 @@ function Figures({ summary }: { summary: DaySummary }) {
  * screen for the day of now, the history for an earlier one (D-134). The driver is not asked to count the cash: the
  * office counts it when they are back, and they see only what they should hold (D-213). Both screens wait for what
  * the phone still has to send, say why it waits and let the driver retry (D-129). A sent day is sent again when the
- * office asked, when a new load reopened it, or when its records changed since the send (D-132). */
+ * office asked, when a new load reopened it. When its records changed since the send, the office corrects it and the
+ * driver does not send it again (D-132, D-220). */
 export function DayReport({
   data,
   sending,
@@ -166,8 +167,11 @@ export function DayReport({
     }
   };
   const { summary, closing } = data;
-  const changed = closing?.status === "submitted" && closing.changed_since_sent;
-  const locked = closing?.status === "approved" || (closing?.status === "submitted" && !changed);
+  // A sent day whose records moved is corrected by the office, never sent again by the driver (D-220).
+  const officeFixes =
+    closing?.changed_since_sent === true && (closing.status === "submitted" || closing.status === "justification");
+  const locked =
+    closing?.status === "approved" || (closing?.status === "submitted" && !closing.changed_since_sent) || officeFixes;
   const handedOver = handedOverOf(summary);
   const gate = closingGate({ queue, online, busy: sending });
   const waiting = gate.waiting;
@@ -191,9 +195,14 @@ export function DayReport({
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.approved")}</p>
         </Card>
-      ) : closing?.status === "submitted" && !changed ? (
+      ) : closing?.status === "submitted" && !officeFixes ? (
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.sent")}</p>
+        </Card>
+      ) : null}
+      {officeFixes ? (
+        <Card>
+          <p className="font-semibold text-warn">{t("truck.closing.changed")}</p>
         </Card>
       ) : null}
       {locked ? null : (
@@ -201,7 +210,6 @@ export function DayReport({
           {closing?.status === "reopened" ? (
             <p className="font-semibold text-warn">{t("truck.closing.reopened")}</p>
           ) : null}
-          {changed ? <p className="font-semibold text-warn">{t("truck.closing.changed")}</p> : null}
           {closing !== null && closing.status !== "submitted" && closing.review_note !== "" ? (
             <p className="font-semibold text-bad">{t("truck.closing.asked", { reason: closing.review_note })}</p>
           ) : null}

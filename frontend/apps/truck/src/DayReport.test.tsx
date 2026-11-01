@@ -194,9 +194,18 @@ test("a day never reopened shows no cash handed over", () => {
   expect(markup(day([product], sentClosing))).not.toContain("Déjà remis au bureau");
 });
 
-test("a sent day whose records changed since is counted and sent again (D-132)", () => {
+test("a sent day whose records changed is corrected by the office, not sent again by the driver (D-220)", () => {
   const html = markup(day([product], { ...sentClosing, changed_since_sent: true }));
 
   expect(html).toContain("Les chiffres de la journée ont changé depuis l&#x27;envoi");
+  expect(html).toContain("Le bureau corrige la journée");
+  expect(html).not.toContain("Envoyer ma journée au bureau");
+});
+
+test("a justification asked on a day whose records did not move is answered by sending it again (D-220)", () => {
+  const asked = { ...sentClosing, status: "justification" as const, review_note: "Expliquez" };
+
+  const html = markup(day([product], asked));
+
   expect(html).toContain("Envoyer ma journée au bureau");
 });

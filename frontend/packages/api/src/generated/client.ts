@@ -64,6 +64,7 @@ import type {
   CustomerWrite,
   Dashboard,
   DayClosingApprove,
+  DayClosingCorrect,
   DayClosingCount,
   DayClosingDetail,
   DayClosingRow,
@@ -4569,6 +4570,95 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getApproveDayClosingMutationOptions(options), queryClient);
+    }
+
+export const getCorrectDayClosingUrl = (closingId: number,) => {
+
+
+
+
+  return `/api/v1/day-closings/${closingId}/correct`
+}
+
+/**
+ * The office corrects a driver's day (owner or manager, D-220): the driver never changes a sent day. The
+ * day's figures are taken as the records say now, and the counts are changed when given. Needs a `reason`;
+ * the correction is kept as a revision with the figures before and after. Refused for a day a new load
+ * reopened.
+ */
+export const correctDayClosing = async (closingId: number,
+    dayClosingCorrect: DayClosingCorrect, options?: Parameters<typeof apiFetch>[1]): Promise<DayClosingDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayClosingDetail>(getCorrectDayClosingUrl(closingId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayClosingCorrect)
+  }
+);}
+
+
+
+
+
+export const getCorrectDayClosingMutationKey = () => ['correctDayClosing'] as const;
+
+export const getCorrectDayClosingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctDayClosing>>, TError,CorrectDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof correctDayClosing>>, TError,CorrectDayClosingMutationVariables, TContext> => {
+
+const mutationKey = getCorrectDayClosingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof correctDayClosing>>, CorrectDayClosingMutationVariables> = (props) => {
+          const {closingId,data} = props ?? {};
+
+          return  correctDayClosing(closingId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CorrectDayClosingMutationResult = NonNullable<Awaited<ReturnType<typeof correctDayClosing>>>
+    export type CorrectDayClosingMutationBody = DayClosingCorrect
+    export type CorrectDayClosingMutationError = unknown
+    export type CorrectDayClosingMutationVariables = {closingId: number;data: DayClosingCorrect}
+
+    export const useCorrectDayClosing = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctDayClosing>>, TError,CorrectDayClosingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof correctDayClosing>>,
+        TError,
+        CorrectDayClosingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCorrectDayClosingMutationOptions(options), queryClient);
     }
 
 export const getCountDayClosingUrl = (closingId: number,) => {

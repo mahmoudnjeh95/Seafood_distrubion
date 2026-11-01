@@ -3164,6 +3164,35 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: a second decimal separator is ignored ("1.250.000" shows "1,250000"); decimals are not cut, so a
   fourth decimal is still shown and refused by the parser as before.
 
+**D-220 · Only the office corrects a driver's day, every correction is a revision; "La caisse" is off on a 0 DT day (owner list 2026-10-31, points 1 and 2; changes D-134's re-send, D-132, D-205)** · accepted, provisional parts marked · 2026-10-31
+- **The driver never sends a sent day again when its records moved.** `submit_day_closing` raises 403 "Le bureau corrige
+  la journée. Vous ne pouvez plus l'envoyer." for a submitted or justification day whose `changed_since_sent` is true.
+  The re-send with no change (after a justification) and a reopened day (a new load, D-134) stay as they were. The phone
+  shows the sent figures (`day_answer`: as sent unless the day reopened) and "Le bureau corrige la journée" in place of
+  the send button.
+- **The office corrects it, with a revision.** `POST /day-closings/<id>/correct` (owner or manager; `reason` required,
+  optional `office_counted_cash` / `office_counted_purchase_cash`; an empty count stays) takes the day's records as they
+  are now (`summary`, `expected_cash`, `expected_purchase_cash`), sets the counts and the gaps, and writes a
+  `DayClosingRevision` (number per day, actor, reason, `before` and `after` as strings: the day's figures and the
+  office's counts) plus the audit `day_closing.corrected`. A correction changing nothing is refused. The day's detail
+  lists `revisions` (who, when, why, before and after) for the office's day window. Refused on a reopened day.
+- **A saved count changes only by a correction** (`_refuse_recount`): counting, approving with counts, and recounting
+  refuse a different figure than the one saved. The count inputs are disabled once counted.
+- **Provisional:** a correction keeps the status: an approved day stays approved (the revision stands, no new
+  approval), a day to check stays to check. The owner may prefer a correction to send the day back to the review.
+- **Provisional:** the correction takes the records as they are now rather than typed figures: only the counts are typed.
+- **"La caisse" on the phone and the server (owner point 2).** The day's accepted starting cash (`DriverDay.opening_cash`)
+  of 0 DT, or no day started, turns "La caisse" off: the phone's expense "Payé avec" disables it and falls back to "Ma
+  poche" (`cashOffOn`, `paidWithOn`), and `expenses.services.submit_road_expense` refuses a cash expense not paid by the
+  driver with "« La caisse » n'est pas possible : …" on `paid_with` (400). This reverses the "always offered" part of
+  D-205 for the expense only.
+- **Provisional scope:** "La caisse" is the expense choice, the only one labelled so. Customer receipts (sales, payments,
+  delivery cash) and purchases paid in cash from the purchase money (D-158) stay open: they bring money in, or are paid
+  from the purchase float, not from the box. The owner may want the purchase cash and the receipts blocked too.
+- **Provisional:** no day started counts as 0 DT (the office has not handed any cash yet), though D-133 accepts a sale
+  with no day; a driver with no day pays with "Ma poche" or "Carte".
+- Migration `dayclose/0009_dayclosingrevision`. API `correctDayClosing` (generated client). Tests:
+  `dayclose/tests/test_day_correction.py`, `expenses/tests/test_road_expense_cash.py`, the phone's `expensePaid.test.ts`.
 **D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
 - `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when
   first needed). Its balance is the opening balance plus its movements from the opening day on; older movements stay

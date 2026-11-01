@@ -96,6 +96,29 @@ class DayReopening(OrganizationScopedModel, TimeStampedModel):
         return f"{self.closing.driver_day} · {self.load.number}"
 
 
+class DayClosingRevision(OrganizationScopedModel, TimeStampedModel):
+    """An office correction of a driver's day (D-220): who made it, when (`created_at`), why, and the figures before
+    and after (the sent figures, then the office's counts). The driver never corrects a sent day: only this does.
+    Never changed once written; a correction is a new revision, numbered per closing."""
+
+    closing = models.ForeignKey(DayClosing, on_delete=models.PROTECT, related_name="revisions")
+    number = models.PositiveIntegerField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    reason = models.CharField(max_length=300)
+    # Figure name -> value as a string (Decimals stay exact): the day's figures and the office's counts.
+    before: Any = models.JSONField(encoder=DjangoJSONEncoder)
+    after: Any = models.JSONField(encoder=DjangoJSONEncoder)
+
+    class Meta:
+        ordering = ["number"]
+        constraints = [
+            models.UniqueConstraint(fields=["closing", "number"], name="day_closing_revision_number_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.closing.driver_day} · révision {self.number}"
+
+
 class SyncProblem(OrganizationScopedModel, TimeStampedModel):
     """Something a driver's phone could not send because the server refused it (P3-T07d, D-099): a sale above the
     credit limit, stock the office moved meanwhile... The phone reports it so the office sees it; it is never

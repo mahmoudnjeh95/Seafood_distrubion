@@ -1,10 +1,12 @@
 import {
   type ChangedFigure,
+  type DayClosingRevision,
   type DayClosingRow,
   type DayProduct,
   type DayReopening,
   type DaySummary,
   useApproveDayClosing,
+  useCorrectDayClosing,
   useCountDayClosing,
   useGetDayClosing,
   useListDayClosings,
@@ -152,8 +154,72 @@ function Reopenings({ reopened, sends }: { reopened: boolean; sends: readonly Da
   );
 }
 
+/** A correction's figures as kept: the day's figures and the office's counts, as strings or null (D-220). */
+type Figures = Record<string, string | null | undefined>;
+
+/** A figure of a correction shown in money, or signed for a gap. */
+function figureText(name: string, value: string | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return name.endsWith("difference") ? signed(value) : formatMoney(value);
+}
+
+/** The office's corrections of the day, oldest first: who, when, why, and the figures that moved (D-220). */
+function Revisions({ revisions }: { revisions: readonly DayClosingRevision[] }) {
+  const { t } = useTranslation();
+  if (revisions.length === 0) return null;
+  const rows: [string, string][] = [
+    ["sales_total", t("admin.dayClosings.changed.figures.sales_total")],
+    ["expected_cash", t("admin.dayClosings.expected")],
+    ["office_counted_cash", t("admin.dayClosings.officeCounted")],
+    ["office_difference", t("admin.dayClosings.officeGap")],
+    ["expected_purchase_cash", t("admin.dayClosings.purchases.expected")],
+    ["office_counted_purchase_cash", t("admin.dayClosings.purchases.counted")],
+    ["office_purchase_difference", t("admin.dayClosings.purchases.difference")],
+  ];
+  return (
+    <fieldset className="flex flex-col gap-3 rounded-card border border-line p-3">
+      <legend className="px-1 font-semibold">{t("admin.dayClosings.revisions.title")}</legend>
+      {revisions.map((revision) => {
+        const before = revision.before as Figures;
+        const after = revision.after as Figures;
+        const moved = rows.filter(([name]) => before[name] !== after[name]);
+        return (
+          <div key={revision.number} className="flex flex-col gap-1">
+            <p className="font-semibold">
+              {t("admin.dayClosings.revisions.by", {
+                number: revision.number,
+                name: revision.actor_name,
+                when: formatDateTime(revision.created_at),
+              })}
+            </p>
+            <p className="text-[0.88rem]">{t("admin.dayClosings.revisions.reason", { reason: revision.reason })}</p>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>{t("admin.dayClosings.changed.figure")}</Th>
+                  <Th className="text-end">{t("admin.dayClosings.revisions.before")}</Th>
+                  <Th className="text-end">{t("admin.dayClosings.revisions.after")}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {moved.map(([name, label]) => (
+                  <tr key={name}>
+                    <Td>{label}</Td>
+                    <Td className="num text-end">{figureText(name, before[name])}</Td>
+                    <Td className="num text-end font-semibold">{figureText(name, after[name])}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        );
+      })}
+    </fieldset>
+  );
+}
+
 /** What the records say now against what the driver sent (D-132, D-134): a sale received after the send, or a
- * correction by the office. The office cannot approve until the driver sends the day again. */
+ * correction by the office. The office corrects the day (D-220); the driver does not send it again. */
 function ChangesSinceSent({ changes }: { changes: readonly ChangedFigure[] }) {
   const { t } = useTranslation();
   if (changes.length === 0) return null;
@@ -196,9 +262,27 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const [officeCash, setOfficeCash] = useState("");
   const [officePurchase, setOfficePurchase] = useState("");
   const [gapNote, setGapNote] = useState("");
+  // The office's correction of the day (D-220): a reason, and counts to change; an empty count stays as it is.
+  const [correcting, setCorrecting] = useState(false);
+  const [correctReason, setCorrectReason] = useState("");
+  const [correctCash, setCorrectCash] = useState("");
+  const [correctPurchase, setCorrectPurchase] = useState("");
   const refresh = () => {
     void queryClient.invalidateQueries();
   };
+  const correct = useCorrectDayClosing({
+    mutation: {
+      onSuccess: () => {
+        toast.success(t("admin.dayClosings.correct.saved"));
+        setCorrecting(false);
+        setCorrectReason("");
+        setCorrectCash("");
+        setCorrectPurchase("");
+        refresh();
+      },
+      onError: (failure) => toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.dayClosings.error")),
+    },
+  });
   const approve = useApproveDayClosing({
     mutation: {
       onSuccess: () => {
@@ -246,6 +330,12 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const officePurchaseGap = gapOf(purchaseCounted, data?.expected_purchase_cash);
   const gapToExplain = officeGap !== 0 || officePurchaseGap !== 0;
   const readyToApprove = cashCounted !== null && (!gapToExplain || gapNote.trim() !== "");
+  // An empty correction count stays as it is; a typed one must be a number.
+  const correctCashValue = correctCash.trim() === "" ? null : parseDecimalInput(correctCash.trim(), 3);
+  const correctPurchaseValue = correctPurchase.trim() === "" ? null : parseDecimalInput(correctPurchase.trim(), 3);
+  const correctInvalid =
+    (correctCash.trim() !== "" && correctCashValue === null) ||
+    (correctPurchase.trim() !== "" && correctPurchaseValue === null);
   return (
     <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none">
       <DialogTitle>{data ? `${data.truck_name} · ${formatDate(data.date)}` : t("common.loading")}</DialogTitle>
@@ -321,6 +411,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             </div>
           )}
           <ChangesSinceSent changes={data.changes_since_sent} />
+          <Revisions revisions={data.revisions} />
           <Table>
             <thead>
               <tr>
@@ -355,6 +446,68 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               })}
             </tbody>
           </Table>
+          {canDecide && data.status !== "reopened" && (
+            <fieldset className="flex flex-col gap-2 rounded-card border border-line p-3">
+              <legend className="px-1 font-semibold">{t("admin.dayClosings.correct.title")}</legend>
+              <p className="text-[0.85rem] text-ink-2">{t("admin.dayClosings.correct.hint")}</p>
+              {correcting ? (
+                <>
+                  <div className="flex flex-wrap items-end gap-4">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.correct.cash")}</span>
+                      <Input
+                        inputMode="decimal"
+                        className="num max-w-40"
+                        value={correctCash}
+                        onChange={(event) => setCorrectCash(event.target.value)}
+                      />
+                    </label>
+                    {hasPurchases && (
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.correct.purchase")}</span>
+                        <Input
+                          inputMode="decimal"
+                          className="num max-w-40"
+                          value={correctPurchase}
+                          onChange={(event) => setCorrectPurchase(event.target.value)}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <Input
+                    aria-label={t("admin.dayClosings.correct.reason")}
+                    placeholder={t("admin.dayClosings.correct.reason")}
+                    value={correctReason}
+                    onChange={(event) => setCorrectReason(event.target.value)}
+                  />
+                  {correctInvalid && <p className="font-semibold text-bad">{t("admin.dayClosings.correct.invalid")}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="primary"
+                      disabled={correct.isPending || correctReason.trim() === "" || correctInvalid}
+                      onClick={() =>
+                        correct.mutate({
+                          closingId: id,
+                          data: {
+                            reason: correctReason.trim(),
+                            office_counted_cash: correctCashValue,
+                            office_counted_purchase_cash: hasPurchases ? correctPurchaseValue : null,
+                          },
+                        })
+                      }
+                    >
+                      {t("admin.dayClosings.correct.save")}
+                    </Button>
+                    <Button onClick={() => setCorrecting(false)}>{t("admin.dayClosings.correct.cancel")}</Button>
+                  </div>
+                </>
+              ) : (
+                <Button className="self-start" onClick={() => setCorrecting(true)}>
+                  {t("admin.dayClosings.correct.open")}
+                </Button>
+              )}
+            </fieldset>
+          )}
           {data.driver_note !== "" && (
             <p>
               <span className="text-ink-2">{t("admin.dayClosings.driverNote")} : </span>
@@ -371,6 +524,9 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
             <fieldset className="flex flex-col gap-2 rounded-card border border-line p-3">
               <legend className="px-1 font-semibold">{t("admin.dayClosings.officeCount")}</legend>
               <p className="text-[0.85rem] text-ink-2">{t("admin.dayClosings.officeCountHint")}</p>
+              {data.office_counted_cash !== null && (
+                <p className="text-[0.85rem] font-semibold">{t("admin.dayClosings.countedHint")}</p>
+              )}
               <div className="flex flex-wrap items-end gap-4">
                 <label className="flex flex-col gap-1">
                   <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.officeCash")}</span>
@@ -378,6 +534,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                     inputMode="decimal"
                     className="num max-w-40"
                     value={officeCash}
+                    disabled={data.office_counted_cash !== null}
                     onChange={(event) => setOfficeCash(event.target.value)}
                   />
                 </label>
@@ -388,6 +545,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                       inputMode="decimal"
                       className="num max-w-40"
                       value={officePurchase}
+                      disabled={data.office_counted_purchase_cash !== null}
                       onChange={(event) => setOfficePurchase(event.target.value)}
                     />
                   </label>
@@ -444,7 +602,12 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               <Button onClick={() => setAsking(true)}>{t("admin.dayClosings.askWhy")}</Button>
             )}
             <Button
-              disabled={count.isPending || data.changed_since_sent || officeCashValue === null}
+              disabled={
+                count.isPending ||
+                data.changed_since_sent ||
+                officeCashValue === null ||
+                data.office_counted_cash !== null
+              }
               onClick={() => {
                 if (officeCashValue === null) return;
                 count.mutate({
@@ -465,8 +628,10 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                 approve.mutate({
                   closingId: id,
                   data: {
-                    office_counted_cash: officeCashValue,
-                    office_counted_purchase_cash: hasPurchases ? officePurchaseValue : null,
+                    // A saved count changes only by a correction (D-220): the approval sends the typed ones only.
+                    office_counted_cash: data.office_counted_cash === null ? officeCashValue : null,
+                    office_counted_purchase_cash:
+                      hasPurchases && data.office_counted_purchase_cash === null ? officePurchaseValue : null,
                     note: gapNote.trim(),
                   },
                 })
