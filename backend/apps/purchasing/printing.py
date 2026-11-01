@@ -79,7 +79,7 @@ def supplier_receipt_printable(organization: Organization, payment_id: int) -> d
         version=f"{payment.updated_at.isoformat()}|{allocated}",
         filename=f"paiement-{slugify(payment.number) or 'document'}.pdf",
         title=f"Paiement {payment.number}",
-        email_to=payment.supplier.email,
+        email_to=payment.supplier.email_addresses(),
     )
 
 

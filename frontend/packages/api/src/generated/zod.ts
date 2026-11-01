@@ -3503,7 +3503,7 @@ export const ListDocumentsResponse = zod.object({
 
 
 /**
- * What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+ * What "Envoyer par e-mail" proposes for this document (D-206): the party's addresses (D-222), a subject naming
  * the document and the company, a short message; and the last times it was sent.
  */
 export const GetDocumentEmailDraftParams = zod.object({
@@ -3512,7 +3512,7 @@ export const GetDocumentEmailDraftParams = zod.object({
 })
 
 export const GetDocumentEmailDraftResponse = zod.object({
-  "to": zod.string(),
+  "to": zod.array(zod.string()),
   "subject": zod.string(),
   "body": zod.string(),
   "sent": zod.array(zod.object({
