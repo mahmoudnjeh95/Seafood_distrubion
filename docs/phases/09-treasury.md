@@ -167,6 +167,19 @@ cash only on the phone (as today, D-133).
 - [ ] Supplier side: what we owe, and our effets not yet debited.
 - [ ] Rapprochement bancaire (import a bank statement and match it): backlog, only if the accountant asks.
 
+### P9-T08 · Trésorerie in the Perfaxis layout (D-230) · M
+_Owner request of 2026-11-01: the module looks like the Perfaxis one (the ribbon of icon buttons, the grids, the
+bordereau de versement, the états des factures); the flow and the rules stay ours. No backend change, no migration._
+- [x] `TresorerieRibbon` on every treasury screen: Encaissement, Décaissement, Banque, Portefeuille, Bordereau de
+      versement, Ordre de paiement, Facture de vente, Facture d'achat; the current screen is highlighted.
+- [x] Bordereau de versement (`/tresorerie/bordereau`): En attente, Encaissé, Impayé; tick effets in a column, then
+      Encaissé / Impayé / Restituer with the same dialogs as the Portefeuille.
+- [x] États des factures (`/tresorerie/etats/ventes`, `/tresorerie/etats/achats`): invoices grouped by customer or
+      supplier, net à payer, réglé, restant, état, totals.
+- [ ] Agence bancaire, Caisse liquide, Journal des banques, Journal des caisses: wait for P9-T05 (not merged).
+- [ ] Excel export of the états (Perfaxis "Exporter les données"): later.
+- Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
+
 ## Defaults chosen without the owner (provisional, D-197)
 
 - Banks: the list of Tunisian banks is editable in Paramètres › Banques.
