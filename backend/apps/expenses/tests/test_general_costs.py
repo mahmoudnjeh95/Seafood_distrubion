@@ -55,8 +55,11 @@ def elapsed_days():
 
 def assert_charged(amount, per_day, before, after):
     """`amount` is `per_day` for each day passed, read between `before` and `after` (the clock moves during the
-    call). The margin is a millime per hour passed: each hour's share is rounded to the millime per lot."""
-    margin = D("0.001") * (after * 24 + 1)
+    call). The margin is, per hour passed, a millime (each hour's share is rounded to the millime per lot) and
+    a second of `per_day` (each hour piece counts whole seconds). Without the second, a 300 kg lot failed in
+    the first minutes of a month, when the margin is smallest."""
+    pieces = after * 24 + 1
+    margin = D("0.001") * pieces + per_day * pieces / 86400
     assert per_day * before - margin <= amount <= per_day * after + margin
 
 
