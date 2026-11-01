@@ -282,6 +282,27 @@ class ElectricityBill(OrganizationScopedModel, TimeStampedModel):
         return f"{self.month:%Y-%m} · {self.expense}"
 
 
+class ColdRoomEstimate(OrganizationScopedModel, TimeStampedModel):
+    """The owner's estimate of a month's electricity for all the cold rooms, typed before the bill arrives
+    (D-227). While the month is not billed it replaces the previous month's daily rate: the rooms share it by
+    weight, as the bill is shared. Changed freely until the month's bill is approved, then frozen (the rates
+    keep the daily amount that was used)."""
+
+    # The first day of the month the estimate is for.
+    month = models.DateField()
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["-month", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "month"], name="cold_room_estimate_one_per_month"),
+            models.CheckConstraint(condition=models.Q(amount__gt=Decimal("0")), name="cold_room_estimate_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.month:%Y-%m} · {self.amount}"
+
+
 class ColdRoomMonthRate(OrganizationScopedModel):
     """Frozen when a bill is approved: what a cold room's part of that month was, and the daily rate that
     had been used as its estimate. Never changes (later weight changes do not touch past bills)."""
