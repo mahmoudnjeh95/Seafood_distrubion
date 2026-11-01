@@ -20,6 +20,7 @@ from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
 from apps.fleet import selectors as fleet
 from apps.inventory.services import LocationKind
+from apps.treasury import services as treasury
 
 from . import cost_selectors
 from .costing import first_of_month, last_of_month, room_month_amounts
@@ -456,8 +457,40 @@ def approve_expense(*, expense: Expense, actor: User | None) -> Expense:
         target=expense,
         after={"amount": str(expense.amount)},
     )
+    _post_expense_money(expense, actor=actor)
     after_expense_approved(expense=expense, actor=actor)
     return expense
+
+
+# The treasury movement of an approved expense: the money leaves the day it was spent (P9-T05b, D-237).
+EXPENSE_SOURCE = "expenses.expense"
+
+
+def _post_expense_money(expense: Expense, *, actor: User | None) -> None:
+    """Out of the driver's cash when the driver paid it in cash, else out of the account its payment method goes to
+    (the Caisse for cash, the main bank account otherwise). Written once: approval is the only time it counts."""
+    driver = expense.entered_by if expense.paid_by_driver else None
+    treasury.post_movement(
+        organization=expense.organization,
+        account=treasury.line_account(expense.organization, expense.payment_method, None, driver=driver),
+        day=expense.spent_on,
+        amount=-expense.amount,
+        kind="expense",
+        label=f"{expense.number} · {expense.category.name}",
+        reference=expense.number,
+        source=EXPENSE_SOURCE,
+        source_id=expense.pk,
+        actor=actor,
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the movements of the expenses approved before the ledger existed. Safe to run again."""
+    approved = Expense.objects.filter(organization=organization, status=ExpenseStatus.APPROVED).select_related(
+        "category", "entered_by"
+    )
+    for expense in approved:
+        _post_expense_money(expense, actor=None)
 
 
 @transaction.atomic

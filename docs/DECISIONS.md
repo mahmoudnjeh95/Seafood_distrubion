@@ -3430,3 +3430,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The date and the party of an encaissement or a décaissement are outlined in red, as the Perfaxis forms mark them
   (`required` on the input, the outline class on the field). The lines' fields are not outlined yet.
 - Provisional: the outline shows from the start, not after a failed save.
+
+**D-238 · Every approved expense is a treasury movement the day it was spent (Phase 9, P9-T05b)** · accepted · 2026-11-01
+- An approved expense leaves an account on its spent-on day: the driver's cash when the driver paid in cash, else the
+  Caisse for cash, else the main bank account. Nothing is written before approval; a refused or waiting expense moves
+  no money.
+- The approved expenses from before the ledger are written by `backfill_treasury` (once; safe to run again).
+- Provisional: a cheque or a traite paid as an expense is counted at the main bank account on approval, not when the
+  bank debits it, until the office decides how expense cheques are followed.
