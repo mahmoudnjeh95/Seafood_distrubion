@@ -5976,7 +5976,7 @@ export const getGetDocumentEmailDraftUrl = (kind: string,
 }
 
 /**
- * What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+ * What "Envoyer par e-mail" proposes for this document (D-206): the party's addresses (D-222), a subject naming
  * the document and the company, a short message; and the last times it was sent.
  */
 export const getDocumentEmailDraft = async (kind: string,
