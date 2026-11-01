@@ -3150,3 +3150,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   layout); the party's own page is not changed (its e-mail field and contacts feed the list). A party with one address
   works as before.
 - Sent addresses are still kept as one text on `documents.SentEmail` (the history row).
+
+**D-231 · Treasury forms take the Perfaxis panels; the états export as a CSV that Excel opens (Phase 9, P9-T08)** · accepted · 2026-11-01
+- The Encaissement and Décaissement forms show a toolbar (Enregistrer, Retour) and two titled panels: the payment
+  information (the date) beside the customer or supplier, the lines and the open items below. The logic is unchanged.
+- "Exporter (Excel)" on the états writes the rows on screen as a CSV: `;` between cells, French decimal commas, a
+  byte-order mark, so Excel opens it with accents right. Provisional: a real `.xlsx` would need a backend endpoint and
+  a regenerated client; the CSV covers the need until the accountant asks for `.xlsx`.
+- Export covers the invoices loaded on the page (the 200 most recent), as the screen does.

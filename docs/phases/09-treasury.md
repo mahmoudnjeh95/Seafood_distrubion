@@ -165,8 +165,10 @@ bordereau de versement, the états des factures); the flow and the rules stay ou
       Encaissé / Impayé / Restituer with the same dialogs as the Portefeuille.
 - [x] États des factures (`/tresorerie/etats/ventes`, `/tresorerie/etats/achats`): invoices grouped by customer or
       supplier, net à payer, réglé, restant, état, totals.
-- [ ] Agence bancaire, Caisse liquide, Journal des banques, Journal des caisses: wait for P9-T05 (not merged).
-- [ ] Excel export of the états (Perfaxis "Exporter les données"): later.
+- [x] Forms in the Perfaxis layout (D-231): Encaissement and Décaissement forms with a toolbar (Enregistrer, Retour) and
+      two titled panels (informations encaissement / décaissement, informations client / fournisseur).
+- [x] Export of the états (D-231): "Exporter (Excel)" writes a CSV that Excel opens (`;`, French decimal commas).
+- [ ] Agence bancaire, Caisse liquide, Journal des banques, Journal des caisses: wait for P9-T05 (#246, not merged).
 - Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
 
 ## Defaults chosen without the owner (provisional, D-197)
