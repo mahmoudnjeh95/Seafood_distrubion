@@ -21,6 +21,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   PageHeader,
   Select,
   SelectContent,
@@ -434,7 +435,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
             {t("admin.sales.form.paidInFull")}
           </label>
           <Field label={t("admin.sales.form.amountPaid")} htmlFor={id("amount_paid")} error={errors.amount_paid}>
-            <Input
+            <MoneyInput
               id={id("amount_paid")}
               inputMode="decimal"
               value={paidInFull ? asTyped(totalExclTax) : amountPaid}

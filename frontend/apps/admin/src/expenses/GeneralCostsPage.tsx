@@ -26,6 +26,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Table,
@@ -132,7 +133,7 @@ function RecurringDialog({ cost, onDone }: { cost?: RecurringCost; onDone: () =>
           error={errors.category}
         />
         <Field label={t("admin.generalCosts.dialog.amount")} htmlFor={id("amount")} error={errors.monthly_amount}>
-          <Input
+          <MoneyInput
             id={id("amount")}
             inputMode="decimal"
             className="num"
@@ -263,7 +264,7 @@ function MultiMonthDialog({ onDone }: { onDone: () => void }) {
           error={errors.category}
         />
         <Field label={t("admin.generalCosts.multi.amount")} htmlFor={id("amount")} error={errors.amount}>
-          <Input
+          <MoneyInput
             id={id("amount")}
             inputMode="decimal"
             className="num"

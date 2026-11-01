@@ -13,7 +13,7 @@ import {
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, ConfirmButton, EmptyState, Field, Icon, type IconName, Input, toast } from "@frutti/ui";
+import { Button, Card, cn, ConfirmButton, EmptyState, Field, Icon, MoneyInput, type IconName, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -134,7 +134,7 @@ function PurchaseFloat({ amount }: { amount: string }) {
   return (
     <div className="space-y-2">
       <Field label={t("truck.purchase.float")} htmlFor="purchase-float-change">
-        <Input
+        <MoneyInput
           id="purchase-float-change"
           inputMode="decimal"
           className="text-xl"

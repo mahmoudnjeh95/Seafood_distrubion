@@ -17,6 +17,7 @@ import type { Session } from "@frutti/auth";
 import {
   formatDate,
   formatMoney,
+  formatMoneyInput,
   formatPercent,
   formatQuantity,
   parseDecimalInput,
@@ -27,6 +28,7 @@ import {
   Card,
   CardTitle,
   Combobox,
+  MoneyInput,
   type ComboboxOption,
   Field,
   Icon,
@@ -42,6 +44,7 @@ import {
   Th,
   cn,
   toast,
+  typeMoney,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
@@ -561,8 +564,11 @@ export function ReceiptFormPage() {
                       id={id(lineKey(index, field))}
                       inputMode="decimal"
                       aria-label={weightLabels[field]}
-                      value={value}
-                      onChange={(event) => onChange(event.target.value)}
+                      value={field === "unit_cost" ? formatMoneyInput(value) : value}
+                      onChange={(event) => {
+                        if (field === "unit_cost") typeMoney(event, value);
+                        onChange(event.target.value);
+                      }}
                       aria-invalid={errors[lineKey(index, field)] ? true : undefined}
                       autoComplete="off"
                       className={cn(CELL_INPUT, "num text-end")}
@@ -776,7 +782,7 @@ export function ReceiptFormPage() {
                   htmlFor={id(paymentKey(index, "amount"))}
                   error={errors[paymentKey(index, "amount")]}
                 >
-                  <Input
+                  <MoneyInput
                     id={id(paymentKey(index, "amount"))}
                     inputMode="decimal"
                     value={payment.amount}

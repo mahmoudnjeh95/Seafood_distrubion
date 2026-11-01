@@ -27,6 +27,17 @@ export interface SaleLine {
   readonly amount: string;
   /**
      * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly vat_rate: string | null;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly amount_excl_tax: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly vat_amount: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly amount_incl_tax: string;
+  /**
+     * @nullable
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
   readonly cost_amount: string | null;

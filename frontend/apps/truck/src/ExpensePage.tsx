@@ -1,7 +1,7 @@
 import { addMyExpense, ApiError, useGetMyDaySummary, useListMyExpenses, useListRoadCategories } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -97,7 +97,7 @@ export function ExpensePage() {
           <label htmlFor="expense-amount" className="font-semibold">
             {t("truck.expense.amount")}
           </label>
-          <Input
+          <MoneyInput
             id="expense-amount"
             inputMode="decimal"
             placeholder="0"

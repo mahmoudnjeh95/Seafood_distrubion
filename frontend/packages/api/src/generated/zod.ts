@@ -9968,6 +9968,9 @@ export const listMyDeliveriesResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,
 export const listMyDeliveriesResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -9979,6 +9982,10 @@ export const listMyDeliveriesResponseLinesItemDiscountRateRegExp = new RegExp('^
 export const listMyDeliveriesResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listMyDeliveriesResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10028,6 +10035,9 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', listMyDeliveriesResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', listMyDeliveriesResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', listMyDeliveriesResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', listMyDeliveriesResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', listMyDeliveriesResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', listMyDeliveriesResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', listMyDeliveriesResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', listMyDeliveriesResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', listMyDeliveriesResponseAmountPaidRegExp),
@@ -10071,6 +10081,10 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "gross_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -10153,6 +10167,9 @@ export const deliverMyDeliveryResponseDiscountTotalRegExp = new RegExp('^-?\\d{0
 export const deliverMyDeliveryResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10164,6 +10181,10 @@ export const deliverMyDeliveryResponseLinesItemDiscountRateRegExp = new RegExp('
 export const deliverMyDeliveryResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const deliverMyDeliveryResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10213,6 +10234,9 @@ export const DeliverMyDeliveryResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', deliverMyDeliveryResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', deliverMyDeliveryResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', deliverMyDeliveryResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', deliverMyDeliveryResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', deliverMyDeliveryResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', deliverMyDeliveryResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', deliverMyDeliveryResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', deliverMyDeliveryResponseAmountPaidRegExp),
@@ -10256,6 +10280,10 @@ export const DeliverMyDeliveryResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -10316,6 +10344,9 @@ export const notDeliveredMyDeliveryResponseDiscountTotalRegExp = new RegExp('^-?
 export const notDeliveredMyDeliveryResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10327,6 +10358,10 @@ export const notDeliveredMyDeliveryResponseLinesItemDiscountRateRegExp = new Reg
 export const notDeliveredMyDeliveryResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const notDeliveredMyDeliveryResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10376,6 +10411,9 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseAmountPaidRegExp),
@@ -10419,6 +10457,10 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -13029,6 +13071,9 @@ export const convertQuoteToSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{
 export const convertQuoteToSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -13040,6 +13085,10 @@ export const convertQuoteToSaleResponseLinesItemDiscountRateRegExp = new RegExp(
 export const convertQuoteToSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const convertQuoteToSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -13089,6 +13138,9 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', convertQuoteToSaleResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', convertQuoteToSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', convertQuoteToSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', convertQuoteToSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', convertQuoteToSaleResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', convertQuoteToSaleResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', convertQuoteToSaleResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', convertQuoteToSaleResponseAmountPaidRegExp),
@@ -13132,6 +13184,10 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -15078,6 +15134,9 @@ export const listSalesResponseResultsItemDiscountTotalRegExp = new RegExp('^-?\\
 export const listSalesResponseResultsItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalesResponseResultsItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSalesResponseResultsItemTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSalesResponseResultsItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15125,6 +15184,9 @@ export const ListSalesResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', listSalesResponseResultsItemTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', listSalesResponseResultsItemTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', listSalesResponseResultsItemTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', listSalesResponseResultsItemAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', listSalesResponseResultsItemVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', listSalesResponseResultsItemTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', listSalesResponseResultsItemCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', listSalesResponseResultsItemMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', listSalesResponseResultsItemAmountPaidRegExp),
@@ -15222,6 +15284,9 @@ export const createSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:
 export const createSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15233,6 +15298,10 @@ export const createSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{
 export const createSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15282,6 +15351,9 @@ export const CreateSaleResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', createSaleResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', createSaleResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', createSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', createSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', createSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', createSaleResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', createSaleResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', createSaleResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', createSaleResponseAmountPaidRegExp),
@@ -15325,6 +15397,10 @@ export const CreateSaleResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', createSaleResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', createSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', createSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', createSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', createSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', createSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', createSaleResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', createSaleResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -15375,6 +15451,9 @@ export const getSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.
 export const getSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15386,6 +15465,10 @@ export const getSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3
 export const getSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15435,6 +15518,9 @@ export const GetSaleResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', getSaleResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', getSaleResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', getSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', getSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', getSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', getSaleResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', getSaleResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', getSaleResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', getSaleResponseAmountPaidRegExp),
@@ -15478,6 +15564,10 @@ export const GetSaleResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', getSaleResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', getSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', getSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', getSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', getSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', getSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', getSaleResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', getSaleResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -15577,6 +15667,9 @@ export const updateSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:
 export const updateSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15588,6 +15681,10 @@ export const updateSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{
 export const updateSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15637,6 +15734,9 @@ export const UpdateSaleResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', updateSaleResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', updateSaleResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', updateSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', updateSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', updateSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', updateSaleResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', updateSaleResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', updateSaleResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', updateSaleResponseAmountPaidRegExp),
@@ -15680,6 +15780,10 @@ export const UpdateSaleResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', updateSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', updateSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', updateSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', updateSaleResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', updateSaleResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -15739,6 +15843,9 @@ export const cancelSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:
 export const cancelSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15750,6 +15857,10 @@ export const cancelSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{
 export const cancelSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const cancelSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15799,6 +15910,9 @@ export const CancelSaleResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', cancelSaleResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', cancelSaleResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', cancelSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', cancelSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', cancelSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', cancelSaleResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', cancelSaleResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', cancelSaleResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', cancelSaleResponseAmountPaidRegExp),
@@ -15842,6 +15956,10 @@ export const CancelSaleResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', cancelSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', cancelSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', cancelSaleResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', cancelSaleResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({
@@ -15901,6 +16019,9 @@ export const confirmSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?
 export const confirmSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15912,6 +16033,10 @@ export const confirmSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d
 export const confirmSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const confirmSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15961,6 +16086,9 @@ export const ConfirmSaleResponse = zod.object({
   "total_excl_tax": zod.stringFormat('decimal', confirmSaleResponseTotalExclTaxRegExp),
   "tax_amount": zod.stringFormat('decimal', confirmSaleResponseTaxAmountRegExp).nullable(),
   "total": zod.stringFormat('decimal', confirmSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', confirmSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', confirmSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', confirmSaleResponseTotalInclTaxRegExp),
   "cost_total": zod.stringFormat('decimal', confirmSaleResponseCostTotalRegExp).nullable(),
   "margin": zod.stringFormat('decimal', confirmSaleResponseMarginRegExp).nullable(),
   "amount_paid": zod.stringFormat('decimal', confirmSaleResponseAmountPaidRegExp),
@@ -16004,6 +16132,10 @@ export const ConfirmSaleResponse = zod.object({
   "gross_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemGrossAmountRegExp),
   "discount_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemDiscountAmountRegExp),
   "amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', confirmSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', confirmSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', confirmSaleResponseLinesItemAmountInclTaxRegExp),
   "cost_amount": zod.stringFormat('decimal', confirmSaleResponseLinesItemCostAmountRegExp).nullable(),
   "requested_batch": zod.int().nullable(),
   "batches": zod.array(zod.object({

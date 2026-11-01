@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -114,7 +115,7 @@ export function SalaryRecordDialog({ record, onDone }: { record: SalaryRecord; o
       <form id={formId} onSubmit={submit} noValidate className="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
         {RECORD_FIELDS.map((field) => (
           <Field key={field} label={t(`admin.hr.record.${field}`)} htmlFor={`${formId}-${field}`} error={errors[field]}>
-            <Input
+            <MoneyInput
               id={`${formId}-${field}`}
               inputMode="decimal"
               value={values[field]}
@@ -245,7 +246,7 @@ export function SalaryPaymentDialog({ record, onDone }: { record: SalaryRecord; 
           />
         </Field>
         <Field label={t("admin.hr.pay.amount")} htmlFor={`${formId}-amount`} error={errors.amount}>
-          <Input
+          <MoneyInput
             id={`${formId}-amount`}
             inputMode="decimal"
             value={amount}
@@ -331,7 +332,7 @@ export function AdjustmentDialog({ record, onDone }: { record: SalaryRecord; onD
       <DialogDescription>{t("admin.hr.adjust.hint")}</DialogDescription>
       <form id={formId} onSubmit={submit} noValidate className="grid grid-cols-1 gap-4">
         <Field label={t("admin.hr.adjust.amount")} htmlFor={`${formId}-amount`} error={errors.amount}>
-          <Input
+          <MoneyInput
             id={`${formId}-amount`}
             inputMode="decimal"
             value={amount}

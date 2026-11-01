@@ -34,6 +34,7 @@ import {
   DialogTitle,
   EmptyState,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Table,
@@ -529,7 +530,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
               <div className="flex flex-wrap items-end gap-4">
                 <label className="flex flex-col gap-1">
                   <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.officeCash")}</span>
-                  <Input
+                  <MoneyInput
                     inputMode="decimal"
                     className="num max-w-40"
                     value={officeCash}
@@ -540,7 +541,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
                 {hasPurchases && (
                   <label className="flex flex-col gap-1">
                     <span className="text-[0.85rem] font-semibold">{t("admin.dayClosings.officePurchase")}</span>
-                    <Input
+                    <MoneyInput
                       inputMode="decimal"
                       className="num max-w-40"
                       value={officePurchase}

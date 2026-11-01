@@ -16,6 +16,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -183,14 +184,16 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
       hint?: string;
       type?: string;
       inputMode?: "decimal" | "numeric";
+      money?: boolean;
       className?: string;
       disabled?: boolean;
     } = {},
   ) {
     const id = `${formId}-${name}`;
+    const Control = options.money ? MoneyInput : Input;
     return (
       <Field label={label} htmlFor={id} error={errors[name]} className={options.className}>
-        <Input
+        <Control
           id={id}
           name={name}
           type={options.type ?? "text"}
@@ -251,6 +254,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
         {input("credit_limit", t("admin.customers.form.creditLimit"), {
           hint: t("admin.customers.form.creditLimitHint"),
           inputMode: "decimal",
+          money: true,
           disabled: walkIn,
         })}
         {input("payment_terms_days", t("admin.customers.form.paymentTerms"), {
