@@ -12,6 +12,7 @@ const PAGE_SIZE = 200;
 
 type Kind = "sales" | "purchases";
 type Tone = "neutral" | "sea" | "good" | "warn" | "bad";
+type StatusKey = "draft" | "issued" | "cancelled" | "posted" | "partly_paid" | "paid";
 
 /** One line of the état, from either side: what is owed, what is paid, what remains. */
 type Line = {
@@ -23,12 +24,12 @@ type Line = {
   total: string;
   paid: string;
   remaining: string;
-  status: string;
+  status: StatusKey;
   partyId: number;
   party: string;
 };
 
-const TONE: Record<string, Tone> = {
+const TONE: Record<StatusKey, Tone> = {
   draft: "neutral",
   issued: "sea",
   posted: "sea",
@@ -155,9 +156,7 @@ export function EtatsFacturesPage({ kind }: { kind: Kind }) {
                         {formatMoney(line.remaining)}
                       </Td>
                       <Td>
-                        <Pill tone={TONE[line.status] ?? "neutral"}>
-                          {t(`admin.treasury.etats.status.${line.status}`)}
-                        </Pill>
+                        <Pill tone={TONE[line.status]}>{t(`admin.treasury.etats.status.${line.status}`)}</Pill>
                       </Td>
                     </tr>
                   ))}

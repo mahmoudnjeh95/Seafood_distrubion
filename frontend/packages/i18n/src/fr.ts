@@ -2706,7 +2706,7 @@ export const fr = {
         },
         kinds: {
           cheque: "Chèque",
-          traite: "Traite",
+          bill: "Traite",
         },
         total: "Total : {{amount}}",
         empty: "Aucun effet dans cette colonne.",

@@ -21,7 +21,9 @@ const COLUMNS: readonly Column[] = ["atBank", "cashed", "unpaid"];
 
 /** What each column offers on the effets ticked in it: at the bank, cashed or unpaid; a cashed effet can still come
  * back unpaid; an unpaid one goes back to its drawer (Restituer). */
-const ACTIONS: Record<Column, readonly Step[]> = {
+type BordereauStep = Extract<Step, "cash" | "unpaid" | "return">;
+
+const ACTIONS: Record<Column, readonly BordereauStep[]> = {
   atBank: ["cash", "unpaid"],
   cashed: ["unpaid"],
   unpaid: ["return"],
