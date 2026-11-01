@@ -13,4 +13,19 @@ urlpatterns = [
     path("treasury/instruments/return", views.InstrumentReturnView.as_view(), name="treasury-instrument-return"),
     path("treasury/deposits", views.DepositListView.as_view(), name="treasury-deposit-list"),
     path("treasury/deposits/<int:deposit_id>", views.DepositDetailView.as_view(), name="treasury-deposit-detail"),
+    path("treasury/accounts", views.AccountListView.as_view(), name="treasury-account-list"),
+    path("treasury/accounts/<int:account_id>", views.AccountDetailView.as_view(), name="treasury-account-detail"),
+    path(
+        "treasury/accounts/<int:account_id>/movements",
+        views.AccountMovementsView.as_view(),
+        name="treasury-account-movements",
+    ),
+    path(
+        "treasury/accounts/<int:account_id>/movements/export",
+        views.AccountMovementsExportView.as_view(),
+        name="treasury-account-movements-export",
+    ),
+    path("treasury/transfers", views.TransferListView.as_view(), name="treasury-transfer-list"),
+    path("treasury/transfers/<int:transfer_id>/void", views.TransferVoidView.as_view(), name="treasury-transfer-void"),
+    path("treasury/cash-counts", views.CashCountListView.as_view(), name="treasury-cash-count-list"),
 ]
