@@ -724,37 +724,21 @@ def _checked_picks(
     checked_lines: list[dict[str, Any]],
     errors: dict[str, str],
 ) -> None:
-    """Check each sale line's lots picked by hand (D-208): of that organization and the line's product, each lot
-    once, with kilos above zero, and together no more kilos than the line asks. A single `batch` (D-121) is one
-    pick of the line's whole weight.
+    """Check each sale line's lots picked by hand (D-212): the shared check of `inventory.checked_lot_picks`. A
+    single `batch` (D-121) is one pick of the line's whole weight.
 
     Mutates `checked_lines` in place, adding `picks` as `[(batch, kg)]` (empty keeps FIFO, the default).
     """
     for index, (line, checked) in enumerate(zip(lines, checked_lines, strict=True)):
         key = line_error_key(index, "picks")
-        product = checked.get("product")
-        picks: list[tuple[Batch, Decimal]] = []
         if line.get("picks"):
-            for pick in line["picks"]:
-                batch = pick["batch"]
-                try:
-                    kg = checked_quantity(pick["quantity"])
-                except (ValueError, TypeError):
-                    errors.setdefault(key, _("Indiquez un poids en kg pour chaque lot, supérieur à zéro."))
-                    continue
-                if batch.organization_id != organization.pk:
-                    errors.setdefault(key, _("Lot inconnu."))
-                elif product is not None and batch.product_id != product.pk:
-                    errors.setdefault(key, _("Ce lot ne correspond pas au produit de la ligne."))
-                elif any(batch.pk == picked.pk for picked, _kg in picks):
-                    errors.setdefault(key, _("Un lot ne peut être choisi qu'une fois par ligne."))
-                else:
-                    picks.append((batch, kg))
+            checked["picks"] = inventory.checked_lot_picks(
+                organization, checked.get("product"), line["picks"], checked.get("quantity"), errors, key
+            )
         elif checked.get("requested_batch") is not None and "quantity" in checked:
-            picks = [(checked["requested_batch"], checked["quantity"])]
-        checked["picks"] = picks
-        if "quantity" in checked and sum((kg for _batch, kg in picks), Decimal("0")) > checked["quantity"]:
-            errors.setdefault(key, _("Les lots choisis dépassent le poids de la ligne."))
+            checked["picks"] = [(checked["requested_batch"], checked["quantity"])]
+        else:
+            checked["picks"] = []
 
 
 def _prepared_sale(

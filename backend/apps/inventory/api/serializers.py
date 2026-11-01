@@ -23,6 +23,7 @@ from apps.inventory.models import (
     TransferDelivery,
     TransferKind,
     TransferLine,
+    TransferLinePick,
     TransferStatus,
 )
 
@@ -181,12 +182,26 @@ class TransferLineSerializer(serializers.ModelSerializer[TransferLine]):
         return str(line_total(line.quantity, line.unit_price))
 
 
+class TransferLinePickSerializer(serializers.ModelSerializer[TransferLinePick]):
+    """A lot picked by hand for a line, with the kilos to take from it first (D-215)."""
+
+    batch = serializers.IntegerField(source="batch_id", read_only=True)
+    batch_number = serializers.CharField(source="batch.number", read_only=True)
+
+    class Meta:
+        model = TransferLinePick
+        fields: tuple[str, ...] = ("batch", "batch_number", "quantity")
+        read_only_fields: tuple[str, ...] = fields
+
+
 class TransferLineDetailSerializer(TransferLineSerializer):
     # Filled once the transfer is validated: which batches the kg came from (FIFO).
     batches = serializers.SerializerMethodField()
+    # The lots picked by hand on a draft, so its form reloads them (D-215); empty for FIFO.
+    picks = TransferLinePickSerializer(many=True, read_only=True)
 
     class Meta(TransferLineSerializer.Meta):
-        fields = (*TransferLineSerializer.Meta.fields, "batches")
+        fields = (*TransferLineSerializer.Meta.fields, "batches", "picks")
         read_only_fields = fields
 
     @extend_schema_field(MovedBatchSerializer(many=True))
@@ -303,6 +318,13 @@ class TransferDetailSerializer(TransferSerializer):
         return {line.box_type: line.count for line in transfer.box_lines.all() if line.customer_id is None}
 
 
+class TransferLinePickWriteSerializer(serializers.Serializer[Any]):
+    # A lot of the line's product at the place the kg leave from (`location_batches`).
+    batch = serializers.IntegerField(min_value=1)
+    # Kilos to take from this lot first; text, checked by the service like the line's weight.
+    quantity = serializers.CharField(allow_blank=True)
+
+
 class TransferLineWriteSerializer(serializers.Serializer[Any]):
     product = serializers.IntegerField(min_value=1)
     # Weights and prices travel as strings ("12.500") and are checked by the service, which reports each
@@ -310,6 +332,9 @@ class TransferLineWriteSerializer(serializers.Serializer[Any]):
     quantity = serializers.CharField(allow_blank=True)
     # A load only: DT per kg of the day. Empty takes the sale price in force.
     unit_price = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # Lots picked by hand instead of FIFO (D-215), each with the kilos to take from it first. Empty: the oldest
+    # lot first, as always. Not with several cold rooms as the source.
+    picks = TransferLinePickWriteSerializer(many=True, required=False, default=list)
 
 
 class TransferDeliveryWriteSerializer(serializers.Serializer[Any]):
