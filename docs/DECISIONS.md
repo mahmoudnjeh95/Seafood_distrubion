@@ -3252,7 +3252,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - One counter for all: `core.NumberSeries` (organization, kind, year; year 0 for kinds not restarted each year). Taken by
   `core.numbering.next_number` under the row lock, inside the transaction that saves the record, after every check: gap-free
   as before. The eight counter tables (sales, purchasing ×2, inventory ×2, expenses, hr, treasury) are dropped; their
-  migrations (`sales/0024`, `purchasing/0016`, `inventory/0012`, `expenses/0007`, `hr/0004`, `treasury/0004`) copy each
+  migrations (`sales/0025`, `purchasing/0016`, `inventory/0012`, `expenses/0007`, `hr/0004`, `treasury/0004`) copy each
   last number into `NumberSeries`, so no number is reused. The treasury account transfers' counter (`MT`, D-219, kind
   "transfer" in the old table) becomes the kind `account_transfer`, since `transfer` is the stock transfer.
 - Kinds (`numbering.NUMBER_KINDS`): customer, supplier, employee, product, and every document (quote, sale, delivery note,

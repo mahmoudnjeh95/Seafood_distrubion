@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0006_numbering'),
-        ('sales', '0023_unpaid_effets'),
+        ('sales', '0024_sale_vat_snapshot'),
     ]
 
     operations = [
