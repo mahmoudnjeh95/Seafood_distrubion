@@ -6,6 +6,7 @@
  */
 import type { AccountKindEnum } from './accountKindEnum';
 import type { Bank } from './bank';
+import type { CashTypeEnum } from './cashTypeEnum';
 
 export interface TreasuryAccount {
   readonly id: number;
@@ -13,6 +14,8 @@ export interface TreasuryAccount {
   readonly name: string;
   readonly bank: Bank | null;
   readonly rib: string;
+  readonly iban: string;
+  readonly cash_type: CashTypeEnum;
   readonly driver: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly opening_balance: string;

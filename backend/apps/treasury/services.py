@@ -2,13 +2,14 @@
 movements, transfers between them and the arrêté de caisse (D-219)."""
 
 import datetime as dt
+import re
 from collections.abc import Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -22,6 +23,7 @@ from .models import (
     AccountTransfer,
     Bank,
     CashCount,
+    CashType,
     Deposit,
     Instrument,
     InstrumentDirection,
@@ -36,6 +38,11 @@ from .models import (
 
 if TYPE_CHECKING:
     from apps.partners.models import Customer, Supplier
+
+# A SWIFT code is 8 or 11 characters. An IBAN is written as the bank's documents show it (two letters, two digits,
+# four characters, four digits, three digits); spaces are dropped before the check.
+SWIFT_RE = re.compile(r"[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?")
+IBAN_RE = re.compile(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{4}[0-9]{3}")
 
 # The Tunisian banks every organization starts with (code, name). Kept again in migration 0001 as data.
 DEFAULT_BANKS = (
@@ -96,7 +103,13 @@ def ensure_default_banks(*, organization: Organization) -> None:
 
 
 def _bank_snapshot(bank: Bank) -> dict[str, Any]:
-    return {"code": bank.code, "name": bank.name, "is_active": bank.is_active}
+    return {
+        "code": bank.code,
+        "name": bank.name,
+        "swift": bank.swift,
+        "address": bank.address,
+        "is_active": bank.is_active,
+    }
 
 
 def _checked_bank_fields(
@@ -124,24 +137,46 @@ def _checked_bank_fields(
     return code, name
 
 
+def _checked_bank_details(swift: str, address: str) -> tuple[str, str]:
+    """The SWIFT code (8 or 11 characters, spaces dropped) and the branch address; both may be left blank."""
+    errors: dict[str, str] = {}
+    swift = "".join(swift.split()).upper()
+    address = " ".join(address.split())
+    if swift and not SWIFT_RE.fullmatch(swift):
+        errors["swift"] = _("Le code SWIFT compte 8 ou 11 caractères.")
+    if len(address) > 255:
+        errors["address"] = _("255 caractères au plus.")
+    if errors:
+        raise ValidationError(errors)
+    return swift, address
+
+
 @transaction.atomic
-def create_bank(*, organization: Organization, actor: User | None, code: str, name: str) -> Bank:
+def create_bank(
+    *, organization: Organization, actor: User | None, code: str, name: str, swift: str = "", address: str = ""
+) -> Bank:
     """Add a bank to the organization's list, after the others."""
     code, name = _checked_bank_fields(organization, code=code, name=name)
+    swift, address = _checked_bank_details(swift, address)
     last = Bank.objects.for_organization(organization).aggregate(last=Max("position"))["last"] or 0
-    bank = Bank.objects.create(organization=organization, code=code, name=name, position=last + 10)
+    bank = Bank.objects.create(
+        organization=organization, code=code, name=name, swift=swift, address=address, position=last + 10
+    )
     audit.record(organization=organization, actor=actor, action="bank.created", target=bank, after=_bank_snapshot(bank))
     return bank
 
 
 @transaction.atomic
-def update_bank(*, bank: Bank, actor: User | None, code: str, name: str, is_active: bool) -> Bank:
-    """Rename a bank or take it off the lists; effets already drawn on it keep it."""
+def update_bank(
+    *, bank: Bank, actor: User | None, code: str, name: str, is_active: bool, swift: str = "", address: str = ""
+) -> Bank:
+    """Rename a bank, give its SWIFT code and address, or take it off the lists; effets already drawn on it keep it."""
     bank = Bank.objects.select_for_update().get(pk=bank.pk)
     before = _bank_snapshot(bank)
     bank.code, bank.name = _checked_bank_fields(bank.organization, code=code, name=name, exclude_id=bank.pk)
+    bank.swift, bank.address = _checked_bank_details(swift, address)
     bank.is_active = is_active
-    bank.save(update_fields=["code", "name", "is_active", "updated_at"])
+    bank.save(update_fields=["code", "name", "swift", "address", "is_active", "updated_at"])
     audit.record(
         organization=bank.organization,
         actor=actor,
@@ -591,7 +626,12 @@ def ensure_default_accounts(*, organization: Organization) -> None:
     for kind, name, position in DEFAULT_ACCOUNTS:
         if not TreasuryAccount.objects.filter(organization=organization, kind=kind, is_default=True).exists():
             TreasuryAccount.objects.create(
-                organization=organization, kind=kind, name=name, is_default=True, position=position
+                organization=organization,
+                kind=kind,
+                name=name,
+                cash_type=CashType.PRINCIPAL if kind == AccountKind.CASH else "",
+                is_default=True,
+                position=position,
             )
 
 
@@ -842,6 +882,8 @@ def _checked_account(
     name: str,
     bank: Bank | None,
     rib: str,
+    iban: str = "",
+    cash_type: str = "",
     opening_balance: Number | None,
     opening_on: dt.date | None,
     account: TreasuryAccount | None = None,
@@ -859,19 +901,49 @@ def _checked_account(
         if same.exists():
             errors["name"] = _("Un compte porte déjà ce nom.")
     rib = "".join(rib.split())
+    iban = "".join(iban.split()).upper()
     if kind == AccountKind.BANK:
         if bank is not None and (bank.organization_id != organization.pk or not bank.is_active):
             errors["bank"] = _("Banque inconnue.")
         if rib and (not rib.isdigit() or len(rib) != RIB_DIGITS):
             errors["rib"] = _("Le RIB compte %(count)s chiffres.") % {"count": RIB_DIGITS}
+        elif rib and _taken(TreasuryAccount.objects.filter(organization=organization, rib=rib), account):
+            errors["rib"] = _("Ce RIB appartient déjà à un autre compte.")
+        if iban and not IBAN_RE.fullmatch(iban):
+            errors["iban"] = _(
+                "L'IBAN compte deux lettres, deux chiffres, quatre caractères, quatre et trois chiffres."
+            )
+        elif iban and _taken(TreasuryAccount.objects.filter(organization=organization, iban=iban), account):
+            errors["iban"] = _("Cet IBAN appartient déjà à un autre compte.")
     else:
-        bank, rib = None, ""
+        bank, rib, iban = None, "", ""
+    if kind == AccountKind.CASH:
+        cash_type = cash_type or CashType.PRINCIPAL
+        if cash_type not in CashType.values:
+            errors["cash_type"] = _("Choisissez une caisse principale ou secondaire.")
+    else:
+        cash_type = ""
     balance = _signed_amount(opening_balance, "opening_balance", errors)
     if opening_on is not None and opening_on > timezone.localdate():
         errors["opening_on"] = _("Le jour d'ouverture ne peut pas être dans le futur.")
     if errors:
         raise ValidationError(errors)
-    return {"name": name, "bank": bank, "rib": rib, "opening_balance": balance, "opening_on": opening_on}
+    return {
+        "name": name,
+        "bank": bank,
+        "rib": rib,
+        "iban": iban,
+        "cash_type": cash_type,
+        "opening_balance": balance,
+        "opening_on": opening_on,
+    }
+
+
+def _taken(others: QuerySet[TreasuryAccount], account: TreasuryAccount | None) -> bool:
+    """True when another account (not `account` itself) already holds the RIB or IBAN."""
+    if account is not None:
+        others = others.exclude(pk=account.pk)
+    return others.exists()
 
 
 def _account_snapshot(account: TreasuryAccount) -> dict[str, Any]:
@@ -880,6 +952,8 @@ def _account_snapshot(account: TreasuryAccount) -> dict[str, Any]:
         "name": account.name,
         "bank": account.bank.code if account.bank is not None else "",
         "rib": account.rib,
+        "iban": account.iban,
+        "cash_type": account.cash_type,
         "opening_balance": str(account.opening_balance),
         "opening_on": account.opening_on.isoformat() if account.opening_on else "",
         "is_default": account.is_default,
@@ -896,6 +970,8 @@ def create_account(
     name: str,
     bank: Bank | None = None,
     rib: str = "",
+    iban: str = "",
+    cash_type: str = "",
     opening_balance: Number | None = None,
     opening_on: dt.date | None = None,
 ) -> TreasuryAccount:
@@ -908,6 +984,8 @@ def create_account(
         name=name,
         bank=bank,
         rib=rib,
+        iban=iban,
+        cash_type=cash_type,
         opening_balance=opening_balance,
         opening_on=opening_on,
     )
@@ -931,6 +1009,8 @@ def update_account(
     name: str,
     bank: Bank | None,
     rib: str,
+    iban: str = "",
+    cash_type: str = "",
     opening_balance: Number | None,
     opening_on: dt.date | None,
     is_active: bool,
@@ -950,6 +1030,8 @@ def update_account(
         name=name,
         bank=bank,
         rib=rib,
+        iban=iban,
+        cash_type=cash_type,
         opening_balance=opening_balance,
         opening_on=opening_on,
         account=account,

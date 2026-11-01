@@ -3348,3 +3348,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`sales/pdf/receipt.html`, `purchasing/pdf/supplier_receipt.html`). The driver app is unchanged (both fields default to empty).
 - Provisional: the Motif is free text on the règlement only, not on its effets; the lists do not filter or export by it yet.
 - Not touched: the règlement lists' filters and totals, the effets logic and the treasury app (D-210, D-211, D-215).
+
+**D-236 · Bank details: SWIFT and address on the bank; RIB and IBAN kept once per organization; a Caisse is principale or secondaire (Phase 9, P9-T09a)** · accepted · 2026-11-01
+- A bank has its SWIFT code (8 or 11 characters, spaces dropped) and its branch address; both optional.
+- A bank account keeps its RIB (20 digits, as before) and its IBAN, written as the office's spec gives it: two letters,
+  two digits, four characters, four digits, three digits (spaces allowed, dropped when saved). Neither the RIB nor the
+  IBAN can belong to two accounts of the organization.
+- A Caisse is principale or secondaire; the existing Caisses become principale. A bank account has no type.
+- Provisional: the IBAN format is the one the office's spec shows (15 characters), not the 24-character Tunisian IBAN;
+  to confirm with the accountant.
