@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total
@@ -27,8 +27,6 @@ from .models import (
     INSTRUMENT_METHODS,
     LINE_METHOD_CHOICES,
     RECEIVABLE_ORDER_STATUSES,
-    DocumentCounter,
-    DocumentKind,
     FieldPurchase,
     FieldPurchaseAction,
     FieldPurchaseLine,
@@ -42,7 +40,6 @@ from .models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
-    ReceiptCounter,
     RejectedEffet,
     RejectedRelease,
     SupplierInvoice,
@@ -64,10 +61,6 @@ if TYPE_CHECKING:
     from apps.treasury.models import Bank, TreasuryAccount
 
 ZERO = Decimal("0.000")
-RECEIPT_NUMBER_PREFIX = "BR-"
-INVOICE_NUMBER_PREFIX = "FF-"
-ORDER_NUMBER_PREFIX = "BA-"
-PAYMENT_NUMBER_PREFIX = "RF-"
 # The methods one line, a plan line or a sum given at the port may use: every method but "several" (D-208).
 LINE_METHODS = frozenset(value for value, _label in LINE_METHOD_CHOICES)
 
@@ -86,15 +79,6 @@ class ReceiptLineFields(TypedDict, total=False):
 def line_error_key(index: int, field: str) -> str:
     """Errors of a line are reported on `lines.<index>.<field>`, so each one shows under its own input."""
     return f"lines.{index}.{field}"
-
-
-def _next_receipt_number(organization: Organization) -> str:
-    """BR-0001, BR-0002... per organization, taken under a row lock (same scheme as batch numbers, D-034)."""
-    ReceiptCounter.objects.bulk_create([ReceiptCounter(organization=organization)], ignore_conflicts=True)
-    counter = ReceiptCounter.objects.select_for_update().get(organization=organization)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{RECEIPT_NUMBER_PREFIX}{counter.last_number:04d}"
 
 
 def _header_errors(
@@ -232,7 +216,7 @@ def create_receipt(
     supplier_reference = supplier_reference.strip()
     receipt = GoodsReceipt.objects.create(
         organization=organization,
-        number=_next_receipt_number(organization),
+        number=numbering.next_number(organization, "receipt"),
         supplier=supplier,
         location=location,
         purchase_order=order,
@@ -320,18 +304,6 @@ class OrderLineFields(TypedDict, total=False):
     unit_cost: Number
 
 
-def _next_order_number(organization: Organization) -> str:
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, kind=DocumentKind.PURCHASE_ORDER)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(
-        organization=organization, kind=DocumentKind.PURCHASE_ORDER
-    )
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{ORDER_NUMBER_PREFIX}{counter.last_number:04d}"
-
-
 def _order_snapshot(order: PurchaseOrder) -> dict[str, Any]:
     return {
         "number": order.number,
@@ -410,7 +382,7 @@ def create_order(
 
     order = PurchaseOrder.objects.create(
         organization=organization,
-        number=_next_order_number(organization),
+        number=numbering.next_number(organization, "purchase_order"),
         supplier=supplier,
         ordered_on=ordered_on,
         expected_on=expected_on,
@@ -537,19 +509,6 @@ def close_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
 
 # ---- Supplier invoices and payments (P1-T08, D-043) ----
 # A trade payable only: a partner's capital and profit share are separate balances (D-040, Phase 6).
-
-
-def _next_document_number(organization: Organization, kind: DocumentKind, prefix: str, *, yearly: bool = False) -> str:
-    """FF-0001 for invoices... per organization, taken under a row lock. With `yearly` (supplier payments,
-    D-120) the number is RF-2026-0001 and restarts every year."""
-    year = timezone.localdate().year if yearly else 0
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, kind=kind, year=year)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, kind=kind, year=year)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{prefix}{year}-{counter.last_number:04d}" if yearly else f"{prefix}{counter.last_number:04d}"
 
 
 def _invoice_header_errors(
@@ -694,7 +653,7 @@ def create_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_INVOICE, INVOICE_NUMBER_PREFIX),
+        number=numbering.next_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -767,7 +726,7 @@ def create_opening_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_INVOICE, INVOICE_NUMBER_PREFIX),
+        number=numbering.next_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -1291,7 +1250,7 @@ def record_payment(
     only = checked[0][2] if len(checked) == 1 else None
     payment = SupplierPayment.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_PAYMENT, PAYMENT_NUMBER_PREFIX, yearly=True),
+        number=numbering.next_number(organization, "supplier_payment"),
         supplier=supplier,
         paid_on=paid_on,
         amount=total,
@@ -1555,10 +1514,6 @@ def cancel_plan_line(*, line: SupplierPaymentPlanLine, actor: User | None) -> Su
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
 # A driver's purchase counts only once the owner or the manager validates it: then it becomes a receipt (stock),
 # a posted invoice (what is owed for the kg received, due by the deal) and payments (what was given at the port).
-
-FIELD_PURCHASE_NUMBER_PREFIX = "AT-"
-
-
 class FieldLineFields(TypedDict, total=False):
     product: "Product | None"
     # The name the driver typed for a product not in the catalogue yet.
@@ -1864,9 +1819,7 @@ def submit_field_purchase(
     values = _checked_field_purchase(organization, fields)
     purchase = FieldPurchase(
         organization=organization,
-        number=_next_document_number(
-            organization, DocumentKind.FIELD_PURCHASE, FIELD_PURCHASE_NUMBER_PREFIX, yearly=True
-        ),
+        number=numbering.next_number(organization, "field_purchase"),
         buyer=buyer,
         client_uuid=client_uuid,
         made_at=made_at,

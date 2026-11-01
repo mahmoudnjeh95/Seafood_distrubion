@@ -3248,6 +3248,34 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the amounts without VAT; the invoice shows the unit price without VAT. This setting is rarely used.
 - Not changed: the sale form's live preview (no VAT computed in the browser; the VAT appears on the sale page after saving).
 
+**D-223 · One numbering for every kind of number; the prefixes are set on Paramètres (owner point 5)** · accepted (provisional parts marked) · 2026-10-31
+- One counter for all: `core.NumberSeries` (organization, kind, year; year 0 for kinds not restarted each year). Taken by
+  `core.numbering.next_number` under the row lock, inside the transaction that saves the record, after every check: gap-free
+  as before. The eight counter tables (sales, purchasing ×2, inventory ×2, expenses, hr, treasury) are dropped; their
+  migrations (`sales/0026`, `purchasing/0017`, `inventory/0012`, `expenses/0007`, `hr/0004`, `treasury/0004`) copy each
+  last number into `NumberSeries`, so no number is reused. The treasury account transfers' counter (`MT`, D-219, kind
+  "transfer" in the old table) becomes the kind `account_transfer`, since `transfer` is the stock transfer.
+- Kinds (`numbering.NUMBER_KINDS`): customer, supplier, employee, product, and every document (quote, sale, delivery note,
+  invoice, credit note, customer payment, opening receivable, purchase order, receipt, supplier invoice, supplier payment,
+  field purchase, batch, transfer, loss, count, expense, deposit, account transfer, salary payment). Default prefixes are the
+  ones already printed (DV, VE, BL, FA, AV, RG, OUV, BA, BR, FF, RF, AT, L, TR, PE, INV, DP, RB, MT, PS; C, F, E), so nothing changes
+  until the owner edits them (provisional: the partners stay C-001 / F-001 / E-001, not CL / FO).
+- Yearly kinds restart at 1 each year (D-120): `FA-2026-0001`. The others: `BR-0001`, `C-001`.
+- Product references are `ART0001`, four digits, no hyphen: the owner's article codes (D-126) use that shape. Provisional:
+  the default prefix is ART, and the counter starts after the highest `ART` code in use (ART0060 gives ART0061).
+- Paramètres › Numérotation (`/parametres/numerotation`, `GET`/`PUT /numbering`): one line per kind with its prefix, the
+  default and the next number. A prefix is 1 to 6 capitals or digits, and no two kinds share one in the organization.
+  Owner or manager writes, the accountant reads, drivers get 403. A changed prefix applies to the next number; the counter
+  goes on. Audit `numbering.prefixes_changed`.
+- Customers, suppliers, employees and products: the reference is generated on create when left blank
+  (`numbering.next_free_reference`). The counter starts after the highest reference already in use under the current prefix
+  (lazily at first use, and in the migrations `partners/0004`, `catalog/0006`, `hr/0005` for existing data). A reference
+  typed by hand is skipped, never reused. A typed reference is kept: imports, the demo seed and the owner's codes
+  (`set_product_codes`) are unchanged. The forms show the reference read-only (provisional: the API still accepts a
+  corrected reference on update, for the owner's clean-up).
+- Not converted: the public site's request numbers (`W-00012`, derived from the request id). The effets' own numbers are
+  typed by hand (D-197).
+
 **D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
 - Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
   versement, the états des factures). The flow and the rules stay ours: effets, bordereaux, impayés and the ledger of

@@ -98,22 +98,6 @@ class Deposit(OrganizationScopedModel, TimeStampedModel):
         return self.number
 
 
-class TreasuryCounter(OrganizationScopedModel):
-    """The last number given to a kind of treasury document in a year, locked while taken."""
-
-    kind = models.CharField(max_length=20)
-    year = models.PositiveIntegerField()
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "kind", "year"], name="treasury_counter_unique"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.kind} {self.year} · {self.last_number}"
-
-
 class Instrument(OrganizationScopedModel, TimeStampedModel):
     """A cheque or a traite, received from a customer or issued to a supplier, followed until the bank pays it.
 

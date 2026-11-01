@@ -8,26 +8,6 @@ from django.utils.translation import gettext_lazy as _
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField, QuantityField
 
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one series of sales documents ("DV" quotes...) in an organization.
-
-    Locked while a number is taken (same scheme as batches, D-034), so two documents saved at once never
-    share one. Sales and invoices (P2-T04, P2-T05) take their own series here.
-    """
-
-    series = models.CharField(max_length=20)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "series"], name="sales_one_counter_per_series"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.series} · {self.last_number}"
-
-
 # ---- Quotes (P2-T03, D-050) ----
 
 

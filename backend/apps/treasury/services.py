@@ -12,7 +12,7 @@ from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, money
 
@@ -31,7 +31,6 @@ from .models import (
     MovementKind,
     TransferKind,
     TreasuryAccount,
-    TreasuryCounter,
     TreasuryMovement,
 )
 
@@ -352,18 +351,8 @@ def cancel_instruments(
 
 # ---- The portfolio: remise en banque, encaissé, débité (P9-T04a, D-216) ----
 
-DEPOSIT_PREFIX = "RB"
 # The effets one action may move at once.
 MAX_BATCH = 200
-
-
-def _next_number(organization: Organization, kind: str, prefix: str, day: dt.date) -> str:
-    """ "RB-2026-0001": numbered per organization and year, the counter locked while the number is taken."""
-    TreasuryCounter.objects.get_or_create(organization=organization, kind=kind, year=day.year)
-    counter = TreasuryCounter.objects.select_for_update().get(organization=organization, kind=kind, year=day.year)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{prefix}-{day.year}-{counter.last_number:04d}"
 
 
 def _batch(
@@ -445,7 +434,7 @@ def deposit_instruments(
     assert deposited_on is not None  # checked by _batch
     deposit = Deposit.objects.create(
         organization=organization,
-        number=_next_number(organization, "deposit", DEPOSIT_PREFIX, deposited_on),
+        number=numbering.next_number(organization, "deposit", year=deposited_on.year),
         bank=bank,
         account=account or bank_account_for(organization, bank),
         deposited_on=deposited_on,
@@ -582,7 +571,6 @@ def mark_rejected(
 
 # The accounts every organization starts with: provisional names the office renames (D-219).
 DEFAULT_ACCOUNTS = ((AccountKind.CASH, "Caisse", 10), (AccountKind.BANK, "Banque principale", 20))
-TRANSFER_PREFIX = "MT"
 RIB_DIGITS = 20
 # The role of a movement that undoes another one.
 VOID = "void"
@@ -1052,7 +1040,7 @@ def transfer_between(
     kind = _transfer_kind(from_account, to_account)
     transfer = AccountTransfer.objects.create(
         organization=organization,
-        number=_next_number(organization, "transfer", TRANSFER_PREFIX, transferred_on),
+        number=numbering.next_number(organization, "account_transfer", year=transferred_on.year),
         kind=kind,
         from_account=from_account,
         to_account=to_account,

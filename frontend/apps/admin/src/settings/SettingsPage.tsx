@@ -136,6 +136,19 @@ function BanksCard() {
   );
 }
 
+function NumberingCard() {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardTitle>{t("admin.settings.numbering")}</CardTitle>
+      <p className="mb-4 text-[0.85rem] text-ink-2">{t("admin.settings.numberingHint")}</p>
+      <Link to="/parametres/numerotation" className="text-[0.9rem] font-semibold text-sea hover:underline">
+        {t("admin.settings.numberingOpen")}
+      </Link>
+    </Card>
+  );
+}
+
 /** "Paramètres": the company's logo and legal identity, and the accounts that log in. Owner only. */
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -149,6 +162,7 @@ export function SettingsPage() {
         <LegalCard />
         <UsersCard />
         <BanksCard />
+        <NumberingCard />
       </div>
     </>
   );
