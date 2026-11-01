@@ -4,11 +4,13 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { SalaryPaymentKindEnum } from './salaryPaymentKindEnum';
 import type { SalaryPaymentMethodEnum } from './salaryPaymentMethodEnum';
 
 export interface SalaryPaymentRef {
   readonly id: number;
   readonly number: string;
   readonly paid_on: string;
+  readonly kind: SalaryPaymentKindEnum;
   readonly method: SalaryPaymentMethodEnum;
 }

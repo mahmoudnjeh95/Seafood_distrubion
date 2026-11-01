@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { SalaryAllocationWrite } from './salaryAllocationWrite';
+import type { SalaryPaymentKindEnum } from './salaryPaymentKindEnum';
 import type { SalaryPaymentMethodEnum } from './salaryPaymentMethodEnum';
 
 export interface SalaryPaymentWrite {
@@ -13,6 +14,8 @@ export interface SalaryPaymentWrite {
   paid_on: string;
   amount: string;
   method: SalaryPaymentMethodEnum;
+  kind?: SalaryPaymentKindEnum;
+  confirm_overpay?: boolean;
   /** @maxLength 50 */
   reference?: string;
   /** @maxLength 2000 */

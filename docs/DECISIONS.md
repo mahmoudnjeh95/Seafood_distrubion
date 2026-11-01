@@ -3375,7 +3375,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   above the month's due needs the confirmation flag; (4) a prime does not recompute the CNSS, as an adjustment does
   (D-228): the accountant to confirm whether primes are subject to CNSS; (5) the code `advance` (not `avance`) is a
   naming choice.
-- **Built with:** migration `hr.0004_salary_payment_kinds_and_primes` (`kind` on payments and adjustments); API
+- **Built with:** migration `hr.0006_salary_payment_kinds_and_primes` (`kind` on payments and adjustments); API
   `POST salary-records/<id>/primes` (`addSalaryPrime`), `kind` and `confirm_overpay` on `POST salary-payments`, and
   `kind`, `treasury_debit` on payments and salary lines. The only change to the treasury app is one read selector,
   `movement_of_source`; no model or service changed.

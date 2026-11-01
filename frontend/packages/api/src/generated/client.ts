@@ -24632,7 +24632,9 @@ export const getRecordSalaryPaymentUrl = () => {
 
 /**
  * Record cash paid to an employee and the approved salaries it settles. What is not allocated is an
- * advance. Errors of an allocation come back on `allocations.<index>.<field>`.
+ * advance. An advance (`kind` advance) is allocated in full to the salary of its month; above what is still
+ * due it is refused unless `confirm_overpay`. Each payment writes its treasury movement. Errors of an
+ * allocation come back on `allocations.<index>.<field>`.
  */
 export const recordSalaryPayment = async (salaryPaymentWrite: SalaryPaymentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryPayment> => {
 
@@ -25403,6 +25405,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getApproveSalaryRecordMutationOptions(options), queryClient);
+    }
+
+export const getAddSalaryPrimeUrl = (recordId: number,) => {
+
+
+
+
+  return `/api/v1/salary-records/${recordId}/primes`
+}
+
+/**
+ * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
+ * with no separate payment (D-234).
+ */
+export const addSalaryPrime = async (recordId: number,
+    adjustmentWrite: AdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SalaryAdjustment>(getAddSalaryPrimeUrl(recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adjustmentWrite)
+  }
+);}
+
+
+
+
+
+export const getAddSalaryPrimeMutationKey = () => ['addSalaryPrime'] as const;
+
+export const getAddSalaryPrimeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSalaryPrime>>, TError,AddSalaryPrimeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addSalaryPrime>>, TError,AddSalaryPrimeMutationVariables, TContext> => {
+
+const mutationKey = getAddSalaryPrimeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addSalaryPrime>>, AddSalaryPrimeMutationVariables> = (props) => {
+          const {recordId,data} = props ?? {};
+
+          return  addSalaryPrime(recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddSalaryPrimeMutationResult = NonNullable<Awaited<ReturnType<typeof addSalaryPrime>>>
+    export type AddSalaryPrimeMutationBody = AdjustmentWrite
+    export type AddSalaryPrimeMutationError = unknown
+    export type AddSalaryPrimeMutationVariables = {recordId: number;data: AdjustmentWrite}
+
+    export const useAddSalaryPrime = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSalaryPrime>>, TError,AddSalaryPrimeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addSalaryPrime>>,
+        TError,
+        AddSalaryPrimeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddSalaryPrimeMutationOptions(options), queryClient);
     }
 
 export const getApproveSalaryMonthUrl = () => {
