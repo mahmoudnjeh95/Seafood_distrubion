@@ -3,14 +3,16 @@
 import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from django.db.models import Prefetch, Q, QuerySet, Sum
 
 from apps.core.models import Organization
 from apps.core.money import Number, money
+from apps.treasury import selectors as treasury
 
 from .models import (
+    TREASURY_SOURCE,
     Employee,
     LotWorkDay,
     SalaryAdjustment,
@@ -208,6 +210,15 @@ def payment_of(organization: Organization, payment_id: int) -> SalaryPayment:
 def unallocated_amount(payment: SalaryPayment) -> Decimal:
     """The part of a payment not on a salary record yet (an advance)."""
     return payment.amount - sum((allocation.amount for allocation in payment.allocations.all()), ZERO)
+
+
+def payment_debit(payment: SalaryPayment) -> dict[str, Any] | None:
+    """What left our treasury for this payment: amount, account name, day (D-234). None for a payment recorded
+    before the accounts existed, which has no movement: the screens show nothing then."""
+    row = treasury.movement_of_source(payment.organization, source=TREASURY_SOURCE, source_id=payment.pk)
+    if row is None:
+        return None
+    return {"amount": str(-row.amount), "account": row.account.name, "day": row.day}
 
 
 # ---- Days on a lot ----

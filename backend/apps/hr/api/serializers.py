@@ -9,8 +9,10 @@ from apps.hr.models import (
     Employee,
     LotWorkDay,
     SalaryAdjustment,
+    SalaryAdjustmentKind,
     SalaryPayment,
     SalaryPaymentAllocation,
+    SalaryPaymentKind,
     SalaryPaymentMethod,
     SalaryRecord,
     SalaryStatus,
@@ -110,21 +112,31 @@ class EmployeeRefSerializer(serializers.Serializer[Any]):
 
 
 class SalaryAdjustmentSerializer(serializers.ModelSerializer[SalaryAdjustment]):
+    kind = serializers.ChoiceField(choices=SalaryAdjustmentKind.choices, read_only=True)
     created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = SalaryAdjustment
-        fields = ("id", "amount", "reason", "created_by", "created_at")
+        fields = ("id", "kind", "amount", "reason", "created_by", "created_at")
         read_only_fields = fields
 
     def get_created_by(self, adjustment: SalaryAdjustment) -> str:
         return _name_of(adjustment.created_by)
 
 
+class TreasuryDebitSerializer(serializers.Serializer[Any]):
+    """What a salary payment took out of our treasury (D-234): absent on payments made before the accounts."""
+
+    amount = AMOUNT
+    account = serializers.CharField(read_only=True)
+    day = serializers.DateField(read_only=True)
+
+
 class SalaryPaymentRefSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     number = serializers.CharField(read_only=True)
     paid_on = serializers.DateField(read_only=True)
+    kind = serializers.ChoiceField(choices=SalaryPaymentKind.choices, read_only=True)
     method = serializers.ChoiceField(choices=SalaryPaymentMethod.choices, read_only=True)
 
 
@@ -134,6 +146,11 @@ class RecordPaymentSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     payment = SalaryPaymentRefSerializer(read_only=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    treasury_debit = serializers.SerializerMethodField()
+
+    @extend_schema_field(TreasuryDebitSerializer)
+    def get_treasury_debit(self, allocation: SalaryPaymentAllocation) -> dict[str, Any] | None:
+        return selectors.payment_debit(allocation.payment)
 
 
 class SalaryRecordSerializer(serializers.ModelSerializer[SalaryRecord]):
@@ -277,10 +294,12 @@ class SalaryPaymentAllocationSerializer(serializers.ModelSerializer[SalaryPaymen
 
 class SalaryPaymentSerializer(serializers.ModelSerializer[SalaryPayment]):
     employee = EmployeeRefSerializer(read_only=True)
+    kind = serializers.ChoiceField(choices=SalaryPaymentKind.choices, read_only=True)
     method = serializers.ChoiceField(choices=SalaryPaymentMethod.choices, read_only=True)
     allocations = SalaryPaymentAllocationSerializer(many=True, read_only=True)
     unallocated = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
+    treasury_debit = serializers.SerializerMethodField()
 
     class Meta:
         model = SalaryPayment
@@ -290,12 +309,14 @@ class SalaryPaymentSerializer(serializers.ModelSerializer[SalaryPayment]):
             "employee",
             "paid_on",
             "amount",
+            "kind",
             "method",
             "reference",
             "notes",
             "allocations",
             "unallocated",
             "created_by",
+            "treasury_debit",
             "created_at",
         )
         read_only_fields = fields
@@ -306,6 +327,10 @@ class SalaryPaymentSerializer(serializers.ModelSerializer[SalaryPayment]):
 
     def get_created_by(self, payment: SalaryPayment) -> str:
         return _name_of(payment.created_by)
+
+    @extend_schema_field(TreasuryDebitSerializer)
+    def get_treasury_debit(self, payment: SalaryPayment) -> dict[str, Any] | None:
+        return selectors.payment_debit(payment)
 
 
 class SalaryAllocationWriteSerializer(serializers.Serializer[Any]):
@@ -318,6 +343,10 @@ class SalaryPaymentWriteSerializer(serializers.Serializer[Any]):
     paid_on = serializers.DateField()
     amount = serializers.CharField(allow_blank=True)
     method = serializers.ChoiceField(choices=SalaryPaymentMethod.choices)
+    # Salary by default; an advance (D-234) is allocated in full to the salary of the payment's month.
+    kind = serializers.ChoiceField(choices=SalaryPaymentKind.choices, required=False, default=SalaryPaymentKind.SALARY)
+    # Refused by default: an advance above what the month still owes goes through only once the office confirms.
+    confirm_overpay = serializers.BooleanField(required=False, default=False)
     reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="", max_length=2000)
     allocations = SalaryAllocationWriteSerializer(many=True, required=False, default=list)

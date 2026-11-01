@@ -7608,7 +7608,9 @@ paths:
       operationId: recordSalaryPayment
       description: |-
         Record cash paid to an employee and the approved salaries it settles. What is not allocated is an
-        advance. Errors of an allocation come back on `allocations.<index>.<field>`.
+        advance. An advance (`kind` advance) is allocated in full to the salary of its month; above what is still
+        due it is refused unless `confirm_overpay`. Each payment writes its treasury movement. Errors of an
+        allocation come back on `allocations.<index>.<field>`.
       tags:
       - salary-payments
       requestBody:
@@ -7849,6 +7851,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SalaryRecord'
+          description: ''
+  /api/v1/salary-records/{record_id}/primes:
+    post:
+      operationId: addSalaryPrime
+      description: |-
+        Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
+        with no separate payment (D-234).
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - salary-records
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustmentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdjustmentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdjustmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryAdjustment'
           description: ''
   /api/v1/salary-records/approve-month:
     post:
@@ -24557,10 +24594,15 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        treasury_debit:
+          allOf:
+          - $ref: '#/components/schemas/TreasuryDebit'
+          readOnly: true
       required:
       - amount
       - id
       - payment
+      - treasury_debit
     RecurringCost:
       type: object
       properties:
@@ -25351,6 +25393,10 @@ components:
         id:
           type: integer
           readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SalaryAdjustmentKindEnum'
+          readOnly: true
         amount:
           type: string
           format: decimal
@@ -25371,7 +25417,16 @@ components:
       - created_at
       - created_by
       - id
+      - kind
       - reason
+    SalaryAdjustmentKindEnum:
+      enum:
+      - adjustment
+      - prime
+      type: string
+      description: |-
+        * `adjustment` - Ajustement
+        * `prime` - Prime
     SalaryAllocationWrite:
       type: object
       properties:
@@ -25421,6 +25476,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SalaryPaymentKindEnum'
+          readOnly: true
         method:
           allOf:
           - $ref: '#/components/schemas/SalaryPaymentMethodEnum'
@@ -25444,6 +25503,10 @@ components:
         created_by:
           type: string
           readOnly: true
+        treasury_debit:
+          allOf:
+          - $ref: '#/components/schemas/TreasuryDebit'
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -25455,11 +25518,13 @@ components:
       - created_by
       - employee
       - id
+      - kind
       - method
       - notes
       - number
       - paid_on
       - reference
+      - treasury_debit
       - unallocated
     SalaryPaymentAllocate:
       type: object
@@ -25493,6 +25558,14 @@ components:
       - id
       - month
       - salary_record_id
+    SalaryPaymentKindEnum:
+      enum:
+      - salary
+      - advance
+      type: string
+      description: |-
+        * `salary` - Salaire
+        * `advance` - Avance sur salaire
     SalaryPaymentMethodEnum:
       enum:
       - cash
@@ -25518,12 +25591,17 @@ components:
           type: string
           format: date
           readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SalaryPaymentKindEnum'
+          readOnly: true
         method:
           allOf:
           - $ref: '#/components/schemas/SalaryPaymentMethodEnum'
           readOnly: true
       required:
       - id
+      - kind
       - method
       - number
       - paid_on
@@ -25540,6 +25618,13 @@ components:
           type: string
         method:
           $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SalaryPaymentKindEnum'
+          default: salary
+        confirm_overpay:
+          type: boolean
+          default: false
         reference:
           type: string
           default: ''
@@ -29271,6 +29356,26 @@ components:
           default: false
       required:
       - name
+    TreasuryDebit:
+      type: object
+      description: 'What a salary payment took out of our treasury (D-234): absent
+        on payments made before the accounts.'
+      properties:
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        account:
+          type: string
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+      required:
+      - account
+      - amount
+      - day
     Truck:
       type: object
       properties:

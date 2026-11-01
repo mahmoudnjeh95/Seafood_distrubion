@@ -8,7 +8,7 @@ import {
   useListSalaryRecords,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatMoney, useTranslation } from "@frutti/i18n";
+import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, Dialog, EmptyState, Icon, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -20,7 +20,7 @@ import { PayRestricted } from "./Restricted";
 import { AdjustmentDialog, SalaryPaymentDialog, SalaryRecordDialog } from "./SalaryDialogs";
 import { canReadPay, canWritePay, currentMonth, monthLabel, refreshHr, shiftMonth, STATUS_TONE } from "./shared";
 
-type Dialogs = { kind: "edit" | "pay" | "adjust"; record: SalaryRecord } | null;
+type Dialogs = { kind: "edit" | "pay" | "adjust" | "prime"; record: SalaryRecord } | null;
 
 export function PayrollPage() {
   const session = useOutletContext<Session>();
@@ -200,11 +200,12 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
                     {record.employee.position && (
                       <div className="text-[0.8rem] text-ink-2">{record.employee.position}</div>
                     )}
-                    {record.adjustments.length > 0 && (
-                      <div className="text-[0.8rem] text-ink-2">
-                        {t("admin.hr.payroll.adjusted", { count: record.adjustments.length })}
+                    {record.adjustments.map((adjustment) => (
+                      <div key={adjustment.id} className="text-[0.8rem] text-ink-2">
+                        {t(`admin.hr.adjustKind.${adjustment.kind}`)}
+                        {` ${formatMoney(adjustment.amount)} · ${adjustment.reason}`}
                       </div>
-                    )}
+                    ))}
                   </Td>
                   <Td className="num whitespace-nowrap text-end max-[900px]:hidden">{formatMoney(record.gross)}</Td>
                   <Td className="num whitespace-nowrap text-end max-[900px]:hidden">
@@ -214,7 +215,21 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
                     {formatMoney(record.employee_cnss)}
                   </Td>
                   <Td className="num whitespace-nowrap text-end font-semibold">{formatMoney(record.due_amount)}</Td>
-                  <Td className="num whitespace-nowrap text-end">{formatMoney(record.paid_amount)}</Td>
+                  <Td className="num whitespace-nowrap text-end">
+                    {formatMoney(record.paid_amount)}
+                    {record.payments.map(
+                      (line) =>
+                        line.treasury_debit && (
+                          <div key={line.id} className="text-[0.8rem] font-normal text-ink-2">
+                            {t("admin.hr.treasury.debited", {
+                              amount: formatMoney(line.treasury_debit.amount),
+                              account: line.treasury_debit.account,
+                              date: formatDate(line.treasury_debit.day),
+                            })}
+                          </div>
+                        ),
+                    )}
+                  </Td>
                   <Td className="num whitespace-nowrap text-end">
                     {record.status === "approved" && Number(record.outstanding) > 0 ? (
                       <Pill tone="warn">{t("admin.hr.unpaidBadge", { amount: formatMoney(record.outstanding) })}</Pill>
@@ -260,6 +275,9 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
                           <Button onClick={() => setDialog({ kind: "adjust", record })}>
                             {t("admin.hr.payroll.adjust")}
                           </Button>
+                          <Button onClick={() => setDialog({ kind: "prime", record })}>
+                            {t("admin.hr.payroll.prime")}
+                          </Button>
                         </span>
                       )}
                     </Td>
@@ -275,6 +293,7 @@ function Payroll({ canEdit }: { canEdit: boolean }) {
         {dialog?.kind === "edit" && <SalaryRecordDialog record={dialog.record} onDone={() => setDialog(null)} />}
         {dialog?.kind === "pay" && <SalaryPaymentDialog record={dialog.record} onDone={() => setDialog(null)} />}
         {dialog?.kind === "adjust" && <AdjustmentDialog record={dialog.record} onDone={() => setDialog(null)} />}
+        {dialog?.kind === "prime" && <AdjustmentDialog prime record={dialog.record} onDone={() => setDialog(null)} />}
       </Dialog>
     </>
   );

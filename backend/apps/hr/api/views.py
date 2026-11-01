@@ -266,6 +266,22 @@ class SalaryRecordAdjustView(SalaryRecordView):
         return Response(SalaryAdjustmentSerializer(adjustment).data, status=status.HTTP_201_CREATED)
 
 
+class SalaryRecordPrimeView(SalaryRecordView):
+    @extend_schema(
+        operation_id="addSalaryPrime",
+        request=AdjustmentWriteSerializer,
+        responses={201: SalaryAdjustmentSerializer},
+    )
+    def post(self, request: Request, record_id: int) -> Response:
+        """Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
+        with no separate payment (D-234)."""
+        record = self.record(record_id)
+        serializer = AdjustmentWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        prime = services.add_prime(record=record, actor=self.membership.user, **serializer.validated_data)
+        return Response(SalaryAdjustmentSerializer(prime).data, status=status.HTTP_201_CREATED)
+
+
 class PayrollSummaryView(HrView):
     @extend_schema(operation_id="getPayrollSummary", parameters=[MonthSerializer], responses=PayrollSummarySerializer)
     def get(self, request: Request) -> Response:
@@ -328,7 +344,9 @@ class SalaryPaymentListView(SalaryPaymentView):
     )
     def post(self, request: Request) -> Response:
         """Record cash paid to an employee and the approved salaries it settles. What is not allocated is an
-        advance. Errors of an allocation come back on `allocations.<index>.<field>`."""
+        advance. An advance (`kind` advance) is allocated in full to the salary of its month; above what is still
+        due it is refused unless `confirm_overpay`. Each payment writes its treasury movement. Errors of an
+        allocation come back on `allocations.<index>.<field>`."""
         serializer = SalaryPaymentWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)

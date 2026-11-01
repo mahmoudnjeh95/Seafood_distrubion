@@ -414,17 +414,32 @@ function EmployeeDetail({ canEdit }: { canEdit: boolean }) {
                   <Th>{t("admin.hr.pay.method")}</Th>
                   <Th className="text-end">{t("admin.hr.pay.amount")}</Th>
                   <Th className="text-end">{t("admin.hr.detail.advance")}</Th>
+                  <Th>{t("admin.hr.treasury.column")}</Th>
                 </tr>
               </thead>
               <tbody>
                 {(payments.data ?? []).map((payment) => (
                   <tr key={payment.id}>
-                    <Td className="num whitespace-nowrap">{payment.number}</Td>
+                    <Td className="num whitespace-nowrap">
+                      {payment.number}
+                      {payment.kind === "advance" && (
+                        <div className="text-[0.8rem] font-normal text-ink-2">{t("admin.hr.kind.advance")}</div>
+                      )}
+                    </Td>
                     <Td className="whitespace-nowrap">{formatDate(payment.paid_on)}</Td>
                     <Td>{t(`admin.hr.method.${payment.method}`)}</Td>
                     <Td className="num whitespace-nowrap text-end">{formatMoney(payment.amount)}</Td>
                     <Td className="num whitespace-nowrap text-end">
                       {Number(payment.unallocated) > 0 ? formatMoney(payment.unallocated) : "—"}
+                    </Td>
+                    <Td className="text-[0.85rem]">
+                      {payment.treasury_debit
+                        ? t("admin.hr.treasury.debited", {
+                            amount: formatMoney(payment.treasury_debit.amount),
+                            account: payment.treasury_debit.account,
+                            date: formatDate(payment.treasury_debit.day),
+                          })
+                        : "—"}
                     </Td>
                   </tr>
                 ))}

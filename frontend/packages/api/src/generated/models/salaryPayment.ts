@@ -6,7 +6,9 @@
  */
 import type { EmployeeRef } from './employeeRef';
 import type { SalaryPaymentAllocation } from './salaryPaymentAllocation';
+import type { SalaryPaymentKindEnum } from './salaryPaymentKindEnum';
 import type { SalaryPaymentMethodEnum } from './salaryPaymentMethodEnum';
+import type { TreasuryDebit } from './treasuryDebit';
 
 export interface SalaryPayment {
   readonly id: number;
@@ -15,6 +17,7 @@ export interface SalaryPayment {
   readonly paid_on: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
+  readonly kind: SalaryPaymentKindEnum;
   readonly method: SalaryPaymentMethodEnum;
   readonly reference: string;
   readonly notes: string;
@@ -22,5 +25,6 @@ export interface SalaryPayment {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly unallocated: string;
   readonly created_by: string;
+  readonly treasury_debit: TreasuryDebit;
   readonly created_at: string;
 }
