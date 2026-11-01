@@ -3153,3 +3153,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Migration `dayclose/0009_dayclosingrevision`. API `correctDayClosing` (generated client). Tests:
   `dayclose/tests/test_day_correction.py`, `expenses/tests/test_road_expense_cash.py`, the phone's `expensePaid.test.ts`.
 
+**D-222 · The e-mail window sends to every address the party has, and the office can drop or add some for one send (owner point 4, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
+- The party's own address and each of its contacts' addresses are offered (`Customer.email_addresses()`,
+  `Supplier.email_addresses()`: the party's first, then the contacts' in order; blank and repeated ones, case ignored,
+  are dropped). Every provider of a PDF (sales, purchasing, the partner statement) fills `Printable.email_to` with them.
+- The window ticks all of them. Unticking one or typing an extra one (several at once, separated by commas, spaces or
+  semicolons) changes this send only; the party, its contacts and the stored addresses are not touched. An added
+  address can be removed again before sending.
+- One message goes to the ticked addresses in its `to` (no copy per address). The send accepts 1 to 10 addresses
+  (the server refuses more, the window says so); the same address twice is sent once. The draft returns `to` as a list.
+- Provisional: the list is shown with a checkbox row even when the party has one address (no separate one-address
+  layout); the party's own page is not changed (its e-mail field and contacts feed the list). A party with one address
+  works as before.
+- Sent addresses are still kept as one text on `documents.SentEmail` (the history row).
