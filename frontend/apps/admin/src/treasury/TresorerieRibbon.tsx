@@ -5,11 +5,24 @@ import { cn, Icon, type IconName } from "@frutti/ui";
 import { Link } from "react-router";
 
 export type RibbonScreen =
-  "encaissement" | "decaissement" | "banque" | "portefeuille" | "bordereau" | "ordre" | "factureVente" | "factureAchat";
+  | "encaissement"
+  | "decaissement"
+  | "banque"
+  | "agences"
+  | "caisses"
+  | "portefeuille"
+  | "bordereau"
+  | "ordre"
+  | "journalBanques"
+  | "journalCaisses"
+  | "factureVente"
+  | "factureAchat";
 
-type RibbonGroup = { id: "treasury" | "invoices"; screens: { id: RibbonScreen; to: string; icon: IconName }[] };
+type RibbonGroup = {
+  id: "treasury" | "journals" | "invoices";
+  screens: { id: RibbonScreen; to: string; icon: IconName }[];
+};
 
-// Agence bancaire, caisse liquide and the journals wait for the treasury accounts (P9-T05): not on the ribbon yet.
 const GROUPS: RibbonGroup[] = [
   {
     id: "treasury",
@@ -17,9 +30,18 @@ const GROUPS: RibbonGroup[] = [
       { id: "encaissement", to: "/reglements", icon: "cash" },
       { id: "decaissement", to: "/achats/paiements", icon: "wallet" },
       { id: "banque", to: "/tresorerie/banques", icon: "badge" },
+      { id: "agences", to: "/tresorerie/agences", icon: "home" },
+      { id: "caisses", to: "/tresorerie/caisses", icon: "box" },
       { id: "portefeuille", to: "/tresorerie/portefeuille", icon: "receipt" },
       { id: "bordereau", to: "/tresorerie/bordereau", icon: "calcheck" },
       { id: "ordre", to: "/achats/reglements", icon: "check" },
+    ],
+  },
+  {
+    id: "journals",
+    screens: [
+      { id: "journalBanques", to: "/tresorerie/journal/banques", icon: "calcheck" },
+      { id: "journalCaisses", to: "/tresorerie/journal/caisses", icon: "box" },
     ],
   },
   {
