@@ -270,6 +270,8 @@ export function SupplierPaymentFormPage() {
               <Input
                 id={id("paid_on")}
                 type="date"
+                required
+                className="border-bad/60"
                 max={todayInTunis()}
                 value={paidOn}
                 onChange={(event) => setPaidOn(event.target.value)}
@@ -296,7 +298,12 @@ export function SupplierPaymentFormPage() {
                   setTouched(true);
                 }}
               >
-                <SelectTrigger id={id("supplier")} aria-invalid={errors.supplier ? true : undefined}>
+                <SelectTrigger
+                  id={id("supplier")}
+                  aria-required
+                  className="border-bad/60"
+                  aria-invalid={errors.supplier ? true : undefined}
+                >
                   <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
                 </SelectTrigger>
                 <SelectContent>

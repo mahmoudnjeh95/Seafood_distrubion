@@ -186,6 +186,8 @@ export function CustomerPaymentFormPage() {
               <Input
                 id={id("day")}
                 type="date"
+                required
+                className="border-bad/60"
                 max={todayInput()}
                 value={receivedOn}
                 onChange={(event) => setReceivedOn(event.target.value)}
@@ -196,6 +198,8 @@ export function CustomerPaymentFormPage() {
             <Field label={t("admin.treasury.form.customer")} htmlFor={id("customer")} error={errors.customer}>
               <Combobox
                 id={id("customer")}
+                required
+                className="border-bad/60"
                 value={customer}
                 onValueChange={(value) => {
                   setCustomer(value);

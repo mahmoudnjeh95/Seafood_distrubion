@@ -3425,3 +3425,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   BL are not added on top, since they are invoiced. What is owed stays on the balance and the encours.
 - `GET /api/v1/treasury/party-documents` (`listPartyDocuments`): owner, manager and accountant; a party with no document
   is not listed (the screens show zeros). The counts do not move with payments, only with new BL, receipts or invoices.
+
+**D-237 · The mandatory fields of the payment forms show a red outline (Phase 9, P9-T09b)** · accepted · 2026-11-01
+- The date and the party of an encaissement or a décaissement are outlined in red, as the Perfaxis forms mark them
+  (`required` on the input, the outline class on the field). The lines' fields are not outlined yet.
+- Provisional: the outline shows from the start, not after a failed save.
