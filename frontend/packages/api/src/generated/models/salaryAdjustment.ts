@@ -4,9 +4,11 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { SalaryAdjustmentKindEnum } from './salaryAdjustmentKindEnum';
 
 export interface SalaryAdjustment {
   readonly id: number;
+  readonly kind: SalaryAdjustmentKindEnum;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
   readonly reason: string;

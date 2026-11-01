@@ -1,6 +1,8 @@
 import {
+  addSalaryPrime,
   adjustSalaryRecord,
   recordSalaryPayment,
+  type SalaryPaymentKindEnum,
   type SalaryPaymentMethodEnum,
   type SalaryRecord,
   type PatchedSalaryRecordUpdate,
@@ -29,7 +31,7 @@ import { type FormEvent, useId, useState } from "react";
 import { percentOf, subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { todayInTunis } from "../receipts/shared";
-import { PAYMENT_METHODS, refreshHr } from "./shared";
+import { PAYMENT_KINDS, PAYMENT_METHODS, refreshHr } from "./shared";
 
 const typed = (decimal: string) => decimal.replace(".", ",");
 
@@ -189,8 +191,12 @@ export function SalaryPaymentDialog({ record, onDone }: { record: SalaryRecord; 
   const [paidOn, setPaidOn] = useState(todayInTunis);
   const [amount, setAmount] = useState(typed(record.outstanding));
   const [method, setMethod] = useState<SalaryPaymentMethodEnum>("cash");
+  const [kind, setKind] = useState<SalaryPaymentKindEnum>("salary");
+  const [confirmOverpay, setConfirmOverpay] = useState(false);
   const [reference, setReference] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // An advance above what the month still owes goes through only once the office confirms it (D-234).
+  const overpay = (value: string) => kind === "advance" && subtract(record.outstanding, value).startsWith("-");
 
   const save = useMutation({
     mutationFn: (value: string) =>
@@ -199,6 +205,8 @@ export function SalaryPaymentDialog({ record, onDone }: { record: SalaryRecord; 
         paid_on: paidOn,
         amount: value,
         method,
+        kind,
+        confirm_overpay: confirmOverpay && overpay(value),
         reference: reference.trim(),
         allocations: [{ salary_record: record.id, amount: value }],
       }),
@@ -226,16 +234,34 @@ export function SalaryPaymentDialog({ record, onDone }: { record: SalaryRecord; 
     if (parsed === null || parsed.startsWith("-") || Number(parsed) === 0)
       found.amount = t("admin.hr.pay.invalidAmount");
     if (!paidOn) found.paid_on = t("admin.hr.form.required");
+    if (parsed !== null && overpay(parsed) && !confirmOverpay) found.overpay = t("admin.hr.pay.overpay");
     setErrors(found);
     if (Object.keys(found).length > 0 || parsed === null) return;
     save.mutate(parsed);
   }
+
+  const typedAmount = parseDecimalInput(amount.trim(), 3);
+  const overOwed = typedAmount !== null && overpay(typedAmount);
 
   return (
     <DialogContent className="w-[min(520px,calc(100vw-2rem))]">
       <DialogTitle>{t("admin.hr.pay.title", { name: record.employee.name })}</DialogTitle>
       <DialogDescription>{t("admin.hr.pay.owed", { amount: formatMoney(record.outstanding) })}</DialogDescription>
       <form id={formId} onSubmit={submit} noValidate className="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
+        <Field label={t("admin.hr.pay.kind")} htmlFor={`${formId}-kind`} className="col-span-full">
+          <Select value={kind} onValueChange={(value) => setKind(value as SalaryPaymentKindEnum)}>
+            <SelectTrigger id={`${formId}-kind`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYMENT_KINDS.map((choice) => (
+                <SelectItem key={choice} value={choice}>
+                  {t(`admin.hr.kind.${choice}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label={t("admin.hr.pay.paidOn")} htmlFor={`${formId}-paid_on`} error={errors.paid_on}>
           <Input
             id={`${formId}-paid_on`}
@@ -279,8 +305,22 @@ export function SalaryPaymentDialog({ record, onDone }: { record: SalaryRecord; 
             autoComplete="off"
           />
         </Field>
+        {kind === "advance" && (
+          <p className="col-span-full text-[0.85rem] text-ink-2">{t("admin.hr.pay.advanceHint")}</p>
+        )}
+        {overOwed && (
+          <label className="col-span-full flex items-center gap-2 text-[0.88rem]">
+            <input
+              type="checkbox"
+              className="size-4 accent-sea"
+              checked={confirmOverpay}
+              onChange={(event) => setConfirmOverpay(event.target.checked)}
+            />
+            {t("admin.hr.pay.overpayConfirm")}
+          </label>
+        )}
       </form>
-      <Detail message={errors.detail} />
+      <Detail message={errors.detail ?? errors.overpay} />
       <DialogFooter>
         <Button onClick={onDone}>{t("admin.hr.form.cancel")}</Button>
         <Button type="submit" form={formId} variant="primary" disabled={save.isPending}>
@@ -291,10 +331,21 @@ export function SalaryPaymentDialog({ record, onDone }: { record: SalaryRecord; 
   );
 }
 
-// ---- Adjust an approved salary ----
+// ---- Adjust an approved salary, or add a prime (owner point 13, D-234) ----
 
-/** Correct an approved salary: a signed amount and a reason. The record itself never changes. */
-export function AdjustmentDialog({ record, onDone }: { record: SalaryRecord; onDone: () => void }) {
+/**
+ * Correct an approved salary: a signed amount and a reason; the record itself never changes. With `prime`, the
+ * amount is a positive prime added to what is due (owner point 13), a line of its own on the salary.
+ */
+export function AdjustmentDialog({
+  record,
+  onDone,
+  prime = false,
+}: {
+  record: SalaryRecord;
+  onDone: () => void;
+  prime?: boolean;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const formId = useId();
@@ -303,15 +354,22 @@ export function AdjustmentDialog({ record, onDone }: { record: SalaryRecord; onD
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const save = useMutation({
-    mutationFn: (value: string) => adjustSalaryRecord(record.id, { amount: value, reason: reason.trim() }),
+    mutationFn: (value: string) =>
+      prime
+        ? addSalaryPrime(record.id, { amount: value, reason: reason.trim() })
+        : adjustSalaryRecord(record.id, { amount: value, reason: reason.trim() }),
     onSuccess: async () => {
-      toast.success(t("admin.hr.adjust.recorded"));
+      toast.success(prime ? t("admin.hr.prime.recorded") : t("admin.hr.adjust.recorded"));
       await refreshHr(queryClient);
       onDone();
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
-      setErrors(Object.keys(fromServer).length > 0 ? fromServer : { detail: t("admin.hr.adjust.error") });
+      setErrors(
+        Object.keys(fromServer).length > 0
+          ? fromServer
+          : { detail: prime ? t("admin.hr.prime.error") : t("admin.hr.adjust.error") },
+      );
     },
   });
 
@@ -319,7 +377,8 @@ export function AdjustmentDialog({ record, onDone }: { record: SalaryRecord; onD
     event.preventDefault();
     const found: Record<string, string> = {};
     const parsed = parseDecimalInput(amount.trim(), 3);
-    if (parsed === null || Number(parsed) === 0) found.amount = t("admin.hr.adjust.invalidAmount");
+    if (parsed === null || Number(parsed) === 0 || (prime && parsed.startsWith("-")))
+      found.amount = prime ? t("admin.hr.prime.invalidAmount") : t("admin.hr.adjust.invalidAmount");
     if (!reason.trim()) found.reason = t("admin.hr.form.required");
     setErrors(found);
     if (Object.keys(found).length > 0 || parsed === null) return;
@@ -328,10 +387,18 @@ export function AdjustmentDialog({ record, onDone }: { record: SalaryRecord; onD
 
   return (
     <DialogContent className="w-[min(520px,calc(100vw-2rem))]">
-      <DialogTitle>{t("admin.hr.adjust.title", { name: record.employee.name })}</DialogTitle>
-      <DialogDescription>{t("admin.hr.adjust.hint")}</DialogDescription>
+      <DialogTitle>
+        {prime
+          ? t("admin.hr.prime.title", { name: record.employee.name })
+          : t("admin.hr.adjust.title", { name: record.employee.name })}
+      </DialogTitle>
+      <DialogDescription>{prime ? t("admin.hr.prime.hint") : t("admin.hr.adjust.hint")}</DialogDescription>
       <form id={formId} onSubmit={submit} noValidate className="grid grid-cols-1 gap-4">
-        <Field label={t("admin.hr.adjust.amount")} htmlFor={`${formId}-amount`} error={errors.amount}>
+        <Field
+          label={prime ? t("admin.hr.prime.amount") : t("admin.hr.adjust.amount")}
+          htmlFor={`${formId}-amount`}
+          error={errors.amount}
+        >
           <MoneyInput
             id={`${formId}-amount`}
             inputMode="decimal"
@@ -342,7 +409,11 @@ export function AdjustmentDialog({ record, onDone }: { record: SalaryRecord; onD
             className="num"
           />
         </Field>
-        <Field label={t("admin.hr.adjust.reason")} htmlFor={`${formId}-reason`} error={errors.reason}>
+        <Field
+          label={prime ? t("admin.hr.prime.reason") : t("admin.hr.adjust.reason")}
+          htmlFor={`${formId}-reason`}
+          error={errors.reason}
+        >
           <Input
             id={`${formId}-reason`}
             value={reason}

@@ -21,6 +21,7 @@ urlpatterns = [
         views.SalaryRecordAdjustView.as_view(),
         name="salary-record-adjust",
     ),
+    path("salary-records/<int:record_id>/primes", views.SalaryRecordPrimeView.as_view(), name="salary-record-prime"),
     path("payroll-summary", views.PayrollSummaryView.as_view(), name="payroll-summary"),
     path("salary-payments", views.SalaryPaymentListView.as_view(), name="salary-payment-list"),
     path("salary-payments/<int:payment_id>", views.SalaryPaymentDetailView.as_view(), name="salary-payment-detail"),

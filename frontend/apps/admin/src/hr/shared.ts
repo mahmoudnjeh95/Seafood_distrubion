@@ -1,4 +1,4 @@
-import type { SalaryPaymentMethodEnum, SalaryStatusEnum } from "@frutti/api";
+import type { SalaryPaymentKindEnum, SalaryPaymentMethodEnum, SalaryStatusEnum } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -30,6 +30,7 @@ export function refreshHr(queryClient: QueryClient) {
 }
 
 export const PAYMENT_METHODS: readonly SalaryPaymentMethodEnum[] = ["cash", "cheque", "transfer", "other"];
+export const PAYMENT_KINDS: readonly SalaryPaymentKindEnum[] = ["salary", "advance"];
 
 /** The pill colour of each salary status. */
 export const STATUS_TONE: Record<SalaryStatusEnum, "neutral" | "good"> = {
