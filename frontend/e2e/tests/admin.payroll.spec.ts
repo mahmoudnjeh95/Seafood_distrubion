@@ -78,12 +78,8 @@ test("the owner generates the month, adjusts the approved salary and pays it", a
 
   await row.getByRole("button", { name: "Payer" }).click();
   const pay = page.getByRole("dialog", { name: `Payer ${name}` });
-<<<<<<< HEAD
-  await expect(pay.getByLabel("Montant (DT)")).toHaveValue("1280,660");
-=======
   // The amount field shows its thousands separator (D-221).
-  await expect(pay.getByLabel("Montant (DT)")).toHaveValue(/^1\s221,480$/);
->>>>>>> origin/main
+  await expect(pay.getByLabel("Montant (DT)")).toHaveValue(/^1\s280,660$/);
   await pay.getByRole("button", { name: "Enregistrer le paiement" }).click();
   await expect(page.getByText(/Paiement PS-\d{4}-\d{4} enregistré\./)).toBeVisible();
   await expect(row).toContainText("Soldé");
