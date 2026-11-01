@@ -3307,3 +3307,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Journal des banques and Journal des caisses show one account's statement: the movements in order with the running
   balance, the opening and closing balances, a date range and a search. The Excel link is the server's statement file.
 - Provisional: the screens use the P9-T05 API as it is; no backend change.
+
+**D-225 · Motif on a supplier règlement; Motif and Payé par on a customer règlement (owner points 7 and 8, reglement-fields)** · accepted (provisional parts marked) · 2026-11-01
+- Owner request: "in règlement fournisseur we need to have motif (optionnel)"; "in règlement client we need to have motif + payé par (optionnels)".
+- `SupplierPayment.reason` and `CustomerPayment.reason` ("Motif", optional, max 200 characters); `CustomerPayment.paid_by`
+  ("Payé par", optional, the person who handed the money over, max 120). Empty by default, nothing pre-filled. They are kept
+  apart from `notes` (the existing "Note"), which stays as it was.
+- Migrations `purchasing/0016_supplierpayment_reason` and `sales/0024_customerpayment_paid_by_customerpayment_reason` (add columns only).
+- Written by `record_payment` and `record_customer_payment` (`reason`, `paid_by`, stripped), read back by the règlement
+  serializers (lists, details, `POST` bodies: optional, `reason`/`paid_by` refused above their length). Audit snapshots carry them.
+- Shown: a Motif column on both lists (hidden on a phone), a line on each detail page, and a line in the receipt PDF header
+  (`sales/pdf/receipt.html`, `purchasing/pdf/supplier_receipt.html`). The driver app is unchanged (both fields default to empty).
+- Provisional: the Motif is free text on the règlement only, not on its effets; the lists do not filter or export by it yet.
+- Not touched: the règlement lists' filters and totals, the effets logic and the treasury app (D-210, D-211, D-215).

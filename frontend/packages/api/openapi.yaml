@@ -13187,6 +13187,12 @@ components:
         notes:
           type: string
           readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        paid_by:
+          type: string
+          readOnly: true
         allocated_total:
           type: string
           format: decimal
@@ -13235,6 +13241,8 @@ components:
       - method
       - notes
       - number
+      - paid_by
+      - reason
       - received_on
       - reference
       - remaining
@@ -13300,6 +13308,12 @@ components:
         notes:
           type: string
           readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        paid_by:
+          type: string
+          readOnly: true
         allocated_total:
           type: string
           format: decimal
@@ -13354,6 +13368,8 @@ components:
       - method
       - notes
       - number
+      - paid_by
+      - reason
       - received_on
       - reference
       - remaining
@@ -13547,6 +13563,14 @@ components:
         notes:
           type: string
           default: ''
+        reason:
+          type: string
+          default: ''
+          maxLength: 200
+        paid_by:
+          type: string
+          default: ''
+          maxLength: 120
       required:
       - customer
     CustomerWrite:
@@ -28124,6 +28148,9 @@ components:
         notes:
           type: string
           readOnly: true
+        reason:
+          type: string
+          readOnly: true
         lines:
           type: array
           items:
@@ -28179,6 +28206,7 @@ components:
       - notes
       - number
       - paid_on
+      - reason
       - reference
       - supplier
       - unallocated_amount
@@ -28221,6 +28249,9 @@ components:
           readOnly: true
           nullable: true
         notes:
+          type: string
+          readOnly: true
+        reason:
           type: string
           readOnly: true
         lines:
@@ -28278,6 +28309,7 @@ components:
       - notes
       - number
       - paid_on
+      - reason
       - reference
       - supplier
       - unallocated_amount
@@ -28426,6 +28458,10 @@ components:
         notes:
           type: string
           default: ''
+        reason:
+          type: string
+          default: ''
+          maxLength: 200
         allocations:
           type: array
           items:

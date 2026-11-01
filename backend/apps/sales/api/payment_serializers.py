@@ -76,6 +76,8 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
             "received_on",
             "reference",
             "notes",
+            "reason",
+            "paid_by",
             "allocated_total",
             "unallocated",
             "remaining",
@@ -225,6 +227,9 @@ class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     received_on = serializers.DateField(required=False, allow_null=True, default=None)
     reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    # What the money is for, and who handed it over (both optional).
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
+    paid_by = serializers.CharField(required=False, allow_blank=True, default="", max_length=120)
 
 
 class UnpaidWriteSerializer(serializers.Serializer[Any]):
