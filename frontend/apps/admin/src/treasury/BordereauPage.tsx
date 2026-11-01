@@ -103,8 +103,11 @@ export function BordereauPage() {
                         />
                         <span className="min-w-0 flex-1 text-[0.9rem]">
                           <span className="num font-semibold">{row.number}</span>
-                          {` · ${t(`admin.treasury.bordereau.kinds.${row.kind}`)} · ${row.drawer || "—"}`}
-                          {row.bank ? ` · ${row.bank.code}` : ""}
+                          {" · "}
+                          {t(`admin.treasury.bordereau.kinds.${row.kind}`)}
+                          {" · "}
+                          {row.drawer || "—"}
+                          {row.bank && ` · ${row.bank.code}`}
                           <span className="block text-[0.8rem] text-ink-2">{formatDate(row.due_on)}</span>
                         </span>
                         <span className="num font-semibold">{formatMoney(row.amount)}</span>
