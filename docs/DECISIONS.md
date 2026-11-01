@@ -3146,7 +3146,23 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   estimate charged to the lots can differ from the typed amount by a few millimes until approval (the correction absorbs it).
 - Not touched: per-room weights and shares, the hour-by-hour split (D-142), treasury (no treasury posting in this change).
 
-
+**D-221 · Every amount field shows thousands separators while the person types (owner point 3, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
+- Typing 1250 shows "1 250", 1250,5 shows "1 250,5", 1250000 shows "1 250 000" (the `formatMoney` French format).
+  `MoneyInput` (`packages/ui`, on the `Input` element) does it; `typeMoney` does the same on a plain cell (the
+  LinesGrid unit price, the receipt unit cost). Pure helpers `formatMoneyInput` and `moneyInputCaret` live in
+  `packages/i18n/src/format.ts`, with vitest tests.
+- The form state keeps the shown text, so `parseDecimalInput` reads it unchanged (spaces ignored, dot or comma). The API
+  still gets the plain decimal string ("1250.500"). This replaces the D-199 note "what a user types stays as typed".
+- The caret stays after the same digits and comma while the separators move. Backspace or Delete on a separator
+  removes the digit beside it too.
+- Changed: the money fields only (DT amounts and unit prices per kg). Kilos, percentages (VAT, CNSS, withholding,
+  discounts, partner shares), temperatures, counts, days and months are not money and keep their inputs. The public
+  site has no money field.
+- The one place that rewrote a typed amount before sending it (the bank charges of an unpaid effet) removes the
+  spaces first, so the API receives what it did before.
+- Provisional: Arabic typing uses the French format too (the Arabic separators are not typed yet).
+- Provisional: a second decimal separator is ignored ("1.250.000" shows "1,250000"); decimals are not cut, so a
+  fourth decimal is still shown and refused by the parser as before.
 
 **D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
 - `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when

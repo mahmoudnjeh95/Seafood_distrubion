@@ -14,6 +14,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -147,24 +148,27 @@ export function PartnershipDialog({
             </SelectContent>
           </Select>
         </Field>
-        {[...AMOUNTS, ...RATES].map((field) => (
-          <Field
-            key={field}
-            label={t(`admin.partnerships.form.${LABELS[field]}`)}
-            htmlFor={`${formId}-${field}`}
-            error={errors[field]}
-          >
-            <Input
-              id={`${formId}-${field}`}
-              inputMode="decimal"
-              value={values[field]}
-              onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}
-              aria-invalid={errors[field] ? true : undefined}
-              autoComplete="off"
-              className="num"
-            />
-          </Field>
-        ))}
+        {[...AMOUNTS, ...RATES].map((field) => {
+          const Control = AMOUNTS.includes(field) ? MoneyInput : Input;
+          return (
+            <Field
+              key={field}
+              label={t(`admin.partnerships.form.${LABELS[field]}`)}
+              htmlFor={`${formId}-${field}`}
+              error={errors[field]}
+            >
+              <Control
+                id={`${formId}-${field}`}
+                inputMode="decimal"
+                value={values[field]}
+                onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}
+                aria-invalid={errors[field] ? true : undefined}
+                autoComplete="off"
+                className="num"
+              />
+            </Field>
+          );
+        })}
         <Field label={t("admin.partnerships.form.notes")} htmlFor={`${formId}-notes`} className="col-span-full">
           <Input id={`${formId}-notes`} value={notes} onChange={(event) => setNotes(event.target.value)} />
         </Field>

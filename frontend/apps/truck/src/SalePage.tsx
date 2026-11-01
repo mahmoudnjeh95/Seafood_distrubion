@@ -9,7 +9,7 @@ import {
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, ConfirmButton, EmptyState, Input } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -245,7 +245,7 @@ export function SalePage() {
             <label htmlFor="paid" className="font-semibold">
               {t("truck.sale.paid")}
             </label>
-            <Input
+            <MoneyInput
               id="paid"
               inputMode="decimal"
               className="text-2xl"

@@ -16,6 +16,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -235,7 +236,7 @@ function DeliverForm({ quote, onClose, stayHere }: { quote: QuoteDetail; onClose
           <p className="col-span-2 text-[0.85rem] text-ink-2">{t("admin.sales.form.walkInPays")}</p>
         )}
         <Field label={t("admin.sales.form.amountPaid")} htmlFor={`${formId}-amount_paid`} error={errors.amount_paid}>
-          <Input
+          <MoneyInput
             id={`${formId}-amount_paid`}
             inputMode="decimal"
             value={amountPaid}

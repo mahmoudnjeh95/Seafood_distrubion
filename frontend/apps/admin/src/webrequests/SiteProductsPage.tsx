@@ -13,6 +13,7 @@ import {
   EmptyState,
   Illustration,
   ILLUSTRATION_NAMES,
+  MoneyInput,
   type IllustrationName,
   Input,
   PageHeader,
@@ -242,7 +243,7 @@ function SiteProductRow({
       </Td>
       <Td className="min-w-40">
         {canEdit ? (
-          <Input
+          <MoneyInput
             inputMode="decimal"
             aria-label={`${t("admin.siteProducts.webPrice")} · ${row.product_name}`}
             placeholder={t("admin.siteProducts.onRequest")}
