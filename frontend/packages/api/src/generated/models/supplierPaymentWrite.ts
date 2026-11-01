@@ -23,6 +23,8 @@ export interface SupplierPaymentWrite {
   cash_on?: string | null;
   lines?: SupplierPaymentLineWrite[];
   notes?: string;
+  /** @maxLength 200 */
+  reason?: string;
   allocations?: AllocationWrite[];
   auto_allocate?: boolean;
   /**

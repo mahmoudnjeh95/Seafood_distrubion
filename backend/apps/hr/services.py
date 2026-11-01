@@ -1,7 +1,6 @@
 """Every write on employees, salaries and days on a lot goes through these functions (ARCHITECTURE §3)."""
 
 import datetime as dt
-import re
 from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, TypedDict, Unpack
@@ -12,7 +11,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.models import Membership, Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, display_money, money
 from apps.treasury import services as treasury
@@ -24,7 +23,6 @@ from .models import (
     TREASURY_SOURCE,
     Employee,
     LotWorkDay,
-    PaymentCounter,
     SalaryAdjustment,
     SalaryAdjustmentKind,
     SalaryPayment,
@@ -39,9 +37,6 @@ from .selectors import employee_cost_for_lot_days as employee_cost_for_lot_days 
 if TYPE_CHECKING:
     from apps.inventory.models import Batch
 
-EMPLOYEE_REFERENCE_PREFIX = "E-"
-PAYMENT_NUMBER_PREFIX = "PS-"
-_GENERATED_REFERENCE = re.compile(rf"^{EMPLOYEE_REFERENCE_PREFIX}(\d+)$", re.IGNORECASE)
 ZERO = Decimal("0.000")
 HUNDREDTH = Decimal("0.01")
 
@@ -79,15 +74,6 @@ class EmployeeFields(TypedDict, total=False):
     employee_cnss_rate: Number
     user: User | None
     notes: str
-
-
-def _next_employee_reference(organization: Organization) -> str:
-    numbers = [
-        int(match.group(1))
-        for reference in Employee.objects.for_organization(organization).values_list("reference", flat=True)
-        if (match := _GENERATED_REFERENCE.match(reference))
-    ]
-    return f"{EMPLOYEE_REFERENCE_PREFIX}{max(numbers, default=0) + 1:03d}"
 
 
 def _employee_snapshot(employee: Employee) -> dict[str, Any]:
@@ -157,7 +143,9 @@ def create_employee(*, organization: Organization, actor: User | None, **fields:
     }
     employee = Employee(organization=organization, **values)
     if not employee.reference.strip():
-        employee.reference = _next_employee_reference(organization)
+        employee.reference = numbering.next_free_reference(
+            organization, "employee", Employee.objects.for_organization(organization)
+        )
     _clean_employee(employee)
     employee.save()
     audit.record(
@@ -505,16 +493,6 @@ def allocation_error_key(index: int, field: str) -> str:
     return f"allocations.{index}.{field}"
 
 
-def _next_payment_number(organization: Organization) -> str:
-    """PS-2026-0001... per organization and year (D-120); payments made before it keep `PS-0001`."""
-    year = timezone.localdate().year
-    PaymentCounter.objects.bulk_create([PaymentCounter(organization=organization, year=year)], ignore_conflicts=True)
-    counter = PaymentCounter.objects.select_for_update().get(organization=organization, year=year)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{PAYMENT_NUMBER_PREFIX}{year}-{counter.last_number:04d}"
-
-
 def _remaining(record: SalaryRecord) -> Decimal:
     paid = SalaryPaymentAllocation.objects.filter(salary_record=record).aggregate(total=Sum("amount"))["total"]
     adjusted = SalaryAdjustment.objects.filter(salary_record=record).aggregate(total=Sum("amount"))["total"]
@@ -697,7 +675,7 @@ def record_payment(
     assert checked is not None  # an amount error would have been raised above
     payment = SalaryPayment.objects.create(
         organization=organization,
-        number=_next_payment_number(organization),
+        number=numbering.next_number(organization, "salary_payment"),
         employee=employee,
         paid_on=paid_on,
         amount=checked,

@@ -11,10 +11,10 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.catalog.tests.factories import ProductFactory
-from apps.core.models import AuditLog, Role
+from apps.core.models import AuditLog, NumberSeries, Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch, BatchCounter
+from apps.inventory.models import Batch
 from apps.partners.tests.factories import SupplierFactory
 
 from .factories import BatchFactory
@@ -55,7 +55,7 @@ def test_batches_are_numbered_in_order_per_organization(organization, actor):
 
 def test_the_number_keeps_growing_past_four_digits(organization, actor):
     new_batch(organization, actor)
-    BatchCounter.objects.filter(organization=organization).update(last_number=9999)
+    NumberSeries.objects.filter(organization=organization, kind="batch").update(last_number=9999)
 
     assert new_batch(organization, actor).number == "L-10000"
 

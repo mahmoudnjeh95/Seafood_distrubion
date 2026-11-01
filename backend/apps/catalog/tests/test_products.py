@@ -365,3 +365,10 @@ def test_a_product_still_in_stock_cannot_be_archived_until_it_is_gone(category, 
         reason="Perdu",
     )
     assert services.set_product_active(product=product, actor=actor, is_active=False).is_active is False
+
+
+def test_a_product_without_reference_gets_the_next_article_code(category, actor):
+    ProductFactory.create(organization=category.organization, reference="ART0060")
+
+    assert new_product(category, actor, reference="").reference == "ART0061"
+    assert new_product(category, actor, reference="", name="Crevette tigrée").reference == "ART0062"

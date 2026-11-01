@@ -88,19 +88,6 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
         return self.number
 
 
-class BatchCounter(OrganizationScopedModel):
-    """The last batch number given in an organization. Its row is locked while a number is taken, so two
-    receipts saved at the same moment never get the same number."""
-
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [models.UniqueConstraint(fields=["organization"], name="one_batch_counter_per_organization")]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.last_number}"
-
-
 class MovementKind(models.TextChoices):
     RECEIPT = "receipt", _("Réception")
     TRANSFER = "transfer", _("Transfert")
@@ -213,24 +200,6 @@ class StockOnHand(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.location} · {self.batch} · {self.quantity} kg"
-
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one series of stock documents ("TR" transfers...) in an organization.
-
-    Locked while a number is taken, like `BatchCounter`, so two documents saved at once never share one.
-    """
-
-    series = models.CharField(max_length=10)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "series"], name="one_document_counter_per_series"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.series} · {self.last_number}"
 
 
 # ---- Transfers between locations (P1-T09, D-044) ----

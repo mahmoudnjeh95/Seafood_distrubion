@@ -19,7 +19,13 @@ from rest_framework.views import APIView
 from apps.core import selectors, services
 from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle, PasswordChangeThrottle
 from apps.core.models import Job, Membership, Organization, User
-from apps.core.permissions import IsMember, IsOwner, ReadMemberWriteOwnerOrManager, membership_of
+from apps.core.permissions import (
+    IsMember,
+    IsOwner,
+    ReadMemberWriteOwnerOrManager,
+    ReadOfficeWriteOwnerOrManager,
+    membership_of,
+)
 
 from .serializers import (
     ChangePasswordSerializer,
@@ -31,6 +37,8 @@ from .serializers import (
     MemberProfileSerializer,
     MemberRoleSerializer,
     MemberSerializer,
+    NumberingWriteSerializer,
+    NumberLineSerializer,
     OrganizationSerializer,
     ProfilePhotoUploadSerializer,
     SessionSerializer,
@@ -442,3 +450,32 @@ class MemberPasswordResetView(APIView):
             organization=membership.organization, membership=target, actor=membership.user, **serializer.validated_data
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class NumberingView(APIView):
+    """The prefixes of every number and the next number of each kind (Paramètres, D-223). Owners and managers
+    change them; the accountant reads them; drivers do not see them."""
+
+    permission_classes = (ReadOfficeWriteOwnerOrManager,)
+
+    @extend_schema(operation_id="getNumbering", responses=NumberLineSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        return Response(NumberLineSerializer(selectors.number_lines(membership.organization), many=True).data)
+
+    @extend_schema(
+        operation_id="updateNumbering", request=NumberingWriteSerializer, responses=NumberLineSerializer(many=True)
+    )
+    def put(self, request: Request) -> Response:
+        """Change the prefixes. Each kind keeps its counter: the next number carries the new prefix."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = NumberingWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_number_prefixes(
+            organization=membership.organization,
+            actor=membership.user,
+            prefixes=[(row["kind"], row["prefix"]) for row in serializer.validated_data["prefixes"]],
+        )
+        return Response(NumberLineSerializer(selectors.number_lines(membership.organization), many=True).data)

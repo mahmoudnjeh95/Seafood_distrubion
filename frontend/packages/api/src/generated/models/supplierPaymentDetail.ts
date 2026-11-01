@@ -24,6 +24,7 @@ export interface SupplierPaymentDetail {
   /** @nullable */
   readonly cash_on: string | null;
   readonly notes: string;
+  readonly reason: string;
   readonly lines: readonly SupplierPaymentLineDetail[];
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly allocated_amount: string;

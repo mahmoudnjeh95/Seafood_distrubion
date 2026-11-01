@@ -273,6 +273,7 @@ export function PaymentsPage() {
                 <Th>{t("admin.payments.columns.number")}</Th>
                 <Th>{t("admin.payments.columns.date")}</Th>
                 <Th>{t("admin.payments.columns.customer")}</Th>
+                <Th className="max-[720px]:hidden">{t("admin.payments.columns.reason")}</Th>
                 <Th>{t("admin.payments.columns.method")}</Th>
                 <Th numeric>{t("admin.payments.columns.amount")}</Th>
                 <Th numeric>{t("admin.payments.columns.remaining")}</Th>
@@ -299,6 +300,7 @@ export function PaymentsPage() {
                       {payment.customer.name}
                     </Link>
                   </Td>
+                  <Td className="max-[720px]:hidden">{payment.reason}</Td>
                   <Td>
                     <MeansChips lines={payment.lines} methodLabel={methodLabel} />
                   </Td>

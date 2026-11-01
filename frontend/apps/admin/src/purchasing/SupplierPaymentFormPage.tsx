@@ -92,6 +92,7 @@ export function SupplierPaymentFormPage() {
       : newLine<PaymentMethodEnum>(),
   ]);
   const [notes, setNotes] = useState("");
+  const [reason, setReason] = useState("");
   const [allocations, setAllocations] = useState<Allocations>(
     planAmount && fromInvoice ? { [fromInvoice]: asTyped(planAmount) } : {},
   );
@@ -229,6 +230,7 @@ export function SupplierPaymentFormPage() {
       amount: total,
       lines: linesPayload(shownLines),
       notes: notes.trim(),
+      reason: reason.trim(),
       allocations: payload,
       plan_line: planAmount ? planLine : null,
       plan_lines: planPreset ? planPreset.ids : paidPlanLines,
@@ -262,6 +264,15 @@ export function SupplierPaymentFormPage() {
                 value={paidOn}
                 onChange={(event) => setPaidOn(event.target.value)}
                 aria-invalid={errors.paid_on ? true : undefined}
+              />
+            </Field>
+            <Field label={t("admin.treasury.form.reason")} htmlFor={id("reason")} error={errors.reason}>
+              <Input
+                id={id("reason")}
+                value={reason}
+                maxLength={200}
+                onChange={(event) => setReason(event.target.value)}
+                autoComplete="off"
               />
             </Field>
           </FormPanel>

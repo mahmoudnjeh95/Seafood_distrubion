@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_quantity, money
@@ -132,8 +132,13 @@ def _clean_product(product: Product) -> None:
 def create_product(
     *, organization: Organization, actor: User | None, sale_price: Number, **fields: Unpack[ProductFields]
 ) -> Product:
-    """A new product, with its first sale price in force from now."""
+    """A new product, with its first sale price in force from now. Without a reference it gets the next product
+    number (ART0001 by default, D-223)."""
     product = Product(organization=organization, base_unit=selectors.base_unit(), **fields)
+    if not product.reference.strip():
+        product.reference = numbering.next_free_reference(
+            organization, "product", Product.objects.for_organization(organization)
+        )
     _clean_product(product)
     product.save()
     first_price = _add_price(product=product, actor=actor, price=sale_price, valid_from=timezone.now())

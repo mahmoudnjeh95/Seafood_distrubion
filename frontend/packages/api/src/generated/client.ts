@@ -240,6 +240,8 @@ import type {
   MySupplier,
   NotDelivered,
   NotificationList,
+  NumberLine,
+  NumberingWrite,
   OfficeSiteProduct,
   Order,
   OrderWrite,
@@ -17657,6 +17659,190 @@ export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay
 
 
 
+
+export const getGetNumberingUrl = () => {
+
+
+
+
+  return `/api/v1/numbering`
+}
+
+/**
+ * The prefixes of every number and the next number of each kind (Paramètres, D-223). Owners and managers
+ * change them; the accountant reads them; drivers do not see them.
+ */
+export const getNumbering = async ( options?: Parameters<typeof apiFetch>[1]): Promise<NumberLine[]> => {
+
+  return apiFetch<NumberLine[]>(getGetNumberingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNumberingQueryKey = () => {
+    return [
+    `/api/v1/numbering`
+    ] as const;
+    }
+
+
+export const getGetNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getNumbering>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNumbering>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNumberingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNumbering>>> = ({ signal }) => getNumbering({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNumbering>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getNumbering>>>
+export type GetNumberingQueryError = unknown
+
+
+export function useGetNumbering<TData = Awaited<ReturnType<typeof getNumbering>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNumbering>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNumbering>>,
+          TError,
+          Awaited<ReturnType<typeof getNumbering>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNumbering<TData = Awaited<ReturnType<typeof getNumbering>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNumbering>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNumbering>>,
+          TError,
+          Awaited<ReturnType<typeof getNumbering>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNumbering<TData = Awaited<ReturnType<typeof getNumbering>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNumbering>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetNumbering<TData = Awaited<ReturnType<typeof getNumbering>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNumbering>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetNumberingQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateNumberingUrl = () => {
+
+
+
+
+  return `/api/v1/numbering`
+}
+
+/**
+ * Change the prefixes. Each kind keeps its counter: the next number carries the new prefix.
+ */
+export const updateNumbering = async (numberingWrite: NumberingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<NumberLine[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<NumberLine[]>(getUpdateNumberingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(numberingWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateNumberingMutationKey = () => ['updateNumbering'] as const;
+
+export const getUpdateNumberingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumbering>>, TError,UpdateNumberingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateNumbering>>, TError,UpdateNumberingMutationVariables, TContext> => {
+
+const mutationKey = getUpdateNumberingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNumbering>>, UpdateNumberingMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateNumbering>>>
+    export type UpdateNumberingMutationBody = NumberingWrite
+    export type UpdateNumberingMutationError = unknown
+    export type UpdateNumberingMutationVariables = {data: NumberingWrite}
+
+    export const useUpdateNumbering = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumbering>>, TError,UpdateNumberingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateNumbering>>,
+        TError,
+        UpdateNumberingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateNumberingMutationOptions(options), queryClient);
+    }
 
 export const getUploadOrganizationLogoUrl = (organizationId: number,) => {
 
