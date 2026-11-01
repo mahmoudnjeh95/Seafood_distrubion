@@ -21,6 +21,7 @@ export interface SupplierPayment {
   /** @nullable */
   readonly cash_on: string | null;
   readonly notes: string;
+  readonly reason: string;
   readonly lines: readonly SupplierPaymentLine[];
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly allocated_amount: string;
@@ -29,4 +30,9 @@ export interface SupplierPayment {
   readonly allocations: readonly PaymentAllocation[];
   readonly created_by: string;
   readonly created_at: string;
+  readonly is_voided: boolean;
+  /** @nullable */
+  readonly voided_at: string | null;
+  readonly voided_by: string;
+  readonly void_reason: string;
 }

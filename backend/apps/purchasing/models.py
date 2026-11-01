@@ -103,18 +103,6 @@ class GoodsReceiptLine(OrganizationScopedModel):
         return self.invoiced_quantity != self.accepted_quantity or ordered_differs
 
 
-class ReceiptCounter(OrganizationScopedModel):
-    """The last receipt number given in an organization, locked while a number is taken."""
-
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [models.UniqueConstraint(fields=["organization"], name="one_receipt_counter_per_organization")]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.last_number}"
-
-
 class PurchaseOrderStatus(models.TextChoices):
     # Sent to the supplier, nothing delivered yet.
     OPEN = "open", _("En attente")
@@ -280,7 +268,8 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     """Money paid to a supplier, allocated to their posted invoices: all of it, part of it or none (D-043).
 
     The part not allocated yet is an advance: it already lowers the supplier balance and can be allocated
-    to a later invoice. A recorded payment is never edited.
+    to a later invoice. A recorded payment is never edited; a mistake is voided (D-211), and every balance,
+    debt, statement and report reads only the règlements not voided.
     """
 
     # "RF-0001", "RF-0002"... per organization ("règlement fournisseur").
@@ -295,9 +284,18 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     # each line's effet holds its own échéance; this keeps the one of a règlement with a single cheque or traite.
     cash_on = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    # What the money is for (optional, "Motif").
+    reason = models.CharField(max_length=200, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # A règlement typed by mistake is voided, never deleted (D-211): it stays in the list, its allocations stop
+    # counting, its invoices owe again and its effets are cancelled.
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    void_reason = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ["-paid_on", "-id"]
@@ -337,6 +335,50 @@ class SupplierPaymentLine(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.payment} · {self.method} {self.amount}"
+
+
+class RejectedEffet(OrganizationScopedModel):
+    """One of our cheques or traites the bank refused to pay (rejeté, D-218): the supplier is owed its amount again.
+
+    A new record, never an edit of the règlement: this row takes the amount out of what was paid, and
+    `RejectedRelease` rows take back what the règlement had settled on invoices (beyond its advance left), so those
+    invoices owe again. We pay the supplier with a new règlement.
+    """
+
+    payment = models.ForeignKey("SupplierPayment", on_delete=models.PROTECT, related_name="rejected_effets")
+    line = models.OneToOneField(SupplierPaymentLine, on_delete=models.PROTECT, related_name="rejected")
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="rejected_effets")
+    amount = MoneyField()
+    rejected_on = models.DateField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-rejected_on", "-id"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="rejected_effet_amount_positive")]
+
+    def __str__(self) -> str:
+        return f"{self.payment} · rejeté {self.amount}"
+
+
+class RejectedRelease(OrganizationScopedModel):
+    """The part of a règlement's allocation to one invoice that a rejected effet took back: it owes it again."""
+
+    rejected = models.ForeignKey(RejectedEffet, on_delete=models.PROTECT, related_name="releases")
+    invoice = models.ForeignKey("SupplierInvoice", on_delete=models.PROTECT, related_name="rejected_releases")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["rejected", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="rejected_release_amount_positive")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.rejected} -> {self.invoice} · {self.amount}"
 
 
 class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
@@ -391,30 +433,6 @@ class SupplierPaymentPlanLine(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.invoice} · {self.amount}"
-
-
-class DocumentKind(models.TextChoices):
-    SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
-    SUPPLIER_PAYMENT = "supplier_payment", _("Paiement fournisseur")
-    PURCHASE_ORDER = "purchase_order", _("Commande d'achat")
-    FIELD_PURCHASE = "field_purchase", _("Achat terrain")
-
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one kind of purchasing document in an organization, locked while taken."""
-
-    kind = models.CharField(max_length=30, choices=DocumentKind.choices)
-    # 0 for a kind numbered without a year (FF-0001, order numbers); the year for a kind that restarts yearly (D-120).
-    year = models.PositiveIntegerField(default=0)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "kind", "year"], name="one_document_counter_per_kind_year"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.kind} · {self.year} · {self.last_number}"
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----

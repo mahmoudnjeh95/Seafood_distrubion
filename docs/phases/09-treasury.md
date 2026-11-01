@@ -93,38 +93,67 @@ cash only on the phone (as today, D-133).
 - [x] i18n FR. Vitest for the lines, the totals and "Répartir". E2E of the supplier payment updated.
 
 ### P9-T03b · Office: règlement lists, detail pages and the supplier void · M
-- [ ] Règlements clients / fournisseurs list pages: filters (party, dates, method, status, search), totals of the
-      filter, columns number, day, party, total, moyens (chips), affecté, avance, state; Excel export.
-- [ ] Règlement detail page: lines with each effet's state and history, affectation, avance left with "Affecter",
-      "Annuler" (reason), PDF reçu de règlement (lines and invoices), link to the customer statement.
-- [ ] Void a supplier règlement (D-208: none existed): reason, its allocations undone (invoice status back), its
-      plan lines open again, its effets cancelled; refused once an effet was debited. Every supplier balance, debt,
-      statement and report reads only the règlements not voided.
-- [ ] "Payer" several plan lines at once from "Règlements fournisseurs" (the API takes `plan_lines`, D-208).
+- [x] Règlements clients / fournisseurs list pages (D-211): filters (search, days, means, state), totals of the
+      filter by means (voided left out), means as chips, voided marked, Excel export of the filter.
+- [x] Règlement detail pages (`/reglements/<id>`, `/achats/paiements/<id>`): lines with each effet's state and
+      history, what it settled, credit/advance left with "Affecter", "Annuler" (reason), PDF reçu (customer).
+- [x] Void a supplier règlement (D-211): allocations undone (invoice status back), plan lines open again, effets
+      cancelled; refused once an effet was debited or for port money. Every supplier balance, debt, statement and
+      report reads only the règlements not voided.
+- [x] Tests: void and its readers, list filters, totals, export, effet history (both sides); vitest for the filters.
 
-### P9-T04 · Portefeuille: the life of an effet · L
-- [ ] Page Trésorerie › Portefeuille: tabs À remettre (portfolio), En banque, Encaissés, Impayés, Émis (ours); filters
-      due day, bank, party, kind; totals; overdue in red.
-- [ ] Remise en banque: tick effets, choose our bank account and the day → a bordereau (`BR-…`) with its PDF.
-- [ ] Encaissé (one or many, the day the bank credited); Impayé (day, reason, bank charges): the customer owes again
-      the amount (new record, D-197), charges as an expense "Frais financiers", the invoices owe again.
-- [ ] After an impayé: Restituer (paper given back), or replace it by a new règlement.
-- [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement (provisional: allowed
-      for cheques and traites still in portfolio).
-- [ ] Issued effets: Débité (day), Rejeté (day, reason: the supplier is owed again).
-- [ ] Each change is an `InstrumentEvent` and an audit entry; notifications to the owner on an impayé.
+### P9-T03c · Supplier receipt PDF and several plan lines at once · S
+- [x] PDF "reçu de paiement fournisseur" (lines, effets, invoices), PDF and e-mail buttons on the detail page (D-215).
+- [x] "Payer" several plan lines at once from "Règlements fournisseurs" (tick boxes, "Payer la sélection", D-215).
 
-### P9-T05 · Accounts and movements · L
-- [ ] `TreasuryAccount`: Caisse (one per organization, more allowed), bank accounts (bank, RIB, label), each driver's
-      cash; opening balance and day. `TreasuryMovement`: append-only (account, day, signed amount, kind, source).
-- [ ] Movements written by: customer and supplier cash lines, transfers and cards (to the bank chosen), effets
-      cashed or debited, salaries, approved expenses paid, partner settlements, port purchases paid in cash, bank
-      charges. A backfill command writes the history from the existing records.
-- [ ] Driver cash: money a driver collects goes to that driver's account; the approved day closing moves it to the
-      Caisse (D-134 reopening reverses it by a new movement).
-- [ ] Versement espèces → banque, transfer between accounts, retrait; arrêté de caisse (counted vs expected, gap
-      recorded with a reason).
-- [ ] Trésorerie › Comptes page: balance per account, movements with running balance, filters, Excel export.
+### P9-T04a · Portefeuille: remise en banque, encaissé, débité · M
+- [x] Page Trésorerie › Portefeuille (`/tresorerie/portefeuille`, D-216): tabs À remettre, En banque, Encaissés,
+      Émis (à débiter), Débités, Bordereaux; filters search, kind, bank, due days; totals (count, amount, late);
+      overdue in red; tick effets, an action bar with the steps of the tab.
+- [x] Remise en banque: tick effets in portfolio, choose the bank and the day → a bordereau `RB-2026-0001` (model
+      `Deposit`) with its PDF (document kind `bank_deposit`), opened at once; each effet "Remis en banque".
+- [x] Encaissé (one or many, the day the bank credited; also from the portfolio, cashed at the bank's counter);
+      Retirer de la banque (back to the portfolio); our effets Débité.
+- [x] Each change is an `InstrumentEvent` and an audit entry. Tests; vitest for the tabs.
+
+### P9-T04b · Portefeuille: impayé and restituer · M
+- [x] Impayé (day, reason, bank charges) of a customer effet at the bank or already credited (D-217): a new record
+      `sales.UnpaidEffet`, the customer owes the amount again; what its règlement had settled on sales beyond its
+      credit is taken back newest first (`UnpaidRelease`), so those sales owe again; the charges become an approved
+      expense "Frais financiers"; the office is told; the account history and the statement show "Effet impayé".
+- [x] After an impayé: Restituer (paper given back); the customer pays with a new règlement.
+- [x] Portefeuille: tab Impayés, steps "Impayé" (one effet at a time) and "Restituer"; the règlement's page shows
+      the impayé. Tests.
+
+### P9-T04c · Endosser, and our effets rejetés · M
+- [x] Issued effets: Rejeté (day, reason, D-218): `purchasing.RejectedEffet`, the supplier is owed again; the
+      règlement's advance absorbs it first, then the invoices it settled owe again, newest first (`RejectedRelease`).
+      Portefeuille › Émis › "Rejeté par la banque"; the règlement page and the supplier statement show it. Tests.
+- [ ] Endosser: give a received effet to a supplier as a payment line of a supplier règlement. **Waits for the owner
+      (Q29: may customer traites be endorsed to suppliers?)**; not built, per the open-question rule.
+
+### P9-T05a · Accounts and movements (backend) · M
+- [x] `TreasuryAccount` (Caisse, bank accounts with bank and RIB, each driver's cash; opening balance and day; one
+      default per kind), `TreasuryMovement` append-only (account, day, signed amount, kind, source), D-219. Every
+      organization starts with "Caisse" and "Banque principale" (provisional names).
+- [x] Movements written by: customer and supplier cash, transfer and card lines (to the account chosen, else the
+      default), the cash a driver takes (that driver's cash), effets cashed (the remise's account; at the counter: the
+      Caisse), taken back after cashing, our effets debited (their account, else their bank's). A voided règlement
+      writes the opposite movements. `backfill_treasury` writes the history (run at each staging start, safe again).
+- [x] Versement espèces → banque, retrait, virement between accounts (MT-…, annulable); arrêté de caisse (counted vs
+      expected, gap as a movement with its reason).
+- [x] API: accounts, statement with running balance and its Excel export, transfers, arrêtés; `account` on règlement
+      lines and on the remise. Tests.
+
+### P9-T05b · Driver cash, salaries, expenses, partners, port purchases · M
+- [ ] Driver cash: the approved day closing moves the cash the office counted to the Caisse (D-213); the D-134
+      reopening keeps it (that cash already reached the office); the day's fund given to the driver.
+- [ ] Movements written by: sales paid on the spot, salaries, approved expenses paid (bank charges included),
+      partner settlements, port purchases paid by the driver; the backfill writes their history.
+
+### P9-T05c · Trésorerie › Comptes page · M
+- [ ] Balance per account, movements with running balance, filters, Excel export; new account, versement / retrait /
+      virement, arrêté de caisse; "Compte" in the règlement forms and the remise en banque.
 
 ### P9-T06 · Échéancier and alerts · M
 - [ ] Trésorerie › Échéancier: by week and month, effets to cash (in) and to pay (out), plan lines (D-192), and the
@@ -137,6 +166,22 @@ cash only on the phone (as today, D-133).
 - [ ] Cash flow report (D-116) built from the treasury movements, with opening and closing balances per account.
 - [ ] Supplier side: what we owe, and our effets not yet debited.
 - [ ] Rapprochement bancaire (import a bank statement and match it): backlog, only if the accountant asks.
+
+### P9-T08 · Trésorerie in the Perfaxis layout (D-230) · M
+_Owner request of 2026-11-01: the module looks like the Perfaxis one (the ribbon of icon buttons, the grids, the
+bordereau de versement, the états des factures); the flow and the rules stay ours. No backend change, no migration._
+- [x] `TresorerieRibbon` on every treasury screen: Encaissement, Décaissement, Banque, Portefeuille, Bordereau de
+      versement, Ordre de paiement, Facture de vente, Facture d'achat; the current screen is highlighted.
+- [x] Bordereau de versement (`/tresorerie/bordereau`): En attente, Encaissé, Impayé; tick effets in a column, then
+      Encaissé / Impayé / Restituer with the same dialogs as the Portefeuille.
+- [x] États des factures (`/tresorerie/etats/ventes`, `/tresorerie/etats/achats`): invoices grouped by customer or
+      supplier, net à payer, réglé, restant, état, totals.
+- [x] Forms in the Perfaxis layout (D-232): Encaissement and Décaissement forms with a toolbar (Enregistrer, Retour) and
+      two titled panels (informations encaissement / décaissement, informations client / fournisseur).
+- [x] Export of the états (D-232): "Exporter (Excel)" writes a CSV that Excel opens (`;`, French decimal commas).
+- [x] Agence bancaire and Caisse liquide (accounts, cash counts) and the Journal des banques and Journal des caisses
+      (statements with running balance, Excel link) on the ribbon, over the P9-T05 accounts API (D-233).
+- Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
 
 ## Defaults chosen without the owner (provisional, D-197)
 

@@ -5,7 +5,7 @@ import {
   voidWithholdingCertificate,
 } from "@frutti/api";
 import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, Field, Input, toast } from "@frutti/ui";
+import { Button, Card, CardTitle, Field, Input, MoneyInput, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
@@ -140,7 +140,7 @@ export function CertificateCard({ invoice, canWrite }: { invoice: InvoiceDetail;
             />
           </Field>
           <Field label={t("admin.payments.cert.amountLabel")} htmlFor={`${formId}-a`} error={errors.amount}>
-            <Input
+            <MoneyInput
               id={`${formId}-a`}
               inputMode="decimal"
               value={amount}

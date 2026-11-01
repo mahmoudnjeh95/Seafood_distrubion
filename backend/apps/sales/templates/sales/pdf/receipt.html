@@ -6,6 +6,8 @@
   <div>
     <h2>Paiement</h2>
     <p>{{ method_label }}{% if payment.reference %} · {{ payment.reference }}{% endif %}</p>
+    {% if payment.reason %}<p>Motif : {{ payment.reason }}</p>{% endif %}
+    {% if payment.paid_by %}<p>Payé par : {{ payment.paid_by }}</p>{% endif %}
     {% if payment.voided_at %}<p class="small muted">Annulé : {{ payment.void_reason }}</p>{% endif %}
   </div>
 </div>

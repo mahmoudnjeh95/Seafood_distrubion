@@ -33,8 +33,8 @@ import { sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { amountsOf, filled, type Line, newLine, shownPrice } from "../lib/lines";
+import { lotColumn } from "../lib/lotColumn";
 import { LinesGrid } from "../lib/LinesGrid";
-import { LotPicker } from "../lib/LotPicker";
 import { choosePlace, needsOf, placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { type ReactNode } from "react";
@@ -46,7 +46,7 @@ const WALK_IN = "walk-in";
 const isPositive = (value: string | null): value is string =>
   value !== null && !value.startsWith("-") && !/^0+(\.0+)?$/.test(value);
 // The messages the grid shows in its own cells; every other one goes in the alert.
-const inGrid = (key: string) => /^lines\.\d+\.(product|quantity|unit_price|batch)$/.test(key);
+const inGrid = (key: string) => /^lines\.\d+\.(product|quantity|unit_price|picks)$/.test(key);
 
 /** "Vente comptoir": weigh, type the rows of the basket, take the money. The sale is confirmed at once (D-052). */
 export function CounterSalePage() {
@@ -149,7 +149,9 @@ export function CounterSalePage() {
         product: Number(line.product),
         quantity: kg ?? "",
         unit_price: perKg,
-        batch: line.batch ? Number(line.batch) : null,
+        picks: line.picks
+          .filter((pick) => pick.batch !== "")
+          .map((pick) => ({ batch: Number(pick.batch), quantity: parseDecimalInput(pick.quantity.trim(), 3) ?? "" })),
       });
     });
     if (room === null && rows.length > 0) {
@@ -238,17 +240,7 @@ export function CounterSalePage() {
               places={placesOfProduct}
               partners={partnerProducts}
               errors={errors}
-              extra={{
-                header: t("admin.sales.counterSale.lot"),
-                field: "batch",
-                cell: (line, change) => (
-                  <LotPicker
-                    room={room === null ? "" : String(room)}
-                    line={line}
-                    onChange={(batch) => change({ batch })}
-                  />
-                ),
-              }}
+              extra={lotColumn(t("admin.sales.counterSale.lot"), room === null ? "" : String(room))}
               hint={priceHint}
             />
           </Card>

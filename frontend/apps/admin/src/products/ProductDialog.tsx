@@ -22,6 +22,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   Select,
   SelectContent,
   SelectItem,
@@ -192,7 +193,6 @@ export function ProductDialog({
       if (parsed === null) found[field] = t("admin.products.form.invalidNumber", { places });
       return parsed;
     };
-    if (!values.reference.trim()) found.reference = t("admin.products.form.required");
     if (!values.name.trim()) found.name = t("admin.products.form.required");
     if (!values.category) found.category = t("admin.products.form.required");
     const description: ProductDescription = {
@@ -219,19 +219,27 @@ export function ProductDialog({
     if (Object.keys(found).length === 0) save.mutate({ description, salePrice });
   }
 
-  function input(name: keyof FormValues, label: string, kind: "text" | "decimal" | "arabic" = "text") {
+  function input(
+    name: keyof FormValues,
+    label: string,
+    kind: "text" | "decimal" | "money" | "arabic" = "text",
+    disabled = false,
+  ) {
     const id = `${formId}-${name}`;
+    const Control = kind === "money" ? MoneyInput : Input;
     return (
       <Field label={label} htmlFor={id} error={errors[name]}>
-        <Input
+        <Control
           id={id}
           name={name}
           value={values[name]}
           onChange={(event) => set(name)(event.target.value)}
           aria-invalid={errors[name] ? true : undefined}
           autoComplete="off"
-          inputMode={kind === "decimal" ? "decimal" : undefined}
-          className={kind === "decimal" ? "num" : undefined}
+          disabled={disabled}
+          placeholder={disabled && !product ? t("admin.numbering.auto") : undefined}
+          inputMode={kind === "decimal" || kind === "money" ? "decimal" : undefined}
+          className={kind === "decimal" || kind === "money" ? "num" : undefined}
           dir={kind === "arabic" ? "rtl" : undefined}
           lang={kind === "arabic" ? "ar" : undefined}
         />
@@ -252,7 +260,7 @@ export function ProductDialog({
       <DialogDescription className="sr-only">{product?.name ?? t("admin.products.form.createTitle")}</DialogDescription>
 
       <form id={formId} onSubmit={submit} noValidate className="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
-        {input("reference", t("admin.products.form.reference"))}
+        {input("reference", t("admin.products.form.reference"), "text", true)}
         {input("name", t("admin.products.form.name"))}
         {input("name_ar", t("admin.products.form.nameAr"), "arabic")}
 
@@ -311,7 +319,7 @@ export function ProductDialog({
           )}
         </Field>
 
-        {!product && input("sale_price", t("admin.products.form.salePrice"), "decimal")}
+        {!product && input("sale_price", t("admin.products.form.salePrice"), "money")}
         {input("min_stock", t("admin.products.form.minStock"), "decimal")}
         <div className="col-span-full">
           {input("vat_rate", t("admin.products.form.vatRate"), "decimal")}

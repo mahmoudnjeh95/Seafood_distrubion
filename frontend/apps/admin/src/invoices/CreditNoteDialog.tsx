@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   toast,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -146,7 +147,7 @@ export function CreditNoteDialog({ invoice, onClose }: { invoice: InvoiceDetail;
                     label={t("admin.invoices.creditDialog.amount", { name: line.product_name })}
                     htmlFor={`${formId}-a-${line.id}`}
                   >
-                    <Input
+                    <MoneyInput
                       id={`${formId}-a-${line.id}`}
                       inputMode="decimal"
                       disabled={(entries[line.id]?.quantity ?? "").trim() !== ""}

@@ -16,7 +16,7 @@ from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, checked_quantity
@@ -25,9 +25,7 @@ from . import selectors
 from .models import (
     FIFO_ORDER,
     Batch,
-    BatchCounter,
     CountStatus,
-    DocumentCounter,
     LossStatus,
     StockCount,
     StockCountLine,
@@ -41,6 +39,7 @@ from .models import (
     TransferDelivery,
     TransferKind,
     TransferLine,
+    TransferLinePick,
     TransferStatus,
 )
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
@@ -52,8 +51,6 @@ if TYPE_CHECKING:
 
     from apps.catalog.models import Product
     from apps.partners.models import Customer, Supplier
-
-BATCH_NUMBER_PREFIX = "L-"
 
 
 def _snapshot(location: StockLocation) -> dict[str, Any]:
@@ -157,19 +154,6 @@ def set_location_active(*, location: StockLocation, actor: User | None, is_activ
     return location
 
 
-def _next_batch_number(organization: Organization) -> str:
-    """L-0001, L-0002... per organization, taken under a row lock so two receipts never share a number.
-
-    Four digits at least, like the prototype's "L-0912"; the 10 000th batch is simply L-10000.
-    """
-    # Creates the counter the first time without failing when another transaction creates it at once.
-    BatchCounter.objects.bulk_create([BatchCounter(organization=organization)], ignore_conflicts=True)
-    counter = BatchCounter.objects.select_for_update().get(organization=organization)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{BATCH_NUMBER_PREFIX}{counter.last_number:04d}"
-
-
 def _batch_snapshot(batch: Batch) -> dict[str, Any]:
     return {
         "number": batch.number,
@@ -224,7 +208,7 @@ def create_batch(
 
     batch = Batch.objects.create(
         organization=organization,
-        number=_next_batch_number(organization),
+        number=numbering.next_number(organization, "batch"),
         product=product,
         supplier=supplier,
         receipt_reference=receipt_reference.strip(),
@@ -411,16 +395,17 @@ def post_fifo_movements(
     source: models.Model | None = None,
     client_uuid: uuid.UUID | None = None,
     occurred_at: dt.datetime | None = None,
-    prefer_batch_id: int | None = None,
+    picks: Sequence[tuple[int, Decimal]] = (),
     held_since_then: bool = False,
 ) -> list[StockMovement]:
     """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
 
     Used by transfers, sales and losses: nobody picks batches by hand (D-009) — except a sale line may ask
-    to take its kilos from one lot first (`prefer_batch_id`, D-121): that lot moves to the front of the
-    order, and if it is not enough the rest still comes from the other lots, oldest first, same as always
-    (never below zero). Every on-hand row of the product at both locations is locked first, in location
-    then batch order, the same order as `post_movement`, so two requests never wait for each other forever.
+    to take kilos from lots first (`picks`, `[(batch id, kg)]`, D-121, D-208): each picked lot gives the kilos
+    picked from it, and the rest still comes from the other lots, oldest first, same as always (never below
+    zero, a short lot topped up the same way). Every on-hand row of the product at both locations is locked
+    first, in location then batch order, the same order as `post_movement`, so two requests never wait for each
+    other forever.
     Refused as a whole (ValidationError per field) when the location holds less than asked in total. A
     `client_uuid` already used returns the movements it posted.
 
@@ -460,12 +445,10 @@ def post_fifo_movements(
         ),
         key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
     )
-    if prefer_batch_id is not None:
-        holdings = sorted(holdings, key=lambda row: row.batch_id != prefer_batch_id)
     limits = None
     if held_since_then and day < timezone.localdate():
         limits = selectors.least_held_since(organization, location_id=from_location.pk, product_id=product_id, day=day)
-    allocations = selectors.fifo_split(holdings, amount, limits)
+    allocations = selectors.picked_split(holdings, amount, picks, limits)
     if sum((taken for _batch, taken in allocations), Decimal(0)) < amount:
         available = sum((selectors.takeable(row, limits) for row in holdings), Decimal("0.000"))
         if limits is not None:
@@ -535,12 +518,17 @@ def _difference_entry(difference: selectors.OnHandDifference, quantity: Decimal)
 
 # ---- Transfers between locations (P1-T09, D-044) ----
 
-TRANSFER_SERIES = "TR"
-
 # Sent when a load into a truck is validated, inside the same transaction, with `transfer` and `actor`. Apps
 # that depend on inventory react to it there (the driver's sent day opens again, D-134); a receiver that
 # raises refuses the validation.
 load_validated = Signal()
+
+
+class LotPickFields(TypedDict):
+    """A lot picked by hand for a line, and the kilos to take from it first (D-212, D-215)."""
+
+    batch: "Batch"
+    quantity: Number
 
 
 class TransferLineFields(TypedDict, total=False):
@@ -548,6 +536,8 @@ class TransferLineFields(TypedDict, total=False):
     quantity: Number
     # DT per kg, on a truck load only; empty takes the sale price in force.
     unit_price: Number | None
+    # Lots picked by hand instead of FIFO (D-215); empty takes the oldest lot first.
+    picks: Sequence[LotPickFields]
 
 
 class TransferDeliveryFields(TypedDict, total=False):
@@ -565,15 +555,36 @@ def line_error_key(index: int, field: str) -> str:
     return f"lines.{index}.{field}"
 
 
-def _next_document_number(organization: Organization, series: str) -> str:
-    """TR-0001, TR-0002... per organization and series, taken under a row lock (same scheme as batches)."""
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
+def checked_lot_picks(
+    organization: Organization,
+    product: "Product | None",
+    picks: Sequence[LotPickFields],
+    quantity: Decimal | None,
+    errors: dict[str, str],
+    key: str,
+) -> list[tuple["Batch", Decimal]]:
+    """Check the lots picked by hand on one line (D-212, D-215): of that organization and the line's product, each
+    lot once, with kilos above zero, and together no more kilos than the line asks (`quantity`, None when the
+    line's weight is itself wrong). A problem is reported on `key`, the line's own field."""
+    checked: list[tuple[Batch, Decimal]] = []
+    for pick in picks:
+        batch = pick["batch"]
+        try:
+            kg = checked_quantity(pick["quantity"])
+        except (ValueError, TypeError):
+            errors.setdefault(key, _("Indiquez un poids en kg pour chaque lot, supérieur à zéro."))
+            continue
+        if batch.organization_id != organization.pk:
+            errors.setdefault(key, _("Lot inconnu."))
+        elif product is not None and batch.product_id != product.pk:
+            errors.setdefault(key, _("Ce lot ne correspond pas au produit de la ligne."))
+        elif any(batch.pk == picked.pk for picked, _kg in checked):
+            errors.setdefault(key, _("Un lot ne peut être choisi qu'une fois par ligne."))
+        else:
+            checked.append((batch, kg))
+    if quantity is not None and sum((kg for _batch, kg in checked), Decimal("0")) > quantity:
+        errors.setdefault(key, _("Les lots choisis dépassent le poids de la ligne."))
+    return checked
 
 
 def transfer_kind(from_location: StockLocation, to_location: StockLocation) -> str:
@@ -642,11 +653,13 @@ def _checked_transfer_lines(
     at: dt.datetime,
     errors: dict[str, str],
     prefix: str = "",
+    from_cold_rooms: bool = False,
 ) -> list[dict[str, Any]]:
     """The lines' values once checked; each problem is added to `errors` under the line's own keys
     (`prefix` puts them under a client's part of a load: `deliveries.<i>.`).
 
-    Only a load carries a price per kg (the driver sells at it); the other kinds keep none.
+    Only a load carries a price per kg (the driver sells at it); the other kinds keep none. Lots picked by hand
+    need one place to take them from, so a load from several cold rooms (D-174) takes none.
     """
 
     def key(index: int, field: str) -> str:
@@ -676,6 +689,13 @@ def _checked_transfer_lines(
                 checked["unit_price"] = price
             else:
                 errors[key(index, "unit_price")] = price
+        picks = line.get("picks") or []
+        if picks and from_cold_rooms:
+            errors[key(index, "picks")] = _("Les lots se choisissent depuis une seule chambre froide.")
+            picks = []
+        checked["picks"] = checked_lot_picks(
+            organization, product, picks, checked["quantity"], errors, key(index, "picks")
+        )
         checked_lines.append(checked)
     return checked_lines
 
@@ -708,17 +728,23 @@ def _transfer_snapshot(transfer: Transfer) -> dict[str, Any]:
 def _write_transfer_lines(
     transfer: Transfer, checked_lines: list[dict[str, Any]], customer: "Customer | None" = None
 ) -> None:
-    TransferLine.objects.bulk_create(
+    new_lines = [
+        TransferLine(
+            organization_id=transfer.organization_id,
+            transfer=transfer,
+            customer=customer,
+            product=values["product"],
+            quantity=values["quantity"],
+            unit_price=values["unit_price"],
+        )
+        for values in checked_lines
+    ]
+    TransferLine.objects.bulk_create(new_lines)
+    TransferLinePick.objects.bulk_create(
         [
-            TransferLine(
-                organization_id=transfer.organization_id,
-                transfer=transfer,
-                customer=customer,
-                product=values["product"],
-                quantity=values["quantity"],
-                unit_price=values["unit_price"],
-            )
-            for values in checked_lines
+            TransferLinePick(organization_id=transfer.organization_id, line=line, batch=batch, quantity=kg)
+            for line, values in zip(new_lines, checked_lines, strict=True)
+            for batch, kg in values["picks"]
         ]
     )
 
@@ -729,6 +755,7 @@ def _checked_deliveries(
     deliveries: Sequence[TransferDeliveryFields],
     at: dt.datetime,
     errors: dict[str, str],
+    from_cold_rooms: bool = False,
 ) -> list[dict[str, Any]]:
     """The client parts of a load, checked: a known active client once, at least one product, boxes."""
     if deliveries and kind != TransferKind.LOAD:
@@ -758,7 +785,7 @@ def _checked_deliveries(
             {
                 "customer": customer,
                 "address": address,
-                "lines": _checked_transfer_lines(organization, kind, lines, at, errors, prefix),
+                "lines": _checked_transfer_lines(organization, kind, lines, at, errors, prefix, from_cold_rooms),
                 "boxes": box_counts,
             }
         )
@@ -787,8 +814,8 @@ def _prepared_transfer(
         errors["lines"] = _("Ajoutez au moins un produit.")
     kind = transfer_kind(from_location, to_location)
     at = moment_of(transferred_on)
-    checked_lines = _checked_transfer_lines(organization, kind, lines, at, errors)
-    checked_deliveries = _checked_deliveries(organization, kind, deliveries, at, errors)
+    checked_lines = _checked_transfer_lines(organization, kind, lines, at, errors, from_cold_rooms=from_cold_rooms)
+    checked_deliveries = _checked_deliveries(organization, kind, deliveries, at, errors, from_cold_rooms)
     box_counts = box_services.checked_box_counts(boxes, errors, prefix="boxes")
     # Boxes follow a load (D-122), or a return from a truck to a cold room (P1-T14e, D-124); no other transfer.
     returns_to_cold_room = kind == TransferKind.RETURN and to_location.kind == LocationKind.COLD_ROOM
@@ -862,7 +889,7 @@ def create_transfer(
     )
     transfer = Transfer.objects.create(
         organization=organization,
-        number=_next_document_number(organization, TRANSFER_SERIES),
+        number=numbering.next_number(organization, "transfer"),
         kind=kind,
         from_location=from_location,
         from_cold_rooms=from_cold_rooms,
@@ -988,6 +1015,7 @@ def _post_line_from(
                     % {"available": line.quantity - left}
                 }
             )
+    picks = [(pick.batch_id, pick.quantity) for pick in line.picks.order_by("id")]
     for room, quantity in portions:
         post_fifo_movements(
             organization=transfer.organization,
@@ -999,6 +1027,7 @@ def _post_line_from(
             to_location=transfer.to_location,
             source=line,
             occurred_at=occurred_at,
+            picks=picks,
         )
 
 
@@ -1031,7 +1060,8 @@ def _line_keys(transfer: Transfer, lines: Sequence[TransferLine]) -> list[str]:
 
 @transaction.atomic
 def validate_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
-    """Move the stock of a draft: each line's kg leave the source oldest batch first (D-037).
+    """Move the stock of a draft: each line's kg leave the source, the lots picked on the line first and then the
+    oldest batch first (D-037, D-215).
 
     Refused as a whole when any line asks more than the source holds (each on `lines.<index>.quantity`),
     when a location is archived, or for a day still to come. Lines are posted in product order, so two
@@ -1109,8 +1139,6 @@ def cancel_transfer(*, transfer: Transfer, actor: User | None) -> Transfer:
 
 
 # ---- Losses (P1-T10, D-045) ----
-
-LOSS_SERIES = "PE"
 
 
 @transaction.atomic
@@ -1236,7 +1264,7 @@ def record_loss(
     immediate = may_approve or amount <= selectors.stock_settings(organization).loss_approval_threshold
     loss = StockLoss.objects.create(
         organization=organization,
-        number=_next_document_number(organization, LOSS_SERIES),
+        number=numbering.next_number(organization, "loss"),
         status=LossStatus.APPROVED if immediate else LossStatus.PENDING,
         location=location,
         product=product,
@@ -1355,8 +1383,6 @@ def report_road_loss(
 
 # ---- Stock counts (P1-T10, D-045) ----
 
-COUNT_SERIES = "INV"
-
 
 class CountedFields(TypedDict):
     line: int
@@ -1392,7 +1418,7 @@ def start_count(
         raise ValidationError(errors)
     count = StockCount.objects.create(
         organization=organization,
-        number=_next_document_number(organization, COUNT_SERIES),
+        number=numbering.next_number(organization, "count"),
         location=location,
         counted_on=counted_on,
         notes=notes.strip(),

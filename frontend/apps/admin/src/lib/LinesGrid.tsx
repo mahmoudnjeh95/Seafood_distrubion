@@ -1,6 +1,6 @@
 import type { Product } from "@frutti/api";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, cn, Combobox, type ComboboxOption, Icon, Pill, Table, Th } from "@frutti/ui";
+import { formatMoney, formatMoneyInput, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { Button, cn, Combobox, type ComboboxOption, Icon, Pill, Table, Th, typeMoney } from "@frutti/ui";
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { subtract, sum } from "./decimal";
@@ -259,15 +259,16 @@ export function LinesGrid({
                   inputMode="decimal"
                   autoComplete="off"
                   size={1}
-                  value={value}
-                  onChange={(event) =>
+                  value={column === "unit_price" ? formatMoneyInput(value) : value}
+                  onChange={(event) => {
+                    if (column === "unit_price") typeMoney(event, value);
                     setLine(
                       line.key,
                       column === "unit_price"
                         ? { unit_price: event.target.value, priceTouched: true }
                         : { [column]: event.target.value },
-                    )
-                  }
+                    );
+                  }}
                   onFocus={(event) => event.currentTarget.select()}
                   className={cn(CELL_INPUT, "num text-end")}
                 />
@@ -297,7 +298,7 @@ export function LinesGrid({
                     placeholder={blank ? t("admin.lines.productHint") : undefined}
                     value={line.product}
                     onValueChange={(product) =>
-                      setLine(line.key, { product, priceTouched: false, unit_price: "", batch: "" })
+                      setLine(line.key, { product, priceTouched: false, unit_price: "", batch: "", picks: [] })
                     }
                     onChosen={() => focusCell(row, "quantity")}
                     options={options}

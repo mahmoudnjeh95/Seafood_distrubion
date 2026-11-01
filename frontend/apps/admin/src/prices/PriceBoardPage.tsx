@@ -14,7 +14,7 @@ import {
   parseDecimalInput,
   useTranslation,
 } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
+import { Button, Card, EmptyState, MoneyInput, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
@@ -183,7 +183,7 @@ export function PriceBoardPage() {
                     <Td numeric>{row.last_cost === null ? "—" : formatMoney(row.last_cost)}</Td>
                     <Td numeric>{row.average_cost === null ? "—" : formatMoney(row.average_cost)}</Td>
                     <Td numeric>
-                      <Input
+                      <MoneyInput
                         inputMode="decimal"
                         autoComplete="off"
                         className="num w-28 text-end"
@@ -212,7 +212,7 @@ export function PriceBoardPage() {
                       )}
                     </Td>
                     <Td numeric>
-                      <Input
+                      <MoneyInput
                         inputMode="decimal"
                         autoComplete="off"
                         className="num w-24 text-end"

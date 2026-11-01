@@ -21,6 +21,7 @@ from apps.expenses.models import ElectricityBill, GeneralCostPeriod, RecurringCo
 from apps.inventory import selectors as inventory
 
 from .cost_serializers import (
+    ColdRoomEstimateWriteSerializer,
     ColdRoomMonthFilterSerializer,
     ColdRoomMonthSerializer,
     ColdRoomSharesWriteSerializer,
@@ -133,13 +134,37 @@ class ColdRoomMonthView(OfficeView):
     )
     def get(self, request: Request) -> Response:
         """One month of cold-room costs: the bill if any, and per room its weight and cost for the month
-        and per day, estimated (the previous month's daily rate) until the bill is approved."""
+        and per day, estimated (the estimate typed for the month, else the previous month's daily rate) until the
+        bill is approved; the estimate and the difference with the real bill come with it."""
         filters = ColdRoomMonthFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
         month = filters.validated_data.get("month") or timezone.localdate()
         return Response(
             ColdRoomMonthSerializer(cost_selectors.cold_room_month(self.organization, month=first_of_month(month))).data
         )
+
+
+class ColdRoomEstimateView(OfficeView):
+    @extend_schema(
+        operation_id="updateColdRoomEstimate",
+        request=ColdRoomEstimateWriteSerializer,
+        responses=ColdRoomMonthSerializer,
+    )
+    def put(self, request: Request) -> Response:
+        """Type the electricity estimate of a month for all the cold rooms (owner or manager), until the month's
+        bill is approved: the rooms share it by weight, as the bill is shared (D-227)."""
+        serializer = ColdRoomEstimateWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.set_cold_room_estimate(
+            organization=self.organization,
+            actor=self.membership.user,
+            month=data["month"],
+            amount=data["amount"],
+            reason=data["reason"],
+        )
+        month = first_of_month(data["month"])
+        return Response(ColdRoomMonthSerializer(cost_selectors.cold_room_month(self.organization, month=month)).data)
 
 
 class ElectricityBillView(OfficeView):

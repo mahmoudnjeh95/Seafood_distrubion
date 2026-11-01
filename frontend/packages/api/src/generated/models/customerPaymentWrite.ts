@@ -23,4 +23,8 @@ export interface CustomerPaymentWrite {
   /** @maxLength 50 */
   reference?: string;
   notes?: string;
+  /** @maxLength 200 */
+  reason?: string;
+  /** @maxLength 120 */
+  paid_by?: string;
 }

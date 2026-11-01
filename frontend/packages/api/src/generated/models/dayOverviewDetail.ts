@@ -4,9 +4,10 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
-import type { DayClosingState } from './dayClosingState';
+import type { DayClosingOffice } from './dayClosingOffice';
 import type { DayOverviewExpense } from './dayOverviewExpense';
 import type { DayOverviewPayment } from './dayOverviewPayment';
+import type { DayOverviewPurchase } from './dayOverviewPurchase';
 import type { DayOverviewSale } from './dayOverviewSale';
 import type { DayProduct } from './dayProduct';
 import type { PhaseEnum } from './phaseEnum';
@@ -63,9 +64,10 @@ export interface DayOverviewDetail {
   readonly deliveries_todo: number;
   /** @nullable */
   readonly closing_id: number | null;
-  readonly closing: DayClosingState | null;
+  readonly closing: DayClosingOffice | null;
   readonly sales: readonly DayOverviewSale[];
   readonly deliveries: readonly DayOverviewSale[];
   readonly payments: readonly DayOverviewPayment[];
   readonly expenses: readonly DayOverviewExpense[];
+  readonly purchases: readonly DayOverviewPurchase[];
 }

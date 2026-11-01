@@ -5,6 +5,7 @@ import {
   useListBanks,
   useListPartyDocuments,
   useListSupplierInvoices,
+  useListSupplierSettlements,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -30,7 +31,9 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { ConfirmPaymentDialog } from "../payments/ConfirmPaymentDialog";
-import { countsOf, PartyDocumentCounts } from "../payments/PartyDocumentCounts";
+import { PartyDocumentCounts } from "../payments/PartyDocumentCounts";
+import { countsOf } from "../payments/partyCounts";
+import { FormPanel } from "../treasury/FormPanel";
 import {
   describeLine,
   errorsByLine,
@@ -78,8 +81,8 @@ export function SupplierPaymentFormPage() {
   const planMethod = METHODS.find((one) => one === params.get("mode")) ?? "";
 
   const suppliers = useListSuppliers({ status: "all" });
-  const banks = useListBanks();
   const documents = useListPartyDocuments();
+  const banks = useListBanks();
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [paidOn, setPaidOn] = useState(todayInTunis);
   const [lines, setLines] = useState<Line[]>(() => [
@@ -93,6 +96,7 @@ export function SupplierPaymentFormPage() {
       : newLine<PaymentMethodEnum>(),
   ]);
   const [notes, setNotes] = useState("");
+  const [reason, setReason] = useState("");
   const [allocations, setAllocations] = useState<Allocations>(
     planAmount && fromInvoice ? { [fromInvoice]: asTyped(planAmount) } : {},
   );
@@ -105,6 +109,46 @@ export function SupplierPaymentFormPage() {
   const [invoiceErrors, setInvoiceErrors] = useState<Record<number, string>>({});
   const [confirming, setConfirming] = useState<SupplierPaymentWrite | null>(null);
 
+  // From "Règlements fournisseurs" with several plan lines ticked (`?fournisseur=3&lignes=4,7`, D-215): one règlement
+  // pays them all, a line of means per plan line, each amount on its invoice.
+  const planLineIds = useMemo(
+    () =>
+      (params.get("lignes") ?? "")
+        .split(",")
+        .map((part) => idFrom(part))
+        .filter((value): value is number => value !== null),
+    [params],
+  );
+  const plans = useListSupplierSettlements(
+    { supplier: Number(supplier) },
+    { query: { enabled: planLineIds.length > 0 && supplier !== "" } },
+  );
+  // What the ticked plan lines bring, shown until the person types (like the invoice they came from).
+  const fromPlans = useMemo(() => {
+    const picked = (plans.data?.rows ?? []).flatMap((row) =>
+      row.plan_lines
+        .filter((line) => planLineIds.includes(line.id) && line.status === "open")
+        .map((line) => ({ row, line })),
+    );
+    if (picked.length === 0) return null;
+    const byInvoice: Record<number, string[]> = {};
+    for (const { row, line } of picked) (byInvoice[row.invoice_id] ??= []).push(line.amount);
+    return {
+      ids: picked.map(({ line }) => line.id),
+      lines: picked.map(({ line }) => ({
+        ...newLine<PaymentMethodEnum>(line.method, asTyped(line.amount)),
+        number: line.reference,
+        reference: line.reference,
+        dueOn: line.cash_on ?? "",
+      })),
+      allocations: Object.fromEntries(
+        Object.entries(byInvoice).map(([invoice, amounts]) => [invoice, asTyped(sum(amounts))]),
+      ),
+    };
+  }, [plans.data, planLineIds]);
+  const [paidPlanLines, setPaidPlanLines] = useState<number[]>([]);
+  const planPreset = touched ? null : fromPlans;
+
   const open = useListSupplierInvoices(
     { supplier: Number(supplier), status: "open", limit: 200 },
     { query: { enabled: supplier !== "" } },
@@ -112,11 +156,16 @@ export function SupplierPaymentFormPage() {
   const invoices = useMemo(() => byDueDate(open.data?.results ?? []), [open.data]);
   const preset = touched ? undefined : invoices.find((invoice) => invoice.id === fromInvoice);
   // The invoice the person came from fills the first line's amount, once, until they type.
-  const shownLines: Line[] =
-    preset && lines.length === 1 && lines[0] && lines[0].amount === ""
+  const shownLines: Line[] = planPreset
+    ? planPreset.lines
+    : preset && lines.length === 1 && lines[0] && lines[0].amount === ""
       ? [{ ...lines[0], amount: asTyped(preset.outstanding) }]
       : lines;
-  const shownAllocations: Allocations = preset ? { [preset.id]: asTyped(preset.outstanding) } : allocations;
+  const shownAllocations: Allocations = planPreset
+    ? planPreset.allocations
+    : preset
+      ? { [preset.id]: asTyped(preset.outstanding) }
+      : allocations;
 
   const total = linesTotal(shownLines);
   const readable = allocationPayload(invoices, shownAllocations) ?? [];
@@ -162,6 +211,7 @@ export function SupplierPaymentFormPage() {
     // Keep what the preset showed, so typing changes it rather than starting from nothing.
     setLines(shownLines);
     setAllocations(shownAllocations);
+    if (planPreset) setPaidPlanLines(planPreset.ids);
     setTouched(true);
   }
 
@@ -184,12 +234,15 @@ export function SupplierPaymentFormPage() {
       amount: total,
       lines: linesPayload(shownLines),
       notes: notes.trim(),
+      reason: reason.trim(),
       allocations: payload,
       plan_line: planAmount ? planLine : null,
+      plan_lines: planPreset ? planPreset.ids : paidPlanLines,
     });
   }
 
   const id = (name: string) => `${formId}-${name}`;
+  const planLinesError = Object.entries(errors).find(([key]) => key.startsWith("plan_lines."))?.[1];
   const supplierName = (suppliers.data ?? []).find((one) => String(one.id) === supplier)?.name ?? "";
 
   return (
@@ -197,47 +250,68 @@ export function SupplierPaymentFormPage() {
       <PageHeader eyebrow={t("admin.nav.purchases")} title={t("admin.supplierPayments.form.title")} />
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <Card className="grid grid-cols-2 gap-4 max-[640px]:grid-cols-1">
-          <Field label={t("admin.supplierPayments.form.supplier")} htmlFor={id("supplier")} error={errors.supplier}>
-            <Select
-              value={supplier}
-              onValueChange={(value) => {
-                setSupplier(value);
-                setAllocations({});
-                setTouched(true);
-              }}
-            >
-              <SelectTrigger id={id("supplier")} aria-invalid={errors.supplier ? true : undefined}>
-                <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
-              </SelectTrigger>
-              <SelectContent>
-                {(suppliers.data ?? [])
-                  .filter((one) => one.is_active || String(one.id) === supplier)
-                  .map((one) => (
-                    <SelectItem
-                      key={one.id}
-                      value={String(one.id)}
-                      detail={
-                        <PartyDocumentCounts counts={countsOf(documents.data?.suppliers, one.id)} side="supplier" />
-                      }
-                    >
-                      {one.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label={t("admin.supplierPayments.form.paidOn")} htmlFor={id("paid_on")} error={errors.paid_on}>
-            <Input
-              id={id("paid_on")}
-              type="date"
-              max={todayInTunis()}
-              value={paidOn}
-              onChange={(event) => setPaidOn(event.target.value)}
-              aria-invalid={errors.paid_on ? true : undefined}
-            />
-          </Field>
-        </Card>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="primary" disabled={save.isPending}>
+            {t("admin.treasury.form.save")}
+          </Button>
+          <Button asChild>
+            <Link to="/achats/paiements">{t("admin.treasury.form.back")}</Link>
+          </Button>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+          <FormPanel title={t("admin.treasury.form.decaissementInfo")}>
+            <Field label={t("admin.supplierPayments.form.paidOn")} htmlFor={id("paid_on")} error={errors.paid_on}>
+              <Input
+                id={id("paid_on")}
+                type="date"
+                max={todayInTunis()}
+                value={paidOn}
+                onChange={(event) => setPaidOn(event.target.value)}
+                aria-invalid={errors.paid_on ? true : undefined}
+              />
+            </Field>
+            <Field label={t("admin.treasury.form.reason")} htmlFor={id("reason")} error={errors.reason}>
+              <Input
+                id={id("reason")}
+                value={reason}
+                maxLength={200}
+                onChange={(event) => setReason(event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+          </FormPanel>
+          <FormPanel title={t("admin.treasury.form.supplierInfo")}>
+            <Field label={t("admin.supplierPayments.form.supplier")} htmlFor={id("supplier")} error={errors.supplier}>
+              <Select
+                value={supplier}
+                onValueChange={(value) => {
+                  setSupplier(value);
+                  setAllocations({});
+                  setTouched(true);
+                }}
+              >
+                <SelectTrigger id={id("supplier")} aria-invalid={errors.supplier ? true : undefined}>
+                  <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(suppliers.data ?? [])
+                    .filter((one) => one.is_active || String(one.id) === supplier)
+                    .map((one) => (
+                      <SelectItem
+                        key={one.id}
+                        value={String(one.id)}
+                        detail={
+                          <PartyDocumentCounts counts={countsOf(documents.data?.suppliers, one.id)} side="supplier" />
+                        }
+                      >
+                        {one.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </FormPanel>
+        </div>
 
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.treasury.lines.title")}</CardTitle>
@@ -316,9 +390,9 @@ export function SupplierPaymentFormPage() {
           </Field>
         </Card>
 
-        {(errors.detail ?? errors.plan_line) && (
+        {(errors.detail ?? errors.plan_line ?? planLinesError) && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">
-            {errors.detail ?? errors.plan_line}
+            {errors.detail ?? errors.plan_line ?? planLinesError}
           </p>
         )}
 

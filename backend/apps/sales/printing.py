@@ -135,7 +135,7 @@ def quote_printable(organization: Organization, quote_id: int) -> documents.Prin
         version=quote.updated_at.isoformat(),
         filename=_file_name("devis", quote.number),
         title=f"Devis {quote.number}".strip(),
-        email_to=quote.customer.email,
+        email_to=quote.customer.email_addresses(),
     )
 
 
@@ -184,7 +184,7 @@ def invoice_printable(organization: Organization, invoice_id: int) -> documents.
         version=invoice.updated_at.isoformat(),
         filename=_file_name("facture", invoice.number),
         title=f"Facture {invoice.number}".strip(),
-        email_to=invoice.customer.email,
+        email_to=invoice.customer.email_addresses(),
     )
 
 
@@ -214,7 +214,7 @@ def credit_note_printable(organization: Organization, credit_note_id: int) -> do
         version=note.updated_at.isoformat(),
         filename=_file_name("avoir", note.number),
         title=f"Avoir {note.number}".strip(),
-        email_to=note.invoice.customer.email,
+        email_to=note.invoice.customer.email_addresses(),
     )
 
 
@@ -255,7 +255,7 @@ def receipt_printable(organization: Organization, payment_id: int) -> documents.
         version=f"{payment.updated_at.isoformat()}|{allocated}",
         filename=_file_name("recu", payment.number),
         title=f"Reçu de règlement {payment.number}".strip(),
-        email_to=payment.customer.email,
+        email_to=payment.customer.email_addresses(),
     )
 
 
@@ -296,6 +296,11 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         "location": sale.location,
         "lines": lines,
         "has_discount": any(line.discount_rate for line in lines),
+        # VAT shows only when a line is sold with VAT (D-224): a BL without any looks as it always did.
+        "has_vat": any(line.vat_rate is not None for line in lines),
+        "amount_excl_tax": sale.amount_excl_tax,
+        "vat_total": sale.vat_total,
+        "total_incl_tax": sale.total_incl_tax,
         "total_kg": sum((line.quantity for line in lines), Decimal("0.000")),
         "cancelled": sale.status == SaleStatus.CANCELLED,
         "provisional": provisional,
@@ -314,7 +319,7 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         version=sale.updated_at.isoformat(),
         filename=_file_name("bl", sale.number),
         title=f"Bon de livraison {sale.number}".strip(),
-        email_to=sale.customer.email,
+        email_to=sale.customer.email_addresses(),
     )
 
 

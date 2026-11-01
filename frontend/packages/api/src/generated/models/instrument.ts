@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { Bank } from './bank';
+import type { DepositRef } from './depositRef';
 import type { InstrumentDirectionEnum } from './instrumentDirectionEnum';
 import type { InstrumentKindEnum } from './instrumentKindEnum';
 import type { InstrumentStatusEnum } from './instrumentStatusEnum';
@@ -26,5 +27,6 @@ export interface Instrument {
   readonly supplier: PartyRef | null;
   readonly source_number: string;
   readonly notes: string;
+  readonly deposit: DepositRef | null;
   readonly created_at: string;
 }

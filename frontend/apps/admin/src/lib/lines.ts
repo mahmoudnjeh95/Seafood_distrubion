@@ -4,6 +4,12 @@ import { parseDecimalInput } from "@frutti/i18n";
 
 import { lineTotal, percentOf, subtract, toThousandths } from "./decimal";
 
+// A lot a counter sale takes kilos from first, and how many (D-121, D-208). `batch` is "" until one is chosen.
+export type LotPick = {
+  batch: string;
+  quantity: string;
+};
+
 export type Line = {
   key: number;
   product: string;
@@ -12,8 +18,10 @@ export type Line = {
   discount_rate: string;
   // Once a person types a price, the row stops showing the price in force.
   priceTouched: boolean;
-  // The lot a counter sale takes the kilos from first; empty for the oldest one (FIFO, D-121).
+  // The lot a sale or quote takes the kilos from first; empty for the oldest one (FIFO, D-121).
   batch: string;
+  // The lots a counter sale takes the kilos from first, each with its kilos (D-208); none for the oldest one.
+  picks: LotPick[];
 };
 
 export type Amounts = { gross: string; discount: string; amount: string };
@@ -30,6 +38,7 @@ export function newLine(fields: Partial<Omit<Line, "key">> = {}): Line {
     discount_rate: "",
     priceTouched: false,
     batch: "",
+    picks: [],
     ...fields,
   };
 }

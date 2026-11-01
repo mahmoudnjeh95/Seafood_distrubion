@@ -1,5 +1,5 @@
 import type { DayProduct, DaySummary, MyDaySummary } from "@frutti/api";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, ConfirmButton, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -9,8 +9,6 @@ import { useOnline } from "./offline";
 import { useQueue } from "./queue";
 import { StickyAction } from "./StickyAction";
 import { sendWaiting, useSyncProblem } from "./sync";
-
-const millimes = (value: string) => Math.round(Number(value) * 1000);
 
 function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -131,10 +129,12 @@ function Figures({ summary }: { summary: DaySummary }) {
   );
 }
 
-/** A driver's day in a few lines, its closing state, and the form to send it while it can be sent: the "Clôture"
- * screen for the day of now, the history for an earlier one (D-134). Both wait for what the phone still has to
- * send, say why it waits and let the driver retry (D-129). A sent day is sent again when the office asked, when
- * a new load reopened it, or when its records changed since the send (D-132). */
+/** A driver's day in a few lines, its closing state, and the button to send it while it can be sent: the "Clôture"
+ * screen for the day of now, the history for an earlier one (D-134). The driver is not asked to count the cash: the
+ * office counts it when they are back, and they see only what they should hold (D-213). Both screens wait for what
+ * the phone still has to send, say why it waits and let the driver retry (D-129). A sent day is sent again when the
+ * office asked, when a new load reopened it. When its records changed since the send, the office corrects it and the
+ * driver does not send it again (D-132, D-220). */
 export function DayReport({
   data,
   sending,
@@ -144,8 +144,8 @@ export function DayReport({
   data: MyDaySummary;
   sending: boolean;
   error: string;
-  /** `countedPurchase`: the purchase money left, counted apart (D-158); "0" for a day without purchases. */
-  onSend: (counted: string, note: string, countedPurchase: string) => void;
+  /** `note`: what the driver wants the office to know with the day; may be empty. */
+  onSend: (note: string) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -153,8 +153,6 @@ export function DayReport({
   const online = useOnline();
   const problem = useSyncProblem();
   const [retrying, setRetrying] = useState(false);
-  const [counted, setCounted] = useState("");
-  const [countedPurchase, setCountedPurchase] = useState("");
   const [note, setNote] = useState("");
   // Waiting sales are sent as soon as the day's figures open, not only on the half-minute timer (D-090).
   useEffect(() => {
@@ -169,25 +167,16 @@ export function DayReport({
     }
   };
   const { summary, closing } = data;
-  const changed = closing?.status === "submitted" && closing.changed_since_sent;
-  const locked = closing?.status === "approved" || (closing?.status === "submitted" && !changed);
+  // A sent day whose records moved is corrected by the office, never sent again by the driver (D-220).
+  const officeFixes =
+    closing?.changed_since_sent === true && (closing.status === "submitted" || closing.status === "justification");
+  const locked =
+    closing?.status === "approved" || (closing?.status === "submitted" && !closing.changed_since_sent) || officeFixes;
   const handedOver = handedOverOf(summary);
-  const countedValue = parseDecimalInput(counted.trim(), 3);
-  const gap = countedValue === null ? null : (millimes(countedValue) - millimes(summary.expected_cash)) / 1000;
-  // The purchase money is counted apart, only on a day with purchase money or purchases (D-158).
-  const purchases = purchasesOf(summary);
-  const countedPurchaseValue = purchases === null ? "0" : parseDecimalInput(countedPurchase.trim(), 3);
-  const purchaseGap =
-    purchases === null || countedPurchaseValue === null
-      ? null
-      : (millimes(countedPurchaseValue) - millimes(purchases.expected)) / 1000;
-  const gate = closingGate({
-    queue,
-    online,
-    countedReady: countedValue !== null && countedPurchaseValue !== null,
-    busy: sending,
-  });
+  const gate = closingGate({ queue, online, busy: sending });
   const waiting = gate.waiting;
+  // The purchase money is shown only on a day with purchase money or purchases (D-158).
+  const purchases = purchasesOf(summary);
   // Why the sale has not gone yet: the phone's own connection first, then what the last send ran into.
   const waitReason = !online
     ? t("truck.closing.waitOffline")
@@ -205,22 +194,15 @@ export function DayReport({
       {closing?.status === "approved" ? (
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.approved")}</p>
-          <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
-          {purchases === null ? null : (
-            <p className="text-ink-2">
-              {t("truck.purchase.countedWas", { amount: formatMoney(closing.counted_purchase_cash ?? "0.000") })}
-            </p>
-          )}
         </Card>
-      ) : closing?.status === "submitted" && !changed ? (
+      ) : closing?.status === "submitted" && !officeFixes ? (
         <Card>
           <p className="text-xl font-bold">{t("truck.closing.sent")}</p>
-          <p className="text-ink-2">{t("truck.closing.countedWas", { amount: formatMoney(closing.counted_cash) })}</p>
-          {purchases === null ? null : (
-            <p className="text-ink-2">
-              {t("truck.purchase.countedWas", { amount: formatMoney(closing.counted_purchase_cash ?? "0.000") })}
-            </p>
-          )}
+        </Card>
+      ) : null}
+      {officeFixes ? (
+        <Card>
+          <p className="font-semibold text-warn">{t("truck.closing.changed")}</p>
         </Card>
       ) : null}
       {locked ? null : (
@@ -228,52 +210,11 @@ export function DayReport({
           {closing?.status === "reopened" ? (
             <p className="font-semibold text-warn">{t("truck.closing.reopened")}</p>
           ) : null}
-          {changed ? <p className="font-semibold text-warn">{t("truck.closing.changed")}</p> : null}
           {closing !== null && closing.status !== "submitted" && closing.review_note !== "" ? (
             <p className="font-semibold text-bad">{t("truck.closing.asked", { reason: closing.review_note })}</p>
           ) : null}
           {handedOver === null ? null : (
             <p className="text-ink-2">{t("truck.closing.handedOverHint", { amount: formatMoney(handedOver) })}</p>
-          )}
-          <div className="space-y-1">
-            <label htmlFor="counted-cash" className="font-semibold">
-              {t("truck.closing.counted")}
-            </label>
-            <Input
-              id="counted-cash"
-              inputMode="decimal"
-              placeholder="0"
-              className="text-2xl"
-              value={counted}
-              onChange={(event) => setCounted(event.target.value)}
-            />
-          </div>
-          {gap === null ? null : (
-            <p className="text-lg font-semibold">
-              {t("truck.closing.gap", { amount: `${gap > 0 ? "+" : ""}${formatMoney(gap.toFixed(3))}` })}
-            </p>
-          )}
-          {purchases === null ? null : (
-            <div className="space-y-1">
-              <label htmlFor="counted-purchase-cash" className="font-semibold">
-                {t("truck.purchase.counted")}
-              </label>
-              <Input
-                id="counted-purchase-cash"
-                inputMode="decimal"
-                placeholder="0"
-                className="text-2xl"
-                value={countedPurchase}
-                onChange={(event) => setCountedPurchase(event.target.value)}
-              />
-              {purchaseGap === null ? null : (
-                <p className="text-lg font-semibold">
-                  {t("truck.purchase.gap", {
-                    amount: `${purchaseGap > 0 ? "+" : ""}${formatMoney(purchaseGap.toFixed(3))}`,
-                  })}
-                </p>
-              )}
-            </div>
           )}
           <div className="space-y-1">
             <label htmlFor="closing-note" className="font-semibold">
@@ -303,14 +244,12 @@ export function DayReport({
             className="py-4 text-lg"
             disabled={!gate.canSend}
             rows={[
-              [t("truck.closing.counted"), formatMoney(countedValue ?? "0")],
+              [t("truck.closing.expected"), formatMoney(summary.expected_cash)],
               ...(purchases === null
                 ? []
-                : [[t("truck.purchase.counted"), formatMoney(countedPurchaseValue ?? "0")] as [string, string]]),
+                : [[t("truck.purchase.closingExpected"), formatMoney(purchases.expected)] as [string, string]]),
             ]}
-            onConfirm={() =>
-              countedValue !== null && countedPurchaseValue !== null && onSend(countedValue, note, countedPurchaseValue)
-            }
+            onConfirm={() => onSend(note)}
           >
             {t("truck.closing.send")}
           </ConfirmButton>

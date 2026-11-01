@@ -38,7 +38,13 @@ import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
+import { NumberingPage } from "./settings/NumberingPage";
 import { SettingsPage } from "./settings/SettingsPage";
+import { AccountsPage } from "./treasury/AccountsPage";
+import { BordereauPage } from "./treasury/BordereauPage";
+import { EtatsFacturesPage } from "./treasury/EtatsFacturesPage";
+import { JournalPage } from "./treasury/JournalPage";
+import { PortfolioPage } from "./treasury/PortfolioPage";
 import { UsersPage } from "./settings/UsersPage";
 import { BoxesPage } from "./boxes/BoxesPage";
 import { BatchStockPage } from "./stock/BatchStockPage";
@@ -52,6 +58,7 @@ import { QuotesPage } from "./quotes/QuotesPage";
 import { SupplierInvoiceDetailPage } from "./purchasing/SupplierInvoiceDetailPage";
 import { SupplierInvoiceFormPage } from "./purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "./purchasing/SupplierInvoicesPage";
+import { SupplierPaymentDetailPage } from "./purchasing/SupplierPaymentDetailPage";
 import { SupplierPaymentFormPage } from "./purchasing/SupplierPaymentFormPage";
 import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
 import { SupplierDebtsPage } from "./purchasing/SupplierDebtsPage";
@@ -68,6 +75,7 @@ import { CounterSalePage } from "./sales/CounterSalePage";
 import { SaleDetailPage } from "./sales/SaleDetailPage";
 import { SaleEditPage, SaleFormPage } from "./sales/SaleFormPage";
 import { SalesPage } from "./sales/SalesPage";
+import { CustomerPaymentDetailPage } from "./payments/CustomerPaymentDetailPage";
 import { CustomerPaymentFormPage } from "./payments/CustomerPaymentFormPage";
 import { PaymentsPage } from "./payments/PaymentsPage";
 import { CustomerDetailPage } from "./customers/CustomerDetailPage";
@@ -135,6 +143,7 @@ function useNav(): AdminNavGroup[] {
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
+        { to: "/tresorerie/portefeuille", label: t("admin.nav.portfolio"), icon: "receipt" },
         { to: "/tresorerie/banques", label: t("admin.nav.banks"), icon: "wallet" },
       ],
     },
@@ -254,6 +263,14 @@ function AppRoutes() {
             </OwnerOnly>
           }
         />
+        <Route
+          path="/parametres/numerotation"
+          element={
+            <OwnerOnly>
+              <NumberingPage />
+            </OwnerOnly>
+          }
+        />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}
@@ -272,7 +289,16 @@ function AppRoutes() {
         <Route path="/factures/parametres" element={<FinanceSettingsPage />} />
         {/* Règlements and treasury (P9-T03, D-197) */}
         <Route path="/reglements/nouveau" element={<CustomerPaymentFormPage />} />
+        <Route path="/reglements/:paymentId" element={<CustomerPaymentDetailPage />} />
         <Route path="/tresorerie/banques" element={<BanksPage />} />
+        <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
+        <Route path="/tresorerie/bordereau" element={<BordereauPage />} />
+        <Route path="/tresorerie/agences" element={<AccountsPage kind="bank" />} />
+        <Route path="/tresorerie/caisses" element={<AccountsPage kind="cash" />} />
+        <Route path="/tresorerie/journal/banques" element={<JournalPage kind="bank" />} />
+        <Route path="/tresorerie/journal/caisses" element={<JournalPage kind="cash" />} />
+        <Route path="/tresorerie/etats/ventes" element={<EtatsFacturesPage kind="sales" />} />
+        <Route path="/tresorerie/etats/achats" element={<EtatsFacturesPage kind="purchases" />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
@@ -290,6 +316,7 @@ function AppRoutes() {
         <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
         <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
+        <Route path="/achats/paiements/:paymentId" element={<SupplierPaymentDetailPage />} />
         <Route path="/achats/dettes" element={<SupplierDebtsPage />} />
         <Route path="/achats/reglements" element={<SupplierSettlementsPage />} />
         {/* Stock screens (P1-T11) */}

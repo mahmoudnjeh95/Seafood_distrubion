@@ -32,7 +32,8 @@ services:
     build: { context: .., target: backend }
     image: frutti-backend:${RELEASE:?set by the deploy script}
     restart: unless-stopped
-    command: sh -c "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3 --access-logfile - --no-control-socket"
+    # backfill_treasury writes the treasury movements of older records once (D-219); safe on every start.
+    command: sh -c "python manage.py migrate --noinput && (python manage.py backfill_treasury || true) && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3 --access-logfile - --no-control-socket"
     environment: &backend-env
       DATABASE_URL: postgres://frutti:${POSTGRES_PASSWORD}@db:5432/frutti
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set in .env}

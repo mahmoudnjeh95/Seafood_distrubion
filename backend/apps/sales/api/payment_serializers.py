@@ -76,6 +76,8 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
             "received_on",
             "reference",
             "notes",
+            "reason",
+            "paid_by",
             "allocated_total",
             "unallocated",
             "remaining",
@@ -98,7 +100,8 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
     def get_unallocated(self, payment: CustomerPayment) -> str:
         if payment.voided_at is not None:
             return "0.000"
-        return str(payment.amount - (getattr(payment, "allocated_total", None) or 0))
+        free = payment.amount - (getattr(payment, "unpaid_total", None) or 0)
+        return str(free - (getattr(payment, "allocated_total", None) or 0))
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
     def get_remaining(self, payment: CustomerPayment) -> str:
@@ -123,7 +126,53 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
         return person_name(payment.voided_by)
 
 
+class ReceivedEffetEventSerializer(serializers.Serializer[Any]):
+    """One step in the life of a received effet: in portfolio, at the bank, cashed, unpaid, cancelled..."""
+
+    from_status = serializers.CharField(read_only=True)
+    to_status = serializers.ChoiceField(choices=treasury.INSTRUMENT_STATUS_CHOICES, read_only=True)
+    happened_on = serializers.DateField(read_only=True)
+    note = serializers.CharField(read_only=True)
+    actor = serializers.SerializerMethodField()
+
+    def get_actor(self, event: Any) -> str:
+        return person_name(event.actor)
+
+
+class InstrumentDetailSerializer(InstrumentRefSerializer):
+    # Oldest first.
+    events = ReceivedEffetEventSerializer(many=True, read_only=True)
+
+
+class UnpaidEffetSerializer(serializers.Serializer[Any]):
+    """The impayé of a line (D-217): when, why, the bank's charges and their expense."""
+
+    unpaid_on = serializers.DateField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    bank_charges = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    expense_number = serializers.CharField(read_only=True)
+
+
+class CustomerPaymentLineDetailSerializer(CustomerPaymentLineSerializer):
+    instrument = InstrumentDetailSerializer(read_only=True, allow_null=True)
+    # Set once the bank refused its cheque or traite.
+    unpaid = serializers.SerializerMethodField()
+
+    class Meta(CustomerPaymentLineSerializer.Meta):
+        fields = (*CustomerPaymentLineSerializer.Meta.fields, "unpaid")
+        read_only_fields = fields
+
+    @extend_schema_field(UnpaidEffetSerializer(allow_null=True))
+    def get_unpaid(self, line: CustomerPaymentLine) -> dict[str, Any] | None:
+        unpaid = getattr(line, "unpaid", None)
+        return UnpaidEffetSerializer(unpaid).data if unpaid is not None else None
+
+
 class CustomerPaymentDetailSerializer(CustomerPaymentSerializer):
+    """One règlement with the sales it settled and the history of each of its effets."""
+
+    lines = CustomerPaymentLineDetailSerializer(many=True, read_only=True)
     allocations = CustomerPaymentAllocationSerializer(many=True, read_only=True)
 
     class Meta(CustomerPaymentSerializer.Meta):
@@ -156,6 +205,9 @@ class CustomerPaymentLineWriteSerializer(serializers.Serializer[Any]):
     bank = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
     drawer = serializers.CharField(required=False, allow_blank=True, default="", max_length=150)
     due_on = serializers.DateField(required=False, allow_null=True, default=None)
+    # Cash, a transfer, a card: the account it went to (D-219); empty: the Caisse, the main bank account. A cheque
+    # or a traite goes to the bank by a remise, so its account is not read.
+    account = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
 
 
 class AllocateWriteSerializer(serializers.Serializer[Any]):
@@ -175,6 +227,16 @@ class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     received_on = serializers.DateField(required=False, allow_null=True, default=None)
     reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    # What the money is for, and who handed it over (both optional).
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
+    paid_by = serializers.CharField(required=False, allow_blank=True, default="", max_length=120)
+
+
+class UnpaidWriteSerializer(serializers.Serializer[Any]):
+    unpaid_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
+    # The bank's charges (DT as a string); empty: none.
+    bank_charges = serializers.CharField(required=False, allow_blank=True, default="0")
 
 
 class VoidWriteSerializer(serializers.Serializer[Any]):
@@ -186,6 +248,22 @@ class CustomerPaymentFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+    # Those with a line of this means; `mixed`: those with several means.
+    method = serializers.ChoiceField(choices=CustomerPaymentMethod.choices, required=False)
+    # `active` (not voided), `voided`, or `unallocated` (credit left).
+    state = serializers.ChoiceField(choices=["active", "voided", "unallocated"], required=False)
+
+
+class CustomerPaymentTotalsSerializer(serializers.Serializer[Any]):
+    """The totals of the filtered règlements, voided ones left out (their number is in `voided`)."""
+
+    count = serializers.IntegerField(read_only=True)
+    voided = serializers.IntegerField(read_only=True)
+    total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    allocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    unallocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # Received by each means, from the lines ({"cash": "500.000", "cheque": ...}).
+    by_method = serializers.DictField(child=serializers.DecimalField(max_digits=14, decimal_places=3), read_only=True)
 
 
 # ---- Balance, ageing ----
@@ -217,8 +295,9 @@ class OpenSaleSerializer(serializers.Serializer[Any]):
 
 
 class HistoryEntrySerializer(serializers.Serializer[Any]):
-    # "sale" (what it owes now), "on_spot" (paid at the sale) or "payment".
-    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment"], read_only=True)
+    # "sale" (what it owes now), "on_spot" (paid at the sale), "payment", or "unpaid" (an effet refused by the
+    # bank: owed again, D-217).
+    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment", "unpaid"], read_only=True)
     day = serializers.DateField(read_only=True)
     number = serializers.CharField(read_only=True)
     object_id = serializers.IntegerField(read_only=True)

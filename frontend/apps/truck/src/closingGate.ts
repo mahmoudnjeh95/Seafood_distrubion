@@ -8,14 +8,12 @@ import type { QueuedItem } from "./queue";
 export function closingGate(input: {
   queue: QueuedItem[];
   online: boolean;
-  /** The cash counted is a valid amount. */
-  countedReady: boolean;
   /** A send of the closing is already running. */
   busy: boolean;
 }): { waiting: number; canSend: boolean } {
   const waiting = input.queue.filter((item) => item.status === "pending").length;
   return {
     waiting,
-    canSend: input.countedReady && !input.busy && input.online && waiting === 0,
+    canSend: !input.busy && input.online && waiting === 0,
   };
 }

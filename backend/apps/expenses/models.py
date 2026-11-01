@@ -9,26 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField
 
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one series of expense documents ("DP" expenses) in an organization.
-
-    Locked while a number is taken (same scheme as the other apps, D-043), so two expenses saved at once
-    never share one.
-    """
-
-    series = models.CharField(max_length=20)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "series"], name="expenses_one_counter_per_series"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.series} · {self.last_number}"
-
-
 # ---- Expenses (P5-T01, D-053) ----
 
 
@@ -280,6 +260,27 @@ class ElectricityBill(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.month:%Y-%m} · {self.expense}"
+
+
+class ColdRoomEstimate(OrganizationScopedModel, TimeStampedModel):
+    """The owner's estimate of a month's electricity for all the cold rooms, typed before the bill arrives
+    (D-227). While the month is not billed it replaces the previous month's daily rate: the rooms share it by
+    weight, as the bill is shared. Changed freely until the month's bill is approved, then frozen (the rates
+    keep the daily amount that was used)."""
+
+    # The first day of the month the estimate is for.
+    month = models.DateField()
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["-month", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "month"], name="cold_room_estimate_one_per_month"),
+            models.CheckConstraint(condition=models.Q(amount__gt=Decimal("0")), name="cold_room_estimate_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.month:%Y-%m} · {self.amount}"
 
 
 class ColdRoomMonthRate(OrganizationScopedModel):

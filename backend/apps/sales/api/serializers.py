@@ -207,8 +207,19 @@ class QuoteLineWriteSerializer(serializers.Serializer[Any]):
     batch = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
 
 
+class SaleLinePickSerializer(serializers.Serializer[Any]):
+    # A lot of the line's product at the place the goods leave from (`location_batches`).
+    batch = serializers.IntegerField(min_value=1)
+    # Kilos to take from this lot first; text, checked by the service like the line's weight.
+    quantity = serializers.CharField(allow_blank=True)
+
+
 class SaleLineWriteSerializer(QuoteLineWriteSerializer):
     """A sale line as typed: the same fields as a quote line, the lot included."""
+
+    # Several lots picked by hand, each with the kilos to take from it first (D-208). They take precedence over
+    # `batch`; empty takes the lot in `batch`, or the oldest lot first.
+    picks = SaleLinePickSerializer(many=True, required=False, default=list)
 
 
 class QuoteWriteSerializer(serializers.Serializer[Any]):
@@ -298,6 +309,11 @@ class SaleLineSerializer(serializers.ModelSerializer[SaleLine]):
             "gross_amount",
             "discount_amount",
             "amount",
+            # VAT of the line (D-224): its rate when sold with VAT (empty otherwise), its amounts without and with it.
+            "vat_rate",
+            "amount_excl_tax",
+            "vat_amount",
+            "amount_incl_tax",
             "cost_amount",
             "requested_batch",
             "batches",
@@ -328,6 +344,8 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     line_count = serializers.IntegerField(read_only=True)
     # The truck load this BL was prepared with (D-160), if any.
     transfer = QuoteRefSerializer(read_only=True, allow_null=True)
+    # The total without VAT (a property of the sale: total with VAT less the VAT, D-224).
+    amount_excl_tax = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # total without VAT − cost of goods, once confirmed; null for drivers.
     margin = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
@@ -362,6 +380,10 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "total_excl_tax",
             "tax_amount",
             "total",
+            # The VAT of the BL (D-224): without VAT, the VAT of its lines, and the total with VAT.
+            "amount_excl_tax",
+            "vat_total",
+            "total_incl_tax",
             "cost_total",
             "margin",
             "amount_paid",

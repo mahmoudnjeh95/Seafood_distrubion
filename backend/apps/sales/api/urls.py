@@ -35,6 +35,13 @@ urlpatterns = [
     # P2-T06 · customer payments, balances, withholding certificates
     path("customer-payments", payment_views.CustomerPaymentListView.as_view(), name="customer-payment-list"),
     path(
+        "customer-effets/<int:instrument_id>/unpaid",
+        payment_views.CustomerEffetUnpaidView.as_view(),
+        name="customer-effet-unpaid",
+    ),
+    path("customer-payments/totals", payment_views.CustomerPaymentTotalsView.as_view(), name="customer-payment-totals"),
+    path("customer-payments/export", payment_views.CustomerPaymentExportView.as_view(), name="customer-payment-export"),
+    path(
         "customer-payments/<int:payment_id>",
         payment_views.CustomerPaymentDetailView.as_view(),
         name="customer-payment-detail",

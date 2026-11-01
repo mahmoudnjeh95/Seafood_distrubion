@@ -14,6 +14,8 @@ class DocumentKind(models.TextChoices):
     RECEIPT = "receipt", _("Reçu de règlement")
     PARTNER_STATEMENT = "partner_statement", _("Relevé du partenaire")
     DELIVERY_NOTE = "delivery_note", _("Bon de livraison")
+    SUPPLIER_RECEIPT = "supplier_receipt", _("Reçu de paiement fournisseur")
+    BANK_DEPOSIT = "bank_deposit", _("Bordereau de remise en banque")
 
 
 def document_path(document: "GeneratedDocument", filename: str) -> str:

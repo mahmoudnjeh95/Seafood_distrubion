@@ -11,7 +11,15 @@ export type ListInstrumentsParams = {
 /**
  * @minimum 1
  */
+bank?: number;
+/**
+ * @minimum 1
+ */
 customer?: number;
+/**
+ * @minimum 1
+ */
+deposit?: number;
 /**
  * * `received` - Reçu
  * * `issued` - Émis

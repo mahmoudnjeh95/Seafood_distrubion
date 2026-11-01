@@ -88,19 +88,6 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
         return self.number
 
 
-class BatchCounter(OrganizationScopedModel):
-    """The last batch number given in an organization. Its row is locked while a number is taken, so two
-    receipts saved at the same moment never get the same number."""
-
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [models.UniqueConstraint(fields=["organization"], name="one_batch_counter_per_organization")]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.last_number}"
-
-
 class MovementKind(models.TextChoices):
     RECEIPT = "receipt", _("Réception")
     TRANSFER = "transfer", _("Transfert")
@@ -213,24 +200,6 @@ class StockOnHand(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.location} · {self.batch} · {self.quantity} kg"
-
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one series of stock documents ("TR" transfers...) in an organization.
-
-    Locked while a number is taken, like `BatchCounter`, so two documents saved at once never share one.
-    """
-
-    series = models.CharField(max_length=10)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "series"], name="one_document_counter_per_series"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.series} · {self.last_number}"
 
 
 # ---- Transfers between locations (P1-T09, D-044) ----
@@ -347,6 +316,27 @@ class TransferLine(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.transfer} · {self.product_id} · {self.quantity} kg"
+
+
+class TransferLinePick(OrganizationScopedModel):
+    """A lot picked by hand for one transfer line, and the kilos to take from it first (D-215, as on a sale line,
+    D-212). The kilos the picks leave over come from the other lots, oldest first; a lot too short is topped up
+    the same way. Kept with the draft; once validated, the movements of the line say which lots really went.
+    """
+
+    line = models.ForeignKey(TransferLine, on_delete=models.CASCADE, related_name="picks")
+    batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+
+    class Meta:
+        ordering = ["line", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["line", "batch"], name="one_pick_per_transfer_line_and_batch"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="transfer_line_pick_quantity_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.line} · {self.batch_id} · {self.quantity} kg"
 
 
 class TransferBoxLine(OrganizationScopedModel):

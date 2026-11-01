@@ -148,7 +148,7 @@ export function SupplierDialog({
   function input(
     name: TextField,
     label: string,
-    options: { hint?: string; type?: string; autoComplete?: string; className?: string } = {},
+    options: { hint?: string; type?: string; autoComplete?: string; className?: string; disabled?: boolean } = {},
   ) {
     const id = `${formId}-${name}`;
     return (
@@ -162,6 +162,7 @@ export function SupplierDialog({
           aria-invalid={errors[name] ? true : undefined}
           aria-describedby={options.hint ? `${id}-hint` : undefined}
           autoComplete={options.autoComplete ?? "off"}
+          disabled={options.disabled}
         />
         {options.hint && (
           <p id={`${id}-hint`} className="text-[0.8rem] text-ink-2">
@@ -183,6 +184,7 @@ export function SupplierDialog({
         {input("name", t("admin.suppliers.form.name"))}
         {input("reference", t("admin.suppliers.form.reference"), {
           hint: supplier ? undefined : t("admin.suppliers.form.referenceHint"),
+          disabled: true,
         })}
         {input("tax_id", t("admin.suppliers.form.taxId"), { hint: t("admin.suppliers.form.taxIdHint") })}
         {input("phone", t("admin.suppliers.form.phone"), { type: "tel" })}

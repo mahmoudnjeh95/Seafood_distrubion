@@ -201,9 +201,10 @@ def closing_of(driver_day: "DriverDay") -> DayClosing | None:
 
 def day_answer(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """A driver's day as the phone shows it: the figures as sent once the closing is sent (they do not move,
-    D-134), the day's records before. The records are shown again whenever the driver is about to send again,
-    since they are what the new send will keep: the office asked for a justification, a new load reopened the
-    day, or the records no longer say what was sent (D-132)."""
+    D-134; the office's correction moves them, D-220), the day's records before. The records are shown again whenever
+    the driver is about to send again, since they are what the new send will keep: a new load reopened the day, or
+    the office asked for a justification. A day whose records moved is corrected by the office, not sent again
+    (D-220); its phone shows the records as they are now."""
     closing = closing_of(driver_day)
     as_sent = closing is not None and (
         closing.status == DayClosingStatus.APPROVED
@@ -285,7 +286,7 @@ def closings_of(
     rows = (
         DayClosing.objects.for_organization(organization)
         .select_related("driver_day__truck__location", "driver_day__driver", "reviewed_by")
-        .prefetch_related("reopenings__reviewed_by", "reopenings__load")
+        .prefetch_related("reopenings__reviewed_by", "reopenings__load", "revisions__actor")
         .order_by("-submitted_at", "-id")
     )
     if status:
@@ -360,7 +361,8 @@ def _sale_line(sale: Any) -> dict[str, Any]:
 
 def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[str, Any]:
     """Everything a driver's day holds, for the office: the figures, the sales made, the deliveries of the
-    loads (to do and done), the customer payments collected and the road expenses."""
+    loads (to do and done), the customer payments collected, the road expenses and the purchases at the port
+    (to check, checked or refused, D-214)."""
     start, end = fleet.day_window(driver_day)
     answer = day_answer(organization, driver_day)
     made = [
@@ -386,11 +388,24 @@ def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[st
         for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=driver_day.date)
         if start <= (e.made_at or e.created_at) < end
     ]
+    bought = purchasing.purchases_made_between(organization, buyer_id=driver_day.driver_id, start=start, end=end)
     return {
         **day_row(organization, driver_day),
         "closing": answer["closing"],
         "sales": [_sale_line(s) for s in made],
         "deliveries": [_sale_line(s) for s in deliveries],
+        "purchases": [
+            {
+                "id": purchase.pk,
+                "number": purchase.number,
+                "supplier_name": purchase.supplier.name if purchase.supplier else purchase.proposed_supplier,
+                "status": purchase.status,
+                "total": sum((line.amount for line in purchase.lines.all()), ZERO),
+                "cash": sum((p.amount for p in purchase.payments.all() if p.method == "cash"), ZERO),
+                "made_at": purchase.made_at or purchase.created_at,
+            }
+            for purchase in bought
+        ],
         "payments": [
             {
                 "id": p.pk,
@@ -513,8 +528,8 @@ class PeriodDays:
 
     unsent_count: int  # past days whose closing the driver has not sent (never, or reopened and not sent again)
     unsent_cash: Decimal  # what those days should have in hand
-    difference_count: int  # sent days the office has not approved whose count is not what the records say
-    difference_amount: Decimal  # counted - expected on those days, the sales cash and the purchase money together
+    difference_count: int  # sent days the office has not approved, counted, whose count is not what the records say
+    difference_amount: Decimal  # office count - expected on those days, the sales cash and the purchase money together
 
 
 def period_days(organization: Organization, *, date_from: dt.date, date_to: dt.date) -> PeriodDays:
@@ -533,24 +548,26 @@ def period_days(organization: Organization, *, date_from: dt.date, date_to: dt.d
     sent = (
         closings_of(organization, date_from=date_from, date_to=date_to)
         .exclude(status__in=_NOT_WITH_THE_OFFICE)
-        .exclude(difference=0, purchase_difference=0)
+        .filter(office_counted_cash__isnull=False)
+        .exclude(office_difference=0, office_purchase_difference=0)
     )
     return PeriodDays(
         unsent_count=unsent_count,
         unsent_cash=unsent_cash,
         difference_count=len(sent),
-        difference_amount=sum((row.difference + row.purchase_difference for row in sent), ZERO),
+        difference_amount=sum((row.office_difference + row.office_purchase_difference for row in sent), ZERO),
     )
 
 
 def unexplained_cash_differences(organization: Organization) -> list[CashDifference]:
-    """Driver days not approved yet whose counted cash is not what the records say and that nobody explained:
-    the driver left no note, or the office asked for a justification and has not got it. Newest first. Not a
-    reopened day: its difference is that of the send a new load undid, and its next count is still to come."""
+    """Driver days not approved yet whose cash the office counted, not what the records say, and that nobody
+    explained: the driver left no note, or the office asked for a justification and has not got it. Newest first.
+    Not a reopened day: its gap is that of the send a new load undid, and its next count is still to come."""
     rows = (
         closings_of(organization)
         .exclude(status__in=_NOT_WITH_THE_OFFICE)
-        .exclude(difference=0, purchase_difference=0)
+        .filter(office_counted_cash__isnull=False)
+        .exclude(office_difference=0, office_purchase_difference=0)
         .filter(Q(driver_note="") | Q(status=DayClosingStatus.JUSTIFICATION))
         .order_by("-driver_day__date", "-id")
     )
@@ -563,7 +580,7 @@ def unexplained_cash_differences(organization: Organization) -> list[CashDiffere
                 or row.driver_day.driver.username
             ),
             # Both boxes: the sales cash and the purchase money (D-158).
-            difference=row.difference + row.purchase_difference,
+            difference=row.office_difference + row.office_purchase_difference,
         )
         for row in rows
     ]

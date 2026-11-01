@@ -17,12 +17,16 @@ from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
 from apps.catalog import selectors as catalog
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.clock import CLOCK_MARGIN
 from apps.core.images import reencoded_photo
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.money import Number, checked_amount, checked_quantity, display_money, line_total, money
+from apps.expenses import selectors as expenses_selectors
+from apps.expenses import services as expenses
+from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
+from apps.notifications import services as notifications
 from apps.partners import services as partners
 from apps.treasury import services as treasury
 
@@ -40,7 +44,6 @@ from .models import (
     CustomerPaymentLine,
     CustomerPaymentMethod,
     DeliveryStatus,
-    DocumentCounter,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -56,10 +59,13 @@ from .models import (
     SaleBoxLine,
     SaleLine,
     SaleLineBatch,
+    SaleLinePick,
     SalePaymentMethod,
     SaleRevision,
     SaleRevisionKind,
     SaleStatus,
+    UnpaidEffet,
+    UnpaidRelease,
     WithholdingCertificate,
 )
 
@@ -69,11 +75,10 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import Batch, StockLocation, Transfer
     from apps.partners.models import Customer
-    from apps.treasury.models import Bank
+    from apps.treasury.models import Bank, TreasuryAccount
 
 # ---- Quotes (P2-T03, D-050) ----
 
-QUOTE_SERIES = "DV"
 # Validity when none is given: the prototype's quote is "valable 3 jours". Provisional (D-050): seafood
 # prices move daily, so a short validity is the safe default.
 DEFAULT_VALIDITY_DAYS = 3
@@ -95,20 +100,6 @@ class QuoteLineFields(TypedDict, total=False):
 def line_error_key(index: int, field: str) -> str:
     """Errors of a document line are reported on `lines.<index>.<field>`, under the line's own input."""
     return f"lines.{index}.{field}"
-
-
-def _next_number(organization: Organization, series: str) -> str:
-    """DV-0001, DV-0002... per organization and series, taken under a row lock (same scheme as batches).
-
-    Taken in the transaction that creates the document and quotes are never deleted, so there are no gaps.
-    """
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
 
 
 def moment_of(day: dt.date) -> dt.datetime:
@@ -426,7 +417,7 @@ def create_quote(
     )
     quote = Quote.objects.create(
         organization=organization,
-        number=_next_yearly_number(organization, QUOTE_SERIES, timezone.localdate().year),
+        number=numbering.next_number(organization, "quote"),
         customer=customer,
         location=location,
         quoted_on=quoted_on,
@@ -598,9 +589,13 @@ def expire_quotes(*, organization: Organization, actor: User | None = None, toda
 
 # ---- Sales (P2-T04, D-051) ----
 
-SALE_SERIES = "VE"
+
 # A validated sale is a delivery note (bon de livraison): BL-2026-0001, restarting every year (D-095).
-DELIVERY_NOTE_PREFIX = "BL"
+class LotPickFields(TypedDict):
+    """A lot picked by hand for a sale line, and the kilos to take from it first (D-121, D-208)."""
+
+    batch: "Batch"
+    quantity: Number
 
 
 class SaleLineFields(TypedDict, total=False):
@@ -612,6 +607,8 @@ class SaleLineFields(TypedDict, total=False):
     discount_rate: Number | None
     # Picked by hand instead of FIFO (D-121); empty takes the oldest lot first, as always.
     batch: "Batch | None"
+    # Several lots picked by hand, each with its kilos (D-208); they take precedence over `batch`.
+    picks: Sequence[LotPickFields]
 
 
 class QuoteDeliveryFields(TypedDict):
@@ -703,6 +700,29 @@ def _checked_batches(
             checked["requested_batch"] = batch
 
 
+def _checked_picks(
+    organization: Organization,
+    lines: Sequence[SaleLineFields],
+    checked_lines: list[dict[str, Any]],
+    errors: dict[str, str],
+) -> None:
+    """Check each sale line's lots picked by hand (D-212): the shared check of `inventory.checked_lot_picks`. A
+    single `batch` (D-121) is one pick of the line's whole weight.
+
+    Mutates `checked_lines` in place, adding `picks` as `[(batch, kg)]` (empty keeps FIFO, the default).
+    """
+    for index, (line, checked) in enumerate(zip(lines, checked_lines, strict=True)):
+        key = line_error_key(index, "picks")
+        if line.get("picks"):
+            checked["picks"] = inventory.checked_lot_picks(
+                organization, checked.get("product"), line["picks"], checked.get("quantity"), errors, key
+            )
+        elif checked.get("requested_batch") is not None and "quantity" in checked:
+            checked["picks"] = [(checked["requested_batch"], checked["quantity"])]
+        else:
+            checked["picks"] = []
+
+
 def _prepared_sale(
     organization: Organization,
     customer: "Customer",
@@ -719,6 +739,7 @@ def _prepared_sale(
         errors["lines"] = _("Ajoutez au moins un produit.")
     checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source, below_minimum_reason)
     _checked_batches(organization, lines, checked_lines, errors)
+    _checked_picks(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
     paid = _checked_payment(total, payment, errors)
     if errors:
@@ -768,34 +789,87 @@ def _post_sale_boxes(sale: Sale, actor: User | None, kind: str, *, from_customer
         raise ValidationError({"boxes": error.messages}) from error
 
 
-def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dict[str, Any]) -> None:
-    """Replace the lines and set the sale's totals and payment from them (no VAT yet: P2-T05)."""
-    SaleLine.objects.bulk_create(
+def _settings_on_day_of(organization: Organization, sold_at: dt.datetime) -> FinanceSettings:
+    """The finance settings in force the day the sale was made (D-224): its prices' VAT and its rates."""
+    day = timezone.localdate(sold_at)
+    return selectors.finance_settings_on(organization, day) or ensure_finance_settings(organization=organization)
+
+
+def _line_vat_rate(product: "Product", vat_product_ids: set[int], version: FinanceSettings) -> Decimal | None:
+    """The VAT rate a BL line takes (D-224): none unless its product is sold with VAT (kilos bought with VAT,
+    D-202), else the rate the invoice would propose (`_default_rate`)."""
+    return _default_rate(product, version) if product.pk in vat_product_ids else None
+
+
+def _apply_bl_vat(lines: Sequence[SaleLine], *, prices_include_vat: bool) -> None:
+    """The VAT of a BL's lines (D-224), from the rate each line snapshotted: the invoice's own arithmetic
+    (`invoicing.compute`), so a BL and its invoice agree. A line without a rate carries no VAT."""
+    amounts = invoicing.compute(
         [
-            SaleLine(
-                organization_id=sale.organization_id,
-                sale=sale,
-                product=values["product"],
-                quantity=values["quantity"],
-                unit_price=values["unit_price"],
-                price_source=values["price_source"],
-                below_minimum=values["below_minimum"],
-                requested_batch=values.get("requested_batch"),
-                discount_rate=values["discount_rate"],
-                gross_amount=values["gross_amount"],
-                discount_amount=values["discount_amount"],
-                amount=values["amount"],
+            invoicing.LineInput(
+                amount=line.amount,
+                vat_rate=line.vat_rate if line.vat_rate is not None else invoicing.NO_RATE,
             )
-            for values in checked_lines
+            for line in lines
+        ],
+        apply_vat=True,
+        prices_include_vat=prices_include_vat,
+        fiscal_stamp=Decimal("0.000"),
+        withholding_rate=None,
+    )
+    for line, result in zip(lines, amounts.lines, strict=True):
+        line.amount_excl_tax = result.amount_excl_tax
+        line.vat_amount = result.vat_amount
+        line.amount_incl_tax = result.amount_incl_tax
+
+
+def _set_bl_vat_totals(sale: Sale, lines: Sequence[SaleLine]) -> None:
+    """The sale's VAT total and total with VAT, the sum of its lines (D-224)."""
+    sale.vat_total = sum((line.vat_amount for line in lines), Decimal("0.000"))
+    sale.total_incl_tax = sum((line.amount_incl_tax for line in lines), Decimal("0.000"))
+
+
+def _write_sale_lines(sale: Sale, checked_lines: list[dict[str, Any]], paid: dict[str, Any]) -> None:
+    """Replace the lines and set the sale's totals, VAT snapshot and payment from them. The VAT of the lines
+    sold with VAT is written now, from the settings of the sale's day, and kept (D-224)."""
+    version = _settings_on_day_of(sale.organization, sale.sold_at)
+    vat_ids = set(inventory_selectors.vat_product_ids(sale.organization))
+    new_lines = [
+        SaleLine(
+            organization_id=sale.organization_id,
+            sale=sale,
+            product=values["product"],
+            quantity=values["quantity"],
+            unit_price=values["unit_price"],
+            price_source=values["price_source"],
+            below_minimum=values["below_minimum"],
+            requested_batch=values.get("requested_batch"),
+            discount_rate=values["discount_rate"],
+            gross_amount=values["gross_amount"],
+            discount_amount=values["discount_amount"],
+            amount=values["amount"],
+            vat_rate=_line_vat_rate(values["product"], vat_ids, version),
+        )
+        for values in checked_lines
+    ]
+    _apply_bl_vat(new_lines, prices_include_vat=version.prices_include_vat)
+    SaleLine.objects.bulk_create(new_lines)
+    SaleLinePick.objects.bulk_create(
+        [
+            SaleLinePick(organization_id=sale.organization_id, line=line, batch=batch, quantity=kg)
+            for line, values in zip(new_lines, checked_lines, strict=True)
+            for batch, kg in values["picks"]
         ]
     )
     sale.subtotal = sum((values["gross_amount"] for values in checked_lines), Decimal("0.000"))
     sale.discount_total = sum((values["discount_amount"] for values in checked_lines), Decimal("0.000"))
     sale.total_excl_tax = sale.subtotal - sale.discount_total
-    # VAT, the fiscal stamp and the withholding live on the sale's invoice (D-057); `tax_amount` is set when
-    # that invoice is issued.
+    # The fiscal stamp and the withholding live on the sale's invoice (D-057); `tax_amount` is set when that
+    # invoice is issued. The VAT of the lines sold with VAT is on the BL already (D-224).
     sale.tax_amount = None
     sale.total = sale.total_excl_tax
+    sale.prices_include_vat = version.prices_include_vat
+    _set_bl_vat_totals(sale, new_lines)
     sale.amount_paid = paid["amount_paid"]
     sale.payment_method = paid["payment_method"]
     sale.payment_reference = paid["payment_reference"]
@@ -873,7 +947,7 @@ def create_sale(
     box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
         organization=organization,
-        number=_next_number(organization, SALE_SERIES),
+        number=numbering.next_number(organization, "sale"),
         customer=customer,
         location=location,
         sold_at=sold_at,
@@ -989,7 +1063,7 @@ def _add_revision(
 
 def _issue_load_bl(sale: Sale, actor: User | None) -> None:
     """The client's BL of a load gets its BL number now and is version 1, the one printed and taken on the road."""
-    sale.number = _next_yearly_number(sale.organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
+    sale.number = numbering.next_number(sale.organization, "delivery_note")
     sale.issued_at = timezone.now()
     sale.delivery_status = DeliveryStatus.TO_DELIVER
     sale.version = 1
@@ -1080,6 +1154,11 @@ def deliver_sale(
             line.discount_amount = priced["discount_amount"]
             line.amount = priced["amount"]
             line.save(update_fields=["quantity", "gross_amount", "discount_amount", "amount"])
+    kept_lines = [line for line, _kg in kept]
+    # The VAT rate snapshot stays; the VAT follows the kilos left (D-224).
+    _apply_bl_vat(kept_lines, prices_include_vat=sale.prices_include_vat)
+    SaleLine.objects.bulk_update(kept_lines, ["amount_excl_tax", "vat_amount", "amount_incl_tax"])
+    _set_bl_vat_totals(sale, kept_lines)
     sale.subtotal = sum((line.gross_amount for line, _kg in kept), Decimal("0.000"))
     sale.discount_total = sum((line.discount_amount for line, _kg in kept), Decimal("0.000"))
     sale.total_excl_tax = sale.subtotal - sale.discount_total
@@ -1307,9 +1386,6 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     raise ValidationError({"credit_limit": message})
 
 
-OPENING_RECEIVABLE_PREFIX = "OUV"
-
-
 @transaction.atomic
 def create_opening_receivable(
     *,
@@ -1347,7 +1423,7 @@ def create_opening_receivable(
     now = timezone.now()
     sale = Sale.objects.create(
         organization=organization,
-        number=_next_yearly_number(organization, OPENING_RECEIVABLE_PREFIX, owed_on.year),
+        number=numbering.next_number(organization, "opening_receivable", year=owed_on.year),
         status=SaleStatus.CONFIRMED,
         customer=customer,
         location=location,
@@ -1356,6 +1432,7 @@ def create_opening_receivable(
         subtotal=total,
         total_excl_tax=total,
         total=total,
+        total_incl_tax=total,
         cost_total=Decimal("0.000"),
         amount_due=total,
         is_opening=True,
@@ -1395,11 +1472,11 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
 def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_since: bool = False) -> None:
     """Take the line's kilos out of the sale's place and keep which batches went.
 
-    Oldest batch first (FIFO, the default) unless a lot was picked by hand (D-121): that lot is then taken
-    from first and, if it is not enough, the rest still comes from the other lots, oldest first — stock
-    never goes negative. The till warns beforehand when the picked lot looks short. The movements are dated
-    at the sale's moment; with `stock_held_since`, a sale of an earlier day takes only kilos the place has
-    held since that day (D-133).
+    Oldest batch first (FIFO, the default) unless lots were picked by hand (D-121, D-208): each picked lot gives
+    the kilos picked from it, and the rest still comes from the other lots, oldest first — stock never goes
+    negative. The till warns beforehand when a picked lot looks short. The movements are dated at the sale's
+    moment; with `stock_held_since`, a sale of an earlier day takes only kilos the place has held since that
+    day (D-133).
     """
     movements = inventory.post_fifo_movements(
         organization=sale.organization,
@@ -1411,7 +1488,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_sin
         reason=sale.number,
         source=line,
         occurred_at=sale.sold_at,
-        prefer_batch_id=line.requested_batch_id,
+        picks=[(pick.batch_id, pick.quantity) for pick in line.picks.order_by("id")],
         held_since_then=stock_held_since,
     )
     revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
@@ -1487,7 +1564,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     draft_number = sale.number
     # The BL of a load has its number since the load (D-178).
     if sale.issued_at is None:
-        sale.number = _next_yearly_number(organization, DELIVERY_NOTE_PREFIX, timezone.localdate().year)
+        sale.number = numbering.next_number(organization, "delivery_note")
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
         try:
@@ -1876,25 +1953,6 @@ def save_finance_settings(
 
 # ---- Invoices and credit notes (P2-T05, D-057) ----
 
-INVOICE_PREFIX = "FA"
-CREDIT_NOTE_PREFIX = "AV"
-
-
-def _next_yearly_number(organization: Organization, prefix: str, year: int) -> str:
-    """FA-2026-0001, FA-2026-0002... per organization and year, under the counter's row lock.
-
-    Called inside the transaction that issues the document, after every check: if anything fails later the
-    transaction rolls back with the counter, so the series never has a gap (ARCHITECTURE §4.11).
-    """
-    series = f"{prefix}-{year}"
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, series=series)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, series=series)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{series}-{counter.last_number:04d}"
-
 
 class InvoiceChoices(TypedDict, total=False):
     """What the person may change on a draft invoice; empty values take the settings (D-056)."""
@@ -2012,9 +2070,9 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
     )
 
 
-def _default_rate(line: InvoiceLine, version: FinanceSettings) -> Decimal:
+def _default_rate(product: "Product", version: FinanceSettings) -> Decimal:
     """The rate a line takes when none is typed: the product's own (0 = exempt), else the settings'."""
-    own: Decimal | None = line.product.vat_rate
+    own: Decimal | None = product.vat_rate
     return own if own is not None else version.vat_rate
 
 
@@ -2026,7 +2084,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     rates: list[Decimal] = []
     rate_typed: list[bool] = []
     for line, typed in zip(lines, overrides.vat_rates, strict=True):
-        default = _default_rate(line, version)
+        default = _default_rate(line.product, version)
         rates.append(typed if typed is not None else default)
         rate_typed.append(typed is not None and typed != default)
     stamp = overrides.fiscal_stamp if overrides.fiscal_stamp is not None else version.fiscal_stamp
@@ -2348,7 +2406,7 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     invoice.issued_by = actor
     invoice.issued_at = timezone.now()
     invoice.status = InvoiceStatus.ISSUED
-    invoice.number = _next_yearly_number(invoice.organization, INVOICE_PREFIX, today.year)
+    invoice.number = numbering.next_number(invoice.organization, "invoice", year=today.year)
     invoice.save()
     lines = list(invoice.lines.select_related("product", "sale_line"))
     for line in lines:
@@ -2596,7 +2654,7 @@ def create_credit_note(
     today = timezone.localdate()
     note = CreditNote.objects.create(
         organization=invoice.organization,
-        number=_next_yearly_number(invoice.organization, CREDIT_NOTE_PREFIX, today.year),
+        number=numbering.next_number(invoice.organization, "credit_note", year=today.year),
         invoice=invoice,
         kind=kind,
         issued_on=today,
@@ -2659,7 +2717,6 @@ def create_credit_note(
 
 # ---- Customer payments, balance, credit, withholding certificates (P2-T06, D-062, D-063) ----
 
-PAYMENT_SERIES = "RG"
 MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
 
 
@@ -2681,6 +2738,8 @@ class PaymentLineFields(TypedDict, total=False):
     bank: "Bank | None"
     drawer: str
     due_on: dt.date | None
+    # Cash, a transfer, a card: the account the money went to (D-219); empty: the Caisse, the main bank account.
+    account: "TreasuryAccount | None"
 
 
 # At most this many lines in one règlement.
@@ -2718,6 +2777,8 @@ def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
         "method": payment.method,
         "received_on": payment.received_on.isoformat(),
         "reference": payment.reference,
+        "reason": payment.reason,
+        "paid_by": payment.paid_by,
         "lines": [_line_snapshot(line) for line in payment.lines.select_related("instrument__bank").order_by("id")],
         "allocations": [
             {"sale": row.sale.number, "amount": str(row.amount)}
@@ -2736,7 +2797,14 @@ def _line_snapshot(line: CustomerPaymentLine) -> dict[str, Any]:
 
 
 def _allocated_total(payment: CustomerPayment) -> Decimal:
-    return payment.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+    """What the payment settles on sales now: its allocations less what its impayés took back (D-217)."""
+    allocated = payment.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+    released = UnpaidRelease.objects.filter(unpaid__payment=payment).aggregate(total=Sum("amount"))["total"]
+    return allocated - (released or Decimal("0.000"))
+
+
+def _unpaid_total(payment: CustomerPayment) -> Decimal:
+    return UnpaidEffet.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
 
 
 def _allocate(
@@ -2900,6 +2968,10 @@ def _checked_payment_lines(
             for field, message in found.items():
                 errors[line_error_key(index, field)] = message
             taken.append((method, bank.pk if bank else None, number.strip()))
+        else:
+            message = treasury.line_account_error(organization, method, line.get("account"))
+            if message:
+                errors[line_error_key(index, "account")] = message
         checked.append((method, value, line))
     return checked
 
@@ -2927,6 +2999,8 @@ def record_customer_payment(
     received_on: dt.date | None = None,
     reference: str = "",
     notes: str = "",
+    reason: str = "",
+    paid_by: str = "",
     allocations: Sequence[AllocationFields] | None = None,
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
@@ -2979,7 +3053,7 @@ def record_customer_payment(
         raise ValidationError(errors)
     paid = sum((value for _method, value, _line in checked), Decimal("0.000"))
     methods = {line_method for line_method, _value, _line in checked}
-    number = _next_number(organization, PAYMENT_SERIES)
+    number = numbering.next_number(organization, "payment")
     payment = CustomerPayment.objects.create(
         organization=organization,
         number=number,
@@ -2990,6 +3064,8 @@ def record_customer_payment(
         made_at=made_at,
         reference=_header_reference(reference if lines is None else None, checked),
         notes=notes.strip(),
+        reason=reason.strip(),
+        paid_by=paid_by.strip(),
         created_by=actor,
         client_uuid=client_uuid,
     )
@@ -3010,7 +3086,7 @@ def record_customer_payment(
                 customer=customer,
                 source_number=number,
             )
-        CustomerPaymentLine.objects.create(
+        row = CustomerPaymentLine.objects.create(
             organization=organization,
             payment=payment,
             method=line_method,
@@ -3018,6 +3094,8 @@ def record_customer_payment(
             reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
             instrument=instrument,
         )
+        if instrument is None:
+            _post_line_money(payment, row, line.get("account"), actor)
     _allocate(payment, paid, allocations)
     audit.record(
         organization=organization,
@@ -3027,6 +3105,60 @@ def record_customer_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+# The treasury movement of a règlement line paid in cash, by transfer or by card (D-219).
+PAYMENT_LINE_SOURCE = "sales.payment_line"
+
+
+def _post_line_money(
+    payment: CustomerPayment, line: CustomerPaymentLine, account: "TreasuryAccount | None", actor: User | None
+) -> None:
+    """The money of a line goes in an account the day it was received: the one chosen, else the cash a driver took
+    goes to that driver's cash (D-133), other cash to the Caisse, a transfer or a card to the main bank account. A
+    cheque or a traite moves money only when the bank pays it (the treasury)."""
+    organization = payment.organization
+    driver = payment.created_by if payment.made_at is not None else None
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, line.method, account, driver=driver),
+        day=payment.received_on,
+        amount=line.amount,
+        kind="customer_payment",
+        label=f"{payment.number} · {payment.customer.name}",
+        reference=payment.number,
+        source=PAYMENT_LINE_SOURCE,
+        source_id=line.pk,
+        actor=actor,
+    )
+
+
+def _reverse_line_money(payment: CustomerPayment, actor: User | None, day: dt.date) -> None:
+    treasury.reverse_movements(
+        organization=payment.organization,
+        source=PAYMENT_LINE_SOURCE,
+        source_ids=list(payment.lines.filter(instrument__isnull=True).values_list("pk", flat=True)),
+        day=day,
+        actor=actor,
+        label=_("Annulation"),
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the treasury movements of the règlements recorded before the accounts existed (D-219), and undo those
+    of the voided ones on the day they were voided. Safe to run again."""
+    done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
+    lines = (
+        CustomerPaymentLine.objects.filter(organization=organization, instrument__isnull=True)
+        .select_related("payment__organization", "payment__customer", "payment__created_by")
+        .order_by("id")
+    )
+    for line in lines:
+        payment = line.payment
+        if line.pk not in done:
+            _post_line_money(payment, line, None, payment.created_by)
+        if payment.voided_at is not None:
+            _reverse_line_money(payment, payment.voided_by, timezone.localtime(payment.voided_at).date())
 
 
 def _locked_payment(payment: CustomerPayment) -> CustomerPayment:
@@ -3046,7 +3178,7 @@ def allocate_customer_payment(
     payment = _locked_payment(payment)
     if payment.voided_at is not None:
         raise ValidationError(_("Ce règlement est annulé."))
-    left = payment.amount - _allocated_total(payment)
+    left = payment.amount - _unpaid_total(payment) - _allocated_total(payment)
     if left <= 0:
         raise ValidationError(_("Ce règlement est déjà entièrement affecté."))
     rows = _allocate(payment, left, allocations)
@@ -3081,6 +3213,7 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
             happened_on=timezone.localdate(),
             note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
         )
+    _reverse_line_money(payment, actor, timezone.localdate())
     sale_ids = list(payment.allocations.values_list("sale_id", flat=True))
     payment.voided_at = timezone.now()
     payment.voided_by = actor
@@ -3255,3 +3388,128 @@ def void_withholding_certificate(
         after={"reason": reason, **_certificate_snapshot(certificate)},
     )
     return certificate
+
+
+# ---- Impayés: a customer effet the bank refused (P9-T04b, D-217) ----
+
+# The expense category of the bank's charges (expenses.DEFAULT_CATEGORIES).
+BANK_CHARGES_CATEGORY = "financial"
+
+
+@transaction.atomic
+def record_unpaid_effet(
+    *,
+    organization: Organization,
+    actor: User | None,
+    instrument_id: int,
+    unpaid_on: dt.date | None,
+    reason: str,
+    bank_charges: Number = "0",
+) -> UnpaidEffet:
+    """The bank refused a customer's cheque or traite: the customer owes its amount again (D-217).
+
+    A new record, the règlement untouched: `UnpaidEffet` adds the amount back to the balance; what the règlement
+    had settled on sales beyond its credit left is taken back, newest allocation first (`UnpaidRelease`), so those
+    sales owe again. The effet becomes "Impayé" in the treasury; the bank's charges are an approved expense
+    "Frais financiers"; the office is told.
+    """
+    errors: dict[str, str] = {}
+    reason = " ".join(reason.split())[:255]
+    if not reason:
+        errors["reason"] = _("Indiquez le motif du rejet (sans provision, signature...).")
+    try:
+        charges = checked_amount(bank_charges or "0")
+        if charges < 0:
+            errors["bank_charges"] = _("Les frais ne peuvent pas être négatifs.")
+    except (ValueError, TypeError):
+        charges = Decimal("0.000")
+        errors["bank_charges"] = _("Indiquez un montant en DT, au millime près.")
+    line = (
+        CustomerPaymentLine.objects.select_related("payment", "payment__customer", "instrument")
+        .filter(organization=organization, instrument_id=instrument_id)
+        .first()
+    )
+    if line is None:
+        errors["instrument"] = _("Cet effet n'est pas celui d'un règlement client.")
+    if errors:
+        raise ValidationError(errors)
+    assert line is not None
+    payment = _locked_payment(line.payment)
+    if payment.voided_at is not None:
+        raise ValidationError({"instrument": _("Ce règlement est annulé.")})
+    treasury.mark_unpaid(
+        organization=organization, actor=actor, instrument_id=instrument_id, unpaid_on=unpaid_on, note=reason
+    )
+    assert unpaid_on is not None  # checked by the treasury
+    free = payment.amount - _unpaid_total(payment) - _allocated_total(payment)
+    to_release = max(line.amount - max(free, Decimal("0.000")), Decimal("0.000"))
+    unpaid = UnpaidEffet.objects.create(
+        organization=organization,
+        payment=payment,
+        line=line,
+        customer=payment.customer,
+        amount=line.amount,
+        unpaid_on=unpaid_on,
+        reason=reason,
+        bank_charges=charges,
+        created_by=actor,
+    )
+    # Each sale's part still settled by this règlement, the newest allocation first.
+    net: dict[int, Decimal] = {}
+    for allocation in payment.allocations.order_by("-id"):
+        net[allocation.sale_id] = net.get(allocation.sale_id, Decimal("0.000")) + allocation.amount
+    for row in UnpaidRelease.objects.filter(unpaid__payment=payment).values("sale_id").annotate(total=Sum("amount")):
+        net[row["sale_id"]] = net.get(row["sale_id"], Decimal("0.000")) - row["total"]
+    released: dict[int, Decimal] = {}
+    for sale_id, settled in net.items():
+        if to_release <= 0:
+            break
+        part = min(settled, to_release)
+        if part <= 0:
+            continue
+        UnpaidRelease.objects.create(organization=organization, unpaid=unpaid, sale_id=sale_id, amount=part)
+        released[sale_id] = part
+        to_release -= part
+    touched = list(released)
+    for sale in Sale.objects.filter(pk__in=touched).select_related("organization").order_by("id"):
+        refresh_sale_due(sale)
+    if charges > 0:
+        expense = expenses.create_expense(
+            organization=organization,
+            actor=actor,
+            spent_on=unpaid_on,
+            category=expenses_selectors.category_by_code(organization, BANK_CHARGES_CATEGORY),
+            amount=charges,
+            payment_method="transfer",
+            description=_("Frais d'impayé %(effet)s (%(number)s)")
+            % {"effet": line.instrument or "", "number": payment.number},
+            payee=line.instrument.bank.code if line.instrument and line.instrument.bank else "",
+            approve=True,
+        )
+        unpaid.expense_number = expense.number
+        unpaid.save(update_fields=["expense_number"])
+    notifications.tell_office_of(
+        organization=organization,
+        actor=actor,
+        kind="effet_unpaid",
+        params={
+            "customer": payment.customer.name,
+            "number": line.instrument.number if line.instrument else "",
+            "amount": str(line.amount),
+        },
+        link=f"/reglements/{payment.pk}",
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer_payment.unpaid",
+        target=payment,
+        after={
+            "effet": str(line.instrument),
+            "amount": str(line.amount),
+            "reason": reason,
+            "bank_charges": str(charges),
+            "released": {str(sale_id): str(amount) for sale_id, amount in released.items()},
+        },
+    )
+    return unpaid

@@ -9,7 +9,7 @@ import base64
 import logging
 import smtplib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
 
@@ -42,10 +42,10 @@ class Printable:
     version: str
     # The file name offered to the user, without folders.
     filename: str
-    # What the document is, as the e-mail subject names it ("Facture FA-2026-0001"), and the address it usually goes
-    # to (the customer's); empty when unknown (D-206).
+    # What the document is, as the e-mail subject names it ("Facture FA-2026-0001"), and the addresses it usually
+    # goes to (the party's own, then its contacts'); empty when unknown (D-206, D-222).
     title: str = ""
-    email_to: str = ""
+    email_to: list[str] = field(default_factory=list)
 
 
 Provider = Callable[[Organization, int], Printable]
@@ -115,9 +115,9 @@ def render_pack_pdf(pack: list[Printable], organization: Organization) -> bytes:
     return rendering.htmls_to_pdf([render_html(document, organization) for document in pack])
 
 
-def email_draft(organization: Organization, kind: str, object_id: int) -> dict[str, str]:
-    """What the "Envoyer par e-mail" window proposes (D-206): the usual address, a clear subject and a short
-    message. Raises like `printable`."""
+def email_draft(organization: Organization, kind: str, object_id: int) -> dict[str, Any]:
+    """What the "Envoyer par e-mail" window proposes (D-206): the usual addresses (D-222), a clear subject and a
+    short message. Raises like `printable`."""
     document = printable(organization, kind, object_id)
     title = document.title or str(DocumentKind(kind).label)
     company = organization.name
@@ -144,7 +144,12 @@ def send_email(
     """Send the document's PDF by e-mail from the company address (`DEFAULT_FROM_EMAIL`), and keep a trace of
     it, also when sending failed (D-206). Raises ValidationError with the reason when it cannot be sent."""
     errors: dict[str, str] = {}
-    addresses = [address.strip() for address in to if address.strip()]
+    # Each address once, whatever its case: the office may have ticked the same one twice (D-222).
+    first_seen: dict[str, str] = {}
+    for address in to:
+        if address.strip():
+            first_seen.setdefault(address.strip().lower(), address.strip())
+    addresses = list(first_seen.values())
     if not addresses:
         errors["to"] = _("Indiquez au moins une adresse e-mail.")
     if not subject.strip():

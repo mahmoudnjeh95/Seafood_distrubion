@@ -19,6 +19,7 @@ from .models import (
     GoodsReceipt,
     GoodsReceiptLine,
     PaymentMethod,
+    RejectedEffet,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -98,8 +99,9 @@ def supplier_statement(
         .filter(supplier_id=supplier_id, invoice_date__lte=date_to)
         .exclude(status=SupplierInvoiceStatus.DRAFT)
     )
+    # A voided règlement never happened for the account (D-211).
     payments = SupplierPayment.objects.for_organization(organization).filter(
-        supplier_id=supplier_id, paid_on__lte=date_to
+        supplier_id=supplier_id, paid_on__lte=date_to, voided_at__isnull=True
     )
     # (day, invoices before payments of the same day, id) gives the running balance its order.
     moves: list[tuple[dt.date, int, int, str, str, str, Decimal]] = [
@@ -109,6 +111,23 @@ def supplier_statement(
     moves += [
         (payment.paid_on, 1, payment.pk, "payment", payment.number, payment.reference, -payment.amount)
         for payment in payments
+    ]
+    rejected = (
+        RejectedEffet.objects.for_organization(organization)
+        .filter(supplier_id=supplier_id, rejected_on__lte=date_to)
+        .select_related("line__instrument", "payment")
+    )
+    moves += [
+        (
+            row.rejected_on,
+            2,
+            row.pk,
+            "rejected",
+            row.payment.number,
+            row.line.instrument.number if row.line.instrument else "",
+            row.amount,
+        )
+        for row in rejected
     ]
     moves.sort(key=lambda move: (move[0], move[1], move[2]))
     running = ZERO

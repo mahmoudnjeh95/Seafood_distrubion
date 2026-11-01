@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
-from apps.core import audit
+from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total
@@ -27,8 +27,6 @@ from .models import (
     INSTRUMENT_METHODS,
     LINE_METHOD_CHOICES,
     RECEIVABLE_ORDER_STATUSES,
-    DocumentCounter,
-    DocumentKind,
     FieldPurchase,
     FieldPurchaseAction,
     FieldPurchaseLine,
@@ -42,7 +40,8 @@ from .models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
-    ReceiptCounter,
+    RejectedEffet,
+    RejectedRelease,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -59,13 +58,9 @@ if TYPE_CHECKING:
     from apps.catalog.models import Product
     from apps.inventory.models import StockLocation
     from apps.partners.models import Supplier
-    from apps.treasury.models import Bank
+    from apps.treasury.models import Bank, TreasuryAccount
 
 ZERO = Decimal("0.000")
-RECEIPT_NUMBER_PREFIX = "BR-"
-INVOICE_NUMBER_PREFIX = "FF-"
-ORDER_NUMBER_PREFIX = "BA-"
-PAYMENT_NUMBER_PREFIX = "RF-"
 # The methods one line, a plan line or a sum given at the port may use: every method but "several" (D-208).
 LINE_METHODS = frozenset(value for value, _label in LINE_METHOD_CHOICES)
 
@@ -84,15 +79,6 @@ class ReceiptLineFields(TypedDict, total=False):
 def line_error_key(index: int, field: str) -> str:
     """Errors of a line are reported on `lines.<index>.<field>`, so each one shows under its own input."""
     return f"lines.{index}.{field}"
-
-
-def _next_receipt_number(organization: Organization) -> str:
-    """BR-0001, BR-0002... per organization, taken under a row lock (same scheme as batch numbers, D-034)."""
-    ReceiptCounter.objects.bulk_create([ReceiptCounter(organization=organization)], ignore_conflicts=True)
-    counter = ReceiptCounter.objects.select_for_update().get(organization=organization)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{RECEIPT_NUMBER_PREFIX}{counter.last_number:04d}"
 
 
 def _header_errors(
@@ -230,7 +216,7 @@ def create_receipt(
     supplier_reference = supplier_reference.strip()
     receipt = GoodsReceipt.objects.create(
         organization=organization,
-        number=_next_receipt_number(organization),
+        number=numbering.next_number(organization, "receipt"),
         supplier=supplier,
         location=location,
         purchase_order=order,
@@ -318,18 +304,6 @@ class OrderLineFields(TypedDict, total=False):
     unit_cost: Number
 
 
-def _next_order_number(organization: Organization) -> str:
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, kind=DocumentKind.PURCHASE_ORDER)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(
-        organization=organization, kind=DocumentKind.PURCHASE_ORDER
-    )
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{ORDER_NUMBER_PREFIX}{counter.last_number:04d}"
-
-
 def _order_snapshot(order: PurchaseOrder) -> dict[str, Any]:
     return {
         "number": order.number,
@@ -408,7 +382,7 @@ def create_order(
 
     order = PurchaseOrder.objects.create(
         organization=organization,
-        number=_next_order_number(organization),
+        number=numbering.next_number(organization, "purchase_order"),
         supplier=supplier,
         ordered_on=ordered_on,
         expected_on=expected_on,
@@ -535,19 +509,6 @@ def close_order(*, order: PurchaseOrder, actor: User | None) -> PurchaseOrder:
 
 # ---- Supplier invoices and payments (P1-T08, D-043) ----
 # A trade payable only: a partner's capital and profit share are separate balances (D-040, Phase 6).
-
-
-def _next_document_number(organization: Organization, kind: DocumentKind, prefix: str, *, yearly: bool = False) -> str:
-    """FF-0001 for invoices... per organization, taken under a row lock. With `yearly` (supplier payments,
-    D-120) the number is RF-2026-0001 and restarts every year."""
-    year = timezone.localdate().year if yearly else 0
-    DocumentCounter.objects.bulk_create(
-        [DocumentCounter(organization=organization, kind=kind, year=year)], ignore_conflicts=True
-    )
-    counter = DocumentCounter.objects.select_for_update().get(organization=organization, kind=kind, year=year)
-    counter.last_number += 1
-    counter.save(update_fields=["last_number"])
-    return f"{prefix}{year}-{counter.last_number:04d}" if yearly else f"{prefix}{counter.last_number:04d}"
 
 
 def _invoice_header_errors(
@@ -692,7 +653,7 @@ def create_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_INVOICE, INVOICE_NUMBER_PREFIX),
+        number=numbering.next_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -765,7 +726,7 @@ def create_opening_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_INVOICE, INVOICE_NUMBER_PREFIX),
+        number=numbering.next_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -861,7 +822,12 @@ def allocation_error_key(index: int, field: str) -> str:
 
 
 def _paid_on(invoice: SupplierInvoice) -> Decimal:
-    paid = SupplierPaymentAllocation.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    paid = SupplierPaymentAllocation.objects.filter(invoice=invoice, payment__voided_at__isnull=True).aggregate(
+        total=Sum("amount")
+    )["total"]
+    released = RejectedRelease.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    if released:
+        paid = (paid or Decimal("0.000")) - released
     return paid if paid is not None else Decimal("0.000")
 
 
@@ -951,6 +917,7 @@ def _payment_snapshot(payment: SupplierPayment) -> dict[str, Any]:
         "method": payment.method,
         "reference": payment.reference,
         "cash_on": payment.cash_on.isoformat() if payment.cash_on else None,
+        "reason": payment.reason,
         "lines": [
             _payment_line_snapshot(line)
             for line in SupplierPaymentLine.objects.filter(payment=payment).select_related("instrument__bank")
@@ -1035,6 +1002,9 @@ class PaymentLineFields(TypedDict, total=False):
     number: str
     bank: "Bank | None"
     due_on: dt.date | None
+    # The account the money leaves (D-219): a Caisse for cash, a bank account for the rest (for our cheque or
+    # traite, the one the bank will debit). Empty: the Caisse, the account of the effet's bank, the main one.
+    account: "TreasuryAccount | None"
 
 
 # At most this many lines in one règlement.
@@ -1089,6 +1059,9 @@ def _checked_settlement_lines(
             for field, message in found.items():
                 errors[line_error_key(index, field)] = message
             taken.append((method, bank.pk if bank else None, number.strip()))
+        message = treasury.line_account_error(organization, method, line.get("account"))
+        if message:
+            errors[line_error_key(index, "account")] = message
         checked.append((method, value, line))
     return checked
 
@@ -1099,8 +1072,10 @@ def _write_lines(
     checked: Sequence[tuple[str, Decimal, PaymentLineFields]],
     *,
     partial: bool,
+    post_to_treasury: bool = True,
 ) -> None:
-    """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier."""
+    """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier, the money of the
+    others leaves its account at once (D-219)."""
     for method, value, line in checked:
         instrument = None
         if method in INSTRUMENT_METHODS:
@@ -1118,8 +1093,9 @@ def _write_lines(
                 supplier=payment.supplier,
                 source_number=payment.number,
                 partial=partial,
+                account=line.get("account"),
             )
-        SupplierPaymentLine.objects.create(
+        row = SupplierPaymentLine.objects.create(
             organization_id=payment.organization_id,
             payment=payment,
             method=method,
@@ -1127,6 +1103,65 @@ def _write_lines(
             reference=(line.get("reference", "") if instrument is None else "").strip()[:50],
             instrument=instrument,
         )
+        if instrument is None and post_to_treasury:
+            _post_line_money(payment, row, line.get("account"), actor)
+
+
+# The treasury movement of a supplier règlement line paid in cash, by transfer or by card (D-219).
+PAYMENT_LINE_SOURCE = "purchasing.payment_line"
+
+
+def _post_line_money(
+    payment: SupplierPayment, line: SupplierPaymentLine, account: "TreasuryAccount | None", actor: User | None
+) -> None:
+    """The money of a line leaves an account the day it was paid: the one chosen, else the Caisse for cash, the
+    main bank account for a transfer or a card. Our cheque or traite leaves only when the bank debits it."""
+    organization = payment.organization
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, line.method, account),
+        day=payment.paid_on,
+        amount=-line.amount,
+        kind="supplier_payment",
+        label=f"{payment.number} · {payment.supplier.name}",
+        reference=payment.number,
+        source=PAYMENT_LINE_SOURCE,
+        source_id=line.pk,
+        actor=actor,
+    )
+
+
+def _reverse_line_money(payment: SupplierPayment, actor: User | None, day: dt.date) -> None:
+    treasury.reverse_movements(
+        organization=payment.organization,
+        source=PAYMENT_LINE_SOURCE,
+        source_ids=list(
+            SupplierPaymentLine.objects.filter(payment=payment, instrument__isnull=True).values_list("pk", flat=True)
+        ),
+        day=day,
+        actor=actor,
+        label=_("Annulation"),
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the treasury movements of the supplier règlements recorded before the accounts existed (D-219), and
+    undo those of the voided ones on the day they were voided. The money given at the port is the driver's (written
+    with the driver's day). Safe to run again."""
+    done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
+    lines = (
+        SupplierPaymentLine.objects.filter(
+            organization=organization, instrument__isnull=True, payment__field_purchase_payment__isnull=True
+        )
+        .select_related("payment__organization", "payment__supplier", "payment__created_by")
+        .order_by("id")
+    )
+    for line in lines:
+        payment = line.payment
+        if line.pk not in done:
+            _post_line_money(payment, line, None, payment.created_by)
+        if payment.voided_at is not None:
+            _reverse_line_money(payment, payment.voided_by, timezone.localtime(payment.voided_at).date())
 
 
 @transaction.atomic
@@ -1142,9 +1177,11 @@ def record_payment(
     allocations: Sequence[AllocationFields] | None = (),
     reference: str = "",
     notes: str = "",
+    reason: str = "",
     cash_on: dt.date | None = None,
     plan_line: SupplierPaymentPlanLine | None = None,
     plan_lines: Sequence[SupplierPaymentPlanLine] = (),
+    post_to_treasury: bool = True,
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles (D-043, D-208).
 
@@ -1160,6 +1197,9 @@ def record_payment(
 
     `plan_lines` (or one `plan_line`) are open plan lines (D-192) this payment settles: each one's invoice must be
     among the allocations (with an amount) and its supplier the payment's; they become `paid`, linked to it.
+
+    The money of its cash, transfer and card lines leaves our accounts at once (D-219); `post_to_treasury` False
+    leaves that to the caller (the port purchase: the driver's money).
     """
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
@@ -1210,7 +1250,7 @@ def record_payment(
     only = checked[0][2] if len(checked) == 1 else None
     payment = SupplierPayment.objects.create(
         organization=organization,
-        number=_next_document_number(organization, DocumentKind.SUPPLIER_PAYMENT, PAYMENT_NUMBER_PREFIX, yearly=True),
+        number=numbering.next_number(organization, "supplier_payment"),
         supplier=supplier,
         paid_on=paid_on,
         amount=total,
@@ -1218,9 +1258,10 @@ def record_payment(
         reference=_header_reference(reference if partial else None, checked),
         cash_on=only.get("due_on") if only is not None and checked[0][0] in INSTRUMENT_METHODS else None,
         notes=notes.strip(),
+        reason=reason.strip(),
         created_by=actor,
     )
-    _write_lines(payment, actor, checked, partial=partial)
+    _write_lines(payment, actor, checked, partial=partial, post_to_treasury=post_to_treasury)
     _allocate(payment, actor, allocated)
     for line in settled:
         line.status = PlanLineStatus.PAID
@@ -1260,11 +1301,12 @@ def allocate_payment(
 ) -> SupplierPayment:
     """Allocate the part of a payment not allocated yet (an advance) to posted invoices of its supplier."""
     payment = SupplierPayment.objects.select_for_update().select_related("supplier", "organization").get(pk=payment.pk)
+    if payment.voided_at is not None:
+        raise ValidationError(_("Ce règlement est annulé."))
     errors: dict[str, str] = {}
     if not allocations:
         errors["allocations"] = _("Choisissez au moins une facture.")
-    already = SupplierPaymentAllocation.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"]
-    available = payment.amount - (already if already is not None else Decimal("0.000"))
+    available = payment.amount - _rejected_of(payment) - _allocated_of(payment)
     checked = _checked_allocations(payment.organization, payment.supplier, allocations, available, errors)
     if errors:
         raise ValidationError(errors)
@@ -1277,6 +1319,66 @@ def allocate_payment(
         target=payment,
         before=before,
         after=_payment_snapshot(payment),
+    )
+    return payment
+
+
+def _invoice_status_from_payments(invoice: SupplierInvoice) -> str:
+    paid = _paid_on(invoice)
+    if paid >= invoice.total:
+        return SupplierInvoiceStatus.PAID
+    return SupplierInvoiceStatus.PARTLY_PAID if paid > 0 else SupplierInvoiceStatus.POSTED
+
+
+@transaction.atomic
+def void_payment(*, payment: SupplierPayment, actor: User | None, reason: str) -> SupplierPayment:
+    """Cancel a supplier règlement typed by mistake (D-211): it stays, marked voided with who, when and why. Its
+    allocations stop counting (its invoices owe again), the plan lines it paid are planned again and its cheques
+    and traites are cancelled. Never deleted.
+
+    Refused once one of our effets moved on (debited, rejected: the bank handled it), and for the money given at
+    the port with a purchase (corrected on the purchase, D-176).
+    """
+    payment = SupplierPayment.objects.select_for_update().select_related("organization", "supplier").get(pk=payment.pk)
+    if payment.voided_at is not None:
+        raise ValidationError(_("Ce règlement est déjà annulé."))
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})
+    if FieldPurchasePayment.objects.filter(supplier_payment=payment).exists():
+        raise ValidationError(_("Ce règlement vient d'un achat terrain : corrigez l'achat."))
+    instrument_ids = [
+        pk for pk in SupplierPaymentLine.objects.filter(payment=payment).values_list("instrument_id", flat=True) if pk
+    ]
+    if instrument_ids:
+        treasury.cancel_instruments(
+            instrument_ids=instrument_ids,
+            actor=actor,
+            happened_on=timezone.localdate(),
+            note=_("Règlement %(number)s annulé : %(reason)s") % {"number": payment.number, "reason": reason},
+        )
+    _reverse_line_money(payment, actor, timezone.localdate())
+    invoice_ids = sorted(
+        set(SupplierPaymentAllocation.objects.filter(payment=payment).values_list("invoice_id", flat=True))
+    )
+    payment.voided_at = timezone.now()
+    payment.voided_by = actor
+    payment.void_reason = reason
+    payment.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
+    for invoice in SupplierInvoice.objects.select_for_update().filter(pk__in=invoice_ids).order_by("id"):
+        status = _invoice_status_from_payments(invoice)
+        if status != invoice.status:
+            invoice.status = status
+            invoice.save(update_fields=["status", "updated_at"])
+    reopened = SupplierPaymentPlanLine.objects.filter(payment=payment, status=PlanLineStatus.PAID).update(
+        status=PlanLineStatus.OPEN, payment=None, updated_at=timezone.now()
+    )
+    audit.record(
+        organization=payment.organization,
+        actor=actor,
+        action="supplier_payment.voided",
+        target=payment,
+        after={"reason": reason, "amount": str(payment.amount), "plan_lines_reopened": reopened},
     )
     return payment
 
@@ -1412,10 +1514,6 @@ def cancel_plan_line(*, line: SupplierPaymentPlanLine, actor: User | None) -> Su
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
 # A driver's purchase counts only once the owner or the manager validates it: then it becomes a receipt (stock),
 # a posted invoice (what is owed for the kg received, due by the deal) and payments (what was given at the port).
-
-FIELD_PURCHASE_NUMBER_PREFIX = "AT-"
-
-
 class FieldLineFields(TypedDict, total=False):
     product: "Product | None"
     # The name the driver typed for a product not in the catalogue yet.
@@ -1721,9 +1819,7 @@ def submit_field_purchase(
     values = _checked_field_purchase(organization, fields)
     purchase = FieldPurchase(
         organization=organization,
-        number=_next_document_number(
-            organization, DocumentKind.FIELD_PURCHASE, FIELD_PURCHASE_NUMBER_PREFIX, yearly=True
-        ),
+        number=numbering.next_number(organization, "field_purchase"),
         buyer=buyer,
         client_uuid=client_uuid,
         made_at=made_at,
@@ -1864,6 +1960,8 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
             cash_on=payment.cash_on,
             notes=_("Donné au port, achat terrain %(number)s") % {"number": purchase.number},
             allocations=[],
+            # The driver's purchase money, written with the driver's day (P9-T05b).
+            post_to_treasury=False,
         )
         payment.save(update_fields=["supplier_payment"])
     purchase.status = FieldPurchaseStatus.VALIDATED
@@ -2058,3 +2156,98 @@ def add_field_purchase_paper(
     if previous:
         transaction.on_commit(lambda: storage.delete(previous))
     return purchase
+
+
+# ---- Our effets the bank refused (rejeté, P9-T04c, D-218) ----
+
+
+def _allocated_of(payment: SupplierPayment) -> Decimal:
+    """What the règlement settles on invoices now: its allocations less what its rejected effets took back."""
+    allocated = SupplierPaymentAllocation.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"]
+    released = RejectedRelease.objects.filter(rejected__payment=payment).aggregate(total=Sum("amount"))["total"]
+    return (allocated or ZERO) - (released or ZERO)
+
+
+def _rejected_of(payment: SupplierPayment) -> Decimal:
+    return RejectedEffet.objects.filter(payment=payment).aggregate(total=Sum("amount"))["total"] or ZERO
+
+
+@transaction.atomic
+def reject_issued_effet(
+    *, organization: Organization, actor: User | None, instrument_id: int, rejected_on: dt.date | None, reason: str
+) -> RejectedEffet:
+    """Our bank refused to pay one of our cheques or traites: the supplier is owed its amount again (D-218).
+
+    A new record, the règlement untouched: `RejectedEffet` takes the amount out of what was paid; the règlement's
+    advance left absorbs it first, then what it settled on invoices is taken back, newest allocation first
+    (`RejectedRelease`), so those invoices owe again. The effet becomes "Rejeté" in the treasury.
+    """
+    reason = " ".join(reason.split())[:255]
+    errors: dict[str, str] = {}
+    if not reason:
+        errors["reason"] = _("Indiquez le motif du rejet.")
+    line = (
+        SupplierPaymentLine.objects.select_related("payment", "payment__supplier", "instrument")
+        .filter(organization=organization, instrument_id=instrument_id)
+        .first()
+    )
+    if line is None:
+        errors["instrument"] = _("Cet effet n'est pas celui d'un règlement fournisseur.")
+    if errors:
+        raise ValidationError(errors)
+    assert line is not None
+    payment = SupplierPayment.objects.select_for_update().select_related("supplier").get(pk=line.payment_id)
+    if payment.voided_at is not None:
+        raise ValidationError({"instrument": _("Ce règlement est annulé.")})
+    treasury.mark_rejected(
+        organization=organization, actor=actor, instrument_id=instrument_id, rejected_on=rejected_on, note=reason
+    )
+    assert rejected_on is not None  # checked by the treasury
+    free = payment.amount - _rejected_of(payment) - _allocated_of(payment)
+    to_release = max(line.amount - max(free, ZERO), ZERO)
+    rejected = RejectedEffet.objects.create(
+        organization=organization,
+        payment=payment,
+        line=line,
+        supplier=payment.supplier,
+        amount=line.amount,
+        rejected_on=rejected_on,
+        reason=reason,
+        created_by=actor,
+    )
+    # Each invoice's part still settled by this règlement, the newest allocation first.
+    net: dict[int, Decimal] = {}
+    for allocation in SupplierPaymentAllocation.objects.filter(payment=payment).order_by("-id"):
+        net[allocation.invoice_id] = net.get(allocation.invoice_id, ZERO) + allocation.amount
+    for row in (
+        RejectedRelease.objects.filter(rejected__payment=payment).values("invoice_id").annotate(total=Sum("amount"))
+    ):
+        net[row["invoice_id"]] = net.get(row["invoice_id"], ZERO) - row["total"]
+    released: dict[int, Decimal] = {}
+    for invoice_id, settled in net.items():
+        if to_release <= 0:
+            break
+        part = min(settled, to_release)
+        if part <= 0:
+            continue
+        RejectedRelease.objects.create(organization=organization, rejected=rejected, invoice_id=invoice_id, amount=part)
+        released[invoice_id] = part
+        to_release -= part
+    for invoice in SupplierInvoice.objects.select_for_update().filter(pk__in=sorted(released)).order_by("id"):
+        status = _invoice_status_from_payments(invoice)
+        if status != invoice.status:
+            invoice.status = status
+            invoice.save(update_fields=["status", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="supplier_payment.rejected",
+        target=payment,
+        after={
+            "effet": str(line.instrument),
+            "amount": str(line.amount),
+            "reason": reason,
+            "released": {str(invoice_id): str(amount) for invoice_id, amount in released.items()},
+        },
+    )
+    return rejected

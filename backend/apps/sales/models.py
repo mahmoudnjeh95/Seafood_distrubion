@@ -8,26 +8,6 @@ from django.utils.translation import gettext_lazy as _
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField, QuantityField
 
-
-class DocumentCounter(OrganizationScopedModel):
-    """The last number given to one series of sales documents ("DV" quotes...) in an organization.
-
-    Locked while a number is taken (same scheme as batches, D-034), so two documents saved at once never
-    share one. Sales and invoices (P2-T04, P2-T05) take their own series here.
-    """
-
-    series = models.CharField(max_length=20)
-    last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["organization", "series"], name="sales_one_counter_per_series"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.organization} · {self.series} · {self.last_number}"
-
-
 # ---- Quotes (P2-T03, D-050) ----
 
 
@@ -270,6 +250,12 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
         max_digits=14, decimal_places=3, null=True, blank=True
     )
     total = MoneyField(default=Decimal("0.000"))
+    # The VAT of the BL (D-224), from the lines' snapshot: whether the prices of the sale hold VAT (the settings
+    # in force on its day), the VAT of the lines sold with VAT, and the total with VAT. `total` above stays as
+    # charged; `amount_excl_tax` is the total without VAT.
+    prices_include_vat = models.BooleanField(default=False)
+    vat_total = MoneyField(default=Decimal("0.000"))
+    total_incl_tax = MoneyField(default=Decimal("0.000"))
     # Cost of the goods sold (FIFO batches × their cost per kg), known once confirmed.
     cost_total = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
@@ -359,6 +345,11 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     def __str__(self) -> str:
         return self.number
 
+    @property
+    def amount_excl_tax(self) -> Decimal:
+        """The total without VAT: the total with VAT less the VAT of the lines (D-224)."""
+        return self.total_incl_tax - self.vat_total
+
 
 class SaleBoxLine(OrganizationScopedModel):
     """Boxes left with the client for one sale, per box type (D-122): a count, not kg. Written with the draft,
@@ -406,6 +397,13 @@ class SaleLine(OrganizationScopedModel):
     discount_amount = MoneyField(default=Decimal("0.000"))
     # gross − discount, without VAT: the line's revenue.
     amount = MoneyField()
+    # VAT snapshot (D-224): the rate in percent when the product is sold with VAT (kilos bought with VAT, D-202),
+    # empty for a line without VAT. Set when the line is written, so later price or rate changes never move it.
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    # `amount` without VAT, its VAT and `amount` with VAT: the invoice's arithmetic (`invoicing.compute`).
+    amount_excl_tax = MoneyField(default=Decimal("0.000"))
+    vat_amount = MoneyField(default=Decimal("0.000"))
+    amount_incl_tax = MoneyField(default=Decimal("0.000"))
     # Cost of the goods of this line (sum of its batches), known once confirmed.
     cost_amount = models.DecimalField[Decimal | None, Decimal | None](
         max_digits=14, decimal_places=3, null=True, blank=True
@@ -427,6 +425,10 @@ class SaleLine(OrganizationScopedModel):
             models.CheckConstraint(
                 condition=models.Q(gross_amount__gte=0, discount_amount__gte=0, amount__gte=0),
                 name="sale_line_amounts_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(vat_rate__isnull=True) | models.Q(vat_rate__gte=0, vat_rate__lte=100),
+                name="sale_line_vat_rate_percent",
             ),
         ]
 
@@ -494,6 +496,29 @@ class SaleLineBatch(OrganizationScopedModel):
             models.CheckConstraint(condition=models.Q(quantity__gt=0), name="sale_line_batch_quantity_positive"),
         ]
         indexes = [models.Index(fields=["organization", "batch"], name="sale_line_batch_lot_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.line} · {self.batch_id} · {self.quantity} kg"
+
+
+class SaleLinePick(OrganizationScopedModel):
+    """A lot a seller picked by hand for one sale line, and the kilos to take from it first (D-121, D-208).
+
+    Several lots may be picked for one line; the kilos it asks beyond them come from the other lots, oldest
+    first, and a lot too short is topped up the same way. Kept with the draft; once the sale is confirmed,
+    `SaleLineBatch` says which lots the kilos really came from.
+    """
+
+    line = models.ForeignKey(SaleLine, on_delete=models.CASCADE, related_name="picks")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+
+    class Meta:
+        ordering = ["line", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["line", "batch"], name="one_pick_per_sale_line_and_batch"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="sale_line_pick_quantity_positive"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.line} · {self.batch_id} · {self.quantity} kg"
@@ -949,6 +974,10 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
     # Cheque number, transfer reference...
     reference = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)
+    # What the money is for (optional, "Motif").
+    reason = models.CharField(max_length=200, blank=True)
+    # Who handed the money over, when it is not the customer (optional, "Payé par").
+    paid_by = models.CharField(max_length=120, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
@@ -1023,6 +1052,54 @@ class PaymentAllocation(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.payment} -> {self.sale} · {self.amount}"
+
+
+class UnpaidEffet(OrganizationScopedModel):
+    """A customer cheque or traite the bank refused (impayé, D-217): the customer owes its amount again.
+
+    A new record, never an edit of the règlement: the règlement keeps its amount and its line; this row adds the
+    amount back to the customer balance, and `UnpaidRelease` rows take back what the règlement had settled on sales
+    (beyond its credit left), so those sales owe again. The bank's charges become an expense "Frais financiers".
+    """
+
+    payment = models.ForeignKey(CustomerPayment, on_delete=models.PROTECT, related_name="unpaid_effets")
+    line = models.OneToOneField(CustomerPaymentLine, on_delete=models.PROTECT, related_name="unpaid")
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="unpaid_effets")
+    amount = MoneyField()
+    unpaid_on = models.DateField()
+    reason = models.CharField(max_length=255)
+    bank_charges = MoneyField(default=0)
+    # The expense number of the bank charges ("DEP-…"), when there were charges.
+    expense_number = models.CharField(max_length=30, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-unpaid_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="unpaid_effet_amount_positive"),
+            models.CheckConstraint(condition=models.Q(bank_charges__gte=0), name="unpaid_effet_charges_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.payment} · impayé {self.amount}"
+
+
+class UnpaidRelease(OrganizationScopedModel):
+    """The part of a règlement's allocation to one sale that an impayé took back: that sale owes it again."""
+
+    unpaid = models.ForeignKey(UnpaidEffet, on_delete=models.PROTECT, related_name="releases")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="unpaid_releases")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["unpaid", "id"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="unpaid_release_amount_positive")]
+
+    def __str__(self) -> str:
+        return f"{self.unpaid} -> {self.sale} · {self.amount}"
 
 
 class WithholdingCertificate(OrganizationScopedModel, TimeStampedModel):

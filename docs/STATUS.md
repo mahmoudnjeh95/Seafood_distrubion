@@ -1,50 +1,40 @@
 # Project status
 
-_Last updated: 2026-11-01 (D-211 règlement lists show BL/BR, invoices and total per party, branch `party-document-counts`)_
+_Last updated: 2026-11-01 (P9-T08 Trésorerie in the Perfaxis layout, D-230, on branch `treasury-perfaxis`)_
 
 ## Where we are
 
-- **D-211 on branch `party-document-counts` (awaits CI):** in "Nouveau règlement client" and "Nouveau paiement
+- **D-235 on branch `party-document-counts` (awaits CI):** in "Nouveau règlement client" and "Nouveau paiement
   fournisseur", each customer and supplier in the list shows its BL (or BR), invoices and total. New read endpoint
-  `treasury/party-documents`; the total is provisional (see D-211). Merge once CI is green; nothing else depends on it.
-- **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`, T01 → T07.
-  **Merged:** T01 (#223, D-197) customer règlement lines and the `treasury` app; T02 (#231, D-208) supplier règlement
-  lines, our effets issued. **P9-T03a on branch `payment-screens`** (awaits CI, D-210): "Nouveau règlement client"
-  page `/reglements/nouveau` (lines, "Répartir", open invoices/BL, encours, live totals, confirm), the supplier form
-  on the same lines editor, Banques page `/tresorerie/banques`. No backend change.
-- **On main 2026-10-31:** D-194 logout asks first (both apps), D-195 "Bon d'achat" renamed "Commande d'achat", D-196 Transferts under the driver's day.
-- **Owner list 2026-10-31 (15 points), stacked PRs #220 → #230, merge in that order after green CI:** #220 D-207 no
-  customer balance on the phone · #221 D-198 stock cards/list · #222 D-199 amounts 1 250,000 in server messages ·
-  #224 D-200 "Nouvelle facture" from ticked BL/BR, Achat terrain makes no invoice · #225 D-201 lot picker on quotes and
-  sales (sales migration 0021) · #226 D-202 bought with VAT → invoiced with VAT · #227 D-203 starting cash set by the
-  office, accepted on the phone · #228 D-204 office cash count at closing · #229 D-205 expense categories for both apps,
-  phone "Payé avec" · #230 D-206 e-mail any PDF. Provisional choices are marked in DECISIONS (D-202, D-204, D-205, D-206).
-- **Recent work (2026-10-19 to 10-25), merged or awaiting merge, each to check on staging:** D-193 price floor override,
-  D-192 Règlements fournisseurs (T16a–d, side menu), D-191 general cost by calendar day (provisional), D-190 payment in
-  "Convertir en vente", D-189 UI units, D-188 site request → quote, site card alignment, D-187 Bilan des caisses.
-- **On main, check on staging:** D-186 public site (live on www.fruttidelmare.com), D-185 load BLs in a driver's day,
-  D-184 empty truck, D-183 receipt product search, D-182 port cash split, D-181 purchase paid limit, D-179 money
-  confirm window, P2-T15 load delivery, P3-T15 notifications, D-159 supplier debts and cheques, D-156 statement PDFs.
+  `treasury/party-documents`; the total is provisional (see D-235).
+- **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
+  **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
+  issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c
+  (#240) supplier receipt PDF, several plan lines at once · T04a (#241) Portefeuille, remise en banque, encaissé,
+  retirer, débité · T04b (#242) impayé, Restituer · T04c (#243, D-218) our effet rejected by the bank.
+- **P9-T08 merged (#259, D-230; #260 forms and CSV export, D-232):** the Perfaxis layout: a ribbon of icon buttons on
+  every treasury screen (`TresorerieRibbon`), the Bordereau de versement, the états des factures, the forms in panels.
+- **P9-T05a merged (#246, D-219):** the accounts and the movement ledger. The ribbon now has Agence bancaire, Caisse
+  liquide and the two journals (D-233, on branch `treasury-accounts-ribbon`). Decisions D-220 to D-229 are the other
+  session's stack; do not reuse them.
+- **Other work on main (other sessions):** D-214 port purchases on the truck and the day (#245), D-213 the office alone
+  counts the driver's cash, D-212 counter sale on several lots, D-194 to D-207 owner list.
 - **Phases:** 1 done except P1-T14 owner decisions; 2 mostly done; 3: open T08 field test, T09 Arabic review,
-  T10 printing.
+  T10 printing; 9 in progress (T05 to T07 left, plus T08 review).
 - **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver http://ch.fruttidelmare.com,
   demo logins `owner` / `driver` (password in `~/frutti-staging/.env`). Every merge to `main` deploys staging.
 - **Working rules:** no tests or e2e locally, CI checks the PR; one branch and one PR per task; merge only after green.
-  A second session may work in the main clone: Phase 9 work happens in the worktree `C:\Mahmoud_workspace\wt-treasury`.
+  Several sessions work at once; recheck decision and migration numbers right before merging.
 
 ## Next step
 
-0. Owner list: merge #220 → #230 in order as CI goes green, then on staging: Camions du jour › Fonds de caisse (set,
-   then accept on the phone), close a day with an office count, a "Nouvelle facture" with two BL, an Achat terrain
-   validated without invoice then "Facturer la réception", a quote with a picked lot → BL, a receipt "Achat avec TVA"
-   → invoice without VAT refused. **Owner action for D-206:** put the company SMTP account in the server `.env`
-   (`EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`) and redeploy.
-1. P9-T03a: PR from `payment-screens`, wait for green CI (e2e: supplier payment now confirms), fetch and rebase,
-   renumber D-210 if taken, merge. On staging: Règlements clients › Nouveau règlement, a customer, 500 cash +
-   "Répartir" 3 traites; Affecter automatiquement; confirm. Finance › Banques: add, rename, take off.
-2. **P9-T03b** (new branch from `main`): list pages with filters and totals, detail page with each effet's state,
-   supplier règlement void (every supplier balance reads only those not voided), several plan lines paid at once.
-3. Then T04 portfolio, T05 accounts, T06 échéancier, T07 reports.
+1. P9-T08: open the PR from `treasury-perfaxis`, wait for green CI, rebase on main, merge. On staging: Règlements
+   clients (the ribbon at the top), Règlements fournisseurs, Portefeuille › Bordereau de versement (tick an effet in
+   "En attente" → Encaissé; tick one → Impayé), Facture de vente and Facture d'achat (grouped totals).
+2. P9-T05 (other session, branch `treasury-accounts`): when merged, add Agence bancaire, Caisse liquide and the
+   journals to the ribbon.
+3. Then T06 échéancier and alerts, T07 reports.
+4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
 

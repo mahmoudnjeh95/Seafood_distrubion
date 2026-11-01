@@ -16,31 +16,31 @@ import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
 import { fieldErrors } from "./errors";
+import { addTyped, chosenAddresses, MAX_RECIPIENTS, sameAddress, setTicked, typedAddresses } from "./emailRecipients";
 import type { PdfKind } from "./pdf";
 
-const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-
-/** The window, opened with the proposed address, subject and message already in (D-206). */
+/** The window, opened with the party's addresses, subject and message already in (D-206, D-222). */
 function EmailForm({ kind, id, onDone }: { kind: PdfKind; id: number; onDone: () => void }) {
   const { t } = useTranslation();
   const formId = useId();
   const draft = useGetDocumentEmailDraft(kind, id);
-  const [to, setTo] = useState<string | null>(null);
+  // Every address the party has is ticked; unticking one only leaves it out of this send.
+  const [unticked, setUnticked] = useState<string[]>([]);
+  // Addresses typed for this send only; the party itself is not changed.
+  const [added, setAdded] = useState<string[]>([]);
+  const [typed, setTyped] = useState("");
   const [subject, setSubject] = useState<string | null>(null);
   const [body, setBody] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // The typed values win; until something is typed, the server's proposal shows.
-  const shownTo = to ?? draft.data?.to ?? "";
   const shownSubject = subject ?? draft.data?.subject ?? "";
   const shownBody = body ?? draft.data?.body ?? "";
-  const addresses = shownTo
-    .split(/[,;\s]+/)
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const offered = [...(draft.data?.to ?? []), ...added];
+  const chosen = chosenAddresses(offered, unticked);
   const send = useMutation({
-    mutationFn: () => sendDocumentEmail(kind, id, { to: addresses, subject: shownSubject, body: shownBody }),
+    mutationFn: () => sendDocumentEmail(kind, id, { to: chosen, subject: shownSubject, body: shownBody }),
     onSuccess: () => {
-      toast.success(t("admin.documents.email.sent", { to: addresses.join(", ") }));
+      toast.success(t("admin.documents.email.sent", { to: chosen.join(", ") }));
       onDone();
     },
     onError: (failure) => {
@@ -48,9 +48,23 @@ function EmailForm({ kind, id, onDone }: { kind: PdfKind; id: number; onDone: ()
       setErrors(Object.keys(found).length > 0 ? found : { detail: t("admin.documents.email.failed") });
     },
   });
+  const addTypedAddresses = () => {
+    const values = typedAddresses(typed);
+    if (values === null) {
+      setErrors({ to: t("admin.documents.email.badAddress") });
+      return;
+    }
+    if (values.length === 0) return;
+    const next = addTyped(added, offered, unticked, values);
+    setAdded(next.added);
+    setUnticked(next.unticked);
+    setTyped("");
+    setErrors({});
+  };
   const submit = () => {
     const found: Record<string, string> = {};
-    if (addresses.length === 0 || !addresses.every(isEmail)) found.to = t("admin.documents.email.badAddress");
+    if (chosen.length === 0) found.to = t("admin.documents.email.none");
+    else if (chosen.length > MAX_RECIPIENTS) found.to = t("admin.documents.email.tooMany");
     if (!shownSubject.trim()) found.subject = t("admin.documents.email.required");
     setErrors(found);
     if (Object.keys(found).length === 0) send.mutate();
@@ -64,15 +78,51 @@ function EmailForm({ kind, id, onDone }: { kind: PdfKind; id: number; onDone: ()
         <p className="text-ink-2">{t("common.loading")}</p>
       ) : (
         <div className="flex flex-col gap-3">
-          <Field label={t("admin.documents.email.to")} htmlFor={`${formId}-to`} error={errors.to}>
-            <Input
-              id={`${formId}-to`}
-              type="email"
-              multiple
-              value={shownTo}
-              placeholder="client@exemple.tn"
-              onChange={(event) => setTo(event.target.value)}
-            />
+          <Field label={t("admin.documents.email.to")} htmlFor={`${formId}-add`} error={errors.to}>
+            <div className="flex flex-col gap-2">
+              {offered.length === 0 && (
+                <p className="text-[0.85rem] text-ink-2">{t("admin.documents.email.noAddress")}</p>
+              )}
+              {offered.map((address) => (
+                <div key={address} className="flex items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 text-[0.95rem]">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-sea"
+                      checked={chosen.some((other) => sameAddress(other, address))}
+                      onChange={(event) => setUnticked(setTicked(unticked, address, event.target.checked))}
+                    />
+                    {address}
+                  </label>
+                  {added.some((other) => sameAddress(other, address)) && (
+                    <button
+                      type="button"
+                      className="text-[0.85rem] text-ink-2 underline"
+                      onClick={() => setAdded(added.filter((other) => !sameAddress(other, address)))}
+                    >
+                      {t("admin.documents.email.remove")}
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <Input
+                  id={`${formId}-add`}
+                  type="email"
+                  value={typed}
+                  placeholder="client@exemple.tn"
+                  aria-label={t("admin.documents.email.addLabel")}
+                  onChange={(event) => setTyped(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addTypedAddresses();
+                    }
+                  }}
+                />
+                <Button onClick={addTypedAddresses}>{t("admin.documents.email.add")}</Button>
+              </div>
+            </div>
           </Field>
           <Field label={t("admin.documents.email.subject")} htmlFor={`${formId}-subject`} error={errors.subject}>
             <Input id={`${formId}-subject`} value={shownSubject} onChange={(event) => setSubject(event.target.value)} />
