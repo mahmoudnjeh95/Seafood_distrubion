@@ -24,6 +24,7 @@ import { type FormEvent, useId, useState } from "react";
 import { useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { TresorerieRibbon } from "../treasury/TresorerieRibbon";
 
 const canWrite = (session: Session) => session.role === "owner" || session.role === "manager";
 
@@ -53,6 +54,7 @@ export function BanksPage() {
 
   return (
     <>
+      <TresorerieRibbon active="banque" />
       <PageHeader eyebrow={t("admin.groups.finance")} title={t("admin.treasury.banks.title")}>
         {canWrite(session) && (
           <Button variant="primary" onClick={() => setEditing("new")}>
