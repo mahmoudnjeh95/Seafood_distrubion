@@ -262,6 +262,18 @@ def counts_of(organization: Organization, *, account_id: int | None = None) -> Q
     return rows.order_by("-counted_on", "-id")
 
 
+def movement_of_source(organization: Organization, *, source: str, source_id: int) -> TreasuryMovement | None:
+    """The movement a record of another app wrote (D-234: a salary payment), its account included. None when it
+    wrote none (records made before the accounts) or when it was undone."""
+    return (
+        TreasuryMovement.objects.for_organization(organization)
+        .select_related("account")
+        .filter(source=source, source_id=source_id)
+        .exclude(role__startswith="void")
+        .first()
+    )
+
+
 # The choices of an account and a movement, for other apps' serializers.
 ACCOUNT_KIND_CHOICES = AccountKind.choices
 MOVEMENT_KIND_CHOICES = MovementKind.choices

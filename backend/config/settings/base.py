@@ -203,6 +203,8 @@ SPECTACULAR_SETTINGS = {
         "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
+        "SalaryAdjustmentKindEnum": "apps.hr.models.SalaryAdjustmentKind",
+        "SalaryPaymentKindEnum": "apps.hr.models.SalaryPaymentKind",
         "SupplierInvoiceStatusEnum": "apps.purchasing.models.SupplierInvoiceStatus",
         # One means of payment (expenses, plan lines, a line of a règlement); a supplier règlement may also be
         # "mixed" (D-208).

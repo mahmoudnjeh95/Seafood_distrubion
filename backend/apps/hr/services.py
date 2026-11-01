@@ -14,16 +14,20 @@ from django.utils.translation import gettext as _
 from apps.core import audit, numbering
 from apps.core.models import Membership, Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, display_money, money
+from apps.treasury import services as treasury
 
 from . import selectors
 from .models import (
     DEFAULT_EMPLOYEE_CNSS_RATE,
     DEFAULT_EMPLOYER_CNSS_RATE,
+    TREASURY_SOURCE,
     Employee,
     LotWorkDay,
     SalaryAdjustment,
+    SalaryAdjustmentKind,
     SalaryPayment,
     SalaryPaymentAllocation,
+    SalaryPaymentKind,
     SalaryPaymentMethod,
     SalaryRecord,
     SalaryStatus,
@@ -414,8 +418,16 @@ def approve_month(*, organization: Organization, actor: User | None, month: dt.d
 
 
 @transaction.atomic
-def add_adjustment(*, record: SalaryRecord, actor: User | None, amount: Number, reason: str) -> SalaryAdjustment:
-    """Correct an approved salary with a signed amount (positive: more is due) and a reason."""
+def add_adjustment(
+    *,
+    record: SalaryRecord,
+    actor: User | None,
+    amount: Number,
+    reason: str,
+    kind: str = SalaryAdjustmentKind.ADJUSTMENT,
+) -> SalaryAdjustment:
+    """Correct an approved salary with a signed amount (positive: more is due) and a reason. A prime (D-234) is
+    the positive kind: it raises what is due, needs no payment of its own, and is shown as a line of the salary."""
     record = (
         SalaryRecord.objects.select_for_update(of=("self",))
         .select_related("employee", "organization")
@@ -424,6 +436,8 @@ def add_adjustment(*, record: SalaryRecord, actor: User | None, amount: Number, 
     errors: dict[str, str] = {}
     if record.status != SalaryStatus.APPROVED:
         errors["status"] = _("Seule une paie approuvée reçoit un ajustement : modifiez le brouillon.")
+    if kind not in SalaryAdjustmentKind.values:
+        errors["kind"] = _("Type d'ajustement inconnu.")
     value = ZERO
     try:
         value = Decimal(amount)
@@ -431,6 +445,8 @@ def add_adjustment(*, record: SalaryRecord, actor: User | None, amount: Number, 
             raise ValueError
     except (ValueError, TypeError, InvalidOperation):
         errors["amount"] = _("Indiquez un montant en DT, au millime près, différent de zéro.")
+    if kind == SalaryAdjustmentKind.PRIME and value < 0:
+        errors["amount"] = _("Une prime est un montant positif : pour réduire la paie, faites un ajustement négatif.")
     reason = reason.strip()
     if not reason:
         errors["reason"] = _("Le motif est obligatoire.")
@@ -442,16 +458,26 @@ def add_adjustment(*, record: SalaryRecord, actor: User | None, amount: Number, 
     if errors:
         raise ValidationError(errors)
     adjustment = SalaryAdjustment.objects.create(
-        organization=record.organization, salary_record=record, amount=value, reason=reason, created_by=actor
+        organization=record.organization,
+        salary_record=record,
+        amount=value,
+        kind=kind,
+        reason=reason,
+        created_by=actor,
     )
     audit.record(
         organization=record.organization,
         actor=actor,
         action="salary.adjusted",
         target=record,
-        after={"adjustment": str(value), "reason": reason},
+        after={"adjustment": str(value), "kind": kind, "reason": reason},
     )
     return adjustment
+
+
+def add_prime(*, record: SalaryRecord, actor: User | None, amount: Number, reason: str) -> SalaryAdjustment:
+    """Add a prime to an approved salary: owner point 13 (D-234). The approved record does not change."""
+    return add_adjustment(record=record, actor=actor, amount=amount, reason=reason, kind=SalaryAdjustmentKind.PRIME)
 
 
 # ---- Salary payments ----
@@ -479,6 +505,11 @@ def _checked_allocations(
     allocations: Sequence[AllocationFields],
     available: Decimal | None,
     errors: dict[str, str],
+    *,
+    # Set for an advance (D-234): the first day of the payment's month, the only month it may settle, and whether
+    # the office confirmed that it goes above what is still due.
+    advance_month: dt.date | None = None,
+    confirm_overpay: bool = False,
 ) -> list[tuple[SalaryRecord, Decimal]]:
     ids = sorted({line["salary_record"].pk for line in allocations})
     records = {
@@ -506,6 +537,9 @@ def _checked_allocations(
         if record.status != SalaryStatus.APPROVED:
             errors[key] = _("Cette paie est un brouillon : approuvez-la avant de la payer.")
             continue
+        if advance_month is not None and record.month != advance_month:
+            errors[key] = _("Une avance se règle sur la paie du mois de son paiement.")
+            continue
         amount_key = allocation_error_key(index, "amount")
         try:
             value: Any = line.get("amount", "")
@@ -517,10 +551,16 @@ def _checked_allocations(
             errors[amount_key] = _("Le montant doit être supérieur à zéro.")
             continue
         remaining = _remaining(record)
-        if amount > remaining:
-            errors[amount_key] = _("Il ne reste que %(remaining)s DT à payer sur cette paie.") % {
-                "remaining": display_money(max(remaining, ZERO))
-            }
+        if amount > remaining and not (advance_month is not None and confirm_overpay):
+            if advance_month is None:
+                errors[amount_key] = _("Il ne reste que %(remaining)s DT à payer sur cette paie.") % {
+                    "remaining": display_money(max(remaining, ZERO))
+                }
+            else:
+                errors[amount_key] = _(
+                    "Cette avance dépasse ce qui reste à payer sur la paie (%(remaining)s DT). "
+                    "Cochez la confirmation pour la verser quand même."
+                ) % {"remaining": display_money(max(remaining, ZERO))}
             continue
         checked.append((record, amount))
     allocated = sum((amount for _record, amount in checked), ZERO)
@@ -528,6 +568,8 @@ def _checked_allocations(
         errors["allocations"] = _(
             "Les affectations (%(allocated)s DT) dépassent le montant disponible (%(available)s DT)."
         ) % {"allocated": display_money(allocated), "available": display_money(available)}
+    elif advance_month is not None and available is not None and allocated != available:
+        errors["allocations"] = _("Une avance est affectée en entier à la paie du mois.")
     return checked
 
 
@@ -536,6 +578,7 @@ def _payment_snapshot(payment: SalaryPayment) -> dict[str, Any]:
     return {
         "number": payment.number,
         "employee": payment.employee.reference,
+        "kind": payment.kind,
         "paid_on": payment.paid_on.isoformat(),
         "amount": str(payment.amount),
         "method": payment.method,
@@ -545,6 +588,25 @@ def _payment_snapshot(payment: SalaryPayment) -> dict[str, Any]:
             for line in allocations.order_by("id")
         ],
     }
+
+
+def _post_payment_money(organization: Organization, payment: SalaryPayment, actor: User | None) -> None:
+    """The money of a salary payment leaves our treasury the day it was paid (D-234): the Caisse when paid in cash,
+    the main bank account for a transfer, a cheque or another means. Written once per payment (its source)."""
+    method = "cash" if payment.method == SalaryPaymentMethod.CASH else "transfer"
+    what = "Avance" if payment.kind == SalaryPaymentKind.ADVANCE else "Salaire"
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, method),
+        day=payment.paid_on,
+        amount=-payment.amount,
+        kind="salary",
+        label=f"{what} : {payment.employee.name}",
+        reference=payment.number,
+        source=TREASURY_SOURCE,
+        source_id=payment.pk,
+        actor=actor,
+    )
 
 
 def _allocate(payment: SalaryPayment, actor: User | None, allocations: Sequence[tuple[SalaryRecord, Decimal]]) -> None:
@@ -570,8 +632,13 @@ def record_payment(
     allocations: Sequence[AllocationFields] = (),
     reference: str = "",
     notes: str = "",
+    kind: str = SalaryPaymentKind.SALARY,
+    confirm_overpay: bool = False,
 ) -> SalaryPayment:
-    """Record cash paid to an employee and the approved salaries it settles (all, part, or none: an advance)."""
+    """Record cash paid to an employee and the approved salaries it settles (all, part, or none: an advance).
+
+    An advance (`kind` "advance", D-234) settles the full amount on the salary of the payment's month; above what is
+    still due it is refused unless `confirm_overpay` is set. Either way the payment writes its treasury movement."""
     errors: dict[str, str] = {}
     if employee.organization_id != organization.pk:
         errors["employee"] = _("Employé inconnu.")
@@ -579,6 +646,11 @@ def record_payment(
         errors["paid_on"] = _("La date du paiement ne peut pas être dans le futur.")
     if method not in SalaryPaymentMethod.values:
         errors["method"] = _("Mode de paiement inconnu.")
+    if kind not in SalaryPaymentKind.values:
+        errors["kind"] = _("Type de paiement inconnu.")
+    advance = kind == SalaryPaymentKind.ADVANCE
+    if advance and len(allocations) != 1:
+        errors["allocations"] = _("Une avance se règle sur la paie de son mois, en une seule ligne.")
     checked: Decimal | None = None
     try:
         checked = checked_amount(amount)
@@ -587,9 +659,17 @@ def record_payment(
             errors["amount"] = _("Le montant doit être supérieur à zéro.")
     except (ValueError, TypeError, InvalidOperation):
         errors["amount"] = _("Indiquez un montant en DT, au millime près.")
-    allocated = (
-        _checked_allocations(organization, employee, allocations, checked, errors) if "employee" not in errors else []
-    )
+    allocated: list[tuple[SalaryRecord, Decimal]] = []
+    if "employee" not in errors:
+        allocated = _checked_allocations(
+            organization,
+            employee,
+            allocations,
+            checked,
+            errors,
+            advance_month=first_of_month(paid_on) if advance else None,
+            confirm_overpay=confirm_overpay,
+        )
     if errors:
         raise ValidationError(errors)
     assert checked is not None  # an amount error would have been raised above
@@ -599,12 +679,14 @@ def record_payment(
         employee=employee,
         paid_on=paid_on,
         amount=checked,
+        kind=kind,
         method=method,
         reference=reference.strip(),
         notes=notes.strip(),
         created_by=actor,
     )
     _allocate(payment, actor, allocated)
+    _post_payment_money(organization, payment, actor)
     audit.record(
         organization=organization,
         actor=actor,
@@ -644,6 +726,16 @@ def allocate_payment(
         after=_payment_snapshot(payment),
     )
     return payment
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the treasury movements of the salary payments recorded before the accounts existed (D-234). A payment
+    that already wrote its movement is skipped, so running it again counts nothing twice."""
+    done = treasury.posted_source_ids(organization, TREASURY_SOURCE)
+    payments = SalaryPayment.objects.for_organization(organization).select_related("employee").order_by("id")
+    for payment in payments:
+        if payment.pk not in done:
+            _post_payment_money(organization, payment, payment.created_by)
 
 
 # ---- Days on a lot ----

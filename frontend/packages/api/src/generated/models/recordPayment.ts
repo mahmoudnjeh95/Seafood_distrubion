@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { SalaryPaymentRef } from './salaryPaymentRef';
+import type { TreasuryDebit } from './treasuryDebit';
 
 /**
  * The part of one payment that settled the salary.
@@ -14,4 +15,5 @@ export interface RecordPayment {
   readonly payment: SalaryPaymentRef;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
+  readonly treasury_debit: TreasuryDebit;
 }
