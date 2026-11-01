@@ -3123,3 +3123,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+
+**D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
+- Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
+  versement, the états des factures). The flow and the rules stay ours: effets, bordereaux, impayés and the ledger of
+  P9-T01 to T04 are not changed, and no migration is added.
+- `TresorerieRibbon` sits at the top of the screens Encaissement (`/reglements`), Décaissement (`/achats/paiements`),
+  Banque, Portefeuille, Ordre de paiement (`/achats/reglements`), Bordereau de versement and the two états.
+- Bordereau de versement (`/tresorerie/bordereau`): En attente (at the bank) · Encaissé · Impayé, with the same steps
+  and dialogs as the Portefeuille. Facture de vente and Facture d'achat (`/tresorerie/etats/ventes`, `/achats`): the
+  invoices grouped by customer or supplier, net à payer, réglé, restant, state, with totals.
+- Not on the ribbon yet: Agence bancaire, Caisse liquide and the journals (journal des banques, journal des caisses).
+  They need the treasury accounts of P9-T05, which are not merged. Excel export of the états is later.
+- The sidebar is unchanged: the e2e spec lists the modules by name. The treasury is reached from Règlements clients,
+  Règlements fournisseurs, Portefeuille and Banques.
