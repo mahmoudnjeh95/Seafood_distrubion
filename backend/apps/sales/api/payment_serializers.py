@@ -203,6 +203,9 @@ class CustomerPaymentLineWriteSerializer(serializers.Serializer[Any]):
     bank = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
     drawer = serializers.CharField(required=False, allow_blank=True, default="", max_length=150)
     due_on = serializers.DateField(required=False, allow_null=True, default=None)
+    # Cash, a transfer, a card: the account it went to (D-219); empty: the Caisse, the main bank account. A cheque
+    # or a traite goes to the bank by a remise, so its account is not read.
+    account = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
 
 
 class AllocateWriteSerializer(serializers.Serializer[Any]):

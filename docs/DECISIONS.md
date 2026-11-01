@@ -3131,6 +3131,28 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Not in this PR (waits for PR #246, treasury ledger, D-219, `ec` session):** the payment writing its treasury
   movement (`salary` kind, source `hr.salary_payment`) and the screen line "Débité de la trésorerie : N DT (compte, date)".
   No second ledger is built here; that line follows once `post_movement` is on `origin/main` (see D-229).
+**D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
+- `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when
+  first needed). Its balance is the opening balance plus its movements from the opening day on; older movements stay
+  listed in the database but are not counted, so the office may set the real opening after the backfill.
+  Provisional: every organization starts with "Caisse" and "Banque principale" (the owner's list of accounts is Q29).
+- `treasury.TreasuryMovement`: (account, day, signed amount, kind, label, reference, source, source_id, role), never
+  edited; unique per (source, source_id, role), so writing a record's movements again is a no-op. A correction is an
+  opposite movement (role `void`).
+- Who writes: customer règlement lines in cash, transfer, card (+; a line may name its account, else the Caisse for
+  cash, the main bank account otherwise; cash a driver took on the phone goes to that driver's cash); supplier lines
+  (−, same rule; our cheque or traite keeps the account the bank will debit). Effets: cashed (+ on the remise's
+  account; cashed from the portfolio at the drawer's counter: the Caisse), impayé after cashing (− on the account
+  credited), ours debited (− on its account, else the account of its bank, else the main one). A voided règlement
+  undoes its movements on the day it is voided. Port purchases are left to P9-T05b (the driver's money).
+- `AccountTransfer` "MT-YYYY-NNNN": versement (cash → bank), retrait (bank → cash), virement (any other pair), kind
+  from the two accounts; annulé with a reason writes the two opposite movements.
+- `CashCount` (arrêté de caisse) on a Caisse or a driver's cash: expected = balance at the end of the day, gap =
+  counted − expected; a gap needs its reason and is written as a movement "Écart de caisse".
+- `manage.py backfill_treasury` writes the history; the staging backend runs it at each start (idempotent).
+- API under `treasury/accounts`, `treasury/accounts/<id>/movements` (+ `/export`), `treasury/transfers`,
+  `treasury/cash-counts`; `account` on règlement lines and on `treasury/deposits`. Owner and manager write, the
+  accountant reads.
 
 **D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
 - Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
@@ -3158,3 +3180,20 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   layout); the party's own page is not changed (its e-mail field and contacts feed the list). A party with one address
   works as before.
 - Sent addresses are still kept as one text on `documents.SentEmail` (the history row).
+
+**D-231 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
+- A transfer line may name lots, each with the kilos to take from it, as a counter-sale line does (D-212): `TransferLinePick`
+  (one row per line and lot), written as `picks: [{batch, quantity}]` on `TransferLineWrite`, in the kept part and in each
+  client's part of a load. Picks take their kilos in the order given, each up to what it holds; what they leave over
+  comes from the other lots, oldest first (FIFO), and a picked lot short is topped up the same way. Stock never goes
+  negative. Validation posts the line's picks first, then FIFO, through `inventory.services.post_fifo_movements`.
+- It replaces the rule of D-009 that nobody picks batches by hand, for transfers too, as D-212 did for sales.
+- Refused on the line: picks above the line's weight, a lot picked twice, a lot of another product or organization,
+  a pick without kilos above zero, and any pick on a load from several cold rooms (D-174): the kg there come from
+  whichever rooms hold them, so there is no one place to pick a lot from.
+- The check is one function, `inventory.services.checked_lot_picks`, used by the counter sale and by transfers.
+- Migration `inventory.0011_transfer_line_picks` creates the table. A draft's picks go with its lines when it is
+  changed; a validated transfer keeps the movements that really moved.
+- The transfer form shows the lot column on every line grid, lots of the place the kg leave from; with several cold
+  rooms the column shows the oldest lots and cannot be picked.
+- Provisional: the kilos the picks leave over come from the oldest lots only, as for a sale.
