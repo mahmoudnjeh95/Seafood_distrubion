@@ -5,6 +5,7 @@ import {
   useListBanks,
   useListSupplierInvoices,
   useListSupplierSettlements,
+  useGetSupplierBalance,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -41,14 +42,17 @@ import {
   newLine,
   type PaymentLine,
 } from "../payments/lines";
+import { Figure } from "../payments/Figure";
 import { PaymentLinesEditor } from "../payments/PaymentLinesEditor";
 import { TotalsBar } from "../payments/TotalsBar";
+import { amountToPay, creditHeld } from "../payments/toPay";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import {
   type Allocations,
   allocationPayload,
   asTyped,
   byDueDate,
+  compare,
   errorsByInvoice,
   hasAllocationProblem,
   spread,
@@ -149,6 +153,8 @@ export function SupplierPaymentFormPage() {
     { supplier: Number(supplier), status: "open", limit: 200 },
     { query: { enabled: supplier !== "" } },
   );
+  // The same balance as the supplier's card: "Total à régler" is read from it (D-226).
+  const balance = useGetSupplierBalance(Number(supplier), { query: { enabled: supplier !== "" } });
   const invoices = useMemo(() => byDueDate(open.data?.results ?? []), [open.data]);
   const preset = touched ? undefined : invoices.find((invoice) => invoice.id === fromInvoice);
   // The invoice the person came from fills the first line's amount, once, until they type.
@@ -300,6 +306,20 @@ export function SupplierPaymentFormPage() {
                 </SelectContent>
               </Select>
             </Field>
+            {supplier !== "" && balance.data && (
+              <dl className="grid grid-cols-3 gap-3 rounded-control bg-surface-2 p-3 max-[640px]:grid-cols-1">
+                <Figure label={t("admin.treasury.form.toPay")} value={formatMoney(amountToPay(balance.data.balance))} />
+                <Figure
+                  label={t("admin.treasury.form.overdue")}
+                  value={formatMoney(balance.data.overdue)}
+                  bad={compare(balance.data.overdue, "0") > 0}
+                />
+                <Figure
+                  label={t("admin.treasury.form.advance")}
+                  value={formatMoney(creditHeld(balance.data.balance))}
+                />
+              </dl>
+            )}
           </FormPanel>
         </div>
 
