@@ -27856,14 +27856,51 @@ components:
           items:
             $ref: '#/components/schemas/MovedBatch'
           readOnly: true
+        picks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferLinePick'
+          readOnly: true
       required:
       - amount
       - batches
       - customer
       - id
+      - picks
       - product
       - quantity
       - unit_price
+    TransferLinePick:
+      type: object
+      description: A lot picked by hand for a line, with the kilos to take from it
+        first (D-215).
+      properties:
+        batch:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch
+      - batch_number
+      - quantity
+    TransferLinePickWrite:
+      type: object
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+      required:
+      - batch
+      - quantity
     TransferLineWrite:
       type: object
       properties:
@@ -27875,6 +27912,10 @@ components:
         unit_price:
           type: string
           nullable: true
+        picks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferLinePickWrite'
       required:
       - product
       - quantity

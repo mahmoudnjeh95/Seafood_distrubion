@@ -270,7 +270,15 @@ def _transfer_lines(
         except ObjectDoesNotExist:
             errors[prefix + services.line_error_key(index, "product")] = _("Produit inconnu.")
             continue
-        lines.append({**line, "product": product})
+        picks = []
+        for pick in line.get("picks") or []:
+            try:
+                batch = selectors.batch_of(organization, pick["batch"])
+            except ObjectDoesNotExist:
+                errors[prefix + services.line_error_key(index, "picks")] = _("Lot inconnu.")
+                break
+            picks.append({"batch": batch, "quantity": pick["quantity"]})
+        lines.append({**line, "product": product, "picks": picks})
     return lines
 
 
