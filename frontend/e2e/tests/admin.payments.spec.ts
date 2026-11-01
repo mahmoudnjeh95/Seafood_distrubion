@@ -36,10 +36,14 @@ test("a customer pays part of a credit sale and the balance shows the rest", asy
   const before = amountOf(await balance.textContent());
   expect(before).toBeGreaterThan(1);
 
-  await page.getByRole("button", { name: "Enregistrer un règlement" }).click();
-  await page.getByLabel("Montant (DT)").fill("1,000");
-  await page.getByLabel("Référence (virement, carte…)").fill("CH-E2E");
+  // The card opens the règlement page (D-226), the same form as a supplier payment.
+  await page.getByRole("link", { name: "Enregistrer un règlement" }).click();
+  await page.getByRole("combobox", { name: "Mode, ligne 1" }).click();
+  await page.getByRole("option", { name: "Virement" }).click();
+  await page.getByLabel("Montant (DT), ligne 1").fill("1,000");
+  await page.getByLabel("Référence (virement, carte…), ligne 1").fill("CH-E2E");
   await page.getByRole("button", { name: "Enregistrer le règlement" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmer" }).click();
   await expect(page.getByText(/Règlement RG-\d+ enregistré/)).toBeVisible();
 
   await expect.poll(async () => amountOf(await balance.textContent())).toBeCloseTo(before - 1, 3);
