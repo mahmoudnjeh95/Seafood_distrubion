@@ -3187,6 +3187,28 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   `treasury/cash-counts`; `account` on règlement lines and on `treasury/deposits`. Owner and manager write, the
   accountant reads.
 
+**D-224 · A BL shows the VAT of the lines sold with VAT from the moment it is prepared (owner point 6)** · accepted, provisional parts marked · 2026-10-31
+- **Snapshot on the lines:** `SaleLine.vat_rate` (empty = no VAT on that line) is set when the line is written: a draft
+  created or changed, and the BL of a truck load at the load. It is the product's own rate, else the settings' rate in
+  force on the sale's day, and only when the product is sold with VAT (`inventory.selectors.vat_product_ids`, D-202:
+  kilos in stock bought with VAT). Later rate or price changes never move it.
+- **One VAT computation:** each line's `amount_excl_tax`, `vat_amount`, `amount_incl_tax` come from `invoicing.compute`,
+  the invoice's own arithmetic (`_apply_bl_vat`). The sale has `vat_total`, `total_incl_tax` and `prices_include_vat`
+  (the settings' flag on its day); `Sale.amount_excl_tax` is total with VAT minus VAT. `Sale.total` and
+  `total_excl_tax` keep their meaning (charged, without VAT).
+- **Delivery (D-178):** the kept lines keep their rate and get their VAT recomputed on the kilos left.
+- **Screens and PDF:** the BL PDF and the sale page show "TVA %" and "Montant TVA" per line, then "Total HT", "Total TVA",
+  "Total TTC". A BL with no VAT line looks as before. The API sale and line carry the new fields as strings.
+- **Existing sales:** no rate on their lines, so their BL shows no VAT; `total_incl_tax` is backfilled to `total`.
+- **Provisional, the owner confirms:** the rule is D-202 (product of a lot bought with VAT, the stock at the moment the
+  line is written), not per lot. The invoice is not changed: it still applies VAT to every line when "Facture avec TVA"
+  is ticked (its default), so a mixed BL (VAT and non-VAT products) can invoice more VAT than its BL shows. Whether the
+  invoice should follow the BL's lines is open.
+- **Provisional:** "Reste dû" and the customer balance stay without VAT until the invoice (D-062): a BL with VAT shows
+  its total with VAT but what is still owed is not yet computed with it.
+- **Provisional:** with prices including VAT, the BL's unit price column still shows the price charged (with VAT) next to
+  the amounts without VAT; the invoice shows the unit price without VAT. This setting is rarely used.
+- Not changed: the sale form's live preview (no VAT computed in the browser; the VAT appears on the sale page after saving).
 
 **D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
 - Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
