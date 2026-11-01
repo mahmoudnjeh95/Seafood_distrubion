@@ -3307,3 +3307,34 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Journal des banques and Journal des caisses show one account's statement: the movements in order with the running
   balance, the opening and closing balances, a date range and a search. The Excel link is the server's statement file.
 - Provisional: the screens use the P9-T05 API as it is; no backend change.
+
+**D-234 · Salary payments and primes/advances post to the treasury (owner points 12–13, provisional parts marked)** · accepted (provisional parts marked) · 2026-11-01
+- **Why:** D-228 left the treasury movement of a salary payment and its "Débité de la trésorerie" line for later. The
+  owner wants every salary paid to leave the treasury, and primes and advances on the salary record (points 12 and 13).
+- **Treasury:** each `SalaryPayment` writes one outgoing movement in the same transaction as the payment
+  (`treasury.post_movement`, kind `salary`, source `hr.salary_payment`, source id = the payment, day = `paid_on`, label
+  "Salaire : <name>" or "Avance : <name>", reference = the PS number). Account: the Caisse for cash (`line_account`),
+  the main bank account for a transfer, a cheque or another means. A payment is never edited or voided, so nothing
+  reverses it.
+- **Backfill:** `hr.services.post_treasury_history` writes the payments made before, skipping the ids already posted;
+  `backfill_treasury` runs it, so running it again counts nothing twice.
+- **On screen:** the payment and each payment line of a salary show "Débité de la trésorerie : N DT (compte <name>,
+  <date>)", read from the movement (`treasury.selectors.movement_of_source`). A payment with no movement shows nothing.
+- **Primes (point 13):** a prime is a `SalaryAdjustment` of kind `prime`: positive, with a reason. It raises what is due
+  and needs no payment of its own. It is added to an approved salary only (the approved-record rule holds); drafts,
+  which only remain from before D-228, keep their bonus field. The payroll list shows each adjustment and prime as a line
+  (kind, amount, reason).
+- **Advances:** a `SalaryPayment` of kind `advance` (code `advance`, label "Avance sur salaire") is allocated in full
+  to the salary of its own month, in one allocation of the same amount. It reduces what is still due and writes its
+  movement like any payment. Above what is still due it is refused with a French message unless `confirm_overpay` is
+  set (refused by default). A payment with no allocation is still an advance in the old sense, allocated later.
+- **Expense side unchanged:** the month's expense is still the approved salary (gross, employer CNSS, adjustments). An
+  advance is a payment against that salary, not an extra expense.
+- **Provisional:** (1) an advance paid in cash goes to the Caisse; (2) a prime needs no separate payment; (3) an advance
+  above the month's due needs the confirmation flag; (4) a prime does not recompute the CNSS, as an adjustment does
+  (D-228): the accountant to confirm whether primes are subject to CNSS; (5) the code `advance` (not `avance`) is a
+  naming choice.
+- **Built with:** migration `hr.0004_salary_payment_kinds_and_primes` (`kind` on payments and adjustments); API
+  `POST salary-records/<id>/primes` (`addSalaryPrime`), `kind` and `confirm_overpay` on `POST salary-payments`, and
+  `kind`, `treasury_debit` on payments and salary lines. The only change to the treasury app is one read selector,
+  `movement_of_source`; no model or service changed.

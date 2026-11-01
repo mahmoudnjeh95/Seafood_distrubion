@@ -118,12 +118,21 @@ class SalaryRecord(OrganizationScopedModel, TimeStampedModel):
         return self.gross + self.employer_cnss
 
 
+class SalaryAdjustmentKind(models.TextChoices):
+    ADJUSTMENT = "adjustment", _("Ajustement")
+    # Owner point 13 (D-234): an amount added to what is due for the month, with its reason. Always positive.
+    PRIME = "prime", _("Prime")
+
+
 class SalaryAdjustment(OrganizationScopedModel, TimeStampedModel):
     """A correction of an approved salary: signed amount (positive = more due to the employee), with a
-    reason. The record itself never changes (ARCHITECTURE §4.5)."""
+    reason. The record itself never changes (ARCHITECTURE §4.5). A prime is a positive one (D-234)."""
 
     salary_record = models.ForeignKey(SalaryRecord, on_delete=models.PROTECT, related_name="adjustments")
     amount = MoneyField()
+    kind = models.CharField(
+        max_length=20, choices=SalaryAdjustmentKind.choices, default=SalaryAdjustmentKind.ADJUSTMENT
+    )
     reason = models.CharField(max_length=200)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
@@ -144,15 +153,27 @@ class SalaryPaymentMethod(models.TextChoices):
     OTHER = "other", _("Autre")
 
 
+class SalaryPaymentKind(models.TextChoices):
+    SALARY = "salary", _("Salaire")
+    # An advance on the month's salary: allocated to that month's record in full (D-234, provisional kind code).
+    ADVANCE = "advance", _("Avance sur salaire")
+
+
+# The treasury movement a salary payment writes (D-234): `source` and `source_id` of the movement.
+TREASURY_SOURCE = "hr.salary_payment"
+
+
 class SalaryPayment(OrganizationScopedModel, TimeStampedModel):
     """Cash paid to an employee (a salary, an advance): separate from the expense, allocated to approved
-    salary records. What is not allocated is an advance. A recorded payment is never edited."""
+    salary records. What is not allocated is an advance. A recorded payment is never edited. Each one writes
+    one outgoing treasury movement (D-234)."""
 
     # "PS-0001"... per organization ("paiement de salaire").
     number = models.CharField(max_length=20)
     employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="payments")
     paid_on = models.DateField()
     amount = MoneyField()
+    kind = models.CharField(max_length=10, choices=SalaryPaymentKind.choices, default=SalaryPaymentKind.SALARY)
     method = models.CharField(max_length=20, choices=SalaryPaymentMethod.choices)
     reference = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)

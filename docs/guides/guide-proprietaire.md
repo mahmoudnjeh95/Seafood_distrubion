@@ -169,10 +169,12 @@ Réservé au propriétaire (qui modifie) et au comptable (qui lit). Onglets : **
 
 1. **Employés**, **Nouvel employé** : nom, poste, « Salaire mensuel brut (DT) », « Taux CNSS employeur (%) », compte de connexion.
 2. **Paie**, choisissez le mois, touchez **Générer le mois** : une paie en brouillon est créée pour chaque employé actif.
-3. Pour une prime, des heures supplémentaires ou des retenues : **Modifier** sur la ligne, puis **Enregistrer**.
+3. Pour des heures supplémentaires ou des retenues sur un brouillon : **Modifier** sur la ligne, puis **Enregistrer**.
 4. **Approuver** (ou **Tout approuver**) : la paie devient la charge du mois et ne change plus.
-5. **Payer** : date, montant, mode de paiement, référence. Un paiement peut solder une paie, une partie, ou être une avance.
+5. **Payer** : date, montant, mode de paiement, référence. Un paiement peut solder une paie, une partie. Chaque paiement sort de la trésorerie le jour où il est fait : la Caisse pour les espèces, la banque pour le reste. La paie et le paiement affichent « Débité de la trésorerie ».
 6. Correction après approbation : **Ajuster** (montant positif ou négatif, avec le motif).
+7. **Prime** : ajoute un montant positif à ce qui est dû pour le mois, avec son motif. Pas de paiement séparé : la prime se paie avec le salaire.
+8. **Avance sur salaire** : dans **Payer**, choisissez « Avance sur salaire ». L'avance se déduit du salaire du mois. Si elle dépasse ce qui reste dû, cochez la confirmation (sinon elle est refusée).
 7. Sur la page d'un employé, **Jours sur lot** note les jours passés sur un lot : un jour coûte le salaire mensuel / 26.
 
 **(provisoire)** Le taux CNSS employeur est de 17,07 % par défaut, à confirmer par le comptable.
