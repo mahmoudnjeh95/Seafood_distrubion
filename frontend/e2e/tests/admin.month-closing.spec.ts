@@ -24,6 +24,7 @@ test("the owner sees the last finished month with its result, its stock and its 
   await expect(month.getByText("Résultat net du mois")).toBeVisible();
   await expect(month.getByText("Stock à la fin du mois", { exact: true }).first()).toBeVisible();
   await expect(month.getByText("Toutes les dépenses du mois sont approuvées")).toBeVisible();
+  console.log("DIAG-MONTH-START\n" + (await month.innerText()) + "\nDIAG-MONTH-END");
   await expect(month.getByRole("button", { name: "Vérifier le mois" })).toBeVisible();
   await expect(month.getByRole("button", { name: "Approuver et figer" })).toHaveCount(0);
 });
