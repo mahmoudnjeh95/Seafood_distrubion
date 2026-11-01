@@ -3336,6 +3336,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   balance, the opening and closing balances, a date range and a search. The Excel link is the server's statement file.
 - Provisional: the screens use the P9-T05 API as it is; no backend change.
 
+
 **D-225 · Motif on a supplier règlement; Motif and Payé par on a customer règlement (owner points 7 and 8, reglement-fields)** · accepted (provisional parts marked) · 2026-11-01
 - Owner request: "in règlement fournisseur we need to have motif (optionnel)"; "in règlement client we need to have motif + payé par (optionnels)".
 - `SupplierPayment.reason` and `CustomerPayment.reason` ("Motif", optional, max 200 characters); `CustomerPayment.paid_by`
@@ -3348,3 +3349,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`sales/pdf/receipt.html`, `purchasing/pdf/supplier_receipt.html`). The driver app is unchanged (both fields default to empty).
 - Provisional: the Motif is free text on the règlement only, not on its effets; the lists do not filter or export by it yet.
 - Not touched: the règlement lists' filters and totals, the effets logic and the treasury app (D-210, D-211, D-215).
+
+**D-226 · "Total à régler" on the party cards and in the règlement forms; a customer payment is the règlement page (owner points 9 and 10, reglement-fields)** · accepted (provisional parts marked) · 2026-11-01
+- Owner request: "totale montant à régler in client/fournisseur"; "add payment for facture client should look like payment fournisseur".
+- **Total à régler** = the balance still owed: customer `balance` (positive part), supplier `balance` (positive part). A credit
+  (a customer's credit, a supplier's advance) shows as "Crédit du client" / "Avance chez le fournisseur" with its amount, and
+  "Total à régler" stays 0. No fourth balance: supplier payables, partner capital and profit shares stay separate (D-040, D-197).
+- **Same number on both screens:** `payments/toPay.ts` (`amountToPay`, `creditHeld`) reads the same endpoints (the customer
+  balance and the supplier balance) on the party card and in the règlement form (a strip above the invoices: total, overdue,
+  advance). The customer's "Encours" stays solde + effets received not cashed (D-210) and reads the same instruments query.
+- Breakdown on the customer card (provisional): "Factures à régler", "BL sans facture à régler" (from the open items), "Crédit
+  non affecté" when some credit is not yet allocated, effets en portefeuille and the encours. On the supplier card the
+  breakdown is the existing one (outstanding, unallocated advance, overdue). Our effets issued are not added: they count as paid
+  when given (D-208), so the supplier total needs no effets line (provisional; the "chèques à venir" list stays on Dettes).
+- **Customer payment entry = the règlement page.** The quick window "Enregistrer un règlement" (`PaymentDialog`, one means, no
+  lines, no "Répartir", no bar) is removed. "Enregistrer un règlement" on the customer card and the "Encaisser" button of
+  the ageing table open `/reglements/nouveau?client=<id>`, the page the supplier payment uses: the same lines editor, the
+  same "Répartir sur les plus anciennes échéances" button (the old "Affecter automatiquement" and "Tout effacer" are
+  replaced by it), the same bar and the same confirm window. The customer rules stay: affectation to invoices and BL, the
+  encours and credit-limit figures, advance as credit.
+- Where this touches the other sessions' code: `payments/PaymentsPage.tsx` (the ageing button only; the règlements list, its
+  filters and totals are unchanged), `customers/BalanceCard.tsx`, `purchasing/SupplierBalanceCard.tsx` and
+  `purchasing/SupplierPaymentFormPage.tsx` (a figures strip added above the Motif field; the lines, Répartir and the
+  confirm window unchanged), `payments/CustomerPaymentFormPage.tsx` (figures moved to `payments/Figure.tsx`). The treasury app,
+  the effets logic and the lists' order are not touched.
+- Provisional: the customer "Total à régler" keeps the old balance semantics (unchanged server side); the owner may want the
+  encours shown as the headline instead.
