@@ -64,7 +64,8 @@ class SentEmailRowSerializer(serializers.Serializer[Any]):
 
 
 class EmailDraftSerializer(serializers.Serializer[Any]):
-    to = serializers.CharField(read_only=True)
+    # Every address the party has (D-222): the window ticks them all and may drop or add some for this send.
+    to = serializers.ListField(child=serializers.CharField(), read_only=True)
     subject = serializers.CharField(read_only=True)
     body = serializers.CharField(read_only=True)
     # The last sends of this document, newest first.
@@ -95,7 +96,7 @@ class DocumentEmailView(APIView):
 
     @extend_schema(operation_id="getDocumentEmailDraft", responses=EmailDraftSerializer)
     def get(self, request: Request, kind: str, object_id: int) -> Response:
-        """What "Envoyer par e-mail" proposes for this document (D-206): the customer's address, a subject naming
+        """What "Envoyer par e-mail" proposes for this document (D-206): the party's addresses (D-222), a subject naming
         the document and the company, a short message; and the last times it was sent."""
         membership = self._checked(request, kind, object_id)
         draft = services.email_draft(membership.organization, kind, object_id)

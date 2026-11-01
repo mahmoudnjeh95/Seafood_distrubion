@@ -15,6 +15,11 @@ export interface DepositWrite {
      * @minimum 1
      * @nullable
      */
+  account?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
   bank?: number | null;
   /** @nullable */
   deposited_on?: string | null;

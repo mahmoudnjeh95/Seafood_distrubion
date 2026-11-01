@@ -30,6 +30,7 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { ConfirmPaymentDialog } from "../payments/ConfirmPaymentDialog";
+import { FormPanel } from "../treasury/FormPanel";
 import {
   describeLine,
   errorsByLine,
@@ -245,55 +246,62 @@ export function SupplierPaymentFormPage() {
       <PageHeader eyebrow={t("admin.nav.purchases")} title={t("admin.supplierPayments.form.title")} />
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <Card className="grid grid-cols-2 gap-4 max-[640px]:grid-cols-1">
-          <Field label={t("admin.supplierPayments.form.supplier")} htmlFor={id("supplier")} error={errors.supplier}>
-            <Select
-              value={supplier}
-              onValueChange={(value) => {
-                setSupplier(value);
-                setAllocations({});
-                setTouched(true);
-              }}
-            >
-              <SelectTrigger id={id("supplier")} aria-invalid={errors.supplier ? true : undefined}>
-                <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
-              </SelectTrigger>
-              <SelectContent>
-                {(suppliers.data ?? [])
-                  .filter((one) => one.is_active || String(one.id) === supplier)
-                  .map((one) => (
-                    <SelectItem key={one.id} value={String(one.id)}>
-                      {one.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label={t("admin.supplierPayments.form.paidOn")} htmlFor={id("paid_on")} error={errors.paid_on}>
-            <Input
-              id={id("paid_on")}
-              type="date"
-              max={todayInTunis()}
-              value={paidOn}
-              onChange={(event) => setPaidOn(event.target.value)}
-              aria-invalid={errors.paid_on ? true : undefined}
-            />
-          </Field>
-          <Field
-            label={t("admin.treasury.form.reason")}
-            htmlFor={id("reason")}
-            className="col-span-full"
-            error={errors.reason}
-          >
-            <Input
-              id={id("reason")}
-              value={reason}
-              maxLength={200}
-              onChange={(event) => setReason(event.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-        </Card>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="primary" disabled={save.isPending}>
+            {t("admin.treasury.form.save")}
+          </Button>
+          <Button asChild>
+            <Link to="/achats/paiements">{t("admin.treasury.form.back")}</Link>
+          </Button>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+          <FormPanel title={t("admin.treasury.form.decaissementInfo")}>
+            <Field label={t("admin.supplierPayments.form.paidOn")} htmlFor={id("paid_on")} error={errors.paid_on}>
+              <Input
+                id={id("paid_on")}
+                type="date"
+                max={todayInTunis()}
+                value={paidOn}
+                onChange={(event) => setPaidOn(event.target.value)}
+                aria-invalid={errors.paid_on ? true : undefined}
+              />
+            </Field>
+            <Field label={t("admin.treasury.form.reason")} htmlFor={id("reason")} error={errors.reason}>
+              <Input
+                id={id("reason")}
+                value={reason}
+                maxLength={200}
+                onChange={(event) => setReason(event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+          </FormPanel>
+          <FormPanel title={t("admin.treasury.form.supplierInfo")}>
+            <Field label={t("admin.supplierPayments.form.supplier")} htmlFor={id("supplier")} error={errors.supplier}>
+              <Select
+                value={supplier}
+                onValueChange={(value) => {
+                  setSupplier(value);
+                  setAllocations({});
+                  setTouched(true);
+                }}
+              >
+                <SelectTrigger id={id("supplier")} aria-invalid={errors.supplier ? true : undefined}>
+                  <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(suppliers.data ?? [])
+                    .filter((one) => one.is_active || String(one.id) === supplier)
+                    .map((one) => (
+                      <SelectItem key={one.id} value={String(one.id)}>
+                        {one.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </FormPanel>
+        </div>
 
         <Card className="flex flex-col gap-3">
           <CardTitle className="mb-0">{t("admin.treasury.lines.title")}</CardTitle>

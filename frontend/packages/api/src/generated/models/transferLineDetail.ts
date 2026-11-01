@@ -7,6 +7,7 @@
 import type { BatchProduct } from './batchProduct';
 import type { LoadClient } from './loadClient';
 import type { MovedBatch } from './movedBatch';
+import type { TransferLinePick } from './transferLinePick';
 
 export interface TransferLineDetail {
   readonly id: number;
@@ -25,4 +26,5 @@ export interface TransferLineDetail {
      */
   readonly amount: string | null;
   readonly batches: readonly MovedBatch[];
+  readonly picks: readonly TransferLinePick[];
 }

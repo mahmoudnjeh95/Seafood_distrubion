@@ -108,7 +108,7 @@ def partner_statement_printable(organization: Organization, partnership_id: int)
         version=hashlib.sha1(fingerprint.encode(), usedforsecurity=False).hexdigest(),
         filename=f"releve-{slugify(data['batch']['batch_number']) or 'lot'}-{slugify(partnership.partner.name)}.pdf",
         title=f"Relevé du lot {data['batch']['batch_number']}",
-        email_to=partnership.partner.email,
+        email_to=partnership.partner.email_addresses(),
     )
 
 

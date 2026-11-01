@@ -609,6 +609,9 @@ class SupplierPaymentLineWriteSerializer(serializers.Serializer[Any]):
     number = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     bank = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
     due_on = serializers.DateField(required=False, allow_null=True, default=None)
+    # The account the money leaves (D-219): a Caisse for cash, a bank account otherwise (for our cheque or traite,
+    # the one the bank will debit); empty: the Caisse, the account of the effet's bank, the main bank account.
+    account = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
 
 
 class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
