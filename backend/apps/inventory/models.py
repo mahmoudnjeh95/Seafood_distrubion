@@ -318,6 +318,27 @@ class TransferLine(OrganizationScopedModel):
         return f"{self.transfer} · {self.product_id} · {self.quantity} kg"
 
 
+class TransferLinePick(OrganizationScopedModel):
+    """A lot picked by hand for one transfer line, and the kilos to take from it first (D-215, as on a sale line,
+    D-212). The kilos the picks leave over come from the other lots, oldest first; a lot too short is topped up
+    the same way. Kept with the draft; once validated, the movements of the line say which lots really went.
+    """
+
+    line = models.ForeignKey(TransferLine, on_delete=models.CASCADE, related_name="picks")
+    batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+
+    class Meta:
+        ordering = ["line", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["line", "batch"], name="one_pick_per_transfer_line_and_batch"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="transfer_line_pick_quantity_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.line} · {self.batch_id} · {self.quantity} kg"
+
+
 class TransferBoxLine(OrganizationScopedModel):
     """Boxes of one type that go with a transfer: a count, not kg (D-122). Posted with the transfer when it
     is validated; only a load, or a return from a truck to a cold room, carries boxes (P1-T14e, D-124).

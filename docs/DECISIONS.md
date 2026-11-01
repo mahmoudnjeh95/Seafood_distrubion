@@ -3150,3 +3150,47 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   corrected reference on update, for the owner's clean-up).
 - Not converted: the public site's request numbers (`W-00012`, derived from the request id). The effets' own numbers are
   typed by hand (D-197).
+
+**D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
+- Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
+  versement, the états des factures). The flow and the rules stay ours: effets, bordereaux, impayés and the ledger of
+  P9-T01 to T04 are not changed, and no migration is added.
+- `TresorerieRibbon` sits at the top of the screens Encaissement (`/reglements`), Décaissement (`/achats/paiements`),
+  Banque, Portefeuille, Ordre de paiement (`/achats/reglements`), Bordereau de versement and the two états.
+- Bordereau de versement (`/tresorerie/bordereau`): En attente (at the bank) · Encaissé · Impayé, with the same steps
+  and dialogs as the Portefeuille. Facture de vente and Facture d'achat (`/tresorerie/etats/ventes`, `/achats`): the
+  invoices grouped by customer or supplier, net à payer, réglé, restant, state, with totals.
+- Not on the ribbon yet: Agence bancaire, Caisse liquide and the journals (journal des banques, journal des caisses).
+  They need the treasury accounts of P9-T05, which are not merged. Excel export of the états is later.
+- The sidebar is unchanged: the e2e spec lists the modules by name. The treasury is reached from Règlements clients,
+  Règlements fournisseurs, Portefeuille and Banques.
+**D-222 · The e-mail window sends to every address the party has, and the office can drop or add some for one send (owner point 4, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
+- The party's own address and each of its contacts' addresses are offered (`Customer.email_addresses()`,
+  `Supplier.email_addresses()`: the party's first, then the contacts' in order; blank and repeated ones, case ignored,
+  are dropped). Every provider of a PDF (sales, purchasing, the partner statement) fills `Printable.email_to` with them.
+- The window ticks all of them. Unticking one or typing an extra one (several at once, separated by commas, spaces or
+  semicolons) changes this send only; the party, its contacts and the stored addresses are not touched. An added
+  address can be removed again before sending.
+- One message goes to the ticked addresses in its `to` (no copy per address). The send accepts 1 to 10 addresses
+  (the server refuses more, the window says so); the same address twice is sent once. The draft returns `to` as a list.
+- Provisional: the list is shown with a checkbox row even when the party has one address (no separate one-address
+  layout); the party's own page is not changed (its e-mail field and contacts feed the list). A party with one address
+  works as before.
+- Sent addresses are still kept as one text on `documents.SentEmail` (the history row).
+
+**D-231 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
+- A transfer line may name lots, each with the kilos to take from it, as a counter-sale line does (D-212): `TransferLinePick`
+  (one row per line and lot), written as `picks: [{batch, quantity}]` on `TransferLineWrite`, in the kept part and in each
+  client's part of a load. Picks take their kilos in the order given, each up to what it holds; what they leave over
+  comes from the other lots, oldest first (FIFO), and a picked lot short is topped up the same way. Stock never goes
+  negative. Validation posts the line's picks first, then FIFO, through `inventory.services.post_fifo_movements`.
+- It replaces the rule of D-009 that nobody picks batches by hand, for transfers too, as D-212 did for sales.
+- Refused on the line: picks above the line's weight, a lot picked twice, a lot of another product or organization,
+  a pick without kilos above zero, and any pick on a load from several cold rooms (D-174): the kg there come from
+  whichever rooms hold them, so there is no one place to pick a lot from.
+- The check is one function, `inventory.services.checked_lot_picks`, used by the counter sale and by transfers.
+- Migration `inventory.0011_transfer_line_picks` creates the table. A draft's picks go with its lines when it is
+  changed; a validated transfer keeps the movements that really moved.
+- The transfer form shows the lot column on every line grid, lots of the place the kg leave from; with several cold
+  rooms the column shows the oldest lots and cannot be picked.
+- Provisional: the kilos the picks leave over come from the oldest lots only, as for a sale.

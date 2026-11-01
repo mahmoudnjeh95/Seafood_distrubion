@@ -40,6 +40,8 @@ import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
 import { NumberingPage } from "./settings/NumberingPage";
 import { SettingsPage } from "./settings/SettingsPage";
+import { BordereauPage } from "./treasury/BordereauPage";
+import { EtatsFacturesPage } from "./treasury/EtatsFacturesPage";
 import { PortfolioPage } from "./treasury/PortfolioPage";
 import { UsersPage } from "./settings/UsersPage";
 import { BoxesPage } from "./boxes/BoxesPage";
@@ -288,6 +290,9 @@ function AppRoutes() {
         <Route path="/reglements/:paymentId" element={<CustomerPaymentDetailPage />} />
         <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
+        <Route path="/tresorerie/bordereau" element={<BordereauPage />} />
+        <Route path="/tresorerie/etats/ventes" element={<EtatsFacturesPage kind="sales" />} />
+        <Route path="/tresorerie/etats/achats" element={<EtatsFacturesPage kind="purchases" />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />

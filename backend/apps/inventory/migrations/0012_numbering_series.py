@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0006_numbering'),
-        ('inventory', '0010_vat_purchase'),
+        ('inventory', '0011_transfer_line_picks'),
     ]
 
     operations = [
