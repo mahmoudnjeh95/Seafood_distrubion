@@ -3222,3 +3222,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The transfer form shows the lot column on every line grid, lots of the place the kg leave from; with several cold
   rooms the column shows the oldest lots and cannot be picked.
 - Provisional: the kilos the picks leave over come from the oldest lots only, as for a sale.
+
+**D-233 · The bank and cash accounts and their journals are screens of the treasury: Agence bancaire, Caisse liquide, Journal des banques, Journal des caisses (Phase 9, P9-T08 follow-up to P9-T05a)** · accepted · 2026-11-01
+- Agence bancaire and Caisse liquide list the accounts of their kind (`bank`, `cash`; the driver accounts stay on the
+  phone and the expenses side). Add and rename, take off (not deleted: its movements stay). A bank account keeps its
+  bank and RIB; a cash box can be counted (arrêté de caisse): the counted cash goes against the expected balance and
+  the gap is kept with its reason.
+- Journal des banques and Journal des caisses show one account's statement: the movements in order with the running
+  balance, the opening and closing balances, a date range and a search. The Excel link is the server's statement file.
+- Provisional: the screens use the P9-T05 API as it is; no backend change.
