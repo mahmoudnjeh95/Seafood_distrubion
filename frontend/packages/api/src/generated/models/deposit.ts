@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { AccountRef } from './accountRef';
 import type { Bank } from './bank';
 import type { Instrument } from './instrument';
 
@@ -11,6 +12,7 @@ export interface Deposit {
   readonly id: number;
   readonly number: string;
   readonly bank: Bank;
+  readonly account: AccountRef | null;
   readonly deposited_on: string;
   readonly notes: string;
   readonly effets_count: number;

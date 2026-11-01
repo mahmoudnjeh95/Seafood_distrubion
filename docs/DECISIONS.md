@@ -3123,6 +3123,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+**D-219 · Treasury accounts and an append-only movement ledger; règlements and effets post to it (Phase 9, P9-T05a)** · accepted (provisional parts marked) · 2026-10-31
+- `treasury.TreasuryAccount`: Caisse, bank account (bank, 20-digit RIB), a driver's cash (one per driver, made when
+  first needed). Its balance is the opening balance plus its movements from the opening day on; older movements stay
+  listed in the database but are not counted, so the office may set the real opening after the backfill.
+  Provisional: every organization starts with "Caisse" and "Banque principale" (the owner's list of accounts is Q29).
+- `treasury.TreasuryMovement`: (account, day, signed amount, kind, label, reference, source, source_id, role), never
+  edited; unique per (source, source_id, role), so writing a record's movements again is a no-op. A correction is an
+  opposite movement (role `void`).
+- Who writes: customer règlement lines in cash, transfer, card (+; a line may name its account, else the Caisse for
+  cash, the main bank account otherwise; cash a driver took on the phone goes to that driver's cash); supplier lines
+  (−, same rule; our cheque or traite keeps the account the bank will debit). Effets: cashed (+ on the remise's
+  account; cashed from the portfolio at the drawer's counter: the Caisse), impayé after cashing (− on the account
+  credited), ours debited (− on its account, else the account of its bank, else the main one). A voided règlement
+  undoes its movements on the day it is voided. Port purchases are left to P9-T05b (the driver's money).
+- `AccountTransfer` "MT-YYYY-NNNN": versement (cash → bank), retrait (bank → cash), virement (any other pair), kind
+  from the two accounts; annulé with a reason writes the two opposite movements.
+- `CashCount` (arrêté de caisse) on a Caisse or a driver's cash: expected = balance at the end of the day, gap =
+  counted − expected; a gap needs its reason and is written as a movement "Écart de caisse".
+- `manage.py backfill_treasury` writes the history; the staging backend runs it at each start (idempotent).
+- API under `treasury/accounts`, `treasury/accounts/<id>/movements` (+ `/export`), `treasury/transfers`,
+  `treasury/cash-counts`; `account` on règlement lines and on `treasury/deposits`. Owner and manager write, the
+  accountant reads.
+
 
 **D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
 - Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de
