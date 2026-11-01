@@ -9570,6 +9570,268 @@ paths:
               schema:
                 $ref: '#/components/schemas/TruckDay'
           description: ''
+  /api/v1/treasury/accounts:
+    get:
+      operationId: listTreasuryAccounts
+      description: |-
+        Our accounts (Caisses, bank accounts, drivers' cash), each with its balance at the end of today or `on`;
+        `active_only` leaves out those taken off the lists.
+      parameters:
+      - in: query
+        name: active_only
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: 'on'
+        schema:
+          type: string
+          format: date
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TreasuryAccount'
+          description: ''
+    post:
+      operationId: createTreasuryAccount
+      description: |-
+        Add a Caisse or a bank account (owner or manager), with its bank, RIB and what it held on its opening
+        day.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TreasuryAccountWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TreasuryAccountWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TreasuryAccountWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreasuryAccount'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}:
+    get:
+      operationId: getTreasuryAccount
+      description: One account with its balance today.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreasuryAccount'
+          description: ''
+    put:
+      operationId: updateTreasuryAccount
+      description: |-
+        Rename an account, give its bank, RIB and opening, take it off the lists or make it the default of its
+        kind (owner or manager). Its kind and its movements never change.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TreasuryAccountWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TreasuryAccountWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TreasuryAccountWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreasuryAccount'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/movements:
+    get:
+      operationId: getAccountStatement
+      description: |-
+        The account's movements between two days (inclusive), oldest first, each with the balance after it; the
+        balance at the start and the end, the money in and out. `kind` and `search` narrow the rows shown.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - customer_payment
+          - supplier_payment
+          - effet_cashed
+          - effet_unpaid
+          - effet_debited
+          - transfer
+          - count_gap
+          - sale_cash
+          - driver_handover
+          - driver_fund
+          - expense
+          - salary
+          - partner_settlement
+          - field_purchase
+          type: string
+          minLength: 1
+        description: |-
+          * `customer_payment` - Règlement client
+          * `supplier_payment` - Règlement fournisseur
+          * `effet_cashed` - Effet encaissé
+          * `effet_unpaid` - Effet impayé
+          * `effet_debited` - Effet débité
+          * `transfer` - Mouvement entre comptes
+          * `count_gap` - Écart de caisse
+          * `sale_cash` - Vente au comptant
+          * `driver_handover` - Remise du chauffeur
+          * `driver_fund` - Fonds remis au chauffeur
+          * `expense` - Dépense
+          * `salary` - Salaire
+          * `partner_settlement` - Règlement associé
+          * `field_purchase` - Achat au port
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStatement'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/movements/export:
+    get:
+      operationId: exportAccountStatement
+      description: |-
+        The same movements as an Excel file: the opening balance, one row each with the balance after it, the
+        totals.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - customer_payment
+          - supplier_payment
+          - effet_cashed
+          - effet_unpaid
+          - effet_debited
+          - transfer
+          - count_gap
+          - sale_cash
+          - driver_handover
+          - driver_fund
+          - expense
+          - salary
+          - partner_settlement
+          - field_purchase
+          type: string
+          minLength: 1
+        description: |-
+          * `customer_payment` - Règlement client
+          * `supplier_payment` - Règlement fournisseur
+          * `effet_cashed` - Effet encaissé
+          * `effet_unpaid` - Effet impayé
+          * `effet_debited` - Effet débité
+          * `transfer` - Mouvement entre comptes
+          * `count_gap` - Écart de caisse
+          * `sale_cash` - Vente au comptant
+          * `driver_handover` - Remise du chauffeur
+          * `driver_fund` - Fonds remis au chauffeur
+          * `expense` - Dépense
+          * `salary` - Salaire
+          * `partner_settlement` - Règlement associé
+          * `field_purchase` - Achat au port
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/treasury/banks:
     get:
       operationId: listBanks
@@ -9655,6 +9917,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bank'
           description: ''
+  /api/v1/treasury/cash-counts:
+    get:
+      operationId: listCashCounts
+      description: Arrêtés de caisse, newest first, paginated; `account` keeps those
+        of one Caisse.
+      parameters:
+      - in: query
+        name: account
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCashCountList'
+          description: ''
+    post:
+      operationId: createCashCount
+      description: |-
+        Arrêté de caisse (owner or manager): the cash counted at the end of a day. A gap from what the movements
+        say needs its reason and is written as an "Écart de caisse" movement.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashCountWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CashCountWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CashCountWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashCount'
+          description: ''
   /api/v1/treasury/deposits:
     get:
       operationId: listDeposits
@@ -9687,8 +10011,9 @@ paths:
     post:
       operationId: createDeposit
       description: |-
-        Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
-        them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+        Hand received effets in portfolio to one of our bank accounts (owner or manager): a bordereau RB-...
+        holding them; each one becomes "Remis en banque", and the account is credited when they are cashed. Its PDF
+        is the document kind `bank_deposit`.
       tags:
       - treasury
       requestBody:
@@ -10027,6 +10352,103 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Instrument'
+          description: ''
+  /api/v1/treasury/transfers:
+    get:
+      operationId: listAccountTransfers
+      description: |-
+        Versements, retraits and virements between our accounts, newest first, paginated; `account` keeps those
+        of one account.
+      parameters:
+      - in: query
+        name: account
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAccountTransferList'
+          description: ''
+    post:
+      operationId: createAccountTransfer
+      description: |-
+        Move money between two of our accounts on a day (owner or manager): a versement (cash to the bank), a
+        retrait (bank to cash) or a virement. One movement out, one in.
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountTransferWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountTransferWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountTransferWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountTransfer'
+          description: ''
+  /api/v1/treasury/transfers/{transfer_id}/void:
+    post:
+      operationId: voidAccountTransfer
+      description: 'Cancel a transfer typed by mistake (owner or manager, with a reason):
+        two opposite movements today.'
+      parameters:
+      - in: path
+        name: transfer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidTransfer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VoidTransfer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VoidTransfer'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountTransfer'
           description: ''
   /api/v1/truck-assignments:
     get:
@@ -10482,6 +10904,195 @@ paths:
           description: ''
 components:
   schemas:
+    AccountKindEnum:
+      enum:
+      - cash
+      - bank
+      - driver
+      type: string
+      description: |-
+        * `cash` - Caisse
+        * `bank` - Compte bancaire
+        * `driver` - Caisse chauffeur
+    AccountRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/AccountKindEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - kind
+      - name
+    AccountStatement:
+      type: object
+      properties:
+        account:
+          allOf:
+          - $ref: '#/components/schemas/TreasuryAccount'
+          readOnly: true
+        date_from:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        date_to:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        opening:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        closing:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovementRow'
+          readOnly: true
+      required:
+      - account
+      - closing
+      - date_from
+      - date_to
+      - opening
+      - rows
+      - total_in
+      - total_out
+    AccountTransfer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/AccountTransferKindEnum'
+          readOnly: true
+        from_account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+        to_account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        transferred_on:
+          type: string
+          format: date
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        voided_by:
+          type: string
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by
+      - from_account
+      - id
+      - is_voided
+      - kind
+      - notes
+      - number
+      - reference
+      - to_account
+      - transferred_on
+      - void_reason
+      - voided_at
+      - voided_by
+    AccountTransferKindEnum:
+      enum:
+      - cash_deposit
+      - withdrawal
+      - transfer
+      type: string
+      description: |-
+        * `cash_deposit` - Versement espèces
+        * `withdrawal` - Retrait
+        * `transfer` - Virement entre comptes
+    AccountTransferWrite:
+      type: object
+      properties:
+        from_account:
+          type: integer
+          minimum: 1
+          nullable: true
+        to_account:
+          type: integer
+          minimum: 1
+          nullable: true
+        amount:
+          type: string
+          maxLength: 30
+        transferred_on:
+          type: string
+          format: date
+          nullable: true
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - amount
     AdjustmentWrite:
       type: object
       properties:
@@ -11127,6 +11738,75 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+    CashCount:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+        counted_on:
+          type: string
+          format: date
+          readOnly: true
+        expected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        counted:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - account
+      - counted
+      - counted_on
+      - created_at
+      - created_by
+      - expected
+      - gap
+      - id
+      - reason
+    CashCountWrite:
+      type: object
+      properties:
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
+        counted_on:
+          type: string
+          format: date
+          nullable: true
+        counted:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - counted
     CashDifference:
       type: object
       properties:
@@ -12734,6 +13414,10 @@ components:
         due_on:
           type: string
           format: date
+          nullable: true
+        account:
+          type: integer
+          minimum: 1
           nullable: true
       required:
       - amount
@@ -14560,6 +15244,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/Bank'
           readOnly: true
+        account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+          nullable: true
         deposited_on:
           type: string
           format: date
@@ -14589,6 +15278,7 @@ components:
           format: date-time
           readOnly: true
       required:
+      - account
       - bank
       - created_at
       - created_by
@@ -14625,6 +15315,10 @@ components:
             type: integer
             minimum: 1
           maxItems: 200
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
         bank:
           type: integer
           minimum: 1
@@ -19594,6 +20288,80 @@ components:
       - batch_id
       - batch_number
       - quantity
+    MovementKindEnum:
+      enum:
+      - customer_payment
+      - supplier_payment
+      - effet_cashed
+      - effet_unpaid
+      - effet_debited
+      - transfer
+      - count_gap
+      - sale_cash
+      - driver_handover
+      - driver_fund
+      - expense
+      - salary
+      - partner_settlement
+      - field_purchase
+      type: string
+      description: |-
+        * `customer_payment` - Règlement client
+        * `supplier_payment` - Règlement fournisseur
+        * `effet_cashed` - Effet encaissé
+        * `effet_unpaid` - Effet impayé
+        * `effet_debited` - Effet débité
+        * `transfer` - Mouvement entre comptes
+        * `count_gap` - Écart de caisse
+        * `sale_cash` - Vente au comptant
+        * `driver_handover` - Remise du chauffeur
+        * `driver_fund` - Fonds remis au chauffeur
+        * `expense` - Dépense
+        * `salary` - Salaire
+        * `partner_settlement` - Règlement associé
+        * `field_purchase` - Achat au port
+    MovementRow:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - balance
+      - created_by
+      - day
+      - description
+      - id
+      - kind
+      - reference
     MyBoxDay:
       type: object
       description: 'The driver''s boxes today: what the truck loaded, left at clients
@@ -20480,6 +21248,29 @@ components:
       - customer_id
       - name
       - overdue
+    PaginatedAccountTransferList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountTransfer'
     PaginatedBatchList:
       type: object
       required:
@@ -20526,6 +21317,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BoxMovement'
+    PaginatedCashCountList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashCount'
     PaginatedCountList:
       type: object
       required:
@@ -27408,6 +28222,10 @@ components:
           type: string
           format: date
           nullable: true
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
       required:
       - amount
       - method
@@ -28038,6 +28856,97 @@ components:
       - lines
       - to_location
       - transferred_on
+    TreasuryAccount:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/AccountKindEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        bank:
+          allOf:
+          - $ref: '#/components/schemas/Bank'
+          readOnly: true
+          nullable: true
+        rib:
+          type: string
+          readOnly: true
+        driver:
+          type: string
+          readOnly: true
+        opening_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        opening_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        is_default:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - balance
+      - bank
+      - driver
+      - id
+      - is_active
+      - is_default
+      - kind
+      - name
+      - opening_balance
+      - opening_on
+      - rib
+    TreasuryAccountWrite:
+      type: object
+      properties:
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/AccountKindEnum'
+          default: cash
+        name:
+          type: string
+          maxLength: 200
+        bank:
+          type: integer
+          minimum: 1
+          nullable: true
+        rib:
+          type: string
+          default: ''
+          maxLength: 40
+        opening_balance:
+          type: string
+          default: '0'
+          maxLength: 30
+        opening_on:
+          type: string
+          format: date
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+        is_default:
+          type: boolean
+          default: false
+      required:
+      - name
     Truck:
       type: object
       properties:
@@ -28437,6 +29346,14 @@ components:
           readOnly: true
       required:
       - products
+    VoidTransfer:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - reason
     VoidWrite:
       type: object
       properties:

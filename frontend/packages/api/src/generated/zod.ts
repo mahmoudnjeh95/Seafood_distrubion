@@ -1144,6 +1144,7 @@ export const createCustomerPaymentBodyLinesItemNumberMax = 50;
 export const createCustomerPaymentBodyLinesItemDrawerDefault = ``;
 export const createCustomerPaymentBodyLinesItemDrawerMax = 150;
 
+
 export const createCustomerPaymentBodyReferenceDefault = ``;
 export const createCustomerPaymentBodyReferenceMax = 50;
 
@@ -1163,7 +1164,8 @@ export const CreateCustomerPaymentBody = zod.object({
   "number": zod.string().max(createCustomerPaymentBodyLinesItemNumberMax).default(createCustomerPaymentBodyLinesItemNumberDefault),
   "bank": zod.int().min(1).nullish(),
   "drawer": zod.string().max(createCustomerPaymentBodyLinesItemDrawerMax).default(createCustomerPaymentBodyLinesItemDrawerDefault),
-  "due_on": zod.iso.date().nullish()
+  "due_on": zod.iso.date().nullish(),
+  "account": zod.int().min(1).nullish()
 })).nullish(),
   "amount": zod.string().nullish(),
   "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
@@ -16984,6 +16986,7 @@ export const recordSupplierPaymentBodyLinesItemNumberDefault = ``;
 export const recordSupplierPaymentBodyLinesItemNumberMax = 50;
 
 
+
 export const recordSupplierPaymentBodyNotesDefault = ``;
 export const recordSupplierPaymentBodyAutoAllocateDefault = false;
 
@@ -17002,7 +17005,8 @@ export const RecordSupplierPaymentBody = zod.object({
   "reference": zod.string().max(recordSupplierPaymentBodyLinesItemReferenceMax).default(recordSupplierPaymentBodyLinesItemReferenceDefault),
   "number": zod.string().max(recordSupplierPaymentBodyLinesItemNumberMax).default(recordSupplierPaymentBodyLinesItemNumberDefault),
   "bank": zod.int().min(1).nullish(),
-  "due_on": zod.iso.date().nullish()
+  "due_on": zod.iso.date().nullish(),
+  "account": zod.int().min(1).nullish()
 }).describe('One means of the règlement (D-208). Our cheque or traite gives its number, bank and échéance.')).optional(),
   "notes": zod.string().default(recordSupplierPaymentBodyNotesDefault),
   "allocations": zod.array(zod.object({
@@ -18549,6 +18553,272 @@ export const GetTruckDayResponse = zod.object({
 
 
 /**
+ * Our accounts (Caisses, bank accounts, drivers' cash), each with its balance at the end of today or `on`;
+ * `active_only` leaves out those taken off the lists.
+ */
+export const listTreasuryAccountsQueryActiveOnlyDefault = false;
+
+export const ListTreasuryAccountsQueryParams = zod.object({
+  "active_only": zod.boolean().default(listTreasuryAccountsQueryActiveOnlyDefault),
+  "on": zod.iso.date().optional()
+})
+
+export const listTreasuryAccountsResponseOpeningBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTreasuryAccountsResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListTreasuryAccountsResponseItem = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "rib": zod.string(),
+  "driver": zod.string(),
+  "opening_balance": zod.stringFormat('decimal', listTreasuryAccountsResponseOpeningBalanceRegExp),
+  "opening_on": zod.iso.date().nullable(),
+  "is_default": zod.boolean(),
+  "is_active": zod.boolean(),
+  "balance": zod.stringFormat('decimal', listTreasuryAccountsResponseBalanceRegExp)
+})
+export const ListTreasuryAccountsResponse = zod.array(ListTreasuryAccountsResponseItem)
+
+
+/**
+ * Add a Caisse or a bank account (owner or manager), with its bank, RIB and what it held on its opening
+ * day.
+ */
+export const createTreasuryAccountBodyKindDefault = `cash`;
+export const createTreasuryAccountBodyNameMax = 200;
+
+
+export const createTreasuryAccountBodyRibDefault = ``;
+export const createTreasuryAccountBodyRibMax = 40;
+
+export const createTreasuryAccountBodyOpeningBalanceDefault = `0`;
+export const createTreasuryAccountBodyOpeningBalanceMax = 30;
+
+export const createTreasuryAccountBodyIsActiveDefault = true;
+export const createTreasuryAccountBodyIsDefaultDefault = false;
+
+export const CreateTreasuryAccountBody = zod.object({
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur').default(createTreasuryAccountBodyKindDefault),
+  "name": zod.string().max(createTreasuryAccountBodyNameMax),
+  "bank": zod.int().min(1).nullish(),
+  "rib": zod.string().max(createTreasuryAccountBodyRibMax).default(createTreasuryAccountBodyRibDefault),
+  "opening_balance": zod.string().max(createTreasuryAccountBodyOpeningBalanceMax).default(createTreasuryAccountBodyOpeningBalanceDefault),
+  "opening_on": zod.iso.date().nullish(),
+  "is_active": zod.boolean().default(createTreasuryAccountBodyIsActiveDefault),
+  "is_default": zod.boolean().default(createTreasuryAccountBodyIsDefaultDefault)
+})
+
+export const createTreasuryAccountResponseOpeningBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTreasuryAccountResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateTreasuryAccountResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "rib": zod.string(),
+  "driver": zod.string(),
+  "opening_balance": zod.stringFormat('decimal', createTreasuryAccountResponseOpeningBalanceRegExp),
+  "opening_on": zod.iso.date().nullable(),
+  "is_default": zod.boolean(),
+  "is_active": zod.boolean(),
+  "balance": zod.stringFormat('decimal', createTreasuryAccountResponseBalanceRegExp)
+})
+
+
+/**
+ * One account with its balance today.
+ */
+export const GetTreasuryAccountParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const getTreasuryAccountResponseOpeningBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getTreasuryAccountResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetTreasuryAccountResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "rib": zod.string(),
+  "driver": zod.string(),
+  "opening_balance": zod.stringFormat('decimal', getTreasuryAccountResponseOpeningBalanceRegExp),
+  "opening_on": zod.iso.date().nullable(),
+  "is_default": zod.boolean(),
+  "is_active": zod.boolean(),
+  "balance": zod.stringFormat('decimal', getTreasuryAccountResponseBalanceRegExp)
+})
+
+
+/**
+ * Rename an account, give its bank, RIB and opening, take it off the lists or make it the default of its
+ * kind (owner or manager). Its kind and its movements never change.
+ */
+export const UpdateTreasuryAccountParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const updateTreasuryAccountBodyKindDefault = `cash`;
+export const updateTreasuryAccountBodyNameMax = 200;
+
+
+export const updateTreasuryAccountBodyRibDefault = ``;
+export const updateTreasuryAccountBodyRibMax = 40;
+
+export const updateTreasuryAccountBodyOpeningBalanceDefault = `0`;
+export const updateTreasuryAccountBodyOpeningBalanceMax = 30;
+
+export const updateTreasuryAccountBodyIsActiveDefault = true;
+export const updateTreasuryAccountBodyIsDefaultDefault = false;
+
+export const UpdateTreasuryAccountBody = zod.object({
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur').default(updateTreasuryAccountBodyKindDefault),
+  "name": zod.string().max(updateTreasuryAccountBodyNameMax),
+  "bank": zod.int().min(1).nullish(),
+  "rib": zod.string().max(updateTreasuryAccountBodyRibMax).default(updateTreasuryAccountBodyRibDefault),
+  "opening_balance": zod.string().max(updateTreasuryAccountBodyOpeningBalanceMax).default(updateTreasuryAccountBodyOpeningBalanceDefault),
+  "opening_on": zod.iso.date().nullish(),
+  "is_active": zod.boolean().default(updateTreasuryAccountBodyIsActiveDefault),
+  "is_default": zod.boolean().default(updateTreasuryAccountBodyIsDefaultDefault)
+})
+
+export const updateTreasuryAccountResponseOpeningBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateTreasuryAccountResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateTreasuryAccountResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "rib": zod.string(),
+  "driver": zod.string(),
+  "opening_balance": zod.stringFormat('decimal', updateTreasuryAccountResponseOpeningBalanceRegExp),
+  "opening_on": zod.iso.date().nullable(),
+  "is_default": zod.boolean(),
+  "is_active": zod.boolean(),
+  "balance": zod.stringFormat('decimal', updateTreasuryAccountResponseBalanceRegExp)
+})
+
+
+/**
+ * The account's movements between two days (inclusive), oldest first, each with the balance after it; the
+ * balance at the start and the end, the money in and out. `kind` and `search` narrow the rows shown.
+ */
+export const GetAccountStatementParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const getAccountStatementQuerySearchDefault = ``;
+export const getAccountStatementQuerySearchMax = 100;
+
+
+
+export const GetAccountStatementQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).optional().describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "search": zod.string().max(getAccountStatementQuerySearchMax).default(getAccountStatementQuerySearchDefault)
+})
+
+export const getAccountStatementResponseAccountOneOpeningBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseAccountOneBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseOpeningRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseTotalInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseTotalOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseClosingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseRowsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getAccountStatementResponseRowsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetAccountStatementResponse = zod.object({
+  "account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "rib": zod.string(),
+  "driver": zod.string(),
+  "opening_balance": zod.stringFormat('decimal', getAccountStatementResponseAccountOneOpeningBalanceRegExp),
+  "opening_on": zod.iso.date().nullable(),
+  "is_default": zod.boolean(),
+  "is_active": zod.boolean(),
+  "balance": zod.stringFormat('decimal', getAccountStatementResponseAccountOneBalanceRegExp)
+}),
+  "date_from": zod.iso.date().nullable(),
+  "date_to": zod.iso.date().nullable(),
+  "opening": zod.stringFormat('decimal', getAccountStatementResponseOpeningRegExp),
+  "total_in": zod.stringFormat('decimal', getAccountStatementResponseTotalInRegExp),
+  "total_out": zod.stringFormat('decimal', getAccountStatementResponseTotalOutRegExp),
+  "closing": zod.stringFormat('decimal', getAccountStatementResponseClosingRegExp),
+  "rows": zod.array(zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getAccountStatementResponseRowsItemAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "description": zod.string(),
+  "reference": zod.string(),
+  "created_by": zod.string(),
+  "balance": zod.stringFormat('decimal', getAccountStatementResponseRowsItemBalanceRegExp)
+}))
+})
+
+
+/**
+ * The same movements as an Excel file: the opening balance, one row each with the balance after it, the
+ * totals.
+ */
+export const ExportAccountStatementParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const exportAccountStatementQuerySearchDefault = ``;
+export const exportAccountStatementQuerySearchMax = 100;
+
+
+
+export const ExportAccountStatementQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).optional().describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "search": zod.string().max(exportAccountStatementQuerySearchMax).default(exportAccountStatementQuerySearchDefault)
+})
+
+export const ExportAccountStatementResponse = zod.unknown()
+
+
+/**
  * The banks an effet may be drawn on, in the list's order; `active_only=false` adds those taken off.
  */
 export const listBanksQueryActiveOnlyDefault = true;
@@ -18617,6 +18887,86 @@ export const UpdateBankResponse = zod.object({
 
 
 /**
+ * Arrêtés de caisse, newest first, paginated; `account` keeps those of one Caisse.
+ */
+
+
+
+export const ListCashCountsQueryParams = zod.object({
+  "account": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+})
+
+export const listCashCountsResponseResultsItemExpectedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCashCountsResponseResultsItemCountedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCashCountsResponseResultsItemGapRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListCashCountsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "counted_on": zod.iso.date(),
+  "expected": zod.stringFormat('decimal', listCashCountsResponseResultsItemExpectedRegExp),
+  "counted": zod.stringFormat('decimal', listCashCountsResponseResultsItemCountedRegExp),
+  "gap": zod.stringFormat('decimal', listCashCountsResponseResultsItemGapRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Arrêté de caisse (owner or manager): the cash counted at the end of a day. A gap from what the movements
+ * say needs its reason and is written as an "Écart de caisse" movement.
+ */
+
+export const createCashCountBodyCountedMax = 30;
+
+export const createCashCountBodyReasonDefault = ``;
+export const createCashCountBodyReasonMax = 255;
+
+
+
+export const CreateCashCountBody = zod.object({
+  "account": zod.int().min(1).nullish(),
+  "counted_on": zod.iso.date().nullish(),
+  "counted": zod.string().max(createCashCountBodyCountedMax),
+  "reason": zod.string().max(createCashCountBodyReasonMax).default(createCashCountBodyReasonDefault)
+})
+
+export const createCashCountResponseExpectedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCashCountResponseCountedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCashCountResponseGapRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateCashCountResponse = zod.object({
+  "id": zod.int(),
+  "account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "counted_on": zod.iso.date(),
+  "expected": zod.stringFormat('decimal', createCashCountResponseExpectedRegExp),
+  "counted": zod.stringFormat('decimal', createCashCountResponseCountedRegExp),
+  "gap": zod.stringFormat('decimal', createCashCountResponseGapRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Bordereaux de remise en banque, newest first, paginated, each with its effets.
  */
 export const ListDepositsQueryParams = zod.object({
@@ -18641,6 +18991,11 @@ export const ListDepositsResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "account": zod.union([zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),zod.null()]),
   "deposited_on": zod.iso.date(),
   "notes": zod.string(),
   "effets_count": zod.int(),
@@ -18687,11 +19042,13 @@ export const ListDepositsResponse = zod.object({
 
 
 /**
- * Hand received effets in portfolio to one of our banks (owner or manager): a bordereau RB-... holding
- * them; each one becomes "Remis en banque". Its PDF is the document kind `bank_deposit`.
+ * Hand received effets in portfolio to one of our bank accounts (owner or manager): a bordereau RB-...
+ * holding them; each one becomes "Remis en banque", and the account is credited when they are cashed. Its PDF
+ * is the document kind `bank_deposit`.
  */
 
 export const createDepositBodyInstrumentsMax = 200;
+
 
 
 export const createDepositBodyNotesDefault = ``;
@@ -18701,6 +19058,7 @@ export const createDepositBodyNotesMax = 255;
 
 export const CreateDepositBody = zod.object({
   "instruments": zod.array(zod.int().min(1)).max(createDepositBodyInstrumentsMax),
+  "account": zod.int().min(1).nullish(),
   "bank": zod.int().min(1).nullish(),
   "deposited_on": zod.iso.date().nullish(),
   "notes": zod.string().max(createDepositBodyNotesMax).default(createDepositBodyNotesDefault)
@@ -18719,6 +19077,11 @@ export const CreateDepositResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "account": zod.union([zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),zod.null()]),
   "deposited_on": zod.iso.date(),
   "notes": zod.string(),
   "effets_count": zod.int(),
@@ -18783,6 +19146,11 @@ export const GetDepositResponse = zod.object({
   "name": zod.string(),
   "is_active": zod.boolean()
 }),
+  "account": zod.union([zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),zod.null()]),
   "deposited_on": zod.iso.date(),
   "notes": zod.string(),
   "effets_count": zod.int(),
@@ -19180,6 +19548,154 @@ export const WithdrawInstrumentsResponseItem = zod.object({
   "created_at": zod.iso.datetime({"offset":true})
 })
 export const WithdrawInstrumentsResponse = zod.array(WithdrawInstrumentsResponseItem)
+
+
+/**
+ * Versements, retraits and virements between our accounts, newest first, paginated; `account` keeps those
+ * of one account.
+ */
+
+
+
+export const ListAccountTransfersQueryParams = zod.object({
+  "account": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+})
+
+export const listAccountTransfersResponseResultsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListAccountTransfersResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['cash_deposit', 'withdrawal', 'transfer']).describe('* `cash_deposit` - Versement espèces\n* `withdrawal` - Retrait\n* `transfer` - Virement entre comptes'),
+  "from_account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "to_account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', listAccountTransfersResponseResultsItemAmountRegExp),
+  "transferred_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
+}))
+})
+
+
+/**
+ * Move money between two of our accounts on a day (owner or manager): a versement (cash to the bank), a
+ * retrait (bank to cash) or a virement. One movement out, one in.
+ */
+
+
+export const createAccountTransferBodyAmountMax = 30;
+
+export const createAccountTransferBodyReferenceDefault = ``;
+export const createAccountTransferBodyReferenceMax = 50;
+
+export const createAccountTransferBodyNotesDefault = ``;
+export const createAccountTransferBodyNotesMax = 255;
+
+
+
+export const CreateAccountTransferBody = zod.object({
+  "from_account": zod.int().min(1).nullish(),
+  "to_account": zod.int().min(1).nullish(),
+  "amount": zod.string().max(createAccountTransferBodyAmountMax),
+  "transferred_on": zod.iso.date().nullish(),
+  "reference": zod.string().max(createAccountTransferBodyReferenceMax).default(createAccountTransferBodyReferenceDefault),
+  "notes": zod.string().max(createAccountTransferBodyNotesMax).default(createAccountTransferBodyNotesDefault)
+})
+
+export const createAccountTransferResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateAccountTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['cash_deposit', 'withdrawal', 'transfer']).describe('* `cash_deposit` - Versement espèces\n* `withdrawal` - Retrait\n* `transfer` - Virement entre comptes'),
+  "from_account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "to_account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', createAccountTransferResponseAmountRegExp),
+  "transferred_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
+})
+
+
+/**
+ * Cancel a transfer typed by mistake (owner or manager, with a reason): two opposite movements today.
+ */
+export const VoidAccountTransferParams = zod.object({
+  "transfer_id": zod.int()
+})
+
+export const voidAccountTransferBodyReasonMax = 255;
+
+
+
+export const VoidAccountTransferBody = zod.object({
+  "reason": zod.string().max(voidAccountTransferBodyReasonMax)
+})
+
+export const voidAccountTransferResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const VoidAccountTransferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['cash_deposit', 'withdrawal', 'transfer']).describe('* `cash_deposit` - Versement espèces\n* `withdrawal` - Retrait\n* `transfer` - Virement entre comptes'),
+  "from_account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "to_account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+}),
+  "amount": zod.stringFormat('decimal', voidAccountTransferResponseAmountRegExp),
+  "transferred_on": zod.iso.date(),
+  "reference": zod.string(),
+  "notes": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "voided_by": zod.string(),
+  "void_reason": zod.string()
+})
 
 
 /**
