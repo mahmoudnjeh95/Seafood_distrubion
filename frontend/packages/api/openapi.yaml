@@ -25540,6 +25540,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        amount_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         cost_total:
           type: string
           format: decimal
@@ -25645,6 +25660,7 @@ components:
           readOnly: true
       required:
       - amount_due
+      - amount_excl_tax
       - amount_paid
       - cancel_reason
       - cancelled_at
@@ -25682,7 +25698,9 @@ components:
       - tax_amount
       - total
       - total_excl_tax
+      - total_incl_tax
       - transfer
+      - vat_total
       - version
     SaleBatch:
       type: object
@@ -25825,6 +25843,21 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        amount_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         cost_total:
           type: string
           format: decimal
@@ -25945,6 +25978,7 @@ components:
           readOnly: true
       required:
       - amount_due
+      - amount_excl_tax
       - amount_paid
       - boxes
       - cancel_reason
@@ -25985,7 +26019,9 @@ components:
       - tax_amount
       - total
       - total_excl_tax
+      - total_incl_tax
       - transfer
+      - vat_total
       - version
     SaleInvoiceRef:
       type: object
@@ -26053,6 +26089,27 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        amount_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_incl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         cost_amount:
           type: string
           format: decimal
@@ -26077,6 +26134,8 @@ components:
           nullable: true
       required:
       - amount
+      - amount_excl_tax
+      - amount_incl_tax
       - batches
       - below_minimum
       - cost_amount
@@ -26090,6 +26149,8 @@ components:
       - quantity
       - requested_batch
       - unit_price
+      - vat_amount
+      - vat_rate
     SaleLineBatch:
       type: object
       description: The kilos of a line taken from one lot, with their cost (office

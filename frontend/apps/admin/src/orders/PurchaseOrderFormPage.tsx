@@ -15,6 +15,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   PageHeader,
   Select,
   SelectContent,
@@ -224,19 +225,22 @@ export function PurchaseOrderFormPage() {
           {lines.map((line, index) => {
             const hint = lastCostHint(line);
             const amount = amounts[index];
-            const input = (field: LineField, label: string, onChange: (value: string) => void) => (
-              <Field label={label} htmlFor={id(lineKey(index, field))} error={errors[lineKey(index, field)]}>
-                <Input
-                  id={id(lineKey(index, field))}
-                  inputMode="decimal"
-                  value={field === "unit_cost" ? costOf(line) : line[field]}
-                  onChange={(event) => onChange(event.target.value)}
-                  aria-invalid={errors[lineKey(index, field)] ? true : undefined}
-                  autoComplete="off"
-                  className="num"
-                />
-              </Field>
-            );
+            const input = (field: LineField, label: string, onChange: (value: string) => void) => {
+              const Control = field === "unit_cost" ? MoneyInput : Input;
+              return (
+                <Field label={label} htmlFor={id(lineKey(index, field))} error={errors[lineKey(index, field)]}>
+                  <Control
+                    id={id(lineKey(index, field))}
+                    inputMode="decimal"
+                    value={field === "unit_cost" ? costOf(line) : line[field]}
+                    onChange={(event) => onChange(event.target.value)}
+                    aria-invalid={errors[lineKey(index, field)] ? true : undefined}
+                    autoComplete="off"
+                    className="num"
+                  />
+                </Field>
+              );
+            };
             return (
               <div
                 key={line.key}

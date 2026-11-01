@@ -17,6 +17,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  MoneyInput,
   Pill,
   toast,
 } from "@frutti/ui";
@@ -112,7 +113,7 @@ function SettleDialog({ view, number, onDone }: { view: LotSettlementView; numbe
         {payments.map((payment, index) => (
           <div key={index} className="grid grid-cols-3 items-end gap-3 max-[720px]:grid-cols-1">
             <Field label={t("admin.settlement.amount")} htmlFor={`${formId}-amount-${index}`}>
-              <Input
+              <MoneyInput
                 id={`${formId}-amount-${index}`}
                 inputMode="decimal"
                 className="num"

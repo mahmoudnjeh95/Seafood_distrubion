@@ -3144,6 +3144,24 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   estimate charged to the lots can differ from the typed amount by a few millimes until approval (the correction absorbs it).
 - Not touched: per-room weights and shares, the hour-by-hour split (D-142), treasury (no treasury posting in this change).
 
+**D-221 · Every amount field shows thousands separators while the person types (owner point 3, 2026-10-31)** · accepted (provisional parts marked) · 2026-10-31
+- Typing 1250 shows "1 250", 1250,5 shows "1 250,5", 1250000 shows "1 250 000" (the `formatMoney` French format).
+  `MoneyInput` (`packages/ui`, on the `Input` element) does it; `typeMoney` does the same on a plain cell (the
+  LinesGrid unit price, the receipt unit cost). Pure helpers `formatMoneyInput` and `moneyInputCaret` live in
+  `packages/i18n/src/format.ts`, with vitest tests.
+- The form state keeps the shown text, so `parseDecimalInput` reads it unchanged (spaces ignored, dot or comma). The API
+  still gets the plain decimal string ("1250.500"). This replaces the D-199 note "what a user types stays as typed".
+- The caret stays after the same digits and comma while the separators move. Backspace or Delete on a separator
+  removes the digit beside it too.
+- Changed: the money fields only (DT amounts and unit prices per kg). Kilos, percentages (VAT, CNSS, withholding,
+  discounts, partner shares), temperatures, counts, days and months are not money and keep their inputs. The public
+  site has no money field.
+- The one place that rewrote a typed amount before sending it (the bank charges of an unpaid effet) removes the
+  spaces first, so the API receives what it did before.
+- Provisional: Arabic typing uses the French format too (the Arabic separators are not typed yet).
+- Provisional: a second decimal separator is ignored ("1.250.000" shows "1,250000"); decimals are not cut, so a
+  fourth decimal is still shown and refused by the parser as before.
+
 **D-228 · A salary is approved when it is generated; adjust it, then pay it (owner point 12, provisional parts marked)** · accepted (provisional parts marked) · 2026-11-01
 - "Générer le mois" creates **approved** salary records (`approved_at`, `approved_by` set): no draft step any more.
   Drafts made before this change stay drafts and keep their edit, approve and delete actions (nothing creates new ones).
@@ -3176,6 +3194,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - API under `treasury/accounts`, `treasury/accounts/<id>/movements` (+ `/export`), `treasury/transfers`,
   `treasury/cash-counts`; `account` on règlement lines and on `treasury/deposits`. Owner and manager write, the
   accountant reads.
+
+**D-224 · A BL shows the VAT of the lines sold with VAT from the moment it is prepared (owner point 6)** · accepted, provisional parts marked · 2026-10-31
+- **Snapshot on the lines:** `SaleLine.vat_rate` (empty = no VAT on that line) is set when the line is written: a draft
+  created or changed, and the BL of a truck load at the load. It is the product's own rate, else the settings' rate in
+  force on the sale's day, and only when the product is sold with VAT (`inventory.selectors.vat_product_ids`, D-202:
+  kilos in stock bought with VAT). Later rate or price changes never move it.
+- **One VAT computation:** each line's `amount_excl_tax`, `vat_amount`, `amount_incl_tax` come from `invoicing.compute`,
+  the invoice's own arithmetic (`_apply_bl_vat`). The sale has `vat_total`, `total_incl_tax` and `prices_include_vat`
+  (the settings' flag on its day); `Sale.amount_excl_tax` is total with VAT minus VAT. `Sale.total` and
+  `total_excl_tax` keep their meaning (charged, without VAT).
+- **Delivery (D-178):** the kept lines keep their rate and get their VAT recomputed on the kilos left.
+- **Screens and PDF:** the BL PDF and the sale page show "TVA %" and "Montant TVA" per line, then "Total HT", "Total TVA",
+  "Total TTC". A BL with no VAT line looks as before. The API sale and line carry the new fields as strings.
+- **Existing sales:** no rate on their lines, so their BL shows no VAT; `total_incl_tax` is backfilled to `total`.
+- **Provisional, the owner confirms:** the rule is D-202 (product of a lot bought with VAT, the stock at the moment the
+  line is written), not per lot. The invoice is not changed: it still applies VAT to every line when "Facture avec TVA"
+  is ticked (its default), so a mixed BL (VAT and non-VAT products) can invoice more VAT than its BL shows. Whether the
+  invoice should follow the BL's lines is open.
+- **Provisional:** "Reste dû" and the customer balance stay without VAT until the invoice (D-062): a BL with VAT shows
+  its total with VAT but what is still owed is not yet computed with it.
+- **Provisional:** with prices including VAT, the BL's unit price column still shows the price charged (with VAT) next to
+  the amounts without VAT; the invoice shows the unit price without VAT. This setting is rarely used.
+- Not changed: the sale form's live preview (no VAT computed in the browser; the VAT appears on the sale page after saving).
 
 **D-230 · The treasury screens take the Perfaxis layout: a ribbon of icon buttons on every treasury screen, a bordereau de versement with three columns, états des factures grouped by party; the process stays ours (Phase 9, P9-T08)** · accepted · 2026-11-01
 - Owner request: the trésorerie module should look like the Perfaxis one (the ribbon, the grids, the bordereau de

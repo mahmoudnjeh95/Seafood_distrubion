@@ -19,6 +19,7 @@ import {
   Field,
   Icon,
   Input,
+  MoneyInput,
   PageHeader,
   Pill,
   Table,
@@ -101,7 +102,7 @@ function LabourerDialog({ labourer, onDone }: { labourer?: DayLabourer; onDone: 
           />
         </Field>
         <Field label={t("admin.labourers.form.pay")} htmlFor={id("pay")} error={errors.usual_daily_pay}>
-          <Input
+          <MoneyInput
             id={id("pay")}
             inputMode="decimal"
             className="num"

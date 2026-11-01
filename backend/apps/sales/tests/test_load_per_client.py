@@ -625,3 +625,38 @@ def test_the_bl_still_to_deliver_at_the_end_of_the_day_are_not_delivered(
     thyna.refresh_from_db()
     assert thyna.delivery_status == DeliveryStatus.CANCELLED
     assert inventory.quantity_on_hand(organization, location_id=truck.pk) == Decimal("6.000")
+
+
+def test_a_bl_of_a_product_sold_with_vat_keeps_its_rate_and_takes_the_vat_of_the_kilos_left(
+    organization, actor, cold_room, truck, dorade, restaurant, stocked
+):
+    # The lot is bought with VAT (D-202): the BL carries its VAT from the load on (D-224).
+    stocked.bought_with_vat = True
+    stocked.save(update_fields=["bought_with_vat"])
+    transfer = load(
+        organization,
+        actor,
+        cold_room,
+        truck,
+        [part(restaurant, dorade, "10")],
+        lines=[{"product": dorade, "quantity": "1"}],
+    )
+    (sale,) = Sale.objects.filter(transfer=transfer)
+    (line,) = sale.lines.all()
+    assert (line.vat_rate, line.amount, line.vat_amount) == (Decimal("19.00"), Decimal("280.000"), Decimal("53.200"))
+
+    delivered = services.deliver_sale(sale=sale, actor=actor, lines=[{"line": line.pk, "quantity": "8"}])
+
+    (line,) = delivered.lines.all()
+    assert (line.vat_rate, line.amount, line.amount_excl_tax, line.vat_amount, line.amount_incl_tax) == (
+        Decimal("19.00"),
+        Decimal("224.000"),
+        Decimal("224.000"),
+        Decimal("42.560"),
+        Decimal("266.560"),
+    )
+    assert (delivered.amount_excl_tax, delivered.vat_total, delivered.total_incl_tax) == (
+        Decimal("224.000"),
+        Decimal("42.560"),
+        Decimal("266.560"),
+    )

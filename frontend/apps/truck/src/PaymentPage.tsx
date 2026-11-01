@@ -1,7 +1,7 @@
 import { ApiError, collectMyPayment, type CustomerChoice, useListMyCustomers, useListMyPayments } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, ConfirmButton, EmptyState, Input, toast } from "@frutti/ui";
+import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -118,7 +118,7 @@ export function PaymentPage() {
             <label htmlFor="payment-amount" className="font-semibold">
               {t("truck.payment.amount")}
             </label>
-            <Input
+            <MoneyInput
               id="payment-amount"
               inputMode="decimal"
               placeholder="0"

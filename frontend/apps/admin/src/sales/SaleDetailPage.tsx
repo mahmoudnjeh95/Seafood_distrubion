@@ -158,6 +158,8 @@ export function SaleDetailPage() {
   const toDeliver = data.status === "draft" && delivery === "to_deliver";
   const issued = data.issued_at !== null;
   const showOrdered = data.lines.some((line) => line.ordered_quantity !== null && delivery !== "to_deliver");
+  // VAT shows once a line is sold with VAT, from the BL on (D-224); a BL without any looks as before.
+  const showVat = data.lines.some((line) => line.vat_rate !== null);
 
   return (
     <>
@@ -278,6 +280,8 @@ export function SaleDetailPage() {
                 <Th numeric>{t("admin.sales.detail.price")}</Th>
                 {hasDiscount && <Th numeric>{t("admin.sales.detail.discount")}</Th>}
                 <Th numeric>{t("admin.sales.detail.amount")}</Th>
+                {showVat && <Th numeric>{t("admin.sales.detail.vatRate")}</Th>}
+                {showVat && <Th numeric>{t("admin.sales.detail.vatAmount")}</Th>}
                 {showCosts && <Th numeric>{t("admin.sales.detail.cost")}</Th>}
               </tr>
             </thead>
@@ -327,8 +331,18 @@ export function SaleDetailPage() {
                     </Td>
                   )}
                   <Td numeric className="font-semibold whitespace-nowrap">
-                    {formatMoney(line.amount)}
+                    {formatMoney(showVat ? line.amount_excl_tax : line.amount)}
                   </Td>
+                  {showVat && (
+                    <>
+                      <Td numeric className="whitespace-nowrap text-ink-2">
+                        {line.vat_rate === null ? none : formatRate(line.vat_rate)}
+                      </Td>
+                      <Td numeric className="whitespace-nowrap">
+                        {line.vat_rate === null ? none : formatMoney(line.vat_amount)}
+                      </Td>
+                    </>
+                  )}
                   {showCosts && (
                     <Td numeric className="whitespace-nowrap text-ink-2">
                       {line.cost_amount ? formatMoney(line.cost_amount) : none}
@@ -345,16 +359,22 @@ export function SaleDetailPage() {
                 <TotalRow label={t("admin.sales.detail.discountTotal")}>−{formatMoney(data.discount_total)}</TotalRow>
               </>
             )}
-            <TotalRow label={t("admin.sales.detail.totalExclTax")}>{formatMoney(data.total_excl_tax)}</TotalRow>
-            {/* VAT and the fiscal stamp come with invoicing (P2-T05). */}
-            <div className="flex justify-between gap-4 text-ink-2">
-              <dt>{t("admin.sales.detail.tax")}</dt>
-              <dd className="text-[0.85rem]">
-                {data.tax_amount ? formatMoney(data.tax_amount) : t("admin.sales.detail.taxLater")}
-              </dd>
-            </div>
-            <TotalRow label={t("admin.sales.detail.total")} grand>
-              {formatMoney(data.total)}
+            <TotalRow label={t("admin.sales.detail.totalExclTax")}>
+              {formatMoney(showVat ? data.amount_excl_tax : data.total_excl_tax)}
+            </TotalRow>
+            {/* The fiscal stamp comes with invoicing (P2-T05). */}
+            {showVat ? (
+              <TotalRow label={t("admin.sales.detail.tax")}>{formatMoney(data.vat_total)}</TotalRow>
+            ) : (
+              <div className="flex justify-between gap-4 text-ink-2">
+                <dt>{t("admin.sales.detail.tax")}</dt>
+                <dd className="text-[0.85rem]">
+                  {data.tax_amount ? formatMoney(data.tax_amount) : t("admin.sales.detail.taxLater")}
+                </dd>
+              </div>
+            )}
+            <TotalRow label={t(showVat ? "admin.sales.detail.totalInclTax" : "admin.sales.detail.total")} grand>
+              {formatMoney(showVat ? data.total_incl_tax : data.total)}
             </TotalRow>
             <TotalRow label={t("admin.sales.detail.paid")}>{formatMoney(data.amount_paid)}</TotalRow>
             <TotalRow label={t("admin.sales.detail.due")}>{formatMoney(data.amount_due)}</TotalRow>

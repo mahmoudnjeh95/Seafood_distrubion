@@ -1,6 +1,6 @@
 import { type DayFundRow, setDayFund, useListDayFunds } from "@frutti/api";
 import { formatDateTime, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, Field, Input, Pill, Table, Td, Th, toast } from "@frutti/ui";
+import { Button, Card, Field, Input, MoneyInput, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
@@ -50,7 +50,7 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
         {locked || !canEdit ? (
           <span className="num">{row.fund ? formatMoney(row.fund.opening_cash) : "—"}</span>
         ) : (
-          <Input
+          <MoneyInput
             aria-label={t("admin.dayFunds.cashOf", { name })}
             inputMode="decimal"
             className="num max-w-36"
@@ -65,7 +65,7 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
         ) : locked || !canEdit ? (
           <span className="num">{row.fund ? formatMoney(row.fund.purchase_float) : "—"}</span>
         ) : (
-          <Input
+          <MoneyInput
             aria-label={t("admin.dayFunds.floatOf", { name })}
             inputMode="decimal"
             className="num max-w-36"
