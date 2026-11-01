@@ -39,8 +39,10 @@ import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
 import { SettingsPage } from "./settings/SettingsPage";
+import { AccountsPage } from "./treasury/AccountsPage";
 import { BordereauPage } from "./treasury/BordereauPage";
 import { EtatsFacturesPage } from "./treasury/EtatsFacturesPage";
+import { JournalPage } from "./treasury/JournalPage";
 import { PortfolioPage } from "./treasury/PortfolioPage";
 import { UsersPage } from "./settings/UsersPage";
 import { BoxesPage } from "./boxes/BoxesPage";
@@ -282,6 +284,10 @@ function AppRoutes() {
         <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
         <Route path="/tresorerie/bordereau" element={<BordereauPage />} />
+        <Route path="/tresorerie/agences" element={<AccountsPage kind="bank" />} />
+        <Route path="/tresorerie/caisses" element={<AccountsPage kind="cash" />} />
+        <Route path="/tresorerie/journal/banques" element={<JournalPage kind="bank" />} />
+        <Route path="/tresorerie/journal/caisses" element={<JournalPage kind="cash" />} />
         <Route path="/tresorerie/etats/ventes" element={<EtatsFacturesPage kind="sales" />} />
         <Route path="/tresorerie/etats/achats" element={<EtatsFacturesPage kind="purchases" />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />

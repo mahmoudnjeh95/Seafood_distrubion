@@ -3121,6 +3121,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   detail shows each line's `rejected`.
 - Endorsing a customer effet to a supplier is not built: it waits for the owner's answer (Q29).
 
+**D-227 · Cold-room electricity: the month's estimate is typed, the real invoice counts as the month's expense (owner point 11, provisional parts marked)** · accepted (provisional parts marked) · 2026-10-31
+- **Why:** the owner wants the month's cold-room estimate editable, and the real invoice entered in its own section; the
+  real amount counts as the month's expense and the difference with the estimate is shown and booked as before (D-058).
+- **Estimate:** new `expenses.ColdRoomEstimate` (one per organization and month, `amount` for all rooms). Typed by the owner or
+  manager (`PUT /cold-room-estimate`, `set_cold_room_estimate`) for the current or an earlier month, positive, to the millime.
+  While the month is not billed it replaces the copied daily rate: the rooms share it by weight (as a bill), each day's rate
+  is its room's part / days. It is changed freely until the month's bill is approved, then frozen (the rates keep the daily
+  amount used). Every change is audited (`cold_room_estimate.set`, before/after, optional reason).
+- **Real invoice:** the existing electricity bill (one expense of category cold storage + its month). Its section is "Facture
+  chambre froide réelle"; a draft is edited there; "Enregistrer et compter en dépense" approves it at once, so it counts in the
+  month's expenses. Only approved bills count (unchanged).
+- **Month view:** the estimate (typed or copied), the real total, and the difference (real minus estimate, `estimate_total`,
+  `difference`, `estimate_typed`, `typed_amount`) are shown; the lots keep the correction line `cold_room_adjustment` = real
+  minus the estimate in force at approval (unchanged mechanism, D-041/D-058).
+- **Provisional:** (1) the real bill's approval is now the default button (drafts still possible), so a wrong approved bill is
+  corrected by a new record, as before, not edited. (2) **Gap, open for the owner:** an estimate changed after a lot of that
+  month was already closed (its cost frozen in the closing) leaves the closed lot on the old estimate, while the correction at
+  approval uses the estimate in force then; the month's total can then differ by that change. Options: lock the estimate once a
+  lot of the month is closed, or accept. (3) Not built: the bill's date and an invoice reference (the bill is dated the last day
+  of the month, the reference goes in notes, as before). (4) Rounding: each room's daily rate is rounded to the millime, so the
+  estimate charged to the lots can differ from the typed amount by a few millimes until approval (the correction absorbs it).
+- Not touched: per-room weights and shares, the hour-by-hour split (D-142), treasury (no treasury posting in this change).
+
 **D-228 · A salary is approved when it is generated; adjust it, then pay it (owner point 12, provisional parts marked)** · accepted (provisional parts marked) · 2026-11-01
 - "Générer le mois" creates **approved** salary records (`approved_at`, `approved_by` set): no draft step any more.
   Drafts made before this change stay drafts and keep their edit, approve and delete actions (nothing creates new ones).
@@ -3181,6 +3204,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   works as before.
 - Sent addresses are still kept as one text on `documents.SentEmail` (the history row).
 
+**D-232 · Treasury forms take the Perfaxis panels; the états export as a CSV that Excel opens (Phase 9, P9-T08)** · accepted · 2026-11-01
+- The Encaissement and Décaissement forms show a toolbar (Enregistrer, Retour) and two titled panels: the payment
+  information (the date) beside the customer or supplier, the lines and the open items below. The logic is unchanged.
+- "Exporter (Excel)" on the états writes the rows on screen as a CSV: `;` between cells, French decimal commas, a
+  byte-order mark, so Excel opens it with accents right. Provisional: a real `.xlsx` would need a backend endpoint and
+  a regenerated client; the CSV covers the need until the accountant asks for `.xlsx`.
+- Export covers the invoices loaded on the page (the 200 most recent), as the screen does.
 **D-231 · Several lots picked by hand on a load to a truck, and on any transfer from one place (owner request, 2026-10-31)** · accepted · 2026-10-31
 - A transfer line may name lots, each with the kilos to take from it, as a counter-sale line does (D-212): `TransferLinePick`
   (one row per line and lot), written as `picks: [{batch, quantity}]` on `TransferLineWrite`, in the kept part and in each
@@ -3197,3 +3227,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The transfer form shows the lot column on every line grid, lots of the place the kg leave from; with several cold
   rooms the column shows the oldest lots and cannot be picked.
 - Provisional: the kilos the picks leave over come from the oldest lots only, as for a sale.
+
+**D-233 · The bank and cash accounts and their journals are screens of the treasury: Agence bancaire, Caisse liquide, Journal des banques, Journal des caisses (Phase 9, P9-T08 follow-up to P9-T05a)** · accepted · 2026-11-01
+- Agence bancaire and Caisse liquide list the accounts of their kind (`bank`, `cash`; the driver accounts stay on the
+  phone and the expenses side). Add and rename, take off (not deleted: its movements stay). A bank account keeps its
+  bank and RIB; a cash box can be counted (arrêté de caisse): the counted cash goes against the expected balance and
+  the gap is kept with its reason.
+- Journal des banques and Journal des caisses show one account's statement: the movements in order with the running
+  balance, the opening and closing balances, a date range and a search. The Excel link is the server's statement file.
+- Provisional: the screens use the P9-T05 API as it is; no backend change.

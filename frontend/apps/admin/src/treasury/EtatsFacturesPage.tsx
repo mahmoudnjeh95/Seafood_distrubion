@@ -1,11 +1,13 @@
 import { type Invoice, type SupplierInvoice, useListInvoices, useListSupplierInvoices } from "@frutti/api";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Card, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import { Button, Card, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Fragment } from "react";
 import { Link } from "react-router";
 
 import { subtract, sum } from "../lib/decimal";
+import { todayInput } from "../payments/shared";
+import { csvFile, csvMoney, downloadCsv } from "./csv";
 import { TresorerieRibbon } from "./TresorerieRibbon";
 
 const PAGE_SIZE = 200;
@@ -95,10 +97,52 @@ export function EtatsFacturesPage({ kind }: { kind: Kind }) {
     groups.set(line.partyId, group);
   }
 
+  // The file holds the rows on screen, in the order they are shown (the current list of up to 200 invoices).
+  const exportFile = () => {
+    const ordered = [...groups.values()].flatMap((group) => group.rows);
+    const rows: string[][] = [
+      [
+        kind === "sales" ? t("admin.treasury.etats.party.customer") : t("admin.treasury.etats.party.supplier"),
+        t("admin.treasury.etats.columns.number"),
+        t("admin.treasury.etats.columns.date"),
+        t("admin.treasury.etats.columns.due"),
+        t("admin.treasury.etats.columns.total"),
+        t("admin.treasury.etats.columns.paid"),
+        t("admin.treasury.etats.columns.remaining"),
+        t("admin.treasury.etats.columns.state"),
+      ],
+      ...ordered.map((line) => [
+        line.party,
+        line.number,
+        line.date ? formatDate(line.date) : "",
+        line.due ? formatDate(line.due) : "",
+        csvMoney(line.total),
+        csvMoney(line.paid),
+        csvMoney(line.remaining),
+        t(`admin.treasury.etats.status.${line.status}`),
+      ]),
+      [
+        t("admin.treasury.etats.total"),
+        "",
+        "",
+        "",
+        csvMoney(sum(lines.map((line) => line.total))),
+        csvMoney(sum(lines.map((line) => line.paid))),
+        csvMoney(sum(lines.map((line) => line.remaining))),
+        "",
+      ],
+    ];
+    downloadCsv(`${kind === "sales" ? "factures-vente" : "factures-achat"}-${todayInput()}.csv`, csvFile(rows));
+  };
+
   return (
     <>
       <TresorerieRibbon active={kind === "sales" ? "factureVente" : "factureAchat"} />
-      <PageHeader eyebrow={t("admin.groups.finance")} title={t(`admin.treasury.etats.${kind}.title`)} />
+      <PageHeader eyebrow={t("admin.groups.finance")} title={t(`admin.treasury.etats.${kind}.title`)}>
+        <Button variant="secondary" disabled={lines.length === 0} onClick={exportFile}>
+          {t("admin.treasury.etats.export")}
+        </Button>
+      </PageHeader>
       <p className="text-ink-2">{t(`admin.treasury.etats.${kind}.intro`)}</p>
 
       {loading ? (
