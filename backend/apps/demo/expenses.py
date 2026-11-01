@@ -86,7 +86,9 @@ def seed_expenses(*, organization: Organization, actor: User | None) -> int:
         expense = services.create_expense(
             organization=organization,
             actor=actor,
-            spent_on=today - dt.timedelta(days=days_ago),
+            # Never before the 1st: a waiting expense dated last month would block that month's review once the
+            # month rolls over (the seed runs on the 1st of a month, when "one day ago" is last month).
+            spent_on=max(today.replace(day=1), today - dt.timedelta(days=days_ago)),
             category=selectors.category_by_code(organization, code),
             amount=amount,
             payment_method=method,
@@ -117,7 +119,8 @@ def seed_expenses(*, organization: Organization, actor: User | None) -> int:
             organization=organization,
             actor=actor,
             labourer=labourers[name],
-            worked_on=today - dt.timedelta(days=days_ago),
+            # Never before the 1st either: a day left waiting in last month would block that month's review.
+            worked_on=max(today.replace(day=1), today - dt.timedelta(days=days_ago)),
             amount=paid,
             batch=_lot_of(organization, lot) if lot else None,
             work_type=work_type,
