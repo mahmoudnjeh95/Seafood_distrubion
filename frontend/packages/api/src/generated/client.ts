@@ -71,6 +71,7 @@ import type {
   DayClosingDetail,
   DayClosingRow,
   DayClosingWrite,
+  DayExpenseDecision,
   DayFund,
   DayFundRow,
   DayFundWrite,
@@ -5952,6 +5953,241 @@ export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOvervi
 
 
 
+
+export const getDecideDayOverviewExpenseUrl = (dayId: number,
+    expenseId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/expenses/${expenseId}/decide`
+}
+
+/**
+ * Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+ * A sent day whose figures move is corrected with a revision.
+ */
+export const decideDayOverviewExpense = async (dayId: number,
+    expenseId: number,
+    dayExpenseDecision: DayExpenseDecision, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayOverviewDetail>(getDecideDayOverviewExpenseUrl(dayId,expenseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayExpenseDecision)
+  }
+);}
+
+
+
+
+
+export const getDecideDayOverviewExpenseMutationKey = () => ['decideDayOverviewExpense'] as const;
+
+export const getDecideDayOverviewExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideDayOverviewExpense>>, TError,DecideDayOverviewExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideDayOverviewExpense>>, TError,DecideDayOverviewExpenseMutationVariables, TContext> => {
+
+const mutationKey = getDecideDayOverviewExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideDayOverviewExpense>>, DecideDayOverviewExpenseMutationVariables> = (props) => {
+          const {dayId,expenseId,data} = props ?? {};
+
+          return  decideDayOverviewExpense(dayId,expenseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideDayOverviewExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof decideDayOverviewExpense>>>
+    export type DecideDayOverviewExpenseMutationBody = DayExpenseDecision
+    export type DecideDayOverviewExpenseMutationError = unknown
+    export type DecideDayOverviewExpenseMutationVariables = {dayId: number;expenseId: number;data: DayExpenseDecision}
+
+    export const useDecideDayOverviewExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideDayOverviewExpense>>, TError,DecideDayOverviewExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decideDayOverviewExpense>>,
+        TError,
+        DecideDayOverviewExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideDayOverviewExpenseMutationOptions(options), queryClient);
+    }
+
+export const getValidateDayOverviewPurchaseUrl = (dayId: number,
+    purchaseId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/purchases/${purchaseId}/validate`
+}
+
+/**
+ * Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+ * while the purchase is not complete (supplier, products, place).
+ */
+export const validateDayOverviewPurchase = async (dayId: number,
+    purchaseId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+  return apiFetch<DayOverviewDetail>(getValidateDayOverviewPurchaseUrl(dayId,purchaseId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getValidateDayOverviewPurchaseMutationKey = () => ['validateDayOverviewPurchase'] as const;
+
+export const getValidateDayOverviewPurchaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, TError,ValidateDayOverviewPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, TError,ValidateDayOverviewPurchaseMutationVariables, TContext> => {
+
+const mutationKey = getValidateDayOverviewPurchaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, ValidateDayOverviewPurchaseMutationVariables> = (props) => {
+          const {dayId,purchaseId} = props ?? {};
+
+          return  validateDayOverviewPurchase(dayId,purchaseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateDayOverviewPurchaseMutationResult = NonNullable<Awaited<ReturnType<typeof validateDayOverviewPurchase>>>
+
+    export type ValidateDayOverviewPurchaseMutationError = unknown
+    export type ValidateDayOverviewPurchaseMutationVariables = {dayId: number;purchaseId: number}
+
+    export const useValidateDayOverviewPurchase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, TError,ValidateDayOverviewPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof validateDayOverviewPurchase>>,
+        TError,
+        ValidateDayOverviewPurchaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getValidateDayOverviewPurchaseMutationOptions(options), queryClient);
+    }
+
+export const getReturnDayOverviewToStockUrl = (dayId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/return-to-stock`
+}
+
+/**
+ * Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
+ * or not the driver sent the day; only on the truck's latest day.
+ */
+export const returnDayOverviewToStock = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+  return apiFetch<DayOverviewDetail>(getReturnDayOverviewToStockUrl(dayId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReturnDayOverviewToStockMutationKey = () => ['returnDayOverviewToStock'] as const;
+
+export const getReturnDayOverviewToStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext> => {
+
+const mutationKey = getReturnDayOverviewToStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnDayOverviewToStock>>, ReturnDayOverviewToStockMutationVariables> = (props) => {
+          const {dayId} = props ?? {};
+
+          return  returnDayOverviewToStock(dayId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReturnDayOverviewToStockMutationResult = NonNullable<Awaited<ReturnType<typeof returnDayOverviewToStock>>>
+
+    export type ReturnDayOverviewToStockMutationError = unknown
+    export type ReturnDayOverviewToStockMutationVariables = {dayId: number}
+
+    export const useReturnDayOverviewToStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof returnDayOverviewToStock>>,
+        TError,
+        ReturnDayOverviewToStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReturnDayOverviewToStockMutationOptions(options), queryClient);
+    }
 
 export const getGetDayRouteUrl = (dayId: number,) => {
 

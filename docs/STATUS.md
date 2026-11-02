@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-02 (prime payment PR #282, D-244; next free decision after the open PRs)_
+_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-251)_
 
 ## Where we are
 
@@ -57,6 +57,7 @@ _Last updated: 2026-11-02 (prime payment PR #282, D-244; next free decision afte
 
 ## Next step
 
+0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
 0. D-243: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
    avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.
 0. P1-T15 (#280): merge once green. On staging: a product, "Ajuster le stock", add 10 kg to a lot then remove it; the average on the product page and on Prix du jour moves.

@@ -1909,6 +1909,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayOverviewDetail'
           description: ''
+  /api/v1/day-overview/{day_id}/expenses/{expense_id}/decide:
+    post:
+      operationId: decideDayOverviewExpense
+      description: |-
+        Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+        A sent day whose figures move is corrected with a revision.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/purchases/{purchase_id}/validate:
+    post:
+      operationId: validateDayOverviewPurchase
+      description: |-
+        Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+        while the purchase is not complete (supplier, products, place).
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/return-to-stock:
+    post:
+      operationId: returnDayOverviewToStock
+      description: |-
+        Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
+        or not the driver sent the day; only on the truck's latest day.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
   /api/v1/day-overview/{day_id}/route:
     get:
       operationId: getDayRoute
@@ -14101,6 +14192,33 @@ components:
       - sales
       - settlements_undefined_late
       - stock_value
+    DayBox:
+      type: object
+      description: |-
+        One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what
+        the day's purchases brought from suppliers.
+      properties:
+        box_type:
+          type: string
+          readOnly: true
+        on_truck:
+          type: integer
+          readOnly: true
+        left_at_clients:
+          type: integer
+          readOnly: true
+        collected:
+          type: integer
+          readOnly: true
+        from_suppliers:
+          type: integer
+          readOnly: true
+      required:
+      - box_type
+      - collected
+      - from_suppliers
+      - left_at_clients
+      - on_truck
     DayClosingApprove:
       type: object
       properties:
@@ -14154,6 +14272,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14242,10 +14363,16 @@ components:
         changed_since_sent:
           type: boolean
           readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
       - changed_since_sent
       - changes_since_sent
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14256,6 +14383,7 @@ components:
       - office_difference
       - office_purchase_difference
       - reopenings
+      - review_blockers
       - review_note
       - reviewed_at
       - reviewed_by_name
@@ -14270,6 +14398,9 @@ components:
         the driver''s note, and the office''s count.'
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14323,6 +14454,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14367,6 +14499,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14417,6 +14552,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - expected_cash
       - expected_purchase_cash
@@ -14489,6 +14625,17 @@ components:
         note:
           type: string
           default: ''
+    DayExpenseDecision:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - decision
     DayFund:
       type: object
       description: The cash the office set for a driver's day (D-203).
@@ -14915,7 +15062,26 @@ components:
           items:
             $ref: '#/components/schemas/DayOverviewPurchase'
           readOnly: true
+        owns_truck:
+          type: boolean
+          readOnly: true
+        stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayStock'
+          readOnly: true
+        boxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayBox'
+          readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
+      - boxes
       - cash_received
       - closing
       - closing_id
@@ -14936,6 +15102,7 @@ components:
       - opening_cash
       - other_payments
       - owed_to_driver
+      - owns_truck
       - payments
       - payments_cash
       - phase
@@ -14947,9 +15114,11 @@ components:
       - purchases_from_sales
       - purchases_other
       - purchases_total
+      - review_blockers
       - sales
       - sales_count
       - sales_total
+      - stock
       - truck_name
     DayOverviewDriver:
       type: object
@@ -14987,6 +15156,12 @@ components:
         payment_method:
           type: string
           readOnly: true
+        paid_by_driver:
+          type: boolean
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
         made_at:
           type: string
           format: date-time
@@ -14997,7 +15172,9 @@ components:
       - description
       - id
       - made_at
+      - paid_by_driver
       - payment_method
+      - rejection_reason
       - status
     DayOverviewPayment:
       type: object
@@ -15456,6 +15633,32 @@ components:
       - last
       - points
       - stops
+    DayStock:
+      type: object
+      description: 'One product on the truck, now (D-239): its kilos, and the kilos
+        of the day''s purchases not yet validated.'
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        on_truck:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        purchased_pending:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - on_truck
+      - product_id
+      - product_name
+      - purchased_pending
     DaySummary:
       type: object
       properties:
@@ -15605,6 +15808,14 @@ components:
       - sales_count
       - sales_total
       - truck_name
+    DecisionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
     Deliver:
       type: object
       description: The delivery of the BL of a truck load, from the driver's phone

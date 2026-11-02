@@ -3564,3 +3564,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The rate stays in Paramètres financiers (0 by default): with a rate at 0, a 1 000 DT invoice shows no line. The
   owner sets the rate.
 - Issued invoices keep what they had (D-057); a draft takes the rule when it is next saved.
+
+**D-249 · The office checks a driver's day before approving it: expenses, purchases, the truck's stock and boxes (owner list 2026-11-02, items 1 to 4)** · provisional · 2026-11-02
+- **Where:** the day's check sits in the closing window ("Clôtures à vérifier") and in "Suivi des chauffeurs", as the
+  component `DayReview`. It reads `GET /day-overview/<id>` (new `owns_truck`, `stock`, `boxes`, `review_blockers`).
+- **Expenses (item 1):** each driver expense of the day is approved or refused from there
+  (`POST /day-overview/<id>/expenses/<expense>/decide`, a refusal needs its reason). Only the day's own expenses (typed by
+  its driver, dated in its window).
+- **Purchases (item 3):** a purchase made on the day is counted on the truck as bought ("Acheté, à valider" kilos in the
+  stock table). The office validates it with one button (`POST …/purchases/<purchase>/validate`, the same validation as
+  the purchase page: its kilos enter the truck's stock). A purchase missing its supplier, product or place is refused
+  with the reason; the office completes it on the purchase page.
+- **Stock and boxes back to the cold room (items 2 and 4):** one button, "Remettre le camion en stock", posts a return
+  transfer of everything the truck holds (kilos and boxes) to the first active cold room, validated at once
+  (`POST …/return-to-stock`). It works whether or not the driver sent the day. Provisional: the cold room is the first
+  active one by id (no choice on the button yet).
+- **Only the truck's latest day owns its stock:** `fleet.latest_day_on_truck`. On an earlier day the stock and boxes are
+  not shown and cannot be returned (they belong to a later day), and they do not block its approval.
+- **Approval is refused** while the day still has an expense to approve or refuse, a purchase to validate or refuse, or
+  (on the truck's latest day) kilos or boxes in the truck. The reason shows on the closing (`review_blockers`).
+- **A sent day moved by the office's decision is corrected, not re-sent:** refusing an expense or validating/refusing a
+  purchase that changes the figures calls the existing correction (D-220) with the reason, so the revision shows who and
+  why. A return changes no figure of the day (it happens after the send), so it creates no revision.
+- Also: a transfer may carry only boxes (no product line), needed for the truck that gives back its boxes alone.
+- Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier);
+  choosing the cold room for the return; the owner may prefer approval to ask for a reason instead of blocking.
+- Migration: none. Tests: `dayclose/tests/test_day_review.py`.

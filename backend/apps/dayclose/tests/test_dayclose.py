@@ -95,6 +95,12 @@ def day():
     }
 
 
+def empty_the_truck(client, closing_id):
+    """The office gives back what the truck holds before it approves the day (D-249)."""
+    driver_day_id = client.get(reverse("day-closing-detail", args=[closing_id])).json()["driver_day_id"]
+    client.post(reverse("day-overview-return-to-stock", args=[driver_day_id]))
+
+
 def sell(day, kg, paid):
     return day["api"].post(
         reverse("sale-list"),
@@ -217,6 +223,7 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     resent = day["api"].post(reverse("my-day-closing"), {"note": "Dépense non saisie"}, format="json")
     assert resent.status_code == 201
     url = reverse("day-closing-approve", args=[closing["id"]])
+    empty_the_truck(day["office"], closing["id"])
     # The office counts 135 DT: a gap with the 150 DT the driver should hold needs a note (D-204, D-213).
     counted = day["office"].post(
         reverse("day-closing-count", args=[closing["id"]]), {"office_counted_cash": "135.000"}, format="json"
@@ -293,6 +300,7 @@ def test_a_day_loaded_again_after_sending_is_sent_again_before_the_office_approv
         reverse("day-closing-count", args=[closing_id]), {"office_counted_cash": "56.000"}, format="json"
     )
     assert counted_again.status_code == 200, counted_again.json()
+    empty_the_truck(day["office"], closing_id)
     approved = day["office"].post(reverse("day-closing-approve", args=[closing_id]), {}, format="json")
     assert approved.json()["status"] == "approved"
 
@@ -437,6 +445,7 @@ def test_the_monthly_closing_sees_cash_differences_and_days_never_sent(day):
     found = selectors.period_days(organization, date_from=today, date_to=today)
     assert (found.difference_count, found.difference_amount) == (1, Decimal("-10.000"))
 
+    empty_the_truck(day["office"], closing_id)
     approved = day["office"].post(
         reverse("day-closing-approve", args=[closing_id]), {"note": "Billet faux"}, format="json"
     )

@@ -136,6 +136,12 @@ def sell(road, kg, paid="0", *, made_at=None):
     return road["api"].post(reverse("sale-list"), body, format="json")
 
 
+def empty_the_truck(road_office, closing_id):
+    """The office gives back what the truck holds before it approves the day (D-249)."""
+    driver_day_id = road_office.get(reverse("day-closing-detail", args=[closing_id])).json()["driver_day_id"]
+    road_office.post(reverse("day-overview-return-to-stock", args=[driver_day_id]))
+
+
 def close(road, counted=None):
     """The driver sends the day; the office then counts `counted` when given (D-213)."""
     sent = road["api"].post(reverse("my-day-closing"), {}, format="json")
@@ -307,6 +313,7 @@ def test_the_office_cannot_check_a_reopened_day_until_it_is_sent_again(road, clo
     assert road["office"].get(reverse("day-closing-list"), {"status": "submitted"}).json() == []
     clock(at(18))
     assert close(road, "0.000").status_code == 201  # the 50 DT of the first send are with the office
+    empty_the_truck(road["office"], row["id"])
     assert road["office"].post(reverse("day-closing-approve", args=[row["id"]])).json()["status"] == "approved"
 
 
@@ -314,6 +321,7 @@ def test_an_approved_day_is_reopened_by_a_load_and_its_approval_stays_on_record(
     morning_sent(road, clock, counted="140.000")
     row = office_row(road)
     clock(at(12, 30))
+    empty_the_truck(road["office"], row["id"])
     approved = road["office"].post(
         reverse("day-closing-approve", args=[row["id"]]), {"note": "Il manque 10 DT"}, format="json"
     )
@@ -497,6 +505,7 @@ def test_a_sale_made_before_the_closing_and_received_after_it_counts_on_that_day
     detail = office_detail(road)
     assert (detail["status"], detail["office_difference"], detail["changes_since_sent"]) == ("submitted", "0.000", [])
     assert timezone.localtime(driver_day(road).ended_at) == at(12)  # the day still ends at its first send
+    empty_the_truck(road["office"], detail["id"])
     approved = road["office"].post(reverse("day-closing-approve", args=[detail["id"]])).json()
     assert (approved["status"], approved["expected_cash"]) == ("approved", "178.000")
     late_again = sell(road, "1", "28.000", made_at=at(11, 30))  # nothing more on an approved day

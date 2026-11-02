@@ -2117,6 +2117,15 @@ def refuse_field_purchase(*, purchase: FieldPurchase, actor: User | None, revisi
     return purchase
 
 
+@transaction.atomic
+def validate_field_purchase(*, purchase: FieldPurchase, actor: User | None) -> FieldPurchase:
+    """Validate a purchase as the driver sent it, from the day's check (D-239): one click, when its supplier,
+    products and place are already set (else the validation says what is missing). Its kilos enter stock there."""
+    purchase = _locked_field_purchase(purchase, purchase.revision)
+    _validate_field_purchase(purchase, actor)
+    return purchase
+
+
 # ---- Paying suppliers (P3-T12c, D-159) ----
 
 
