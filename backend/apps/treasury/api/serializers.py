@@ -23,6 +23,7 @@ from apps.treasury.models import (
     MovementKind,
     TransferKind,
     TreasuryAccount,
+    TreasuryMovement,
 )
 
 
@@ -417,14 +418,49 @@ class StatementImportReportSerializer(serializers.Serializer[Any]):
     problems = StatementRowErrorSerializer(source="errors", many=True, read_only=True)
 
 
+class MatchedMovementSerializer(serializers.ModelSerializer[TreasuryMovement]):
+    """The movement of our ledger a statement line was matched to (rapprochement, D-265)."""
+
+    class Meta:
+        model = TreasuryMovement
+        fields: tuple[str, ...] = ("id", "day", "amount", "kind", "label", "reference")
+        read_only_fields: tuple[str, ...] = fields
+
+
 class BankStatementLineSerializer(serializers.ModelSerializer[BankStatementLine]):
     customer = PartyRefSerializer(read_only=True, allow_null=True)
     supplier = PartyRefSerializer(read_only=True, allow_null=True)
+    movement = MatchedMovementSerializer(read_only=True, allow_null=True)
 
     class Meta:
         model = BankStatementLine
-        fields: tuple[str, ...] = ("id", "day", "label", "debit", "credit", "balance", "customer", "supplier")
+        fields: tuple[str, ...] = (
+            "id",
+            "day",
+            "label",
+            "debit",
+            "credit",
+            "balance",
+            "customer",
+            "supplier",
+            "movement",
+        )
         read_only_fields: tuple[str, ...] = fields
+
+
+class MatchCandidateFilterSerializer(serializers.Serializer[Any]):
+    # False (the default): only the suggestions (same amount, within three days). True: every movement within a month.
+    by_hand = serializers.BooleanField(required=False, default=False)
+
+
+class MatchCandidateSerializer(serializers.Serializer[Any]):
+    movement = MatchedMovementSerializer(read_only=True)
+    # Same amount within three days: what the system suggests.
+    suggested = serializers.BooleanField(read_only=True)
+
+
+class MatchWriteSerializer(serializers.Serializer[Any]):
+    movement = serializers.IntegerField(min_value=1)
 
 
 class StatementLineFilterSerializer(serializers.Serializer[Any]):

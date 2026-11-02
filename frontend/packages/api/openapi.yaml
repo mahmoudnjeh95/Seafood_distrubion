@@ -11004,6 +11004,89 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/treasury/statement-lines/{line_id}/candidates:
+    get:
+      operationId: listMatchCandidates
+      description: |-
+        The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+        suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+        a month. Nearest day first.
+      parameters:
+      - in: query
+        name: by_hand
+        schema:
+          type: boolean
+          default: false
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchCandidate'
+          description: ''
+  /api/v1/treasury/statement-lines/{line_id}/match:
+    post:
+      operationId: matchStatementLine
+      description: |-
+        The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+        The same account; neither already matched. It changes no balance.
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MatchWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MatchWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+          description: ''
+    delete:
+      operationId: unmatchStatementLine
+      description: 'Undo a match (owner or manager): the line and the movement are
+        free again.'
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/treasury/transfers:
     get:
       operationId: listAccountTransfers
@@ -11956,6 +12039,11 @@ components:
           - $ref: '#/components/schemas/PartyRef'
           readOnly: true
           nullable: true
+        movement:
+          allOf:
+          - $ref: '#/components/schemas/MatchedMovement'
+          readOnly: true
+          nullable: true
       required:
       - balance
       - credit
@@ -11964,6 +12052,7 @@ components:
       - debit
       - id
       - label
+      - movement
       - supplier
     BankWrite:
       type: object
@@ -20877,6 +20966,61 @@ components:
         all:
           type: boolean
           default: false
+    MatchCandidate:
+      type: object
+      properties:
+        movement:
+          allOf:
+          - $ref: '#/components/schemas/MatchedMovement'
+          readOnly: true
+        suggested:
+          type: boolean
+          readOnly: true
+      required:
+      - movement
+      - suggested
+    MatchWrite:
+      type: object
+      properties:
+        movement:
+          type: integer
+          minimum: 1
+      required:
+      - movement
+    MatchedMovement:
+      type: object
+      description: The movement of our ledger a statement line was matched to (rapprochement,
+        D-265).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - day
+      - id
+      - kind
+      - label
+      - reference
     Member:
       type: object
       properties:

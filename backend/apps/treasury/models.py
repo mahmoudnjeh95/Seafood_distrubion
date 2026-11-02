@@ -405,6 +405,15 @@ class BankStatementLine(OrganizationScopedModel, TimeStampedModel):
     imported_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # The movement of our own ledger this line is the bank's side of (rapprochement bancaire, D-265): a movement
+    # is matched to one line at most. Matching changes no balance.
+    movement = models.OneToOneField(
+        "TreasuryMovement", null=True, blank=True, on_delete=models.SET_NULL, related_name="statement_line"
+    )
+    matched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    matched_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["account", "day", "id"]

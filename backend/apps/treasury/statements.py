@@ -9,12 +9,13 @@ from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.core import audit
 from apps.core.models import Organization, User
 
-from .models import AccountKind, BankStatementLine, TreasuryAccount
+from .models import AccountKind, BankStatementLine, TreasuryAccount, TreasuryMovement
 from .statement_file import RowError, StatementFileError, read_statement
 
 if TYPE_CHECKING:
@@ -125,3 +126,53 @@ def delete_line(*, line: BankStatementLine, actor: User | None) -> None:
         target=None,
         before=snapshot,
     )
+
+
+@transaction.atomic
+def match_line(*, line: BankStatementLine, movement: TreasuryMovement, actor: User | None) -> BankStatementLine:
+    """The office says this movement of our ledger is this line of the bank's statement (D-265). Same account, and
+    neither already matched. The amounts may differ (bank charges): the screen shows the gap. No balance changes."""
+    line = (
+        BankStatementLine.objects.select_for_update(of=("self",))
+        .select_related("organization", "account")
+        .get(pk=line.pk)
+    )
+    if line.movement_id is not None:
+        raise ValidationError(_("Cette ligne est déjà rapprochée."))
+    if movement.organization_id != line.organization_id or movement.account_id != line.account_id:
+        raise ValidationError({"movement": _("Ce mouvement n'est pas sur le même compte.")})
+    if BankStatementLine.objects.filter(movement=movement).exists():
+        raise ValidationError({"movement": _("Ce mouvement est déjà rapproché d'une autre ligne.")})
+    line.movement, line.matched_by, line.matched_at = movement, actor, timezone.now()
+    line.save(update_fields=["movement", "matched_by", "matched_at", "updated_at"])
+    audit.record(
+        organization=line.organization,
+        actor=actor,
+        action="treasury.statement_line_matched",
+        target=line,
+        after={
+            "movement": movement.pk,
+            "line_amount": str(line.debit - line.credit),
+            "movement_amount": str(movement.amount),
+        },
+    )
+    return line
+
+
+@transaction.atomic
+def unmatch_line(*, line: BankStatementLine, actor: User | None) -> BankStatementLine:
+    """Undo a match (a wrong one): the line and the movement are free again."""
+    line = BankStatementLine.objects.select_for_update(of=("self",)).select_related("organization").get(pk=line.pk)
+    if line.movement_id is None:
+        raise ValidationError(_("Cette ligne n'est pas rapprochée."))
+    before = {"movement": line.movement_id}
+    line.movement, line.matched_by, line.matched_at = None, None, None
+    line.save(update_fields=["movement", "matched_by", "matched_at", "updated_at"])
+    audit.record(
+        organization=line.organization,
+        actor=actor,
+        action="treasury.statement_line_unmatched",
+        target=line,
+        before=before,
+    )
+    return line

@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { MatchedMovement } from './matchedMovement';
 import type { PartyRef } from './partyRef';
 
 export interface BankStatementLine {
@@ -21,4 +22,5 @@ export interface BankStatementLine {
   readonly balance: string | null;
   readonly customer: PartyRef | null;
   readonly supplier: PartyRef | null;
+  readonly movement: MatchedMovement | null;
 }

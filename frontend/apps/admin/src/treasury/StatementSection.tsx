@@ -3,13 +3,14 @@ import {
   deleteStatementLine,
   importBankStatement,
   setStatementLineParty,
+  unmatchStatementLine,
   useListCustomers,
   useListStatementLines,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, Combobox, ConfirmButton, Table, Td, Th, toast } from "@frutti/ui";
+import { Button, Card, CardTitle, Combobox, ConfirmButton, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useOutletContext } from "react-router";
@@ -17,6 +18,7 @@ import { useOutletContext } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { canCollect } from "../payments/shared";
 import { compare } from "../purchasing/allocation";
+import { MatchDialog } from "./MatchDialog";
 
 type Problem = { row: number; message: string };
 
@@ -39,6 +41,7 @@ export function StatementSection({
   const input = useRef<HTMLInputElement>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [matching, setMatching] = useState<BankStatementLine | null>(null);
   const lines = useListStatementLines(accountId, {
     limit: 500,
     ...(dateFrom ? { date_from: dateFrom } : {}),
@@ -82,6 +85,15 @@ export function StatementSection({
       await refresh();
     } catch (failure) {
       toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.treasury.statement.error"));
+    }
+  }
+
+  async function unmatch(line: BankStatementLine) {
+    try {
+      await unmatchStatementLine(line.id);
+      await refresh();
+    } catch {
+      toast.error(t("admin.treasury.statement.error"));
     }
   }
 
@@ -144,6 +156,7 @@ export function StatementSection({
               <Th numeric>{t("admin.treasury.statement.columns.credit")}</Th>
               <Th numeric>{t("admin.treasury.statement.columns.balance")}</Th>
               <Th>{t("admin.treasury.statement.columns.party")}</Th>
+              <Th>{t("admin.treasury.statement.columns.match")}</Th>
               {canWrite && <Th>{null}</Th>}
             </tr>
           </thead>
@@ -177,6 +190,26 @@ export function StatementSection({
                       (chosen?.name ?? "")
                     )}
                   </Td>
+                  <Td className="whitespace-nowrap">
+                    {line.movement ? (
+                      <span className="flex items-center gap-1">
+                        <Pill tone="good">{t("admin.treasury.statement.matched")}</Pill>
+                        <span className="text-[0.8rem] text-ink-2">{line.movement.label}</span>
+                        {canWrite && (
+                          <Button variant="ghost" onClick={() => void unmatch(line)}>
+                            {t("admin.treasury.statement.unmatch")}
+                          </Button>
+                        )}
+                      </span>
+                    ) : (
+                      canWrite &&
+                      hasMoney && (
+                        <Button variant="ghost" onClick={() => setMatching(line)}>
+                          {t("admin.treasury.statement.match")}
+                        </Button>
+                      )
+                    )}
+                  </Td>
                   {canWrite && (
                     <Td className="text-end">
                       <ConfirmButton
@@ -194,6 +227,16 @@ export function StatementSection({
             })}
           </tbody>
         </Table>
+      )}
+      {matching && (
+        <MatchDialog
+          line={matching}
+          onClose={() => setMatching(null)}
+          onDone={async () => {
+            setMatching(null);
+            await refresh();
+          }}
+        />
       )}
     </Card>
   );

@@ -3744,3 +3744,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The review's button shows a "Chambre froide qui reçoit le stock" choice, and a message when there is no active cold room.
 - Test: `dayclose/tests/test_day_review.py` (two cold rooms: refused without a choice, the kilos go to the room named).
 - No migration.
+
+**D-265 · Bank reconciliation: the system suggests, the office confirms; nothing changes a balance (Phase 9, P9-T09i; owner answer, provisional)** · accepted · 2026-11-02
+- On the Journal des banques, each line of the imported statement (D-253) can be matched to a movement of our ledger on
+  the same account. The system suggests the movements with the same amount within three days (a debit of the file is
+  money in, a credit money out); the office confirms one, or picks by hand any unmatched movement of the account within a
+  month. A movement is matched to one line at most, and a match can be undone.
+- Matching links two records and changes no balance, no movement and no statement line's figures. An amount gap (bank
+  charges) is shown and allowed when matching by hand.
+- Provisional: no automatic matching, no "unmatched" report yet, and a movement is offered for the same account only
+  (a transfer between our accounts shows on both).

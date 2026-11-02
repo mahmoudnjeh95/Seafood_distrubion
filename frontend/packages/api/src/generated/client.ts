@@ -184,6 +184,7 @@ import type {
   ListLossesParams,
   ListLotFiguresParams,
   ListLotWorkDaysParams,
+  ListMatchCandidatesParams,
   ListMovementsOfParams,
   ListMovementsParams,
   ListMyCustomersParams,
@@ -231,6 +232,8 @@ import type {
   LotWorkDay,
   LotWorkDayWrite,
   MarkRead,
+  MatchCandidate,
+  MatchWrite,
   Member,
   MemberCreate,
   MemberPasswordReset,
@@ -33986,6 +33989,279 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteStatementLineMutationOptions(options), queryClient);
+    }
+
+export const getListMatchCandidatesUrl = (lineId: number,
+    params?: ListMatchCandidatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/statement-lines/${lineId}/candidates?${stringifiedParams}` : `/api/v1/treasury/statement-lines/${lineId}/candidates`
+}
+
+/**
+ * The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+ * suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+ * a month. Nearest day first.
+ */
+export const listMatchCandidates = async (lineId: number,
+    params?: ListMatchCandidatesParams, options?: Parameters<typeof apiFetch>[1]): Promise<MatchCandidate[]> => {
+
+  return apiFetch<MatchCandidate[]>(getListMatchCandidatesUrl(lineId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMatchCandidatesQueryKey = (lineId: number,
+    params?: ListMatchCandidatesParams,) => {
+    return [
+    `/api/v1/treasury/statement-lines/${lineId}/candidates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMatchCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMatchCandidatesQueryKey(lineId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMatchCandidates>>> = ({ signal }) => listMatchCandidates(lineId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: lineId !== null && lineId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMatchCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof listMatchCandidates>>>
+export type ListMatchCandidatesQueryError = unknown
+
+
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params: undefined |  ListMatchCandidatesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMatchCandidates>>,
+          TError,
+          Awaited<ReturnType<typeof listMatchCandidates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMatchCandidates>>,
+          TError,
+          Awaited<ReturnType<typeof listMatchCandidates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMatchCandidatesQueryOptions(lineId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMatchStatementLineUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/statement-lines/${lineId}/match`
+}
+
+/**
+ * The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+ * The same account; neither already matched. It changes no balance.
+ */
+export const matchStatementLine = async (lineId: number,
+    matchWrite: MatchWrite, options?: Parameters<typeof apiFetch>[1]): Promise<BankStatementLine> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<BankStatementLine>(getMatchStatementLineUrl(lineId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(matchWrite)
+  }
+);}
+
+
+
+
+
+export const getMatchStatementLineMutationKey = () => ['matchStatementLine'] as const;
+
+export const getMatchStatementLineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchStatementLine>>, TError,MatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof matchStatementLine>>, TError,MatchStatementLineMutationVariables, TContext> => {
+
+const mutationKey = getMatchStatementLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchStatementLine>>, MatchStatementLineMutationVariables> = (props) => {
+          const {lineId,data} = props ?? {};
+
+          return  matchStatementLine(lineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MatchStatementLineMutationResult = NonNullable<Awaited<ReturnType<typeof matchStatementLine>>>
+    export type MatchStatementLineMutationBody = MatchWrite
+    export type MatchStatementLineMutationError = unknown
+    export type MatchStatementLineMutationVariables = {lineId: number;data: MatchWrite}
+
+    export const useMatchStatementLine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchStatementLine>>, TError,MatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof matchStatementLine>>,
+        TError,
+        MatchStatementLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMatchStatementLineMutationOptions(options), queryClient);
+    }
+
+export const getUnmatchStatementLineUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/statement-lines/${lineId}/match`
+}
+
+/**
+ * Undo a match (owner or manager): the line and the movement are free again.
+ */
+export const unmatchStatementLine = async (lineId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getUnmatchStatementLineUrl(lineId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnmatchStatementLineMutationKey = () => ['unmatchStatementLine'] as const;
+
+export const getUnmatchStatementLineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unmatchStatementLine>>, TError,UnmatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unmatchStatementLine>>, TError,UnmatchStatementLineMutationVariables, TContext> => {
+
+const mutationKey = getUnmatchStatementLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unmatchStatementLine>>, UnmatchStatementLineMutationVariables> = (props) => {
+          const {lineId} = props ?? {};
+
+          return  unmatchStatementLine(lineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnmatchStatementLineMutationResult = NonNullable<Awaited<ReturnType<typeof unmatchStatementLine>>>
+
+    export type UnmatchStatementLineMutationError = unknown
+    export type UnmatchStatementLineMutationVariables = {lineId: number}
+
+    export const useUnmatchStatementLine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unmatchStatementLine>>, TError,UnmatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unmatchStatementLine>>,
+        TError,
+        UnmatchStatementLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnmatchStatementLineMutationOptions(options), queryClient);
     }
 
 export const getListAccountTransfersUrl = (params?: ListAccountTransfersParams,) => {
