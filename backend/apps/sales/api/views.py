@@ -831,7 +831,7 @@ class MyDeliveryDeliverView(MyDeliveryView):
                 lines=data["lines"],
                 boxes=data["boxes"],
                 note=data["note"],
-                payment=_payment(data),
+                payment=_payment(data, driver=True),
                 delivery_uuid=data["client_uuid"],
             )
         return self.answer(membership, sale_id)
