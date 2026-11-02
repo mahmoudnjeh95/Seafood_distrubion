@@ -1677,6 +1677,25 @@ def _post_sale_cash(sale: Sale, *, actor: User | None) -> None:
     what was paid becomes the customer's credit (the P2-T06 hook), so nothing is reversed here."""
     if sale.amount_paid <= 0:
         return
+    if sale.payment_method == SalePaymentMethod.CHEQUE:
+        # A cheque taken at the sale is an effet received from the customer (D-264): held in the portfolio until the
+        # bank pays it. The office completes its bank and due day there.
+        treasury.register_instrument(
+            organization=sale.organization,
+            actor=actor,
+            direction="received",
+            kind="cheque",
+            number=sale.payment_reference or sale.number,
+            bank=None,
+            amount=sale.amount_paid,
+            issued_on=timezone.localtime(sale.sold_at).date(),
+            due_on=None,
+            drawer=sale.customer.name,
+            customer=sale.customer,
+            source_number=sale.number,
+            partial=True,
+        )
+        return
     driver = None
     if sale.delivered_by is not None and _is_driver(sale.delivered_by, sale.organization):
         driver = sale.delivered_by
@@ -1870,7 +1889,8 @@ FIRST_SETTINGS: dict[str, Any] = {
     "vat_rate": Decimal("19.00"),
     "fiscal_stamp": Decimal("1.000"),
     "prices_include_vat": False,
-    "withholding_rate": Decimal("0.00"),
+    # Owner, 2026-11 (D-266, provisional until the accountant confirms): 1 %, editable on the settings screen.
+    "withholding_rate": Decimal("1.00"),
 }
 SETTINGS_TEXT_FIELDS = ("legal_name", "address", "phone", "tax_id", "trade_register")
 _TEXT_LENGTHS = {"legal_name": 200, "address": 255, "phone": 50, "tax_id": 30, "trade_register": 50}
@@ -3202,7 +3222,8 @@ def post_treasury_history(*, organization: Organization) -> None:
         amount_paid__gt=0,
     ).select_related("organization", "customer", "delivered_by")
     for sale in paid_at_sale:
-        _post_sale_cash(sale, actor=None)
+        if sale.payment_method != SalePaymentMethod.CHEQUE:  # an effet is written once, when the sale is confirmed
+            _post_sale_cash(sale, actor=None)
     done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
     lines = (
         CustomerPaymentLine.objects.filter(organization=organization, instrument__isnull=True)

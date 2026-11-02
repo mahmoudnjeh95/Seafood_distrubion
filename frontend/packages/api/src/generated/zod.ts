@@ -3187,6 +3187,7 @@ export const ListDayFundsQueryParams = zod.object({
 
 export const listDayFundsResponseFundOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayFundsResponseFundOnePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listDayFundsResponsePendingPurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListDayFundsResponseItem = zod.object({
@@ -3202,7 +3203,9 @@ export const ListDayFundsResponseItem = zod.object({
   "accepted_at": zod.iso.datetime({"offset":true}).nullable()
 }).describe('The cash the office set for a driver\'s day (D-203).'),zod.null()]),
   "started": zod.boolean(),
-  "ended": zod.boolean()
+  "ended": zod.boolean(),
+  "pending_purchase_float": zod.stringFormat('decimal', listDayFundsResponsePendingPurchaseFloatRegExp).nullable(),
+  "pending_proposed_at": zod.iso.datetime({"offset":true}).nullable()
 }).describe('One driver on the office\'s "Fonds de caisse" list of a day.')
 export const ListDayFundsResponse = zod.array(ListDayFundsResponseItem)
 
@@ -3761,7 +3764,11 @@ export const GetDayOverviewResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -3964,7 +3971,11 @@ export const DecideDayOverviewExpenseResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -4157,16 +4168,25 @@ export const ValidateDayOverviewPurchaseResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
 /**
- * Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
- * or not the driver sent the day; only on the truck's latest day.
+ * Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+ * manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+ * driver sent the day; only on the truck's latest day.
  */
 export const ReturnDayOverviewToStockParams = zod.object({
   "day_id": zod.int()
+})
+
+export const ReturnDayOverviewToStockBody = zod.object({
+  "to_location_id": zod.int().nullish()
 })
 
 export const returnDayOverviewToStockResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -4349,7 +4369,11 @@ export const ReturnDayOverviewToStockResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -10454,6 +10478,39 @@ export const RecordMyLocationsBody = zod.object({
 
 export const RecordMyLocationsResponse = zod.object({
   "saved": zod.int()
+})
+
+
+/**
+ * The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+ * 404: nothing waits.
+ */
+export const getMyPurchaseChangeResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyPurchaseChangeResponsePreviousAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMyPurchaseChangeResponse = zod.object({
+  "amount": zod.stringFormat('decimal', getMyPurchaseChangeResponseAmountRegExp),
+  "previous_amount": zod.stringFormat('decimal', getMyPurchaseChangeResponsePreviousAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The money for purchases the office proposed on the phone\'s day, waiting for the driver\'s approval (D-260).')
+
+
+/**
+ * The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+ * once. 404 before the day is started.
+ */
+export const approveMyPurchaseChangeResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMyPurchaseChangeResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveMyPurchaseChangeResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', approveMyPurchaseChangeResponseOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', approveMyPurchaseChangeResponsePurchaseFloatRegExp),
+  "ended_at": zod.iso.datetime({"offset":true}).nullable()
 })
 
 
