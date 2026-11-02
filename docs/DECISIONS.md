@@ -3610,7 +3610,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The "Achat avec TVA" box on a receipt (D-202) already starts unchecked and is not changed.
 - Provisional: the rule is read from the lots, so a mixed BL with one VAT-bought product is invoiced with VAT as a whole.
 
-**D-254 · A BL paid before it is invoiced: the VAT and timbre still to come are shown, then collected or given up (owner request 2026-11-02, P9-T10)** · provisional · 2026-11-02
+**D-256 · A BL paid before it is invoiced: the VAT and timbre still to come are shown, then collected or given up (owner request 2026-11-02, P9-T10)** · provisional · 2026-11-02
 - Problem: a BL holds only its goods (HT); the VAT, timbre and withholding live on the invoice (D-057), shared back over the BL when
   it is issued (D-101). A BL paid at HT therefore turned unpaid again for the VAT and timbre, and nothing said so.
 - **Estimate before invoicing.** A BL's règlement line shows "Reste estimé à l'émission": VAT per line and the timbre. It uses the

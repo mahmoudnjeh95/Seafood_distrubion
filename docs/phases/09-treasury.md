@@ -183,7 +183,7 @@ bordereau de versement, the états des factures); the flow and the rules stay ou
       (statements with running balance, Excel link) on the ribbon, over the P9-T05 accounts API (D-233).
 - Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
 
-### P9-T10 · BL paid before its invoice: the VAT and timbre gap (D-254) · M
+### P9-T10 · BL paid before its invoice: the VAT and timbre gap (D-256) · M
 - [ ] Backend: simulate the invoice of one or several BL without saving (same engine, D-202/D-246 VAT rule), expose the
       estimate (VAT per rate, timbre once) on the BL and in the règlement allocation lines.
 - [ ] Invoice "payée" only when allocated = net to pay; "Payée en partie" state and the gap (goods, VAT, timbre).
