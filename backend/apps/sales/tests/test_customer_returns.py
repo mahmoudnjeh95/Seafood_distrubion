@@ -98,7 +98,7 @@ def held(organization, location, item):
 
 
 def issued(sale, actor):
-    return services.create_invoice(sale=sale, actor=actor, issue=True)
+    return services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
 
 
 def test_a_returned_kilo_goes_back_to_its_batch_and_lowers_the_lots_result(

@@ -2005,8 +2005,8 @@ def save_finance_settings(
 class InvoiceChoices(TypedDict, total=False):
     """What the person may change on a draft invoice; empty values take the settings (D-056)."""
 
-    # False: an invoice without VAT.
-    apply_vat: bool
+    # False: an invoice without VAT; empty: with VAT only when a BL holds goods bought with VAT (D-246).
+    apply_vat: bool | None
     # One per line, in the order of the lines: the VAT rate in percent; empty = the product's or the settings'.
     vat_rates: Sequence[Number | None] | None
     # Typed VAT amounts by rate (percent → DT); a rate left out keeps the computed amount.
@@ -2037,9 +2037,9 @@ def _settings_in_force(organization: Organization) -> FinanceSettings:
     return selectors.finance_settings_on(organization) or ensure_finance_settings(organization=organization)
 
 
-def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
+def _checked_choices(choices: InvoiceChoices, line_count: int, default_apply_vat: bool) -> _Overrides:
     """The typed values of a draft, or a ValidationError naming each wrong field (`lines.<i>.vat_rate`,
-    `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`)."""
+    `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`). An empty `apply_vat` takes `default_apply_vat`."""
     errors: dict[str, str] = {}
     rate_message = _("Indiquez un taux en %, de 0 à 100, avec 2 décimales au plus.")
     typed_rates = list(choices.get("vat_rates") or [])
@@ -2089,8 +2089,9 @@ def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
             errors["withholding_rate"] = rate_message
     if errors:
         raise ValidationError(errors)
+    typed_apply_vat = choices.get("apply_vat")
     return _Overrides(
-        apply_vat=choices.get("apply_vat", True),
+        apply_vat=default_apply_vat if typed_apply_vat is None else typed_apply_vat,
         vat_rates=rates,
         vat_amounts=amounts,
         fiscal_stamp=stamp,
@@ -2292,7 +2293,7 @@ def create_invoice(
         _checked_sale_to_invoice(chosen)
     sale = locked[0]
     sale_lines = [line for chosen in locked for line in chosen.lines.select_related("product").order_by("id")]
-    overrides = _checked_choices(choices, len(sale_lines))
+    overrides = _checked_choices(choices, len(sale_lines), default_apply_vat=bool(_vat_product_names(locked)))
     invoice = Invoice.objects.create(
         organization=sale.organization,
         customer=sale.customer,
@@ -2361,7 +2362,7 @@ def update_invoice(
     `issue`, issue it too (one transaction)."""
     invoice = _locked_draft_invoice(invoice)
     before = _invoice_snapshot(invoice)
-    overrides = _checked_choices(choices, invoice.lines.count())
+    overrides = _checked_choices(choices, invoice.lines.count(), default_apply_vat=invoice.apply_vat)
     _compute(invoice, _settings_in_force(invoice.organization), overrides)
     audit.record(
         organization=invoice.organization,
@@ -2396,16 +2397,21 @@ def record_invoice_receivable(invoice: Invoice) -> None:
     refresh_invoice_sales(invoice)
 
 
-def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
-    """Goods bought with VAT are sold with VAT (D-202): an invoice without VAT is refused when one of its BL took
-    kilos from a lot bought with VAT, and the message names the products."""
-    names = sorted(
+def _vat_product_names(sales: Sequence[Sale]) -> list[str]:
+    """The names of the products whose kilos came from a lot bought with VAT (D-202)."""
+    return sorted(
         set(
             SaleLineBatch.objects.filter(line__sale__in=sales, batch__bought_with_vat=True).values_list(
                 "line__product__name", flat=True
             )
         )
     )
+
+
+def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
+    """Goods bought with VAT are sold with VAT (D-202): an invoice without VAT is refused when one of its BL took
+    kilos from a lot bought with VAT, and the message names the products."""
+    names = _vat_product_names(sales)
     if names:
         raise ValidationError(
             {

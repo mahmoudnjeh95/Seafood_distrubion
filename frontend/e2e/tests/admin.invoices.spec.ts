@@ -52,8 +52,8 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await page.getByRole("button", { name: "Facturer" }).click();
   await expect(page.getByRole("heading", { name: "Facture (brouillon)", level: 1 })).toBeVisible();
   const document = page.getByRole("region", { name: /^Facture/ });
-  // The company default is proposed: VAT at 19 %.
-  await expect(document).toContainText("TVA 19 %");
+  // Sardine is not bought with VAT, so the box starts unchecked (D-246).
+  await expect(page.getByLabel("Facture avec TVA")).not.toBeChecked();
 
   // Without VAT: nothing about VAT is shown.
   await page.getByLabel("Facture avec TVA").uncheck();
