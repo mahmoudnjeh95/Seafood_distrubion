@@ -3654,3 +3654,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - No payslip exists yet, so nothing shows a CNSS line for a prime. The CNSS declaration, when built, takes the gross
   salary only.
 - Older primes need nothing: the app is still in testing with no real data (owner).
+
+**D-266 · The retenue à la source defaults to 1 % (owner, 2026-11) · provisional until the accountant confirms** · provisional · 2026-11-02
+- A new organization's first finance settings version takes 1 % (was 0 %). The rate stays editable in Paramètres financiers.
+- Migration `0028_withholding_rate_one_percent`: organizations still at 0 % take 1 % in the version in force today and in any version dated later. Earlier versions keep 0 %, so the history of rates stays true. Issued invoices keep the rate they were issued with (D-057).
+- The withholding still applies only from 1 000 DT TTC (D-241), so a small invoice shows no line whatever the default.

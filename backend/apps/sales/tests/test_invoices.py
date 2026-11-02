@@ -110,7 +110,7 @@ def test_a_new_organization_starts_with_the_answers_of_q5(organization):
     assert version.vat_rate == D("19.00")
     assert version.fiscal_stamp == D("1.000")
     assert version.prices_include_vat is False
-    assert version.withholding_rate == D("0.00")
+    assert version.withholding_rate == D("1.00")
     assert version.legal_name == organization.name
     assert version.valid_from <= timezone.localdate()
 
@@ -319,6 +319,7 @@ def test_a_typed_vat_amount_above_its_lines_is_refused(sale, actor):
 
 
 def test_withholding_with_a_zero_rate_shows_nothing(organization, actor, big_sale):
+    services.save_finance_settings(organization=organization, actor=actor, withholding_rate="0")
     invoice = services.create_invoice(apply_vat=True, sale=big_sale, actor=actor)
 
     assert invoice.withholding_rate == D("0.00")

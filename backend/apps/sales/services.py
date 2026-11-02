@@ -1870,7 +1870,8 @@ FIRST_SETTINGS: dict[str, Any] = {
     "vat_rate": Decimal("19.00"),
     "fiscal_stamp": Decimal("1.000"),
     "prices_include_vat": False,
-    "withholding_rate": Decimal("0.00"),
+    # Owner, 2026-11 (D-266, provisional until the accountant confirms): 1 %, editable on the settings screen.
+    "withholding_rate": Decimal("1.00"),
 }
 SETTINGS_TEXT_FIELDS = ("legal_name", "address", "phone", "tax_id", "trade_register")
 _TEXT_LENGTHS = {"legal_name": 200, "address": 255, "phone": 50, "tax_id": 30, "trade_register": 50}
