@@ -16219,8 +16219,9 @@ export const ListSalesResponse = zod.object({
 
 /**
  * Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
- * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
- * who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+ * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
+ * The office types no payment: the money comes in through a règlement of the treasurer. A driver's phone says
+ * what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
  * Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
  * day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
  * day's price, also when it was kept without connection and sent later. Within 5 minutes of the
@@ -20769,6 +20770,54 @@ export const GetDepositResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 })
+
+
+/**
+ * The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+ * today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+ * 15 days before, until the bank debits it). At most 200.
+ */
+export const listDueAlertsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDueAlertsResponseItem = zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', listDueAlertsResponseAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListDueAlertsResponse = zod.array(ListDueAlertsResponseItem)
 
 
 /**
