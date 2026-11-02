@@ -39,6 +39,47 @@ HUNDRED = Decimal("100")
 ZERO = Decimal("0.000")
 
 
+def checked_write_off_lot_shares(
+    organization: Organization, *, total: Decimal, shares: list[dict[str, Any]], candidates: list[dict[str, Any]]
+) -> list[tuple[int, Decimal]]:
+    """The lots a balance write-off is charged to, picked by hand (D-257): `(batch_id, amount)` pairs that add up
+    to `total`. `candidates` are the lots the customer bought from, or the supplier sold us; those whose
+    partnership is settled are left out (their sharing is final). A share outside the rest, a lot named twice or
+    an amount not above zero is refused. Without any lot left, nothing is charged and no share is asked for."""
+    lots = {lot["batch_id"]: lot["number"] for lot in selectors.open_write_off_lots(organization, candidates)}
+    if not lots and not shares:
+        return []
+    if not shares:
+        raise ValidationError({"lot_shares": _("Indiquez sur quels lots porter ce montant.")})
+    checked: list[tuple[int, Decimal]] = []
+    for share in shares:
+        batch_id = share.get("batch")
+        if not isinstance(batch_id, int) or batch_id not in lots:
+            raise ValidationError(
+                {"lot_shares": _("Ce lot n'est pas proposé : il n'a rien à voir avec ce compte, ou il est déjà réglé.")}
+            )
+        if any(seen == batch_id for seen, _amount in checked):
+            raise ValidationError({"lot_shares": _("Le lot %(lot)s est indiqué deux fois.") % {"lot": lots[batch_id]}})
+        try:
+            amount = checked_amount(share.get("amount", ""))
+        except (ValueError, TypeError) as error:
+            raise ValidationError({"lot_shares": str(error)}) from None
+        if amount <= 0:
+            raise ValidationError(
+                {"lot_shares": _("Le montant du lot %(lot)s doit être positif.") % {"lot": lots[batch_id]}}
+            )
+        checked.append((batch_id, amount))
+    spread = sum((amount for _batch, amount in checked), ZERO)
+    if spread != total:
+        raise ValidationError(
+            {
+                "lot_shares": _("Les lots totalisent %(spread)s DT, il faut %(total)s DT.")
+                % {"spread": display_money(spread), "total": display_money(total)}
+            }
+        )
+    return checked
+
+
 def _checked_rate(value: Any) -> Decimal | None:
     """A percent from 0 to 100 with at most 2 decimals; None when it is not one."""
     if value in (None, "") or isinstance(value, bool) or not isinstance(value, Decimal | int | str):

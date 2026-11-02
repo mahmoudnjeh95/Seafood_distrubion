@@ -243,10 +243,27 @@ class VoidWriteSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
 
 
+class WriteOffLotShareWriteSerializer(serializers.Serializer[Any]):
+    """The part of a balance write-off charged to one lot, picked by hand (D-257)."""
+
+    batch = serializers.IntegerField(min_value=1)
+    amount = serializers.CharField(max_length=30)
+
+
+class WriteOffLotSerializer(serializers.Serializer[Any]):
+    """A lot a balance write-off can be charged to (D-257): one the party bought or sold, not settled."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = serializers.CharField(read_only=True)
+
+
 class CustomerWriteOffWriteSerializer(serializers.Serializer[Any]):
     # The balance as shown on screen, typed again: the write-off is refused when it moved.
     expected_amount = serializers.CharField(max_length=30)
     reason = serializers.CharField(allow_blank=True, max_length=255)
+    # The lots the loss is charged to, adding up to the balance (D-257); asked for only when a lot is offered.
+    lot_shares = WriteOffLotShareWriteSerializer(many=True, required=False)
 
 
 class CustomerWriteOffSerializer(serializers.Serializer[Any]):
@@ -346,6 +363,8 @@ class CustomerBalanceSerializer(serializers.Serializer[Any]):
     # The balances given up (D-252), newest first, and their total: the customer's loss.
     write_offs = CustomerWriteOffSerializer(many=True, read_only=True)
     written_off_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # The lots a write-off of this balance can be charged to (D-257), newest first.
+    write_off_lots = WriteOffLotSerializer(many=True, read_only=True)
 
 
 class AgeingRowSerializer(serializers.Serializer[Any]):

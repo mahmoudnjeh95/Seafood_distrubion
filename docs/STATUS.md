@@ -4,6 +4,10 @@ _Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office 
 
 ## Where we are
 
+- **D-257 (2026-11-02, branch `lot-split-writeoff`):** clearing a customer or supplier balance to zero now asks which
+  lots it goes on ("Sur quels lots ?", amounts adding up to the balance). The loss (customer) or gain (supplier) changes
+  those lots' result and the partner's share; settled lots are not offered. Check on staging: clear a small customer
+  balance onto one lot and see the line "Soldes clients remis à zéro (perte)" in that lot's result.
 - **Sales, 2026-11-02, D-245 (branch `sales-no-payment`, PR #284, awaits CI):** the office's sale forms, "Vente comptoir" and "Convertir en vente" show no payment; an office sale is unpaid and the office API refuses a payment. The treasurer takes it in Règlements clients, the walk-in customer included (provisional change of D-047). The driver's phone is unchanged. The sale detail links "Encaisser au trésorier" while something is owed.
 - **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
   checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice

@@ -29,8 +29,25 @@ import { Link } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { canWriteResults, formatRate, refreshLotResult } from "../partnerships/shared";
 
-const KNOWN_KINDS = new Set(["lot", "truck_day", "employee", "cold_room", "cold_room_adjustment", "general"]);
-type KnownKind = "lot" | "truck_day" | "employee" | "cold_room" | "cold_room_adjustment" | "general";
+const KNOWN_KINDS = new Set([
+  "lot",
+  "truck_day",
+  "employee",
+  "cold_room",
+  "cold_room_adjustment",
+  "general",
+  "customer_write_off",
+  "supplier_write_off",
+]);
+type KnownKind =
+  | "lot"
+  | "truck_day"
+  | "employee"
+  | "cold_room"
+  | "cold_room_adjustment"
+  | "general"
+  | "customer_write_off"
+  | "supplier_write_off";
 
 const OUTCOME_TONE = { profit: "good", zero: "neutral", loss: "bad" } as const;
 

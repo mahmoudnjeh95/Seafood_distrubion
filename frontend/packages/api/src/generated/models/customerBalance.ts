@@ -9,6 +9,7 @@ import type { CustomerWriteOff } from './customerWriteOff';
 import type { HistoryEntry } from './historyEntry';
 import type { OpenSale } from './openSale';
 import type { QuoteCustomer } from './quoteCustomer';
+import type { WriteOffLot } from './writeOffLot';
 
 export interface CustomerBalance {
   readonly customer: QuoteCustomer;
@@ -30,4 +31,5 @@ export interface CustomerBalance {
   readonly write_offs: readonly CustomerWriteOff[];
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly written_off_total: string;
+  readonly write_off_lots: readonly WriteOffLot[];
 }

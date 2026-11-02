@@ -2094,7 +2094,12 @@ export const GetCustomerBalanceResponse = zod.object({
   "reason": zod.string(),
   "created_by": zod.string()
 }).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
-  "written_off_total": zod.stringFormat('decimal', getCustomerBalanceResponseWrittenOffTotalRegExp)
+  "written_off_total": zod.stringFormat('decimal', getCustomerBalanceResponseWrittenOffTotalRegExp),
+  "write_off_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot a balance write-off can be charged to (D-257): one the party bought or sold, not settled.'))
 })
 
 
@@ -2221,10 +2226,17 @@ export const writeOffCustomerBalanceBodyExpectedAmountMax = 30;
 export const writeOffCustomerBalanceBodyReasonMax = 255;
 
 
+export const writeOffCustomerBalanceBodyLotSharesItemAmountMax = 30;
+
+
 
 export const WriteOffCustomerBalanceBody = zod.object({
   "expected_amount": zod.string().max(writeOffCustomerBalanceBodyExpectedAmountMax),
-  "reason": zod.string().max(writeOffCustomerBalanceBodyReasonMax)
+  "reason": zod.string().max(writeOffCustomerBalanceBodyReasonMax),
+  "lot_shares": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "amount": zod.string().max(writeOffCustomerBalanceBodyLotSharesItemAmountMax)
+}).describe('The part of a balance write-off charged to one lot, picked by hand (D-257).')).optional()
 })
 
 export const writeOffCustomerBalanceResponseCreditLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -2303,7 +2315,12 @@ export const WriteOffCustomerBalanceResponse = zod.object({
   "reason": zod.string(),
   "created_by": zod.string()
 }).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
-  "written_off_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWrittenOffTotalRegExp)
+  "written_off_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWrittenOffTotalRegExp),
+  "write_off_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot a balance write-off can be charged to (D-257): one the party bought or sold, not settled.'))
 })
 
 
@@ -17676,7 +17693,12 @@ export const GetSupplierBalanceResponse = zod.object({
   "draft_invoices": zod.int(),
   "draft_total": zod.stringFormat('decimal', getSupplierBalanceResponseDraftTotalRegExp),
   "uninvoiced_receipts": zod.int(),
-  "uninvoiced_total": zod.stringFormat('decimal', getSupplierBalanceResponseUninvoicedTotalRegExp)
+  "uninvoiced_total": zod.stringFormat('decimal', getSupplierBalanceResponseUninvoicedTotalRegExp),
+  "write_off_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot a supplier balance write-off can be credited to (D-257): one they sold us, not settled.'))
 }).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
 
 
@@ -17693,10 +17715,17 @@ export const writeOffSupplierBalanceBodyExpectedAmountMax = 30;
 export const writeOffSupplierBalanceBodyReasonMax = 255;
 
 
+export const writeOffSupplierBalanceBodyLotSharesItemAmountMax = 30;
+
+
 
 export const WriteOffSupplierBalanceBody = zod.object({
   "expected_amount": zod.string().max(writeOffSupplierBalanceBodyExpectedAmountMax),
-  "reason": zod.string().max(writeOffSupplierBalanceBodyReasonMax)
+  "reason": zod.string().max(writeOffSupplierBalanceBodyReasonMax),
+  "lot_shares": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "amount": zod.string().max(writeOffSupplierBalanceBodyLotSharesItemAmountMax)
+}).describe('The part of a supplier balance write-off credited to one lot, picked by hand (D-257).')).optional()
 })
 
 export const writeOffSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -17724,7 +17753,12 @@ export const WriteOffSupplierBalanceResponse = zod.object({
   "draft_invoices": zod.int(),
   "draft_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseDraftTotalRegExp),
   "uninvoiced_receipts": zod.int(),
-  "uninvoiced_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUninvoicedTotalRegExp)
+  "uninvoiced_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUninvoicedTotalRegExp),
+  "write_off_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot a supplier balance write-off can be credited to (D-257): one they sold us, not settled.'))
 }).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
 
 

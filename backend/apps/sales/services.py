@@ -28,6 +28,7 @@ from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.notifications import services as notifications
 from apps.partners import services as partners
+from apps.partnerships import services as partnership_services
 from apps.treasury import services as treasury
 
 from . import invoicing, receivables, selectors
@@ -45,6 +46,7 @@ from .models import (
     CustomerPaymentLine,
     CustomerPaymentMethod,
     CustomerWriteOffAllocation,
+    CustomerWriteOffLotShare,
     DeliveryStatus,
     FinanceSettings,
     Invoice,
@@ -3290,12 +3292,21 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
 
 @transaction.atomic
 def write_off_customer_balance(
-    *, customer: "Customer", actor: User | None, expected: Number, reason: str
+    *,
+    customer: "Customer",
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
 ) -> CustomerBalanceWriteOff:
     """Clear a customer's balance to zero, the rest given up as a loss on them (D-252): they paid less than they
     owed (10 000 of 10 080 DT leaves 80 DT). `expected` must be the balance shown now, typed again by the office,
     so a balance that moved since the screen was read is refused. The amount is spread over the customer's open
-    sales, oldest first, and kept as it was written: never edited or deleted."""
+    sales, oldest first, and kept as it was written: never edited or deleted.
+
+    The loss is also charged to the lots the owner picks by hand (`lot_shares`: `{"batch", "amount"}` adding up to
+    the balance, D-257), so it lowers those lots' net result and their partner shares it. A lot already settled
+    with its partner is refused; a closed lot takes it as a late cost on the partner's next settlement."""
     organization = customer.organization
     list(
         Sale.objects.select_for_update(of=("self",))
@@ -3320,6 +3331,12 @@ def write_off_customer_balance(
     reason = reason.strip()[:255]
     if not reason:
         raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    shares = partnership_services.checked_write_off_lot_shares(
+        organization,
+        total=balance,
+        shares=list(lot_shares or []),
+        candidates=selectors.customer_lots(organization, customer_id=customer.pk),
+    )
     write_off = CustomerBalanceWriteOff.objects.create(
         organization=organization,
         customer=customer,
@@ -3345,12 +3362,21 @@ def write_off_customer_balance(
         left -= part
     for sale in Sale.objects.filter(pk__in=[row.sale_id for row in open_rows]).select_related("organization"):
         refresh_sale_due(sale)
+    for batch_id, amount in shares:
+        CustomerWriteOffLotShare.objects.create(
+            organization=organization, write_off=write_off, batch_id=batch_id, amount=amount
+        )
     audit.record(
         organization=organization,
         actor=actor,
         action="customer.balance_written_off",
         target=write_off,
-        after={"customer": customer.name, "amount": str(balance), "reason": reason},
+        after={
+            "customer": customer.name,
+            "amount": str(balance),
+            "reason": reason,
+            "lots": {str(batch_id): str(amount) for batch_id, amount in shares},
+        },
     )
     return write_off
 

@@ -27,6 +27,7 @@ from django.utils.translation import gettext as _
 
 from apps.core.documents import DocumentFilters, DocumentRow, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
+from apps.inventory import selectors as inventory
 
 from .models import (
     RECEIVABLE_ORDER_STATUSES,
@@ -53,6 +54,7 @@ from .models import (
     SupplierPaymentLine,
     SupplierPaymentPlanLine,
     SupplierWriteOffAllocation,
+    SupplierWriteOffLotShare,
 )
 
 if TYPE_CHECKING:
@@ -296,6 +298,25 @@ def invoices_of(
 def invoice_of(organization: Organization, invoice_id: int) -> SupplierInvoice:
     """One invoice with its receipts and payments. Raises SupplierInvoice.DoesNotExist outside the organization."""
     return invoices_of(organization).get(pk=invoice_id)
+
+
+def supplier_lots(organization: Organization, *, supplier_id: int) -> list[dict[str, Any]]:
+    """The lots a supplier sold us, newest first, by id with their number and product: the lots a write-off of
+    what we owe them can be credited to (D-257)."""
+    return [
+        {"batch_id": batch.pk, "number": batch.number, "product": batch.product.name, "received_on": batch.received_on}
+        for batch in inventory.batches_of(organization, supplier_id=supplier_id)
+    ]
+
+
+def write_off_shares_of_batch(organization: Organization, *, batch_id: int) -> QuerySet[SupplierWriteOffLotShare]:
+    """The supplier balance write-offs credited to one lot (D-257), oldest first, with the write-off and supplier."""
+    return (
+        SupplierWriteOffLotShare.objects.for_organization(organization)
+        .filter(batch_id=batch_id)
+        .select_related("write_off__supplier")
+        .order_by("write_off__written_on", "id")
+    )
 
 
 def open_invoices_of(organization: Organization, *, supplier_id: int) -> QuerySet[SupplierInvoice]:

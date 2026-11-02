@@ -11754,6 +11754,10 @@ components:
         reason:
           type: string
           maxLength: 255
+        lot_shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierWriteOffLotShare'
       required:
       - expected_amount
       - reason
@@ -13557,6 +13561,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        write_off_lots:
+          type: array
+          items:
+            $ref: '#/components/schemas/WriteOffLot'
+          readOnly: true
       required:
       - ageing
       - available_credit
@@ -13568,6 +13577,7 @@ components:
       - open_sales
       - open_total
       - overdue
+      - write_off_lots
       - write_offs
       - written_off_total
     CustomerBalances:
@@ -14257,6 +14267,10 @@ components:
         reason:
           type: string
           maxLength: 255
+        lot_shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/WriteOffLotShareWrite'
       required:
       - expected_amount
       - reason
@@ -28804,6 +28818,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        write_off_lots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierWriteOffLot'
+          readOnly: true
       required:
       - balance
       - draft_invoices
@@ -28818,6 +28837,7 @@ components:
       - unallocated
       - uninvoiced_receipts
       - uninvoiced_total
+      - write_off_lots
       - written_off
     SupplierBalances:
       type: object
@@ -29592,6 +29612,38 @@ components:
             $ref: '#/components/schemas/SupplierContact'
       required:
       - name
+    SupplierWriteOffLot:
+      type: object
+      description: 'A lot a supplier balance write-off can be credited to (D-257):
+        one they sold us, not settled.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - number
+      - product
+    SupplierWriteOffLotShare:
+      type: object
+      description: The part of a supplier balance write-off credited to one lot, picked
+        by hand (D-257).
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+          maxLength: 30
+      required:
+      - amount
+      - batch
     SyncProblem:
       type: object
       properties:
@@ -30984,6 +31036,38 @@ components:
         * `store` - Magasin
         * `cleaning` - Nettoyage
         * `other` - Autre
+    WriteOffLot:
+      type: object
+      description: 'A lot a balance write-off can be charged to (D-257): one the party
+        bought or sold, not settled.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - number
+      - product
+    WriteOffLotShareWrite:
+      type: object
+      description: The part of a balance write-off charged to one lot, picked by hand
+        (D-257).
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+          maxLength: 30
+      required:
+      - amount
+      - batch
   securitySchemes:
     cookieAuth:
       type: apiKey

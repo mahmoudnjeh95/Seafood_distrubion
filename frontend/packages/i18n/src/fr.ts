@@ -3341,6 +3341,17 @@ export const fr = {
       submit: "Remettre à zéro",
       done: "Solde remis à zéro",
       error: "La remise à zéro n'a pas pu être enregistrée.",
+      lotsTitle: "Sur quels lots ?",
+      customerLotsHint:
+        "La perte de {{amount}} baisse le résultat des lots choisis, et leur partenaire en prend sa part. Répartissez-la sur les lots de ce client.",
+      supplierLotsHint:
+        "Le gain de {{amount}} monte le résultat des lots choisis, et leur partenaire en prend sa part. Répartissez-le sur les lots de ce fournisseur.",
+      lot: "Lot",
+      lotHint: "Choisir un lot",
+      addLot: "Ajouter un lot",
+      removeLot: "Retirer ce lot",
+      lotsTotal: "Réparti : {{spread}} sur {{amount}}",
+      lotsMismatch: "Choisissez des lots différents, et des montants qui totalisent exactement {{amount}}.",
     },
     supplierBalance: {
       title: "Solde fournisseur",
@@ -4943,6 +4954,8 @@ export const fr = {
         cold_room: "Chambre froide (par jour et par kg)",
         cold_room_adjustment: "Chambre froide : correction après la facture",
         general: "Frais généraux (loyer, comptable…)",
+        customer_write_off: "Soldes clients remis à zéro (perte)",
+        supplier_write_off: "Soldes fournisseurs remis à zéro (gain)",
         other: "Autres coûts ({{kind}})",
       },
       show: "Détail",

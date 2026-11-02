@@ -28,6 +28,7 @@ from apps.core.api.pagination import PagedList
 from apps.core.models import Role
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.sales import payment_selectors, receivables, selectors, services
 from apps.sales.models import CustomerPayment, Invoice, WithholdingCertificate
 from apps.treasury import selectors as treasury
@@ -391,6 +392,9 @@ class CustomerBalanceAnswer(OfficeView):
                 for write_off in customer.balance_write_offs.select_related("created_by")
             ],
             "written_off_total": sum((write_off.amount for write_off in customer.balance_write_offs.all()), ZERO),
+            "write_off_lots": partnerships.open_write_off_lots(
+                self.organization, selectors.customer_lots(self.organization, customer_id=customer.pk)
+            ),
         }
         return Response(CustomerBalanceSerializer(data).data)
 
@@ -425,6 +429,7 @@ class CustomerWriteOffView(CustomerBalanceAnswer):
             actor=self.membership.user,
             expected=serializer.validated_data["expected_amount"],
             reason=serializer.validated_data["reason"],
+            lot_shares=serializer.validated_data.get("lot_shares", []),
         )
         return self.answer(customer_id)
 

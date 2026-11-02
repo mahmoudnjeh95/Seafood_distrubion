@@ -444,6 +444,26 @@ class SupplierWriteOffAllocation(OrganizationScopedModel, TimeStampedModel):
         return f"{self.write_off} → {self.invoice}"
 
 
+class SupplierWriteOffLotShare(OrganizationScopedModel, TimeStampedModel):
+    """The part of a supplier balance write-off credited to one lot (D-257): a gain that raises that lot's net
+    result, so its partner shares the gain. The owner picks the lots and amounts by hand; the shares add up to the
+    write-off. Written once with its write-off."""
+
+    write_off = models.ForeignKey(SupplierBalanceWriteOff, on_delete=models.PROTECT, related_name="lot_shares")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_write_off_lot_share_positive"),
+            models.UniqueConstraint(fields=["write_off", "batch"], name="supplier_write_off_lot_share_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} → {self.batch_id} · {self.amount}"
+
+
 class PlanLineStatus(models.TextChoices):
     OPEN = "open", _("Planifiée")
     PAID = "paid", _("Payée")
