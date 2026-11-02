@@ -21,11 +21,14 @@ import {
   Input,
   MoneyInput,
   PageHeader,
+  Pager,
   Pill,
+  SortTh,
   Table,
   Td,
   Th,
   toast,
+  useTableView,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
@@ -146,6 +149,13 @@ export function DayLabourersPage() {
   const labourers = useListDayLabourers({ status });
   const list = labourers.data ?? [];
 
+  const view = useTableView(list, {
+    name: (labourer) => labourer.name,
+    phone: (labourer) => labourer.phone,
+    pay: (labourer) => (labourer.usual_daily_pay ? Number(labourer.usual_daily_pay) : null),
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
+
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.finance")} title={t("admin.labourers.title")}>
@@ -187,14 +197,20 @@ export function DayLabourersPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.labourers.columns.name")}</Th>
-                <Th>{t("admin.labourers.columns.phone")}</Th>
-                <Th numeric>{t("admin.labourers.columns.pay")}</Th>
+                <SortTh sortKey="name" {...sorting}>
+                  {t("admin.labourers.columns.name")}
+                </SortTh>
+                <SortTh sortKey="phone" {...sorting}>
+                  {t("admin.labourers.columns.phone")}
+                </SortTh>
+                <SortTh numeric sortKey="pay" {...sorting}>
+                  {t("admin.labourers.columns.pay")}
+                </SortTh>
                 {canWrite && <Th className="w-0" />}
               </tr>
             </thead>
             <tbody>
-              {list.map((labourer) => (
+              {view.rows.map((labourer) => (
                 <tr key={labourer.id}>
                   <Td>
                     <span className="font-semibold">{labourer.name}</span>
@@ -224,6 +240,7 @@ export function DayLabourersPage() {
               ))}
             </tbody>
           </Table>
+          <Pager {...view.pager} />
         </Card>
       )}
 

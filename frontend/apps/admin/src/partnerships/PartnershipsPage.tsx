@@ -1,7 +1,7 @@
 import { type ListPartnershipsStatus, useListLotFigures, useListPartnerships } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Card, cn, EmptyState, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import { Card, cn, EmptyState, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, useTableView } from "@frutti/ui";
 import { useState } from "react";
 import { Link, useOutletContext } from "react-router";
 
@@ -39,6 +39,15 @@ export function PartnershipsPage() {
       </>
     );
   }
+
+  const view = useTableView(rows, {
+    lot: (row) => row.batch.number,
+    product: (row) => row.batch.product_name,
+    partner: (row) => row.partner.name,
+    capital: (row) => Number(row.capital),
+    status: (row) => row.status,
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (
     <>
@@ -80,60 +89,73 @@ export function PartnershipsPage() {
         ) : rows.length === 0 ? (
           <p className="p-2 text-ink-2">{t("admin.partnerships.empty")}</p>
         ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>{t("admin.partnerships.columns.lot")}</Th>
-                <Th>{t("admin.partnerships.columns.product")}</Th>
-                <Th>{t("admin.partnerships.columns.partner")}</Th>
-                <Th numeric>{t("admin.partnerships.columns.capital")}</Th>
-                <Th numeric>{t("admin.partnerships.columns.net")}</Th>
-                <Th numeric className="max-[720px]:hidden">
-                  {t("admin.partnerships.columns.share")}
-                </Th>
-                <Th className="max-[720px]:hidden">{t("admin.partnerships.columns.rates")}</Th>
-                <Th>{t("admin.partnerships.columns.status")}</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <Td className="num whitespace-nowrap">
-                    <Link to={`/stock/lots/${row.batch.id}`} className="font-semibold text-sea hover:underline">
-                      {row.batch.number}
-                    </Link>
-                    <div className="text-[0.8rem] text-ink-2">{formatDate(row.batch.received_on)}</div>
-                  </Td>
-                  <Td>{row.batch.product_name}</Td>
-                  <Td>{row.partner.name}</Td>
-                  <Td numeric className="whitespace-nowrap">
-                    {formatMoney(row.capital)}
-                  </Td>
-                  <Td numeric className="whitespace-nowrap">
-                    {figureOf(row.batch.id) ? (
-                      <span className={figureOf(row.batch.id)?.outcome === "loss" ? "text-bad" : undefined}>
-                        {formatMoney(figureOf(row.batch.id)?.net_result ?? "0")}
-                      </span>
-                    ) : (
-                      <span className="text-[0.8rem] text-ink-2">{t("admin.partnerships.notClosed")}</span>
-                    )}
-                  </Td>
-                  <Td numeric className="whitespace-nowrap max-[720px]:hidden">
-                    {figureOf(row.batch.id) ? formatMoney(figureOf(row.batch.id)?.partner_share ?? "0") : "—"}
-                  </Td>
-                  <Td className="num max-[720px]:hidden">
-                    {t("admin.partnerships.rates", {
-                      profit: formatRate(row.profit_rate),
-                      loss: formatRate(row.loss_rate),
-                    })}
-                  </Td>
-                  <Td>
-                    <Pill tone={STATUS_TONE[row.status]}>{t(`admin.partnerships.statuses.${row.status}`)}</Pill>
-                  </Td>
+          <>
+            <Table>
+              <thead>
+                <tr>
+                  <SortTh sortKey="lot" {...sorting}>
+                    {t("admin.partnerships.columns.lot")}
+                  </SortTh>
+                  <SortTh sortKey="product" {...sorting}>
+                    {t("admin.partnerships.columns.product")}
+                  </SortTh>
+                  <SortTh sortKey="partner" {...sorting}>
+                    {t("admin.partnerships.columns.partner")}
+                  </SortTh>
+                  <SortTh numeric sortKey="capital" {...sorting}>
+                    {t("admin.partnerships.columns.capital")}
+                  </SortTh>
+                  <Th numeric>{t("admin.partnerships.columns.net")}</Th>
+                  <Th numeric className="max-[720px]:hidden">
+                    {t("admin.partnerships.columns.share")}
+                  </Th>
+                  <Th className="max-[720px]:hidden">{t("admin.partnerships.columns.rates")}</Th>
+                  <SortTh sortKey="status" {...sorting}>
+                    {t("admin.partnerships.columns.status")}
+                  </SortTh>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {view.rows.map((row) => (
+                  <tr key={row.id}>
+                    <Td className="num whitespace-nowrap">
+                      <Link to={`/stock/lots/${row.batch.id}`} className="font-semibold text-sea hover:underline">
+                        {row.batch.number}
+                      </Link>
+                      <div className="text-[0.8rem] text-ink-2">{formatDate(row.batch.received_on)}</div>
+                    </Td>
+                    <Td>{row.batch.product_name}</Td>
+                    <Td>{row.partner.name}</Td>
+                    <Td numeric className="whitespace-nowrap">
+                      {formatMoney(row.capital)}
+                    </Td>
+                    <Td numeric className="whitespace-nowrap">
+                      {figureOf(row.batch.id) ? (
+                        <span className={figureOf(row.batch.id)?.outcome === "loss" ? "text-bad" : undefined}>
+                          {formatMoney(figureOf(row.batch.id)?.net_result ?? "0")}
+                        </span>
+                      ) : (
+                        <span className="text-[0.8rem] text-ink-2">{t("admin.partnerships.notClosed")}</span>
+                      )}
+                    </Td>
+                    <Td numeric className="whitespace-nowrap max-[720px]:hidden">
+                      {figureOf(row.batch.id) ? formatMoney(figureOf(row.batch.id)?.partner_share ?? "0") : "—"}
+                    </Td>
+                    <Td className="num max-[720px]:hidden">
+                      {t("admin.partnerships.rates", {
+                        profit: formatRate(row.profit_rate),
+                        loss: formatRate(row.loss_rate),
+                      })}
+                    </Td>
+                    <Td>
+                      <Pill tone={STATUS_TONE[row.status]}>{t(`admin.partnerships.statuses.${row.status}`)}</Pill>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+            <Pager {...view.pager} />
+          </>
         )}
       </Card>
     </>

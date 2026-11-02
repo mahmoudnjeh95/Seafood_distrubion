@@ -16,6 +16,10 @@ limit?: number;
  */
 offset?: number;
 /**
+ * Column to sort by; a leading `-` sorts descending.
+ */
+ordering?: string;
+/**
  * @minimum 1
  */
 purchase_order?: number;

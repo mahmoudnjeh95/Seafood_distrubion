@@ -136,6 +136,12 @@ def _resolved(organization: Organization, data: dict[str, Any], *, is_owner: boo
 class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     serializer_class = ReceiptSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("received_on",),
+        "supplier": ("supplier__name",),
+        "location": ("location__name",),
+    }
 
     def get_queryset(self) -> QuerySet[GoodsReceipt]:
         filters = ReceiptFilterSerializer(data=self.request.query_params)
@@ -254,6 +260,12 @@ class LastCostListView(PurchasingView):
 class OrderListView(PurchasingView, ListAPIView[PurchaseOrder]):
     serializer_class = OrderSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("ordered_on",),
+        "supplier": ("supplier__name",),
+        "expected": ("expected_on",),
+    }
 
     def get_queryset(self) -> QuerySet[PurchaseOrder]:
         filters = OrderFilterSerializer(data=self.request.query_params)
@@ -421,6 +433,12 @@ def _payment_lines(organization: Organization, lines: list[dict[str, Any]]) -> l
 class SupplierInvoiceListView(PurchasingView, ListAPIView[SupplierInvoice]):
     serializer_class = SupplierInvoiceSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("invoice_date",),
+        "supplier": ("supplier__name",),
+        "due": ("due_date",),
+    }
 
     def get_queryset(self) -> QuerySet[SupplierInvoice]:
         filters = SupplierInvoiceFilterSerializer(data=self.request.query_params)
@@ -585,6 +603,11 @@ class SupplierSettlementsView(PurchasingView):
 class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
     serializer_class = SupplierPaymentSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("paid_on",),
+        "supplier": ("supplier__name",),
+    }
 
     def get_queryset(self) -> QuerySet[SupplierPayment]:
         return _filtered_payments(self.organization, self.request)
@@ -907,6 +930,11 @@ def _field_purchase_fields(
 class FieldPurchaseListView(PurchasingView, ListAPIView[FieldPurchase]):
     serializer_class = FieldPurchaseListSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("bought_on",),
+        "supplier": ("supplier__name",),
+    }
 
     def get_queryset(self) -> QuerySet[FieldPurchase]:
         filters = FieldPurchaseFilterSerializer(data=self.request.query_params)

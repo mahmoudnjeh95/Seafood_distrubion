@@ -25,4 +25,8 @@ limit?: number;
  * L'index initial depuis lequel retourner les résultats.
  */
 offset?: number;
+/**
+ * Column to sort by; a leading `-` sorts descending.
+ */
+ordering?: string;
 };

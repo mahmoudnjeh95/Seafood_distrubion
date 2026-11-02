@@ -28,11 +28,14 @@ import {
   Input,
   MoneyInput,
   PageHeader,
+  Pager,
   Pill,
+  SortTh,
   Table,
   Td,
   Th,
   toast,
+  useTableView,
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
@@ -374,6 +377,13 @@ export function GeneralCostsPage() {
   const rows = periods.data ?? [];
   const busy = generate.isPending || approve.isPending || remove.isPending;
 
+  const view = useTableView(list, {
+    name: (cost) => cost.name,
+    category: (cost) => cost.category.name,
+    amount: (cost) => Number(cost.monthly_amount),
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
+
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.finance")} title={t("admin.generalCosts.title")}>
@@ -415,15 +425,21 @@ export function GeneralCostsPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>{t("admin.generalCosts.recurring.name")}</Th>
-                  <Th>{t("admin.generalCosts.recurring.category")}</Th>
-                  <Th numeric>{t("admin.generalCosts.recurring.amount")}</Th>
+                  <SortTh sortKey="name" {...sorting}>
+                    {t("admin.generalCosts.recurring.name")}
+                  </SortTh>
+                  <SortTh sortKey="category" {...sorting}>
+                    {t("admin.generalCosts.recurring.category")}
+                  </SortTh>
+                  <SortTh numeric sortKey="amount" {...sorting}>
+                    {t("admin.generalCosts.recurring.amount")}
+                  </SortTh>
                   <Th>{t("admin.generalCosts.recurring.period")}</Th>
                   {isOwner && <Th className="w-0" />}
                 </tr>
               </thead>
               <tbody>
-                {list.map((cost) => (
+                {view.rows.map((cost) => (
                   <tr key={cost.id}>
                     <Td>
                       <span className="font-semibold">{cost.name}</span>
@@ -462,6 +478,7 @@ export function GeneralCostsPage() {
                 ))}
               </tbody>
             </Table>
+            <Pager {...view.pager} />
           </Card>
         )}
       </section>

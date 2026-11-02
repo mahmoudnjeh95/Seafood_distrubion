@@ -1,7 +1,23 @@
 import { type BoxMovement, type BoxTypeEnum, useListBoxBalances, useListBoxMovements } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, Dialog, EmptyState, Icon, Pill, PageHeader, Table, Td, Th, cn } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  cn,
+  Dialog,
+  EmptyState,
+  Icon,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router";
@@ -21,7 +37,6 @@ import {
   holdersOfKind,
 } from "./shared";
 
-const PAGE_SIZE = 50;
 const SELECT_CLASSES = "rounded-control border border-line bg-surface px-3 py-2 text-ink";
 const LABEL_CLASSES = "flex flex-col gap-1 text-[0.78rem] font-semibold text-ink-2";
 const KIND_TONES = {
@@ -189,12 +204,11 @@ function BoxHistory({ holders }: { holders: HolderCounts[] }) {
   const { t } = useTranslation();
   const [holder, setHolder] = useState("");
   const [boxType, setBoxType] = useState<BoxTypeEnum | "">("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
 
   const movements = useListBoxMovements(
     {
-      limit: PAGE_SIZE,
-      offset,
+      ...table.params,
       ...(holder ? { holder: Number(holder) } : {}),
       ...(boxType ? { box_type: boxType } : {}),
     },
@@ -207,7 +221,7 @@ function BoxHistory({ holders }: { holders: HolderCounts[] }) {
   const reset = () => {
     setHolder("");
     setBoxType("");
-    setOffset(0);
+    table.backToFirstPage();
   };
 
   return (
@@ -222,7 +236,7 @@ function BoxHistory({ holders }: { holders: HolderCounts[] }) {
             value={holder}
             onChange={(event) => {
               setHolder(event.target.value);
-              setOffset(0);
+              table.backToFirstPage();
             }}
           >
             <option value="">{t("admin.boxes.history.allHolders")}</option>
@@ -240,7 +254,7 @@ function BoxHistory({ holders }: { holders: HolderCounts[] }) {
             value={boxType}
             onChange={(event) => {
               setBoxType(event.target.value as BoxTypeEnum | "");
-              setOffset(0);
+              table.backToFirstPage();
             }}
           >
             <option value="">{t("admin.boxes.history.allBoxTypes")}</option>
@@ -274,10 +288,18 @@ function BoxHistory({ holders }: { holders: HolderCounts[] }) {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.boxes.history.columns.date")}</Th>
-                <Th>{t("admin.boxes.history.columns.kind")}</Th>
-                <Th>{t("admin.boxes.history.columns.boxType")}</Th>
-                <Th numeric>{t("admin.boxes.history.columns.count")}</Th>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.boxes.history.columns.date")}
+                </SortTh>
+                <SortTh sortKey="kind" {...table.sorting}>
+                  {t("admin.boxes.history.columns.kind")}
+                </SortTh>
+                <SortTh sortKey="boxType" {...table.sorting}>
+                  {t("admin.boxes.history.columns.boxType")}
+                </SortTh>
+                <SortTh numeric sortKey="count" {...table.sorting}>
+                  {t("admin.boxes.history.columns.count")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.boxes.history.columns.from")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.boxes.history.columns.to")}</Th>
               </tr>
@@ -288,23 +310,7 @@ function BoxHistory({ holders }: { holders: HolderCounts[] }) {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.boxes.history.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.boxes.history.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.boxes.history.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </section>

@@ -167,6 +167,12 @@ class OfficeView(APIView):
 class WebRequestListView(OfficeView, ListAPIView[WebRequest]):
     serializer_class = WebRequestSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("pk",),
+        "date": ("pk",),
+        "customer": ("full_name",),
+        "phone": ("phone",),
+    }
 
     def get_queryset(self) -> QuerySet[WebRequest]:
         filters = WebRequestFilterSerializer(data=self.request.query_params)

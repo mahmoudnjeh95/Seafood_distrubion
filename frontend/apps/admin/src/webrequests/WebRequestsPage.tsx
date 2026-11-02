@@ -1,6 +1,19 @@
 import { type ListWebRequestsStatus, useListWebRequests } from "@frutti/api";
 import { formatDateTime, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Card,
+  cn,
+  EmptyState,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -8,7 +21,6 @@ import { Link, useNavigate } from "react-router";
 import { useDebounced } from "../lib/useDebounced";
 import { KIND_TONE, STATUS_TONE } from "./shared";
 
-const PAGE_SIZE = 50;
 const FILTERS = ["new", "handled", "cancelled", "all"] as const;
 type Filter = (typeof FILTERS)[number];
 
@@ -18,12 +30,12 @@ export function WebRequestsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("new");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const status: ListWebRequestsStatus | undefined = filter === "all" ? undefined : filter;
   const requests = useListWebRequests(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    { ...table.params, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = requests.data;
@@ -44,7 +56,7 @@ export function WebRequestsPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -56,7 +68,7 @@ export function WebRequestsPage() {
               aria-pressed={filter === choice}
               onClick={() => {
                 setFilter(choice);
-                setOffset(0);
+                table.backToFirstPage();
               }}
               className={cn(
                 "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -91,10 +103,18 @@ export function WebRequestsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.webRequests.columns.number")}</Th>
-                <Th>{t("admin.webRequests.columns.date")}</Th>
-                <Th>{t("admin.webRequests.columns.customer")}</Th>
-                <Th>{t("admin.webRequests.columns.phone")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.webRequests.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.webRequests.columns.date")}
+                </SortTh>
+                <SortTh sortKey="customer" {...table.sorting}>
+                  {t("admin.webRequests.columns.customer")}
+                </SortTh>
+                <SortTh sortKey="phone" {...table.sorting}>
+                  {t("admin.webRequests.columns.phone")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.webRequests.columns.products")}</Th>
               </tr>
             </thead>
@@ -149,23 +169,7 @@ export function WebRequestsPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.webRequests.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.webRequests.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.webRequests.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

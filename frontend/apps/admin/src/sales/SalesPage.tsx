@@ -1,7 +1,23 @@
 import { createInvoice, type DeliveryStatusEnum, type SaleStatusEnum, useListSales } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  toast,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
@@ -13,7 +29,6 @@ import { canSell, DELIVERY_TONES, SALE_STATUSES, STATUS_TONES } from "./shared";
 // The BL of the truck loads by where their delivery stands (D-178).
 const DELIVERY_FILTERS: DeliveryStatusEnum[] = ["to_deliver", "partial", "delivered", "cancelled"];
 
-const PAGE_SIZE = 50;
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
 
 /** "Ventes": every sale, newest first, with what the customer still owes on it. */
@@ -25,7 +40,7 @@ export function SalesPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<SaleStatusEnum | "">("");
   const [delivery, setDelivery] = useState<DeliveryStatusEnum | "">("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   // "À facturer": the BL still to invoice, which can be ticked to make one invoice (D-096).
   const [uninvoiced, setUninvoiced] = useState(false);
   const [chosen, setChosen] = useState<Record<number, number>>({});
@@ -34,8 +49,7 @@ export function SalesPage() {
 
   const sales = useListSales(
     {
-      limit: PAGE_SIZE,
-      offset,
+      ...table.params,
       ...(status ? { status } : {}),
       ...(delivery ? { delivery_status: delivery } : {}),
       ...(query ? { search: query } : {}),
@@ -71,7 +85,7 @@ export function SalesPage() {
       aria-pressed={status === value}
       onClick={() => {
         setStatus(value);
-        setOffset(0);
+        table.backToFirstPage();
       }}
       className={cn(
         "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -109,7 +123,7 @@ export function SalesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -133,7 +147,7 @@ export function SalesPage() {
               aria-pressed={delivery === value}
               onClick={() => {
                 setDelivery(value);
-                setOffset(0);
+                table.backToFirstPage();
               }}
               className={cn(
                 "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -150,7 +164,7 @@ export function SalesPage() {
           onClick={() => {
             setUninvoiced(!uninvoiced);
             setChosen({});
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className={cn(
             "rounded-control border border-line px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -190,9 +204,15 @@ export function SalesPage() {
             <thead>
               <tr>
                 {canWrite && uninvoiced && <Th>{null}</Th>}
-                <Th>{t("admin.sales.columns.number")}</Th>
-                <Th>{t("admin.sales.columns.date")}</Th>
-                <Th>{t("admin.sales.columns.customer")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.sales.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.sales.columns.date")}
+                </SortTh>
+                <SortTh sortKey="customer" {...table.sorting}>
+                  {t("admin.sales.columns.customer")}
+                </SortTh>
                 <Th numeric>{t("admin.sales.columns.total")}</Th>
                 <Th numeric className="max-[720px]:hidden">
                   {t("admin.sales.columns.due")}
@@ -261,23 +281,7 @@ export function SalesPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.sales.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.sales.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.sales.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>
