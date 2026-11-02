@@ -15,6 +15,7 @@ from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, display_money
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
+from apps.treasury import services as treasury
 
 from . import selectors
 from .models import (
@@ -537,7 +538,8 @@ def settle_partnership(
             on=on,
         )
     for payment in checked:
-        SettlementPayment.objects.create(organization=organization, settlement=settlement, **payment)
+        row = SettlementPayment.objects.create(organization=organization, settlement=settlement, **payment)
+        _post_settlement_money(row, settlement=settlement, actor=actor)
     partnership.status = PartnershipStatus.SETTLED
     partnership.save(update_fields=["status", "updated_at"])
     audit.record(
@@ -558,3 +560,31 @@ def settle_partnership(
         },
     )
     return settlement
+
+
+# The money paid to a partner leaves our accounts the day it was paid, by the method it was paid with (P9-T05b, D-240).
+SETTLEMENT_PAYMENT_SOURCE = "partnerships.settlement_payment"
+
+
+def _post_settlement_money(payment: SettlementPayment, *, settlement: PartnerSettlement, actor: User | None) -> None:
+    treasury.post_movement(
+        organization=payment.organization,
+        account=treasury.line_account(payment.organization, payment.method, None),
+        day=payment.paid_on,
+        amount=-payment.amount,
+        kind="partner_settlement",
+        label=f"{settlement.partnership.partner.name} · {settlement.partnership.batch.number}",
+        reference=payment.reference or settlement.partnership.batch.number,
+        source=SETTLEMENT_PAYMENT_SOURCE,
+        source_id=payment.pk,
+        actor=actor,
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the money of the partner settlements paid before the ledger existed. Safe to run again."""
+    payments = SettlementPayment.objects.filter(organization=organization).select_related(
+        "organization", "settlement__partnership__partner", "settlement__partnership__batch"
+    )
+    for payment in payments:
+        _post_settlement_money(payment, settlement=payment.settlement, actor=None)
