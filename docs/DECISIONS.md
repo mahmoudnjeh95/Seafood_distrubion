@@ -3825,3 +3825,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the 15-character form the office's spec shows, which has no check to verify.
 - A Tunisian IBAN with wrong check digits is refused with a clear message. Spaces are dropped; each IBAN still belongs to
   one account of the organization.
+
+**D-273 · A cash line of 5 000 DT or more on a payment needs an explicit confirmation (Phase 9, P9-T09k; owner answer)** · accepted · 2026-11-02
+- The owner's rule: the legal cash limit is 5 000 DT. A customer or a supplier payment with a cash line at or above the
+  limit is refused by the server until the person recording it confirms ("Paiement en espèces au-delà du plafond légal",
+  button "Confirmer le paiement en espèces"). The confirmation is kept on the payment (`cash_limit_confirmed`) and in its
+  audit entry. Other means (transfer, card, cheque, traite) are not concerned. The test is per line, not per payment.
+- The limit is a finance setting (Paramètres financiers), versioned like the others, 5 000 DT by default; it must stay
+  above zero.
+- A port purchase paid in cash by a driver and validated by the office is recorded as confirmed (no screen to confirm on).
+- Not covered: a payment made through another door (a receipt paid at once, a payment plan line) is refused without a way
+  to confirm on its own screen; the règlement forms are the way to record a large cash payment.

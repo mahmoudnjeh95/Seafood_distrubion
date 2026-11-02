@@ -319,6 +319,8 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     # A règlement typed by mistake is voided, never deleted (D-211): it stays in the list, its allocations stop
     # counting, its invoices owe again and its effets are cancelled.
     voided_at = models.DateTimeField(null=True, blank=True)
+    # A cash line at or above the cash limit was confirmed by the person who recorded it (D-273).
+    cash_limit_confirmed = models.BooleanField(default=False)
     voided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )

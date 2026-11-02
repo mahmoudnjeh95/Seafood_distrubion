@@ -1030,6 +1030,7 @@ export const RecordUnpaidEffetResponse = zod.object({
   "unallocated": zod.stringFormat('decimal', recordUnpaidEffetResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', recordUnpaidEffetResponseRemainingRegExp),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string(),
@@ -1123,6 +1124,7 @@ export const ListCustomerPaymentsResponse = zod.object({
   "unallocated": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', listCustomerPaymentsResponseResultsItemRemainingRegExp),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string(),
@@ -1163,7 +1165,7 @@ export const createCustomerPaymentBodyReasonMax = 200;
 export const createCustomerPaymentBodyPaidByDefault = ``;
 export const createCustomerPaymentBodyPaidByMax = 120;
 
-
+export const createCustomerPaymentBodyConfirmCashLimitDefault = false;
 
 export const CreateCustomerPaymentBody = zod.object({
   "allocations": zod.array(zod.object({
@@ -1188,7 +1190,8 @@ export const CreateCustomerPaymentBody = zod.object({
   "reference": zod.string().max(createCustomerPaymentBodyReferenceMax).default(createCustomerPaymentBodyReferenceDefault),
   "notes": zod.string().default(createCustomerPaymentBodyNotesDefault),
   "reason": zod.string().max(createCustomerPaymentBodyReasonMax).default(createCustomerPaymentBodyReasonDefault),
-  "paid_by": zod.string().max(createCustomerPaymentBodyPaidByMax).default(createCustomerPaymentBodyPaidByDefault)
+  "paid_by": zod.string().max(createCustomerPaymentBodyPaidByMax).default(createCustomerPaymentBodyPaidByDefault),
+  "confirm_cash_limit": zod.boolean().default(createCustomerPaymentBodyConfirmCashLimitDefault)
 })
 
 export const createCustomerPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1257,6 +1260,7 @@ export const CreateCustomerPaymentResponse = zod.object({
   "unallocated": zod.stringFormat('decimal', createCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', createCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string(),
@@ -1347,6 +1351,7 @@ export const GetCustomerPaymentResponse = zod.object({
   "unallocated": zod.stringFormat('decimal', getCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', getCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string(),
@@ -1450,6 +1455,7 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "unallocated": zod.stringFormat('decimal', allocateCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', allocateCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string(),
@@ -1549,6 +1555,7 @@ export const VoidCustomerPaymentResponse = zod.object({
   "unallocated": zod.stringFormat('decimal', voidCustomerPaymentResponseUnallocatedRegExp),
   "remaining": zod.stringFormat('decimal', voidCustomerPaymentResponseRemainingRegExp),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string(),
@@ -6242,9 +6249,11 @@ export const RefuseFieldPurchaseResponse = zod.object({
 export const getFinanceSettingsResponseInForceOneVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseInForceOneFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseInForceOneWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseHistoryItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseHistoryItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseHistoryItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetFinanceSettingsResponse = zod.object({
@@ -6255,6 +6264,7 @@ export const GetFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneWithholdingRateRegExp),
+  "cash_limit": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
@@ -6271,6 +6281,7 @@ export const GetFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
+  "cash_limit": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
@@ -6311,6 +6322,7 @@ export const SaveFinanceSettingsBody = zod.object({
   "fiscal_stamp": zod.string(),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.string(),
+  "cash_limit": zod.string().optional(),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).optional().describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string().max(saveFinanceSettingsBodyLegalNameMax).default(saveFinanceSettingsBodyLegalNameDefault),
   "address": zod.string().max(saveFinanceSettingsBodyAddressMax).default(saveFinanceSettingsBodyAddressDefault),
@@ -6322,9 +6334,11 @@ export const SaveFinanceSettingsBody = zod.object({
 export const saveFinanceSettingsResponseInForceOneVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseInForceOneFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseInForceOneWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseHistoryItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseHistoryItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const SaveFinanceSettingsResponse = zod.object({
@@ -6335,6 +6349,7 @@ export const SaveFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneWithholdingRateRegExp),
+  "cash_limit": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
@@ -6351,6 +6366,7 @@ export const SaveFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
+  "cash_limit": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
   "address": zod.string(),
@@ -18480,6 +18496,7 @@ export const RejectIssuedEffetResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string()
@@ -18982,6 +18999,7 @@ export const ListSupplierPaymentsResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string()
@@ -19015,7 +19033,7 @@ export const recordSupplierPaymentBodyReasonMax = 200;
 
 export const recordSupplierPaymentBodyAutoAllocateDefault = false;
 
-
+export const recordSupplierPaymentBodyConfirmCashLimitDefault = false;
 
 export const RecordSupplierPaymentBody = zod.object({
   "supplier": zod.int().min(1),
@@ -19041,7 +19059,8 @@ export const RecordSupplierPaymentBody = zod.object({
 })).optional(),
   "auto_allocate": zod.boolean().default(recordSupplierPaymentBodyAutoAllocateDefault),
   "plan_line": zod.int().min(1).nullish(),
-  "plan_lines": zod.array(zod.int().min(1)).optional()
+  "plan_lines": zod.array(zod.int().min(1)).optional(),
+  "confirm_cash_limit": zod.boolean().default(recordSupplierPaymentBodyConfirmCashLimitDefault)
 }).describe('A règlement: its means in `lines` (D-208), or one means in `amount`, `method`, `reference`, `cash_on`.')
 
 export const recordSupplierPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -19099,6 +19118,7 @@ export const RecordSupplierPaymentResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string()
@@ -19180,6 +19200,7 @@ export const GetSupplierPaymentResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string()
@@ -19258,6 +19279,7 @@ export const AllocateSupplierPaymentResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string()
@@ -19349,6 +19371,7 @@ export const VoidSupplierPaymentResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "is_voided": zod.boolean(),
+  "cash_limit_confirmed": zod.boolean(),
   "voided_at": zod.iso.datetime({"offset":true}).nullable(),
   "voided_by": zod.string(),
   "void_reason": zod.string()

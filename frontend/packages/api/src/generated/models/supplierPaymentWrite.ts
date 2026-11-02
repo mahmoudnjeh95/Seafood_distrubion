@@ -34,4 +34,5 @@ export interface SupplierPaymentWrite {
   plan_line?: number | null;
   /** @items.minimum 1 */
   plan_lines?: number[];
+  confirm_cash_limit?: boolean;
 }

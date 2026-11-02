@@ -1737,6 +1737,9 @@ export const fr = {
       vatHint: "Proposée sur chaque facture ; chaque produit peut avoir son propre taux (0 = exonéré).",
       stamp: "Timbre fiscal (DT par facture)",
       stampHint: "Proposé sur chaque facture ; modifiable sur le brouillon.",
+      cashLimit: "Plafond des paiements en espèces (DT)",
+      cashLimitHint:
+        "Une ligne en espèces de ce montant ou plus, sur un règlement client ou fournisseur, demande une confirmation. 5 000 DT par défaut.",
       pricesIncludeVat: "Les prix de vente comprennent la TVA",
       pricesHint: "Coché : la TVA est extraite du prix. Décoché : elle s'ajoute au prix.",
       withholdingRate: "Retenue à la source (%)",
@@ -1766,6 +1769,9 @@ export const fr = {
     },
     // P2-T06 · customer payments, balances, credit limit, withholding certificates
     payments: {
+      cashLimit: {
+        confirm: "Confirmer le paiement en espèces",
+      },
       title: "Règlements clients",
       intro:
         "Ce que les clients doivent, classé par ancienneté, les retenues à la source et chaque règlement reçu. Un règlement solde d'abord les plus anciennes ventes ; le surplus reste en crédit du client.",

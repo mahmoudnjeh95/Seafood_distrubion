@@ -14208,6 +14208,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -14229,6 +14232,7 @@ components:
       required:
       - allocated_total
       - amount
+      - cash_limit_confirmed
       - created_at
       - created_by
       - customer
@@ -14329,6 +14333,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -14356,6 +14363,7 @@ components:
       - allocated_total
       - allocations
       - amount
+      - cash_limit_confirmed
       - created_at
       - created_by
       - customer
@@ -14568,6 +14576,9 @@ components:
           type: string
           default: ''
           maxLength: 120
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - customer
     CustomerWrite:
@@ -18303,6 +18314,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        cash_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         credit_policy:
           allOf:
           - $ref: '#/components/schemas/CreditPolicyEnum'
@@ -18331,6 +18347,7 @@ components:
           readOnly: true
       required:
       - address
+      - cash_limit
       - created_at
       - created_by
       - credit_policy
@@ -18379,6 +18396,8 @@ components:
         prices_include_vat:
           type: boolean
         withholding_rate:
+          type: string
+        cash_limit:
           type: string
         credit_policy:
           $ref: '#/components/schemas/CreditPolicyEnum'
@@ -30043,6 +30062,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -30058,6 +30080,7 @@ components:
       - allocated_amount
       - allocations
       - amount
+      - cash_limit_confirmed
       - cash_on
       - created_at
       - created_by
@@ -30146,6 +30169,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -30161,6 +30187,7 @@ components:
       - allocated_amount
       - allocations
       - amount
+      - cash_limit_confirmed
       - cash_on
       - created_at
       - created_by
@@ -30340,6 +30367,9 @@ components:
           items:
             type: integer
             minimum: 1
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - paid_on
       - supplier

@@ -1906,6 +1906,8 @@ class FinanceSettingsFields(TypedDict, total=False):
     fiscal_stamp: Number
     prices_include_vat: bool
     withholding_rate: Number
+    # DT: a cash line of this amount or more needs confirming (D-273).
+    cash_limit: Number
     # `block`, `approval` or `warn` (D-018, D-062).
     credit_policy: str
     legal_name: str
@@ -1949,6 +1951,7 @@ def _settings_snapshot(version: FinanceSettings) -> dict[str, Any]:
         "fiscal_stamp": str(version.fiscal_stamp),
         "prices_include_vat": version.prices_include_vat,
         "withholding_rate": str(version.withholding_rate),
+        "cash_limit": str(version.cash_limit),
         "credit_policy": version.credit_policy,
         **{name: getattr(version, name) for name in SETTINGS_TEXT_FIELDS},
     }
@@ -1985,6 +1988,13 @@ def save_finance_settings(
         values["fiscal_stamp"] = checked_amount(stamp)
     except (ValueError, TypeError):
         errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
+    limit_raw: Any = fields.get("cash_limit", in_force.cash_limit)
+    try:
+        values["cash_limit"] = checked_amount(limit_raw)
+        if values["cash_limit"] <= 0:
+            errors["cash_limit"] = _("Le plafond des espèces doit être supérieur à zéro.")
+    except (ValueError, TypeError):
+        errors["cash_limit"] = _("Indiquez un montant en DT, au millime près.")
     values["prices_include_vat"] = bool(fields.get("prices_include_vat", in_force.prices_include_vat))
     policy = str(fields.get("credit_policy", in_force.credit_policy))
     if policy not in CreditPolicy.values:
@@ -2925,6 +2935,7 @@ def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
         "reference": payment.reference,
         "reason": payment.reason,
         "paid_by": payment.paid_by,
+        "cash_limit_confirmed": payment.cash_limit_confirmed,
         "lines": [_line_snapshot(line) for line in payment.lines.select_related("instrument__bank").order_by("id")],
         "allocations": [
             {"sale": row.sale.number, "amount": str(row.amount)}
@@ -3162,6 +3173,7 @@ def record_customer_payment(
     allocations: Sequence[AllocationFields] | None = None,
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
+    confirm_cash_limit: bool = False,
 ) -> CustomerPayment:
     """Register a règlement received from a customer and allocate it (D-062, D-197).
 
@@ -3205,6 +3217,14 @@ def record_customer_payment(
                     errors["amount"] = _("Le total ne correspond pas à la somme des moyens de paiement.")
             except (ValueError, TypeError):
                 errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    over_limit = not errors and selectors.cash_over_limit(
+        organization, received_on, (value for line_method, value, _line in checked if line_method == "cash")
+    )
+    if over_limit and not confirm_cash_limit:
+        # A cash line at or above the limit goes through only when confirmed (D-273).
+        errors["cash_limit"] = _(
+            "Paiement en espèces au-delà du plafond légal (%(limit)s DT) : confirmez pour continuer."
+        ) % {"limit": display_money(selectors.cash_limit_on(organization, received_on))}
     if errors:
         raise ValidationError(errors)
     paid = sum((value for _method, value, _line in checked), Decimal("0.000"))
@@ -3213,6 +3233,7 @@ def record_customer_payment(
     payment = CustomerPayment.objects.create(
         organization=organization,
         number=number,
+        cash_limit_confirmed=over_limit,
         customer=customer,
         amount=paid,
         method=methods.pop() if len(methods) == 1 else CustomerPaymentMethod.MIXED,

@@ -628,6 +628,7 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
             "created_by",
             "created_at",
             "is_voided",
+            "cash_limit_confirmed",
             "voided_at",
             "voided_by",
             "void_reason",
@@ -695,6 +696,8 @@ class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
     plan_line = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
     # Several open plan lines paid by this one règlement (D-208).
     plan_lines = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
+    # True: a cash line at or above the cash limit is confirmed by the person recording the payment (D-273).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
 
 
 class PaymentAllocateSerializer(serializers.Serializer[Any]):
