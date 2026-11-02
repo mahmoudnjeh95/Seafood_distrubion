@@ -7864,8 +7864,8 @@ paths:
     post:
       operationId: addSalaryPrime
       description: |-
-        Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
-        with no separate payment (D-234).
+        Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+        It is due on top of the salary and its payment leaves the treasury on the day paid.
       parameters:
       - in: path
         name: record_id
@@ -7878,13 +7878,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
         required: true
       security:
       - cookieAuth: []
@@ -23454,6 +23454,24 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PrimeWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+        method:
+          $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        paid_on:
+          type: string
+          format: date
+      required:
+      - amount
+      - method
+      - paid_on
+      - reason
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -25751,10 +25769,12 @@ components:
       enum:
       - salary
       - advance
+      - prime
       type: string
       description: |-
         * `salary` - Salaire
         * `advance` - Avance sur salaire
+        * `prime` - Prime
     SalaryPaymentMethodEnum:
       enum:
       - cash

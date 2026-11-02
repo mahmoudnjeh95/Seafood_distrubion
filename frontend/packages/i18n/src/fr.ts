@@ -3943,7 +3943,7 @@ export const fr = {
       tabs: { label: "Personnel et salaires", payroll: "Paie", employees: "Employés" },
       status: { draft: "Brouillon", approved: "Approuvée" },
       method: { cash: "Espèces", cheque: "Chèque", transfer: "Virement", other: "Autre" },
-      kind: { salary: "Salaire", advance: "Avance sur salaire" },
+      kind: { salary: "Salaire", advance: "Avance sur salaire", prime: "Prime" },
       adjustKind: { adjustment: "Ajustement", prime: "Prime" },
       treasury: {
         column: "Trésorerie",
@@ -4114,9 +4114,11 @@ export const fr = {
       },
       prime: {
         title: "Ajouter une prime à {{name}}",
-        hint: "La prime s'ajoute à ce qui est dû pour le mois, avec son motif. Elle ne demande pas de paiement séparé.",
+        hint: "La prime s'ajoute à ce qui est dû pour le mois, avec son motif, et se paie tout de suite : elle sort de la trésorerie le jour du paiement.",
         amount: "Montant de la prime (DT)",
         reason: "Motif de la prime",
+        method: "Mode de paiement",
+        paidOn: "Date du paiement",
         invalidAmount: "Indiquez un montant de prime positif, au millime près.",
         save: "Ajouter la prime",
         recorded: "Prime ajoutée.",
