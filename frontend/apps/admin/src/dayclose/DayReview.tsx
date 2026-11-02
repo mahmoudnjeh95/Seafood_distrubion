@@ -85,7 +85,9 @@ export function DayReview({ dayId, canDecide }: { dayId: number; canDecide: bool
   const data = day.data;
   if (data === undefined) return null;
   const stockLeft = data.stock.some((row) => Number(row.on_truck) > 0) || data.boxes.some((row) => row.on_truck > 0);
-  const room = coldRoom !== "" ? coldRoom : data.cold_rooms.length === 1 ? String(data.cold_rooms[0].id) : "";
+  // The only active cold room is preselected (D-258).
+  const onlyRoom = data.cold_rooms.length === 1 ? data.cold_rooms[0] : undefined;
+  const room = coldRoom !== "" ? coldRoom : onlyRoom === undefined ? "" : String(onlyRoom.id);
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-card border border-line p-3">
