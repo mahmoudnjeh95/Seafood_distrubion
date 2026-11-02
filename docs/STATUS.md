@@ -4,6 +4,9 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 
 ## Where we are
 
+- **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
+  checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice
+  from a BL without VAT-bought goods opens with the box unchecked.
 - **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
   date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
   treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).

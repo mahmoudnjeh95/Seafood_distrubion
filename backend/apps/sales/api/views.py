@@ -632,7 +632,8 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
     def post(self, request: Request) -> Response:
         """Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
-        `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+        `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
+        every typed value is flagged and audited. Errors:
         `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`."""
         serializer = InvoiceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

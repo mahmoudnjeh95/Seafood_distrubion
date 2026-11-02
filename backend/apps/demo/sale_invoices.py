@@ -40,7 +40,7 @@ def seed_invoices(*, organization: Organization, actor: User | None) -> int:
         if sale is None or selectors.live_invoice_of(sale) is not None:
             continue
         try:
-            services.create_invoice(sale=sale, actor=actor, issue=issue)
+            services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=issue)
         except ValidationError:
             continue
         created += 1

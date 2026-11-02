@@ -6562,17 +6562,17 @@ export const ListInvoicesResponse = zod.object({
 /**
  * Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
  * once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
- * `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+ * `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
+ * every typed value is flagged and audited. Errors:
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
-export const createInvoiceBodyApplyVatDefault = true;
 export const createInvoiceBodyNotesDefault = ``;
 export const createInvoiceBodyIssueNowDefault = false;
 
 
 
 export const CreateInvoiceBody = zod.object({
-  "apply_vat": zod.boolean().default(createInvoiceBodyApplyVatDefault),
+  "apply_vat": zod.boolean().nullish(),
   "lines": zod.array(zod.object({
   "vat_rate": zod.string().nullish()
 })).optional(),
@@ -7017,12 +7017,11 @@ export const UpdateInvoiceParams = zod.object({
   "invoice_id": zod.int()
 })
 
-export const updateInvoiceBodyApplyVatDefault = true;
 export const updateInvoiceBodyNotesDefault = ``;
 export const updateInvoiceBodyIssueNowDefault = false;
 
 export const UpdateInvoiceBody = zod.object({
-  "apply_vat": zod.boolean().default(updateInvoiceBodyApplyVatDefault),
+  "apply_vat": zod.boolean().nullish(),
   "lines": zod.array(zod.object({
   "vat_rate": zod.string().nullish()
 })).optional(),

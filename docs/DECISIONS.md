@@ -3601,3 +3601,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier);
   choosing the cold room for the return; the owner may prefer approval to ask for a reason instead of blocking.
 - Migration: none. Tests: `dayclose/tests/test_day_review.py`.
+**D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
+- A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
+  product the box starts unchecked. Before, every invoice started with VAT.
+- The default is decided by the server (`apply_vat` left empty on `POST /invoices`; the same rule when a draft is changed
+  without the box sent keeps the draft's own choice). The box can still be checked or unchecked by hand on the draft.
+- The refusal of an invoice without VAT on VAT-bought goods (D-202) is unchanged.
+- The "Achat avec TVA" box on a receipt (D-202) already starts unchecked and is not changed.
+- Provisional: the rule is read from the lots, so a mixed BL with one VAT-bought product is invoiced with VAT as a whole.

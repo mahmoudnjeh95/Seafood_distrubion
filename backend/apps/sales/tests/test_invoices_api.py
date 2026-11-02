@@ -101,7 +101,7 @@ def test_only_the_owner_changes_the_finance_settings(organization, api):
 
 
 def test_invoice_a_sale_type_values_issue_and_credit(api, sale):
-    created = api.post(reverse("invoice-list"), {"sale": sale.pk}, format="json")
+    created = api.post(reverse("invoice-list"), {"sale": sale.pk, "apply_vat": True}, format="json")
     assert created.status_code == 201, created.json()
     invoice = created.json()
     assert invoice["status"] == "draft"

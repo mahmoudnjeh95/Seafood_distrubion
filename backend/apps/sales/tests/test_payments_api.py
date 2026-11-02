@@ -192,7 +192,7 @@ def test_withholding_certificate_and_summary(api, organization, manager, setup, 
         lines=[{"product": sale.lines.first().product, "quantity": "20"}],
         confirm=True,
     )
-    invoice = services.create_invoice(sale=big, actor=None, issue=True, withholding_rate="1.5")
+    invoice = services.create_invoice(apply_vat=True, sale=big, actor=None, issue=True, withholding_rate="1.5")
     today = timezone.localdate().isoformat()
     summary = api.get(reverse("withholding-summary")).json()
     assert [row["id"] for row in summary["awaiting"]] == [invoice.pk]

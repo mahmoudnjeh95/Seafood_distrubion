@@ -349,7 +349,7 @@ def test_an_unknown_policy_is_refused(organization, actor):
 
 
 def issued_invoice(sale, actor, **choices):
-    return services.create_invoice(sale=sale, actor=actor, issue=True, **choices)
+    return services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True, **choices)
 
 
 def test_an_issued_invoice_adds_vat_and_stamp_to_what_is_owed(organization, actor, customer, counter, stocked):

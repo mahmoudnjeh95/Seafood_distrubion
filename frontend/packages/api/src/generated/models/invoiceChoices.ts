@@ -11,7 +11,8 @@ import type { InvoiceVatAmount } from './invoiceVatAmount';
  * What may change on a draft invoice. Every empty value takes the finance settings (D-056).
  */
 export interface InvoiceChoices {
-  apply_vat?: boolean;
+  /** @nullable */
+  apply_vat?: boolean | null;
   lines?: InvoiceLineChoice[];
   vat_amounts?: InvoiceVatAmount[];
   /** @nullable */
