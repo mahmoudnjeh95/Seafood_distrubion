@@ -57,6 +57,11 @@ urlpatterns = [
         name="customer-payment-void",
     ),
     path("customers/<int:customer_id>/balance", payment_views.CustomerBalanceView.as_view(), name="customer-balance"),
+    path(
+        "customers/<int:customer_id>/write-off",
+        payment_views.CustomerWriteOffView.as_view(),
+        name="customer-write-off",
+    ),
     path("receivables/ageing", payment_views.ReceivablesAgeingView.as_view(), name="receivables-ageing"),
     path(
         "invoices/<int:invoice_id>/withholding-certificate",

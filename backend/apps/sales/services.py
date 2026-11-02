@@ -40,9 +40,11 @@ from .models import (
     CreditNoteStock,
     CreditPolicy,
     CreditStatus,
+    CustomerBalanceWriteOff,
     CustomerPayment,
     CustomerPaymentLine,
     CustomerPaymentMethod,
+    CustomerWriteOffAllocation,
     DeliveryStatus,
     FinanceSettings,
     Invoice,
@@ -2013,8 +2015,7 @@ class InvoiceChoices(TypedDict, total=False):
     fiscal_stamp: Number | None
     # "Frais" in DT; empty = none (D-126).
     fees: Number | None
-    withholding_applied: bool
-    # Empty = the settings' rate.
+    # Empty = the settings' rate. The withholding itself follows the invoice total (1 000 DT, invoicing.py).
     withholding_rate: Number | None
     notes: str
 
@@ -2027,7 +2028,6 @@ class _Overrides:
     vat_rates: list[Decimal | None]
     vat_amounts: dict[Decimal, Decimal]
     fiscal_stamp: Decimal | None
-    withholding_applied: bool
     withholding_rate: Decimal | None
     notes: str
     fees: Decimal = Decimal("0.000")
@@ -2094,7 +2094,6 @@ def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
         vat_rates=rates,
         vat_amounts=amounts,
         fiscal_stamp=stamp,
-        withholding_applied=choices.get("withholding_applied", False),
         withholding_rate=withholding_rate,
         notes=(choices.get("notes") or "").strip(),
         fees=fees,
@@ -2109,7 +2108,6 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
         vat_rates=[line.vat_rate if line.vat_rate_overridden else None for line in lines],
         vat_amounts={row.rate: row.amount for row in invoice.vat_lines.filter(amount_overridden=True)},
         fiscal_stamp=invoice.fiscal_stamp if invoice.fiscal_stamp_overridden else None,
-        withholding_applied=invoice.withholding_applied,
         withholding_rate=invoice.withholding_rate if invoice.withholding_rate_overridden else None,
         notes=invoice.notes,
         fees=invoice.fees,
@@ -2145,7 +2143,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         apply_vat=overrides.apply_vat,
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=stamp,
-        withholding_rate=withholding_rate if overrides.withholding_applied else None,
+        withholding_rate=withholding_rate,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
     )
@@ -2201,7 +2199,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = overrides.withholding_applied
+    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_incl_tax)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
@@ -3281,6 +3279,73 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
         after={"reason": reason, "amount": str(payment.amount)},
     )
     return payment
+
+
+@transaction.atomic
+def write_off_customer_balance(
+    *, customer: "Customer", actor: User | None, expected: Number, reason: str
+) -> CustomerBalanceWriteOff:
+    """Clear a customer's balance to zero, the rest given up as a loss on them (D-252): they paid less than they
+    owed (10 000 of 10 080 DT leaves 80 DT). `expected` must be the balance shown now, typed again by the office,
+    so a balance that moved since the screen was read is refused. The amount is spread over the customer's open
+    sales, oldest first, and kept as it was written: never edited or deleted."""
+    organization = customer.organization
+    list(
+        Sale.objects.select_for_update(of=("self",))
+        .filter(organization=organization, customer_id=customer.pk, status=SaleStatus.CONFIRMED)
+        .order_by("id")
+        .values_list("pk", flat=True)
+    )
+    balance = receivables.customer_balance(organization, customer.pk).balance
+    try:
+        typed = checked_amount(expected)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"expected_amount": str(error)}) from None
+    if balance <= 0:
+        raise ValidationError(_("Ce client ne doit rien : son solde n'est pas positif, rien à remettre à zéro."))
+    if typed != balance:
+        raise ValidationError(
+            {
+                "expected_amount": _("Le solde est de %(balance)s DT, pas %(typed)s DT : vérifiez le montant.")
+                % {"balance": display_money(balance), "typed": display_money(typed)}
+            }
+        )
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    write_off = CustomerBalanceWriteOff.objects.create(
+        organization=organization,
+        customer=customer,
+        written_on=timezone.localdate(),
+        amount=balance,
+        reason=reason,
+        created_by=actor,
+    )
+    # The sales still open, oldest first, each settled by what is left; a balance above the open sales (an
+    # impayé not tied to a sale) stays on the write-off only.
+    left = balance
+    open_rows = sorted(
+        (row for row in receivables.sale_receivables(organization, customer_id=customer.pk) if row.outstanding > 0),
+        key=lambda row: (row.document_date, row.sale_id),
+    )
+    for row in open_rows:
+        if left <= 0:
+            break
+        part = min(left, row.outstanding)
+        CustomerWriteOffAllocation.objects.create(
+            organization=organization, write_off=write_off, sale_id=row.sale_id, amount=part
+        )
+        left -= part
+    for sale in Sale.objects.filter(pk__in=[row.sale_id for row in open_rows]).select_related("organization"):
+        refresh_sale_due(sale)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer.balance_written_off",
+        target=write_off,
+        after={"customer": customer.name, "amount": str(balance), "reason": reason},
+    )
+    return write_off
 
 
 def _certificate_content(upload: "UploadedFile[bytes]") -> tuple[ContentFile[bytes], str]:

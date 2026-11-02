@@ -1318,6 +1318,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/customers/{customer_id}/write-off:
+    post:
+      operationId: writeOffCustomerBalance
+      description: |-
+        Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalance'
+          description: ''
   /api/v1/dashboard:
     get:
       operationId: getDashboard
@@ -1552,8 +1587,9 @@ paths:
   /api/v1/day-funds:
     get:
       operationId: listDayFunds
-      description: Every active driver with the cash set for them on a day (today
-        by default) and whether they started.
+      description: |-
+        Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent.
       parameters:
       - in: query
         name: date
@@ -1575,8 +1611,9 @@ paths:
           description: ''
     put:
       operationId: setDayFund
-      description: Set the cash handed to a driver for a day (D-203); it changes until
-        the driver accepts it.
+      description: |-
+        Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248).
       tags:
       - day-funds
       requestBody:
@@ -1855,6 +1892,97 @@ paths:
       operationId: getDayOverview
       description: 'One driver''s day: figures, sales, deliveries to do and done,
         payments collected and expenses.'
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/expenses/{expense_id}/decide:
+    post:
+      operationId: decideDayOverviewExpense
+      description: |-
+        Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+        A sent day whose figures move is corrected with a revision.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/purchases/{purchase_id}/validate:
+    post:
+      operationId: validateDayOverviewPurchase
+      description: |-
+        Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+        while the purchase is not complete (supplier, products, place).
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/return-to-stock:
+    post:
+      operationId: returnDayOverviewToStock
+      description: |-
+        Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
+        or not the driver sent the day; only on the truck's latest day.
       parameters:
       - in: path
         name: day_id
@@ -4923,35 +5051,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
           description: ''
-  /api/v1/my-day/purchase-float:
-    put:
-      operationId: setMyPurchaseFloat
-      description: |-
-        The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent.
-      tags:
-      - my-day
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DriverDay'
-          description: ''
   /api/v1/my-days:
     get:
       operationId: listMyDays
@@ -5752,6 +5851,41 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedLotPartnershipUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
+  /api/v1/partnerships/{partnership_id}/advances:
+    post:
+      operationId: advancePartnerCapital
+      description: |-
+        Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+        still in; the settlement pays the rest.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -7856,8 +7990,8 @@ paths:
     post:
       operationId: addSalaryPrime
       description: |-
-        Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
-        with no separate payment (D-234).
+        Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+        It is due on top of the salary and its payment leaves the treasury on the day paid.
       parameters:
       - in: path
         name: record_id
@@ -7870,13 +8004,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
         required: true
       security:
       - cookieAuth: []
@@ -8568,6 +8702,41 @@ paths:
         required: true
       tags:
       - supplier-balances
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBalance'
+          description: ''
+  /api/v1/supplier-balances/{supplier_id}/write-off:
+    post:
+      operationId: writeOffSupplierBalance
+      description: |-
+        Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-balances
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -9984,6 +10153,80 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/treasury/accounts/{account_id}/statement-lines:
+    get:
+      operationId: listStatementLines
+      description: The lines imported on a bank account between two days (inclusive),
+        oldest first, paginated.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBankStatementLineList'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/statement/import:
+    post:
+      operationId: importBankStatement
+      description: |-
+        Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+        or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+        already on the account is skipped, so the same file twice adds nothing.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementImport'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportReport'
+          description: ''
   /api/v1/treasury/banks:
     get:
       operationId: listBanks
@@ -10505,6 +10748,40 @@ paths:
                 items:
                   $ref: '#/components/schemas/Instrument'
           description: ''
+  /api/v1/treasury/movements-of:
+    get:
+      operationId: listMovementsOf
+      description: |-
+        The treasury movements written by the given records of one source, each with the account it went through
+        (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+      parameters:
+      - in: query
+        name: from_source
+        schema:
+          type: string
+          maxLength: 40
+          minLength: 1
+        required: true
+      - in: query
+        name: source_ids
+        schema:
+          type: string
+          maxLength: 2000
+          minLength: 1
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovementOf'
+          description: ''
   /api/v1/treasury/party-documents:
     get:
       operationId: listPartyDocuments
@@ -10523,6 +10800,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/PartyDocuments'
           description: ''
+  /api/v1/treasury/statement-lines/{line_id}:
+    put:
+      operationId: setStatementLineParty
+      description: |-
+        Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+        credit. Both left empty clears it.
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+          description: ''
+    delete:
+      operationId: deleteStatementLine
+      description: 'Take a line off the statement (owner or manager): a wrong import.
+        It was only a copy of the bank''s file.'
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/treasury/transfers:
     get:
       operationId: listAccountTransfers
@@ -11396,6 +11724,18 @@ components:
       - issued_on
       - number
       - withholding_amount
+    BalanceWriteOff:
+      type: object
+      properties:
+        expected_amount:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - expected_amount
+      - reason
     Bank:
       type: object
       properties:
@@ -11424,6 +11764,54 @@ components:
       - is_active
       - name
       - swift
+    BankStatementLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        debit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+      required:
+      - balance
+      - credit
+      - customer
+      - day
+      - debit
+      - id
+      - label
+      - supplier
     BankWrite:
       type: object
       properties:
@@ -11890,6 +12278,13 @@ components:
         note:
           type: string
           readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
         lot_result_id:
           type: integer
           readOnly: true
@@ -11909,7 +12304,9 @@ components:
       - id
       - kind
       - lot_result_id
+      - method
       - note
+      - reference
     CapitalEntryKindEnum:
       enum:
       - contribution
@@ -11917,6 +12314,7 @@ components:
       - loss_deduction
       - loss_reversal
       - return
+      - advance
       type: string
       description: |-
         * `contribution` - Apport
@@ -11924,6 +12322,7 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+        * `advance` - Avance sur capital
     CashCount:
       type: object
       properties:
@@ -13127,6 +13526,16 @@ components:
           items:
             $ref: '#/components/schemas/HistoryEntry'
           readOnly: true
+        write_offs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerWriteOff'
+          readOnly: true
+        written_off_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - ageing
       - available_credit
@@ -13138,6 +13547,8 @@ components:
       - open_sales
       - open_total
       - overdue
+      - write_offs
+      - written_off_total
     CustomerBalances:
       type: object
       properties:
@@ -13787,6 +14198,47 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    CustomerWriteOff:
+      type: object
+      description: 'A balance written off (D-252): the loss on the customer, with
+        its reason.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        written_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - created_by
+      - id
+      - reason
+      - written_on
+    CustomerWriteOffWrite:
+      type: object
+      properties:
+        expected_amount:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - expected_amount
+      - reason
     Dashboard:
       type: object
       properties:
@@ -13914,6 +14366,33 @@ components:
       - sales
       - settlements_undefined_late
       - stock_value
+    DayBox:
+      type: object
+      description: |-
+        One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what
+        the day's purchases brought from suppliers.
+      properties:
+        box_type:
+          type: string
+          readOnly: true
+        on_truck:
+          type: integer
+          readOnly: true
+        left_at_clients:
+          type: integer
+          readOnly: true
+        collected:
+          type: integer
+          readOnly: true
+        from_suppliers:
+          type: integer
+          readOnly: true
+      required:
+      - box_type
+      - collected
+      - from_suppliers
+      - left_at_clients
+      - on_truck
     DayClosingApprove:
       type: object
       properties:
@@ -13967,6 +14446,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14055,10 +14537,16 @@ components:
         changed_since_sent:
           type: boolean
           readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
       - changed_since_sent
       - changes_since_sent
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14069,6 +14557,7 @@ components:
       - office_difference
       - office_purchase_difference
       - reopenings
+      - review_blockers
       - review_note
       - reviewed_at
       - reviewed_by_name
@@ -14083,6 +14572,9 @@ components:
         the driver''s note, and the office''s count.'
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14136,6 +14628,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14180,6 +14673,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14230,6 +14726,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - expected_cash
       - expected_purchase_cash
@@ -14302,6 +14799,17 @@ components:
         note:
           type: string
           default: ''
+    DayExpenseDecision:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - decision
     DayFund:
       type: object
       description: The cash the office set for a driver's day (D-203).
@@ -14361,9 +14869,13 @@ components:
         started:
           type: boolean
           readOnly: true
+        ended:
+          type: boolean
+          readOnly: true
       required:
       - can_buy
       - driver
+      - ended
       - fund
       - started
     DayFundWrite:
@@ -14724,7 +15236,26 @@ components:
           items:
             $ref: '#/components/schemas/DayOverviewPurchase'
           readOnly: true
+        owns_truck:
+          type: boolean
+          readOnly: true
+        stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayStock'
+          readOnly: true
+        boxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayBox'
+          readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
+      - boxes
       - cash_received
       - closing
       - closing_id
@@ -14745,6 +15276,7 @@ components:
       - opening_cash
       - other_payments
       - owed_to_driver
+      - owns_truck
       - payments
       - payments_cash
       - phase
@@ -14756,9 +15288,11 @@ components:
       - purchases_from_sales
       - purchases_other
       - purchases_total
+      - review_blockers
       - sales
       - sales_count
       - sales_total
+      - stock
       - truck_name
     DayOverviewDriver:
       type: object
@@ -14796,6 +15330,12 @@ components:
         payment_method:
           type: string
           readOnly: true
+        paid_by_driver:
+          type: boolean
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
         made_at:
           type: string
           format: date-time
@@ -14806,7 +15346,9 @@ components:
       - description
       - id
       - made_at
+      - paid_by_driver
       - payment_method
+      - rejection_reason
       - status
     DayOverviewPayment:
       type: object
@@ -15265,6 +15807,32 @@ components:
       - last
       - points
       - stops
+    DayStock:
+      type: object
+      description: 'One product on the truck, now (D-239): its kilos, and the kilos
+        of the day''s purchases not yet validated.'
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        on_truck:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        purchased_pending:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - on_truck
+      - product_id
+      - product_name
+      - purchased_pending
     DaySummary:
       type: object
       properties:
@@ -15414,6 +15982,14 @@ components:
       - sales_count
       - sales_total
       - truck_name
+    DecisionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
     Deliver:
       type: object
       description: The delivery of the BL of a truck load, from the driver's phone
@@ -17533,12 +18109,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        note:
+          type: string
+          readOnly: true
       required:
       - amount
       - balance
       - day
       - kind
       - method
+      - note
       - number
       - object_id
       - voided
@@ -17548,12 +18128,14 @@ components:
       - on_spot
       - payment
       - unpaid
+      - writeoff
       type: string
       description: |-
         * `sale` - sale
         * `on_spot` - on_spot
         * `payment` - payment
         * `unpaid` - unpaid
+        * `writeoff` - writeoff
     IllustrationEnum:
       enum:
       - shrimp
@@ -18200,9 +18782,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -18234,9 +18813,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -19643,6 +20219,27 @@ components:
       - profit_rate
       - status
       - terms_pending
+    LotPartnershipAdvance:
+      type: object
+      properties:
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        paid_on:
+          type: string
+          format: date
+        note:
+          type: string
+          default: ''
+          maxLength: 300
+      required:
+      - amount
+      - method
     LotPartnershipCancel:
       type: object
       properties:
@@ -20591,6 +21188,39 @@ components:
         * `salary` - Salaire
         * `partner_settlement` - Règlement associé
         * `field_purchase` - Achat au port
+    MovementOf:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        source_id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+      required:
+      - account
+      - amount
+      - day
+      - id
+      - kind
+      - source_id
     MovementRow:
       type: object
       properties:
@@ -21324,6 +21954,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
           type: string
           format: decimal
@@ -21343,6 +21978,7 @@ components:
       - owed
       - sale_id
       - sold_at
+      - written_off
     Order:
       type: object
       properties:
@@ -21588,6 +22224,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AccountTransfer'
+    PaginatedBankStatementLineList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankStatementLine'
     PaginatedBatchList:
       type: object
       required:
@@ -23344,6 +24003,24 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PrimeWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+        method:
+          $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        paid_on:
+          type: string
+          format: date
+      required:
+      - amount
+      - method
+      - paid_on
+      - reason
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -23754,15 +24431,6 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
-    PurchaseFloat:
-      type: object
-      properties:
-        purchase_float:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-      required:
-      - purchase_float
     PurchaseOrderStatusEnum:
       enum:
       - open
@@ -25650,10 +26318,12 @@ components:
       enum:
       - salary
       - advance
+      - prime
       type: string
       description: |-
         * `salary` - Salaire
         * `advance` - Avance sur salaire
+        * `prime` - Prime
     SalaryPaymentMethodEnum:
       enum:
       - cash
@@ -27655,6 +28325,55 @@ components:
       - rows
       - total_quantity
       - total_value
+    StatementImport:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    StatementImportReport:
+      type: object
+      properties:
+        created:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementRowError'
+          readOnly: true
+      required:
+      - created
+      - problems
+      - skipped
+    StatementLineParty:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+          nullable: true
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+    StatementRowError:
+      type: object
+      properties:
+        row:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - message
+      - row
     StatusTotal:
       type: object
       properties:
@@ -28022,6 +28741,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
           type: string
           format: decimal
@@ -28073,6 +28797,7 @@ components:
       - unallocated
       - uninvoiced_receipts
       - uninvoiced_total
+      - written_off
     SupplierBalances:
       type: object
       properties:

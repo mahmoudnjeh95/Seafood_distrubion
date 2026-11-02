@@ -42,6 +42,7 @@ from .models import (
     PurchaseOrderStatus,
     RejectedEffet,
     RejectedRelease,
+    SupplierBalanceWriteOff,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -49,6 +50,7 @@ from .models import (
     SupplierPaymentAllocation,
     SupplierPaymentLine,
     SupplierPaymentPlanLine,
+    SupplierWriteOffAllocation,
 )
 from .models import PaymentMethod as PaymentMethod  # re-exported for apps that record payments (the demo)
 
@@ -822,12 +824,17 @@ def allocation_error_key(index: int, field: str) -> str:
 
 
 def _paid_on(invoice: SupplierInvoice) -> Decimal:
+    """What settles the invoice: its payments, less what rejected effets took back, plus what a balance write-off
+    gave up on it (D-252: settled though nothing was paid)."""
     paid = SupplierPaymentAllocation.objects.filter(invoice=invoice, payment__voided_at__isnull=True).aggregate(
         total=Sum("amount")
     )["total"]
     released = RejectedRelease.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
     if released:
         paid = (paid or Decimal("0.000")) - released
+    given_up = SupplierWriteOffAllocation.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    if given_up:
+        paid = (paid or Decimal("0.000")) + given_up
     return paid if paid is not None else Decimal("0.000")
 
 
@@ -1328,6 +1335,72 @@ def _invoice_status_from_payments(invoice: SupplierInvoice) -> str:
     if paid >= invoice.total:
         return SupplierInvoiceStatus.PAID
     return SupplierInvoiceStatus.PARTLY_PAID if paid > 0 else SupplierInvoiceStatus.POSTED
+
+
+@transaction.atomic
+def write_off_supplier_balance(
+    *, supplier: "Supplier", actor: User | None, expected: Number, reason: str
+) -> SupplierBalanceWriteOff:
+    """Clear what we owe a supplier to zero, the rest given up as a gain on them (D-252): the supplier takes less
+    than its balance. `expected` must be the balance shown now, typed again by the office, so a balance that moved
+    since the screen was read is refused. The amount is spread over the open invoices, oldest due date first, and
+    kept as it was written: never edited or deleted."""
+    organization = supplier.organization
+    list(
+        SupplierInvoice.objects.select_for_update(of=("self",))
+        .filter(organization=organization, supplier=supplier)
+        .order_by("id")
+        .values_list("pk", flat=True)
+    )
+    balance = selectors.supplier_balance(organization, supplier.pk).balance
+    try:
+        typed = checked_amount(expected)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"expected_amount": str(error)}) from None
+    if balance <= 0:
+        raise ValidationError(_("Nous ne devons rien à ce fournisseur : rien à remettre à zéro."))
+    if typed != balance:
+        raise ValidationError(
+            {
+                "expected_amount": _("Le solde est de %(balance)s DT, pas %(typed)s DT : vérifiez le montant.")
+                % {"balance": display_money(balance), "typed": display_money(typed)}
+            }
+        )
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    write_off = SupplierBalanceWriteOff.objects.create(
+        organization=organization,
+        supplier=supplier,
+        written_on=timezone.localdate(),
+        amount=balance,
+        reason=reason,
+        created_by=actor,
+    )
+    # The open invoices, oldest due date first, each settled by what is left; a balance above the open invoices
+    # (a rejected effet not released yet) stays on the write-off only.
+    left = balance
+    for invoice in selectors.open_invoices_of(organization, supplier_id=supplier.pk):
+        outstanding: Decimal = getattr(invoice, "outstanding")  # noqa: B009
+        if left <= 0:
+            break
+        if outstanding <= 0:
+            continue
+        part = min(left, outstanding)
+        SupplierWriteOffAllocation.objects.create(
+            organization=organization, write_off=write_off, invoice=invoice, amount=part
+        )
+        invoice.status = _invoice_status_from_payments(invoice)
+        invoice.save(update_fields=["status", "updated_at"])
+        left -= part
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="supplier.balance_written_off",
+        target=write_off,
+        after={"supplier": supplier.name, "amount": str(balance), "reason": reason},
+    )
+    return write_off
 
 
 @transaction.atomic
@@ -2041,6 +2114,15 @@ def refuse_field_purchase(*, purchase: FieldPurchase, actor: User | None, revisi
         target=purchase,
         after={"note": note},
     )
+    return purchase
+
+
+@transaction.atomic
+def validate_field_purchase(*, purchase: FieldPurchase, actor: User | None) -> FieldPurchase:
+    """Validate a purchase as the driver sent it, from the day's check (D-239): one click, when its supplier,
+    products and place are already set (else the validation says what is missing). Its kilos enter stock there."""
+    purchase = _locked_field_purchase(purchase, purchase.revision)
+    _validate_field_purchase(purchase, actor)
     return purchase
 
 

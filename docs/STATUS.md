@@ -1,21 +1,32 @@
 # Project status
 
-_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); next free decision D-249)_
+_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-251)_
 
 ## Where we are
 
 - **Sales, 2026-11-02, D-245 (branch `sales-no-payment`, PR #284, awaits CI):** the office's sale forms, "Vente comptoir" and "Convertir en vente" show no payment; an office sale is unpaid and the office API refuses a payment. The treasurer takes it in Règlements clients, the walk-in customer included (provisional change of D-047). The driver's phone is unchanged. The sale detail links "Encaisser au trésorier" while something is owed.
-
+- **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
+  date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
+  treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).
 - **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
   removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
   The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
 - **D-242 (2026-11-02, PR open, provisional):** sending a driver's closing resets that driver's "Fonds de caisse" and
   "Argent pour les achats" for the day to 0 (`fleet.services.end_driver_day`). The day's own figures stay. Check on staging:
   Camions du jour › Fonds de caisse after a closing is sent shows 0 for that driver.
+- **Owner request 2026-11-02, D-243 (branch `partner-capital-advance`, awaits CI):** in a lot's "Partenariat" section the
+  owner can give the partner an advance from the capital they put in ("Donner une avance"): `ADVANCE` entry on the capital
+  ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
+  the rest. The money is a treasury movement the day it is paid (as settlements, D-240).
 
 - **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
   (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
   links them. Routes and pages unchanged; nothing else renamed.
+
+- **2026-11-02, D-248 (branch `driver-purchase-money`, PR #279, awaits CI):** the purchase money ("argent d'achat") is set by
+  the office only; the driver approves it when starting the day and cannot change it on the phone (`PUT /my-day/purchase-float`
+  removed). Check on staging: Camions du jour › Fonds de caisse, change the purchase money of a started day, then the phone
+  shows it read only.
 - **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
   day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
   on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227
@@ -23,6 +34,10 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
   primes and advances in the treasury, D-235 party counts in the règlement lists, D-236 bank details.
 - **CI and deploy fixes:** the month-start test failures (#256), build heap 1536 MB on the VPS (#261).
 - **SmartFeesh:** `SmartToolsAgro/SmartFeesh` is pushed only when the owner says "push main" (D-209). It is at #234.
+- **D-252 on branch `customer-supplier-write-off` (awaits CI):** "Remettre le solde à zéro" for a customer (owner; the rest
+  is a loss on the customer, shown on the account) and for a supplier (owner; a gain on the supplier). Two steps: the
+  reason, then the exact balance typed again. Provisional: the loss does not yet change the profit per lot (open question).
+  Check on staging: customer card › Remettre le solde à zéro, then the supplier card.
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
   **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
   issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c
@@ -43,12 +58,17 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
 
 ## Next step
 
+0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
+0. D-243: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
+   avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.
 0. P1-T15 (#280): merge once green. On staging: a product, "Ajuster le stock", add 10 kg to a lot then remove it; the average on the product page and on Prix du jour moves.
 1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
    opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
-3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-237.
+3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
+   Withholding rule D-250 (PR #277, awaits CI): retenue à la source on invoices of 1 000 DT TTC and more, none below;
+   check on staging with a rate set in Paramètres financiers.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions

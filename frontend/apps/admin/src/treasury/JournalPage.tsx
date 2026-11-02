@@ -21,10 +21,12 @@ import {
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { subtract } from "../lib/decimal";
 import { useDebounced } from "../lib/useDebounced";
 import { compare } from "../purchasing/allocation";
+import { StatementSection } from "./StatementSection";
 import { TresorerieRibbon } from "./TresorerieRibbon";
 
 type Kind = "bank" | "cash";
@@ -35,7 +37,9 @@ export function JournalPage({ kind }: { kind: Kind }) {
   const { t } = useTranslation();
   const accounts = useListTreasuryAccounts({ active_only: false });
   const choices = (accounts.data ?? []).filter((one) => one.kind === kind);
-  const [chosen, setChosen] = useState("");
+  // `?compte=3` (from a payment or a sale, "Où est l'argent") opens that account; else the first of the kind.
+  const [urlParams] = useSearchParams();
+  const [chosen, setChosen] = useState(urlParams.get("compte") ?? "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
@@ -137,6 +141,9 @@ export function JournalPage({ kind }: { kind: Kind }) {
               </Table>
             )}
           </Card>
+          {kind === "bank" && account && (
+            <StatementSection accountId={account.id} dateFrom={dateFrom} dateTo={dateTo} />
+          )}
         </>
       )}
     </>

@@ -218,9 +218,9 @@ class PartnerFlows:
     """What moved on one partner's two ledgers between two days (by `entry_date`), as positive amounts.
 
     Capital: `contributed` (money put in, corrections included), `loss_deducted` (their loss share taken from
-    it, net of reversals on reopening), `returned` (paid back). Profit share: `share` (their part of profits),
-    `uncovered_loss` (what their capital could not cover: they owe it), `late_adjustments` (signed: a cost or a
-    sale after a closing), `paid` (paid out of the share).
+    it, net of reversals on reopening), `returned` (paid back, advances included). Profit share: `share` (their
+    part of profits), `uncovered_loss` (what their capital could not cover: they owe it), `late_adjustments`
+    (signed: a cost or a sale after a closing), `paid` (paid out of the share).
     """
 
     partner_id: int
@@ -254,7 +254,7 @@ def partner_flows(organization: Organization, *, date_from: dt.date, date_to: dt
             add(partner_id, "contributed", total)
         elif kind in (CapitalEntryKind.LOSS_DEDUCTION, CapitalEntryKind.LOSS_REVERSAL):
             add(partner_id, "loss_deducted", -total)
-        elif kind == CapitalEntryKind.RETURN:
+        elif kind in (CapitalEntryKind.RETURN, CapitalEntryKind.ADVANCE):
             add(partner_id, "returned", -total)
     share_rows = (
         ProfitShareEntry.objects.for_organization(organization)

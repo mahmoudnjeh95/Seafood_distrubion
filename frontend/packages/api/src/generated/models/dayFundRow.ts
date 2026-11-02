@@ -15,4 +15,5 @@ export interface DayFundRow {
   readonly can_buy: boolean;
   readonly fund: DayFund | null;
   readonly started: boolean;
+  readonly ended: boolean;
 }

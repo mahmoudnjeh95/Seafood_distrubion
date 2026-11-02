@@ -391,18 +391,19 @@ def test_a_full_credit_note_clears_the_receivable_and_a_payment_becomes_credit(
 
 
 def test_a_withholding_certificate_replaces_the_planned_withholding(organization, actor, customer, counter, stocked):
-    sale = make_sale(organization, actor, customer, counter, stocked, "5")
-    invoice = issued_invoice(sale, actor, withholding_applied=True, withholding_rate="1.5")
-    # (210.000 + 39.900) × 1.5 % = 3.749 withheld; 250.900 − 3.749 = 247.151 to pay.
+    sale = make_sale(organization, actor, customer, counter, stocked, "20")
+    invoice = issued_invoice(sale, actor, withholding_rate="1.5")
+    # 840.000 + 19 % = 159.600 + stamp 1.000 = 1 000.600 (over 1 000 DT); (840.000 + 159.600) × 1.5 % = 14.994
+    # withheld; 1 000.600 − 14.994 = 985.606 to pay.
     sale.refresh_from_db()
-    assert (invoice.withholding_amount, sale.amount_due) == (D("3.749"), D("247.151"))
+    assert (invoice.withholding_amount, sale.amount_due) == (D("14.994"), D("985.606"))
 
     certificate = services.record_withholding_certificate(
         invoice=invoice, actor=actor, number="RS-2026-77", issued_on=timezone.localdate(), amount="5.000"
     )
 
     sale.refresh_from_db()
-    assert sale.amount_due == D("245.900")
+    assert sale.amount_due == D("995.600")
     with pytest.raises(ValidationError):
         services.record_withholding_certificate(
             invoice=invoice, actor=actor, number="RS-2", issued_on=timezone.localdate(), amount="1.000"
@@ -410,7 +411,7 @@ def test_a_withholding_certificate_replaces_the_planned_withholding(organization
 
     services.void_withholding_certificate(certificate=certificate, actor=actor, reason="Mauvais montant")
     sale.refresh_from_db()
-    assert sale.amount_due == D("247.151")
+    assert sale.amount_due == D("985.606")
 
 
 def test_certificate_input_and_file(organization, actor, customer, counter, stocked, settings, tmp_path):
@@ -444,20 +445,17 @@ def test_certificate_input_and_file(organization, actor, customer, counter, stoc
 
 def test_certificate_totals_and_invoices_awaiting_one(organization, actor, customer, counter, stocked):
     today = timezone.localdate()
+    # Two 20 kg invoices of 1 000.600 DT each: over the fixture's 1 000 DT credit limit.
+    customer.credit_limit = D("100000.000")
+    customer.save(update_fields=["credit_limit"])
     planned = issued_invoice(
-        make_sale(organization, actor, customer, counter, stocked, "5"),
-        actor,
-        withholding_applied=True,
-        withholding_rate="1.5",
+        make_sale(organization, actor, customer, counter, stocked, "20"), actor, withholding_rate="1.5"
     )
     other = issued_invoice(
-        make_sale(organization, actor, customer, counter, stocked, "2"),
-        actor,
-        withholding_applied=True,
-        withholding_rate="1.5",
+        make_sale(organization, actor, customer, counter, stocked, "20"), actor, withholding_rate="1.5"
     )
     services.record_withholding_certificate(
-        invoice=planned, actor=actor, number="RS-1", issued_on=today, amount="3.749"
+        invoice=planned, actor=actor, number="RS-1", issued_on=today, amount="14.994"
     )
 
     certificates = payment_selectors.withholding_certificates_of(organization, date_from=today, date_to=today)

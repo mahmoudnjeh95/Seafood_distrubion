@@ -470,6 +470,16 @@ def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
         return [OnHandDifference(*row) for row in cursor.fetchall()]
 
 
+def active_cold_rooms(organization: Organization) -> list[StockLocation]:
+    """The active cold rooms, by id: a load "from the cold rooms" empties the first one first (D-174), and a truck
+    gives its stock back to the first one (D-239)."""
+    return list(
+        StockLocation.objects.for_organization(organization)
+        .filter(kind=LocationKind.COLD_ROOM, is_active=True)
+        .order_by("id")
+    )
+
+
 def location_stock_at(organization: Organization, *, location_id: int, moment: dt.datetime) -> list[dict[str, Any]]:
     """What one location held just before `moment` per product, from the ledger: every movement dated
     (`occurred_at`) before it. Same keys as `location_stock`. Read at the moment a driver's day starts, it is

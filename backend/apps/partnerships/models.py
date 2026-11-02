@@ -81,6 +81,14 @@ class LotPartnership(OrganizationScopedModel, TimeStampedModel):
 # ---- The partner's capital, a ledger per partner and lot ----
 
 
+class SettlementPaymentMethod(models.TextChoices):
+    CASH = "cash", _("Espèces")
+    CHEQUE = "cheque", _("Chèque")
+    TRANSFER = "transfer", _("Virement")
+    BILL = "bill", _("Traite")
+    OTHER = "other", _("Autre")
+
+
 class CapitalEntryKind(models.TextChoices):
     # Money the partner put into the lot (+).
     CONTRIBUTION = "contribution", _("Apport")
@@ -92,6 +100,9 @@ class CapitalEntryKind(models.TextChoices):
     LOSS_REVERSAL = "loss_reversal", _("Annulation de la déduction")
     # Capital paid back to the partner (−): at settlement (P6-T03) or when a partnership is cancelled.
     RETURN = "return", _("Remboursement")
+    # Part of the capital paid to the partner before the settlement (−), with the means of payment (owner
+    # request 2026-11-02). The settlement pays what is left.
+    ADVANCE = "advance", _("Avance sur capital")
 
 
 class CapitalEntryQuerySet(OrganizationScopedQuerySet["CapitalEntry"]):
@@ -114,6 +125,9 @@ class CapitalEntry(OrganizationScopedModel):
     amount = MoneyField()
     entry_date = models.DateField()
     note = models.CharField(max_length=300, blank=True)
+    # The means and reference of an advance (blank for every other kind).
+    method = models.CharField(max_length=20, choices=SettlementPaymentMethod.choices, blank=True)
+    reference = models.CharField(max_length=50, blank=True)
     # The frozen lot result that caused it (a loss deduction or its reversal), by id: `closing` reads us.
     lot_result_id = models.PositiveBigIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -184,14 +198,6 @@ class ProfitShareEntry(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.partnership} · {self.kind} · {self.amount}"
-
-
-class SettlementPaymentMethod(models.TextChoices):
-    CASH = "cash", _("Espèces")
-    CHEQUE = "cheque", _("Chèque")
-    TRANSFER = "transfer", _("Virement")
-    BILL = "bill", _("Traite")
-    OTHER = "other", _("Autre")
 
 
 class PartnerSettlement(OrganizationScopedModel, TimeStampedModel):

@@ -18,12 +18,14 @@ from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.core.api.pagination import PagedList
+from apps.core.models import Role
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.partners import selectors as partners
 from apps.sales import payment_selectors, receivables, selectors, services
@@ -38,6 +40,7 @@ from .payment_serializers import (
     CustomerPaymentSerializer,
     CustomerPaymentTotalsSerializer,
     CustomerPaymentWriteSerializer,
+    CustomerWriteOffWriteSerializer,
     ReceivablesAgeingSerializer,
     UnpaidWriteSerializer,
     VoidWriteSerializer,
@@ -343,11 +346,9 @@ def _balance_row(customer: Any, balance: receivables.CustomerBalance) -> dict[st
     }
 
 
-class CustomerBalanceView(OfficeView):
-    @extend_schema(operation_id="getCustomerBalance", responses=CustomerBalanceSerializer)
-    def get(self, request: Request, customer_id: int) -> Response:
-        """What one customer owes: balance (negative = their credit), the part overdue, the ageing in 0-30,
-        31-60 and 61+ days, the open sales (oldest first) and their account history with a running balance."""
+class CustomerBalanceAnswer(OfficeView):
+    def answer(self, customer_id: int) -> Response:
+        """One customer's balance as the screen reads it (see `CustomerBalanceView`)."""
         try:
             customer = partners.customer_of(self.organization, customer_id)
         except ObjectDoesNotExist:
@@ -373,13 +374,59 @@ class CustomerBalanceView(OfficeView):
                     "owed": row.owed,
                     "on_spot": row.on_spot,
                     "allocated": row.allocated,
+                    "written_off": row.written_off,
                     "outstanding": row.outstanding,
                 }
                 for row in balance.open_sales
             ],
             "history": list(reversed(history))[:HISTORY_LIMIT],
+            "write_offs": [
+                {
+                    "id": write_off.pk,
+                    "written_on": write_off.written_on,
+                    "amount": write_off.amount,
+                    "reason": write_off.reason,
+                    "created_by": str(write_off.created_by or ""),
+                }
+                for write_off in customer.balance_write_offs.select_related("created_by")
+            ],
+            "written_off_total": sum((write_off.amount for write_off in customer.balance_write_offs.all()), ZERO),
         }
         return Response(CustomerBalanceSerializer(data).data)
+
+
+class CustomerBalanceView(CustomerBalanceAnswer):
+    @extend_schema(operation_id="getCustomerBalance", responses=CustomerBalanceSerializer)
+    def get(self, request: Request, customer_id: int) -> Response:
+        """What one customer owes: balance (negative = their credit), the part overdue, the ageing in 0-30,
+        31-60 and 61+ days, the open sales (oldest first) and their account history with a running balance."""
+        return self.answer(customer_id)
+
+
+class CustomerWriteOffView(CustomerBalanceAnswer):
+    @extend_schema(
+        operation_id="writeOffCustomerBalance",
+        request=CustomerWriteOffWriteSerializer,
+        responses=CustomerBalanceSerializer,
+    )
+    def post(self, request: Request, customer_id: int) -> Response:
+        """Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire remet un solde client à zéro."))
+        serializer = CustomerWriteOffWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            customer = partners.customer_of(self.organization, customer_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.write_off_customer_balance(
+            customer=customer,
+            actor=self.membership.user,
+            expected=serializer.validated_data["expected_amount"],
+            reason=serializer.validated_data["reason"],
+        )
+        return self.answer(customer_id)
 
 
 class ReceivablesAgeingView(OfficeView):

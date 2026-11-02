@@ -5,7 +5,6 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface PurchaseFloat {
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
-  purchase_float: string;
+export interface StatementImport {
+  file: Blob | File;
 }

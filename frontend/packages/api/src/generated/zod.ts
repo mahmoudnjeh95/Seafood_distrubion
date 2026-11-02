@@ -2030,9 +2030,12 @@ export const getCustomerBalanceResponseAgeingOneD60PlusRegExp = new RegExp('^-?\
 export const getCustomerBalanceResponseOpenSalesItemOwedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseWriteOffsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseWrittenOffTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetCustomerBalanceResponse = zod.object({
@@ -2070,18 +2073,28 @@ export const GetCustomerBalanceResponse = zod.object({
   "owed": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOwedRegExp),
   "on_spot": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
   "allocated": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
+  "written_off": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemWrittenOffRegExp),
   "outstanding": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
 }).describe('A confirmed sale with something left to collect.')),
   "history": zod.array(zod.object({
-  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid'),
+  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
   "day": zod.iso.date(),
   "number": zod.string(),
   "object_id": zod.int(),
   "amount": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemAmountRegExp),
   "method": zod.string(),
   "voided": zod.boolean(),
-  "balance": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemBalanceRegExp)
-}))
+  "balance": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemBalanceRegExp),
+  "note": zod.string()
+})),
+  "write_offs": zod.array(zod.object({
+  "id": zod.int(),
+  "written_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getCustomerBalanceResponseWriteOffsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string()
+}).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
+  "written_off_total": zod.stringFormat('decimal', getCustomerBalanceResponseWrittenOffTotalRegExp)
 })
 
 
@@ -2196,6 +2209,105 @@ export const RestoreCustomerResponse = zod.object({
 
 
 /**
+ * Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+ */
+export const WriteOffCustomerBalanceParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const writeOffCustomerBalanceBodyExpectedAmountMax = 30;
+
+export const writeOffCustomerBalanceBodyReasonMax = 255;
+
+
+
+export const WriteOffCustomerBalanceBody = zod.object({
+  "expected_amount": zod.string().max(writeOffCustomerBalanceBodyExpectedAmountMax),
+  "reason": zod.string().max(writeOffCustomerBalanceBodyReasonMax)
+})
+
+export const writeOffCustomerBalanceResponseCreditLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAvailableCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAgeingOneD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAgeingOneD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAgeingOneD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemOwedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseWriteOffsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseWrittenOffTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const WriteOffCustomerBalanceResponse = zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "credit_limit": zod.stringFormat('decimal', writeOffCustomerBalanceResponseCreditLimitRegExp),
+  "balance": zod.stringFormat('decimal', writeOffCustomerBalanceResponseBalanceRegExp),
+  "overdue": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOverdueRegExp),
+  "open_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenTotalRegExp),
+  "credit": zod.stringFormat('decimal', writeOffCustomerBalanceResponseCreditRegExp),
+  "available_credit": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAvailableCreditRegExp),
+  "ageing": zod.object({
+  "d0_30": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAgeingOneD030RegExp),
+  "d31_60": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAgeingOneD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAgeingOneD60PlusRegExp)
+}),
+  "open_sales": zod.array(zod.object({
+  "sale_id": zod.int(),
+  "number": zod.string(),
+  "invoice_id": zod.int().nullable(),
+  "invoice_number": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "document_date": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "age_days": zod.int(),
+  "is_overdue": zod.boolean(),
+  "owed": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOwedRegExp),
+  "on_spot": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
+  "allocated": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
+  "written_off": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemWrittenOffRegExp),
+  "outstanding": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
+}).describe('A confirmed sale with something left to collect.')),
+  "history": zod.array(zod.object({
+  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
+  "day": zod.iso.date(),
+  "number": zod.string(),
+  "object_id": zod.int(),
+  "amount": zod.stringFormat('decimal', writeOffCustomerBalanceResponseHistoryItemAmountRegExp),
+  "method": zod.string(),
+  "voided": zod.boolean(),
+  "balance": zod.stringFormat('decimal', writeOffCustomerBalanceResponseHistoryItemBalanceRegExp),
+  "note": zod.string()
+})),
+  "write_offs": zod.array(zod.object({
+  "id": zod.int(),
+  "written_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWriteOffsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string()
+}).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
+  "written_off_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWrittenOffTotalRegExp)
+})
+
+
+/**
  * The owner's home page: this month's sales, margin and net result (profit), the cash collected and
  * what customers still owe (cash), the stock value, and a short list of what needs a look. Owner and
  * accountant only.
@@ -2291,6 +2403,7 @@ export const listDayClosingsResponseOfficePurchaseDifferenceRegExp = new RegExp(
 
 export const ListDayClosingsResponseItem = zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -2363,6 +2476,7 @@ export const getDayClosingResponseChangesSinceSentItemLiveRegExp = new RegExp('^
 
 export const GetDayClosingResponse = zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -2441,7 +2555,8 @@ export const GetDayClosingResponse = zod.object({
   "sent": zod.stringFormat('decimal', getDayClosingResponseChangesSinceSentItemSentRegExp),
   "live": zod.stringFormat('decimal', getDayClosingResponseChangesSinceSentItemLiveRegExp)
 }).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
-  "changed_since_sent": zod.boolean()
+  "changed_since_sent": zod.boolean(),
+  "review_blockers": zod.array(zod.string())
 })
 
 
@@ -2518,6 +2633,7 @@ export const approveDayClosingResponseChangesSinceSentItemLiveRegExp = new RegEx
 
 export const ApproveDayClosingResponse = zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -2596,7 +2712,8 @@ export const ApproveDayClosingResponse = zod.object({
   "sent": zod.stringFormat('decimal', approveDayClosingResponseChangesSinceSentItemSentRegExp),
   "live": zod.stringFormat('decimal', approveDayClosingResponseChangesSinceSentItemLiveRegExp)
 }).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
-  "changed_since_sent": zod.boolean()
+  "changed_since_sent": zod.boolean(),
+  "review_blockers": zod.array(zod.string())
 })
 
 
@@ -2673,6 +2790,7 @@ export const correctDayClosingResponseChangesSinceSentItemLiveRegExp = new RegEx
 
 export const CorrectDayClosingResponse = zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -2751,7 +2869,8 @@ export const CorrectDayClosingResponse = zod.object({
   "sent": zod.stringFormat('decimal', correctDayClosingResponseChangesSinceSentItemSentRegExp),
   "live": zod.stringFormat('decimal', correctDayClosingResponseChangesSinceSentItemLiveRegExp)
 }).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
-  "changed_since_sent": zod.boolean()
+  "changed_since_sent": zod.boolean(),
+  "review_blockers": zod.array(zod.string())
 })
 
 
@@ -2824,6 +2943,7 @@ export const countDayClosingResponseChangesSinceSentItemLiveRegExp = new RegExp(
 
 export const CountDayClosingResponse = zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -2902,7 +3022,8 @@ export const CountDayClosingResponse = zod.object({
   "sent": zod.stringFormat('decimal', countDayClosingResponseChangesSinceSentItemSentRegExp),
   "live": zod.stringFormat('decimal', countDayClosingResponseChangesSinceSentItemLiveRegExp)
 }).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
-  "changed_since_sent": zod.boolean()
+  "changed_since_sent": zod.boolean(),
+  "review_blockers": zod.array(zod.string())
 })
 
 
@@ -2972,6 +3093,7 @@ export const requestDayJustificationResponseChangesSinceSentItemLiveRegExp = new
 
 export const RequestDayJustificationResponse = zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -3050,12 +3172,14 @@ export const RequestDayJustificationResponse = zod.object({
   "sent": zod.stringFormat('decimal', requestDayJustificationResponseChangesSinceSentItemSentRegExp),
   "live": zod.stringFormat('decimal', requestDayJustificationResponseChangesSinceSentItemLiveRegExp)
 }).describe('One figure of a day that the records, read now, no longer give as the driver sent it (D-134).')),
-  "changed_since_sent": zod.boolean()
+  "changed_since_sent": zod.boolean(),
+  "review_blockers": zod.array(zod.string())
 })
 
 
 /**
- * Every active driver with the cash set for them on a day (today by default) and whether they started.
+ * Every active driver with the cash set for them on a day (today by default), whether they started and whether
+ * their closing is sent.
  */
 export const ListDayFundsQueryParams = zod.object({
   "date": zod.iso.date().optional()
@@ -3077,13 +3201,15 @@ export const ListDayFundsResponseItem = zod.object({
   "set_at": zod.iso.datetime({"offset":true}),
   "accepted_at": zod.iso.datetime({"offset":true}).nullable()
 }).describe('The cash the office set for a driver\'s day (D-203).'),zod.null()]),
-  "started": zod.boolean()
+  "started": zod.boolean(),
+  "ended": zod.boolean()
 }).describe('One driver on the office\'s "Fonds de caisse" list of a day.')
 export const ListDayFundsResponse = zod.array(ListDayFundsResponseItem)
 
 
 /**
- * Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it.
+ * Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+ * the money for purchases changes, and only here (D-248).
  */
 
 export const setDayFundBodyOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -3506,6 +3632,8 @@ export const getDayOverviewResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d
 export const getDayOverviewResponseExpensesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponsePurchasesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getDayOverviewResponsePurchasesItemCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getDayOverviewResponseStockItemOnTruckRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getDayOverviewResponseStockItemPurchasedPendingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 
 
 export const GetDayOverviewResponse = zod.object({
@@ -3550,6 +3678,7 @@ export const GetDayOverviewResponse = zod.object({
   "closing_id": zod.int().nullable(),
   "closing": zod.union([zod.object({
   "id": zod.int(),
+  "driver_day_id": zod.int(),
   "date": zod.iso.date(),
   "truck_name": zod.string(),
   "driver_name": zod.string(),
@@ -3605,6 +3734,8 @@ export const GetDayOverviewResponse = zod.object({
   "amount": zod.stringFormat('decimal', getDayOverviewResponseExpensesItemAmountRegExp),
   "status": zod.string(),
   "payment_method": zod.string(),
+  "paid_by_driver": zod.boolean(),
+  "rejection_reason": zod.string(),
   "made_at": zod.iso.datetime({"offset":true})
 })),
   "purchases": zod.array(zod.object({
@@ -3615,7 +3746,610 @@ export const GetDayOverviewResponse = zod.object({
   "total": zod.stringFormat('decimal', getDayOverviewResponsePurchasesItemTotalRegExp),
   "cash": zod.stringFormat('decimal', getDayOverviewResponsePurchasesItemCashRegExp),
   "made_at": zod.iso.datetime({"offset":true})
-}).describe('A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.'))
+}).describe('A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.')),
+  "owns_truck": zod.boolean(),
+  "stock": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "on_truck": zod.stringFormat('decimal', getDayOverviewResponseStockItemOnTruckRegExp),
+  "purchased_pending": zod.stringFormat('decimal', getDayOverviewResponseStockItemPurchasedPendingRegExp)
+}).describe('One product on the truck, now (D-239): its kilos, and the kilos of the day\'s purchases not yet validated.')),
+  "boxes": zod.array(zod.object({
+  "box_type": zod.string(),
+  "on_truck": zod.int(),
+  "left_at_clients": zod.int(),
+  "collected": zod.int(),
+  "from_suppliers": zod.int()
+}).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
+  "review_blockers": zod.array(zod.string())
+}).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
+
+
+/**
+ * Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+ * A sent day whose figures move is corrected with a revision.
+ */
+export const DecideDayOverviewExpenseParams = zod.object({
+  "day_id": zod.int(),
+  "expense_id": zod.int()
+})
+
+export const decideDayOverviewExpenseBodyReasonDefault = ``;
+export const decideDayOverviewExpenseBodyReasonMax = 255;
+
+
+
+export const DecideDayOverviewExpenseBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']).describe('* `approve` - approve\n* `reject` - reject'),
+  "reason": zod.string().max(decideDayOverviewExpenseBodyReasonMax).default(decideDayOverviewExpenseBodyReasonDefault)
+})
+
+export const decideDayOverviewExpenseResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseExpensesPocketDefault = `0.000`;
+export const decideDayOverviewExpenseResponseExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseExpensesOtherDefault = `0.000`;
+export const decideDayOverviewExpenseResponseExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchaseFloatDefault = `0.000`;
+export const decideDayOverviewExpenseResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchasesCountDefault = 0;
+export const decideDayOverviewExpenseResponsePurchasesTotalDefault = `0.000`;
+export const decideDayOverviewExpenseResponsePurchasesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchasesCashDefault = `0.000`;
+export const decideDayOverviewExpenseResponsePurchasesCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchasesOtherDefault = `0.000`;
+export const decideDayOverviewExpenseResponsePurchasesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchasesFromSalesDefault = `0.000`;
+export const decideDayOverviewExpenseResponsePurchasesFromSalesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseOwedToDriverDefault = `0.000`;
+export const decideDayOverviewExpenseResponseOwedToDriverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseExpectedPurchaseCashDefault = `0.000`;
+export const decideDayOverviewExpenseResponseExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseClosingOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseClosingOneExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseClosingOneOfficeCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseClosingOneOfficeCountedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseClosingOneOfficeDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseClosingOneOfficePurchaseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseSalesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseSalesItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseSalesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseDeliveriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseDeliveriesItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseDeliveriesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseExpensesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchasesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponsePurchasesItemCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseStockItemOnTruckRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const decideDayOverviewExpenseResponseStockItemPurchasedPendingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const DecideDayOverviewExpenseResponse = zod.object({
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseOpeningCashRegExp),
+  "sales_count": zod.int(),
+  "sales_total": zod.stringFormat('decimal', decideDayOverviewExpenseResponseSalesTotalRegExp),
+  "cash_received": zod.stringFormat('decimal', decideDayOverviewExpenseResponseCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePaymentsCashRegExp),
+  "other_payments": zod.stringFormat('decimal', decideDayOverviewExpenseResponseOtherPaymentsRegExp),
+  "on_credit": zod.stringFormat('decimal', decideDayOverviewExpenseResponseOnCreditRegExp),
+  "expenses_total": zod.stringFormat('decimal', decideDayOverviewExpenseResponseExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', decideDayOverviewExpenseResponseExpensesPocketRegExp).default(decideDayOverviewExpenseResponseExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', decideDayOverviewExpenseResponseExpensesOtherRegExp).default(decideDayOverviewExpenseResponseExpensesOtherDefault),
+  "handed_over": zod.stringFormat('decimal', decideDayOverviewExpenseResponseHandedOverRegExp),
+  "expected_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseExpectedCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchaseFloatRegExp).default(decideDayOverviewExpenseResponsePurchaseFloatDefault),
+  "purchases_count": zod.int().default(decideDayOverviewExpenseResponsePurchasesCountDefault),
+  "purchases_total": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchasesTotalRegExp).default(decideDayOverviewExpenseResponsePurchasesTotalDefault),
+  "purchases_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchasesCashRegExp).default(decideDayOverviewExpenseResponsePurchasesCashDefault),
+  "purchases_other": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchasesOtherRegExp).default(decideDayOverviewExpenseResponsePurchasesOtherDefault),
+  "purchases_from_sales": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchasesFromSalesRegExp).default(decideDayOverviewExpenseResponsePurchasesFromSalesDefault),
+  "owed_to_driver": zod.stringFormat('decimal', decideDayOverviewExpenseResponseOwedToDriverRegExp).default(decideDayOverviewExpenseResponseOwedToDriverDefault),
+  "expected_purchase_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseExpectedPurchaseCashRegExp).default(decideDayOverviewExpenseResponseExpectedPurchaseCashDefault),
+  "products": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemOpeningRegExp),
+  "loaded": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemLoadedRegExp),
+  "sold": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemSoldRegExp),
+  "lost": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemLostRegExp),
+  "returned": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemReturnedRegExp),
+  "remaining": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', decideDayOverviewExpenseResponseProductsItemUnexplainedRegExp)
+})),
+  "id": zod.int(),
+  "phase": zod.enum(['running', 'submitted', 'justification', 'approved', 'reopened']).describe('* `running` - running\n* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "deliveries_done": zod.int(),
+  "deliveries_todo": zod.int(),
+  "closing_id": zod.int().nullable(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "driver_day_id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "status": zod.enum(['submitted', 'justification', 'approved', 'reopened']).describe('* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "expected_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseClosingOneExpectedCashRegExp),
+  "expected_purchase_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseClosingOneExpectedPurchaseCashRegExp),
+  "office_counted_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseClosingOneOfficeCountedCashRegExp).nullable(),
+  "office_counted_purchase_cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponseClosingOneOfficeCountedPurchaseCashRegExp).nullable(),
+  "office_difference": zod.stringFormat('decimal', decideDayOverviewExpenseResponseClosingOneOfficeDifferenceRegExp),
+  "office_purchase_difference": zod.stringFormat('decimal', decideDayOverviewExpenseResponseClosingOneOfficePurchaseDifferenceRegExp),
+  "driver_note": zod.string()
+}).describe('A driver\'s closing as the office reads it in the day overview: the driver\'s note, and the office\'s count.'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string(),
+  "customer_name": zod.string(),
+  "delivery_address": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "total": zod.stringFormat('decimal', decideDayOverviewExpenseResponseSalesItemTotalRegExp),
+  "amount_paid": zod.stringFormat('decimal', decideDayOverviewExpenseResponseSalesItemAmountPaidRegExp),
+  "amount_due": zod.stringFormat('decimal', decideDayOverviewExpenseResponseSalesItemAmountDueRegExp),
+  "payment_method": zod.string(),
+  "from_load": zod.boolean(),
+  "products": zod.string()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string(),
+  "customer_name": zod.string(),
+  "delivery_address": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "total": zod.stringFormat('decimal', decideDayOverviewExpenseResponseDeliveriesItemTotalRegExp),
+  "amount_paid": zod.stringFormat('decimal', decideDayOverviewExpenseResponseDeliveriesItemAmountPaidRegExp),
+  "amount_due": zod.stringFormat('decimal', decideDayOverviewExpenseResponseDeliveriesItemAmountDueRegExp),
+  "payment_method": zod.string(),
+  "from_load": zod.boolean(),
+  "products": zod.string()
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "method": zod.string(),
+  "amount": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePaymentsItemAmountRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+})),
+  "expenses": zod.array(zod.object({
+  "id": zod.int(),
+  "category_name": zod.string(),
+  "description": zod.string(),
+  "amount": zod.stringFormat('decimal', decideDayOverviewExpenseResponseExpensesItemAmountRegExp),
+  "status": zod.string(),
+  "payment_method": zod.string(),
+  "paid_by_driver": zod.boolean(),
+  "rejection_reason": zod.string(),
+  "made_at": zod.iso.datetime({"offset":true})
+})),
+  "purchases": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_name": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - submitted\n* `validated` - validated\n* `refused` - refused'),
+  "total": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchasesItemTotalRegExp),
+  "cash": zod.stringFormat('decimal', decideDayOverviewExpenseResponsePurchasesItemCashRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+}).describe('A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.')),
+  "owns_truck": zod.boolean(),
+  "stock": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "on_truck": zod.stringFormat('decimal', decideDayOverviewExpenseResponseStockItemOnTruckRegExp),
+  "purchased_pending": zod.stringFormat('decimal', decideDayOverviewExpenseResponseStockItemPurchasedPendingRegExp)
+}).describe('One product on the truck, now (D-239): its kilos, and the kilos of the day\'s purchases not yet validated.')),
+  "boxes": zod.array(zod.object({
+  "box_type": zod.string(),
+  "on_truck": zod.int(),
+  "left_at_clients": zod.int(),
+  "collected": zod.int(),
+  "from_suppliers": zod.int()
+}).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
+  "review_blockers": zod.array(zod.string())
+}).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
+
+
+/**
+ * Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+ * while the purchase is not complete (supplier, products, place).
+ */
+export const ValidateDayOverviewPurchaseParams = zod.object({
+  "day_id": zod.int(),
+  "purchase_id": zod.int()
+})
+
+export const validateDayOverviewPurchaseResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseExpensesPocketDefault = `0.000`;
+export const validateDayOverviewPurchaseResponseExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseExpensesOtherDefault = `0.000`;
+export const validateDayOverviewPurchaseResponseExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchaseFloatDefault = `0.000`;
+export const validateDayOverviewPurchaseResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchasesCountDefault = 0;
+export const validateDayOverviewPurchaseResponsePurchasesTotalDefault = `0.000`;
+export const validateDayOverviewPurchaseResponsePurchasesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchasesCashDefault = `0.000`;
+export const validateDayOverviewPurchaseResponsePurchasesCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchasesOtherDefault = `0.000`;
+export const validateDayOverviewPurchaseResponsePurchasesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchasesFromSalesDefault = `0.000`;
+export const validateDayOverviewPurchaseResponsePurchasesFromSalesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseOwedToDriverDefault = `0.000`;
+export const validateDayOverviewPurchaseResponseOwedToDriverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseExpectedPurchaseCashDefault = `0.000`;
+export const validateDayOverviewPurchaseResponseExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseClosingOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseClosingOneExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseClosingOneOfficeCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseClosingOneOfficeCountedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseClosingOneOfficeDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseClosingOneOfficePurchaseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseSalesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseSalesItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseSalesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseDeliveriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseDeliveriesItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseDeliveriesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseExpensesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchasesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponsePurchasesItemCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseStockItemOnTruckRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const validateDayOverviewPurchaseResponseStockItemPurchasedPendingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ValidateDayOverviewPurchaseResponse = zod.object({
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseOpeningCashRegExp),
+  "sales_count": zod.int(),
+  "sales_total": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseSalesTotalRegExp),
+  "cash_received": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePaymentsCashRegExp),
+  "other_payments": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseOtherPaymentsRegExp),
+  "on_credit": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseOnCreditRegExp),
+  "expenses_total": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseExpensesPocketRegExp).default(validateDayOverviewPurchaseResponseExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseExpensesOtherRegExp).default(validateDayOverviewPurchaseResponseExpensesOtherDefault),
+  "handed_over": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseHandedOverRegExp),
+  "expected_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseExpectedCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchaseFloatRegExp).default(validateDayOverviewPurchaseResponsePurchaseFloatDefault),
+  "purchases_count": zod.int().default(validateDayOverviewPurchaseResponsePurchasesCountDefault),
+  "purchases_total": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchasesTotalRegExp).default(validateDayOverviewPurchaseResponsePurchasesTotalDefault),
+  "purchases_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchasesCashRegExp).default(validateDayOverviewPurchaseResponsePurchasesCashDefault),
+  "purchases_other": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchasesOtherRegExp).default(validateDayOverviewPurchaseResponsePurchasesOtherDefault),
+  "purchases_from_sales": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchasesFromSalesRegExp).default(validateDayOverviewPurchaseResponsePurchasesFromSalesDefault),
+  "owed_to_driver": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseOwedToDriverRegExp).default(validateDayOverviewPurchaseResponseOwedToDriverDefault),
+  "expected_purchase_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseExpectedPurchaseCashRegExp).default(validateDayOverviewPurchaseResponseExpectedPurchaseCashDefault),
+  "products": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemOpeningRegExp),
+  "loaded": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemLoadedRegExp),
+  "sold": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemSoldRegExp),
+  "lost": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemLostRegExp),
+  "returned": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemReturnedRegExp),
+  "remaining": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseProductsItemUnexplainedRegExp)
+})),
+  "id": zod.int(),
+  "phase": zod.enum(['running', 'submitted', 'justification', 'approved', 'reopened']).describe('* `running` - running\n* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "deliveries_done": zod.int(),
+  "deliveries_todo": zod.int(),
+  "closing_id": zod.int().nullable(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "driver_day_id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "status": zod.enum(['submitted', 'justification', 'approved', 'reopened']).describe('* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "expected_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseClosingOneExpectedCashRegExp),
+  "expected_purchase_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseClosingOneExpectedPurchaseCashRegExp),
+  "office_counted_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseClosingOneOfficeCountedCashRegExp).nullable(),
+  "office_counted_purchase_cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseClosingOneOfficeCountedPurchaseCashRegExp).nullable(),
+  "office_difference": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseClosingOneOfficeDifferenceRegExp),
+  "office_purchase_difference": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseClosingOneOfficePurchaseDifferenceRegExp),
+  "driver_note": zod.string()
+}).describe('A driver\'s closing as the office reads it in the day overview: the driver\'s note, and the office\'s count.'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string(),
+  "customer_name": zod.string(),
+  "delivery_address": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "total": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseSalesItemTotalRegExp),
+  "amount_paid": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseSalesItemAmountPaidRegExp),
+  "amount_due": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseSalesItemAmountDueRegExp),
+  "payment_method": zod.string(),
+  "from_load": zod.boolean(),
+  "products": zod.string()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string(),
+  "customer_name": zod.string(),
+  "delivery_address": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "total": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseDeliveriesItemTotalRegExp),
+  "amount_paid": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseDeliveriesItemAmountPaidRegExp),
+  "amount_due": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseDeliveriesItemAmountDueRegExp),
+  "payment_method": zod.string(),
+  "from_load": zod.boolean(),
+  "products": zod.string()
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "method": zod.string(),
+  "amount": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePaymentsItemAmountRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+})),
+  "expenses": zod.array(zod.object({
+  "id": zod.int(),
+  "category_name": zod.string(),
+  "description": zod.string(),
+  "amount": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseExpensesItemAmountRegExp),
+  "status": zod.string(),
+  "payment_method": zod.string(),
+  "paid_by_driver": zod.boolean(),
+  "rejection_reason": zod.string(),
+  "made_at": zod.iso.datetime({"offset":true})
+})),
+  "purchases": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_name": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - submitted\n* `validated` - validated\n* `refused` - refused'),
+  "total": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchasesItemTotalRegExp),
+  "cash": zod.stringFormat('decimal', validateDayOverviewPurchaseResponsePurchasesItemCashRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+}).describe('A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.')),
+  "owns_truck": zod.boolean(),
+  "stock": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "on_truck": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseStockItemOnTruckRegExp),
+  "purchased_pending": zod.stringFormat('decimal', validateDayOverviewPurchaseResponseStockItemPurchasedPendingRegExp)
+}).describe('One product on the truck, now (D-239): its kilos, and the kilos of the day\'s purchases not yet validated.')),
+  "boxes": zod.array(zod.object({
+  "box_type": zod.string(),
+  "on_truck": zod.int(),
+  "left_at_clients": zod.int(),
+  "collected": zod.int(),
+  "from_suppliers": zod.int()
+}).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
+  "review_blockers": zod.array(zod.string())
+}).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
+
+
+/**
+ * Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
+ * or not the driver sent the day; only on the truck's latest day.
+ */
+export const ReturnDayOverviewToStockParams = zod.object({
+  "day_id": zod.int()
+})
+
+export const returnDayOverviewToStockResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseSalesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseCashReceivedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePaymentsCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseOtherPaymentsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseOnCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseExpensesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseExpensesPocketDefault = `0.000`;
+export const returnDayOverviewToStockResponseExpensesPocketRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseExpensesOtherDefault = `0.000`;
+export const returnDayOverviewToStockResponseExpensesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseHandedOverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchaseFloatDefault = `0.000`;
+export const returnDayOverviewToStockResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchasesCountDefault = 0;
+export const returnDayOverviewToStockResponsePurchasesTotalDefault = `0.000`;
+export const returnDayOverviewToStockResponsePurchasesTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchasesCashDefault = `0.000`;
+export const returnDayOverviewToStockResponsePurchasesCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchasesOtherDefault = `0.000`;
+export const returnDayOverviewToStockResponsePurchasesOtherRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchasesFromSalesDefault = `0.000`;
+export const returnDayOverviewToStockResponsePurchasesFromSalesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseOwedToDriverDefault = `0.000`;
+export const returnDayOverviewToStockResponseOwedToDriverRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseExpectedPurchaseCashDefault = `0.000`;
+export const returnDayOverviewToStockResponseExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemOpeningRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemLoadedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemRemainingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseProductsItemUnexplainedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseClosingOneExpectedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseClosingOneExpectedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseClosingOneOfficeCountedCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseClosingOneOfficeCountedPurchaseCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseClosingOneOfficeDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseClosingOneOfficePurchaseDifferenceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseSalesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseSalesItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseSalesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseDeliveriesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseDeliveriesItemAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseDeliveriesItemAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseExpensesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchasesItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponsePurchasesItemCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseStockItemOnTruckRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const returnDayOverviewToStockResponseStockItemPurchasedPendingRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const ReturnDayOverviewToStockResponse = zod.object({
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseOpeningCashRegExp),
+  "sales_count": zod.int(),
+  "sales_total": zod.stringFormat('decimal', returnDayOverviewToStockResponseSalesTotalRegExp),
+  "cash_received": zod.stringFormat('decimal', returnDayOverviewToStockResponseCashReceivedRegExp),
+  "payments_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponsePaymentsCashRegExp),
+  "other_payments": zod.stringFormat('decimal', returnDayOverviewToStockResponseOtherPaymentsRegExp),
+  "on_credit": zod.stringFormat('decimal', returnDayOverviewToStockResponseOnCreditRegExp),
+  "expenses_total": zod.stringFormat('decimal', returnDayOverviewToStockResponseExpensesTotalRegExp),
+  "expenses_pocket": zod.stringFormat('decimal', returnDayOverviewToStockResponseExpensesPocketRegExp).default(returnDayOverviewToStockResponseExpensesPocketDefault),
+  "expenses_other": zod.stringFormat('decimal', returnDayOverviewToStockResponseExpensesOtherRegExp).default(returnDayOverviewToStockResponseExpensesOtherDefault),
+  "handed_over": zod.stringFormat('decimal', returnDayOverviewToStockResponseHandedOverRegExp),
+  "expected_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseExpectedCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchaseFloatRegExp).default(returnDayOverviewToStockResponsePurchaseFloatDefault),
+  "purchases_count": zod.int().default(returnDayOverviewToStockResponsePurchasesCountDefault),
+  "purchases_total": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchasesTotalRegExp).default(returnDayOverviewToStockResponsePurchasesTotalDefault),
+  "purchases_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchasesCashRegExp).default(returnDayOverviewToStockResponsePurchasesCashDefault),
+  "purchases_other": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchasesOtherRegExp).default(returnDayOverviewToStockResponsePurchasesOtherDefault),
+  "purchases_from_sales": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchasesFromSalesRegExp).default(returnDayOverviewToStockResponsePurchasesFromSalesDefault),
+  "owed_to_driver": zod.stringFormat('decimal', returnDayOverviewToStockResponseOwedToDriverRegExp).default(returnDayOverviewToStockResponseOwedToDriverDefault),
+  "expected_purchase_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseExpectedPurchaseCashRegExp).default(returnDayOverviewToStockResponseExpectedPurchaseCashDefault),
+  "products": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "opening": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemOpeningRegExp),
+  "loaded": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemLoadedRegExp),
+  "sold": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemSoldRegExp),
+  "lost": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemLostRegExp),
+  "returned": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemReturnedRegExp),
+  "remaining": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemRemainingRegExp),
+  "unexplained": zod.stringFormat('decimal', returnDayOverviewToStockResponseProductsItemUnexplainedRegExp)
+})),
+  "id": zod.int(),
+  "phase": zod.enum(['running', 'submitted', 'justification', 'approved', 'reopened']).describe('* `running` - running\n* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "deliveries_done": zod.int(),
+  "deliveries_todo": zod.int(),
+  "closing_id": zod.int().nullable(),
+  "closing": zod.union([zod.object({
+  "id": zod.int(),
+  "driver_day_id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "driver_name": zod.string(),
+  "status": zod.enum(['submitted', 'justification', 'approved', 'reopened']).describe('* `submitted` - À vérifier\n* `justification` - Justification demandée\n* `approved` - Approuvée\n* `reopened` - Rouverte'),
+  "expected_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseClosingOneExpectedCashRegExp),
+  "expected_purchase_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseClosingOneExpectedPurchaseCashRegExp),
+  "office_counted_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseClosingOneOfficeCountedCashRegExp).nullable(),
+  "office_counted_purchase_cash": zod.stringFormat('decimal', returnDayOverviewToStockResponseClosingOneOfficeCountedPurchaseCashRegExp).nullable(),
+  "office_difference": zod.stringFormat('decimal', returnDayOverviewToStockResponseClosingOneOfficeDifferenceRegExp),
+  "office_purchase_difference": zod.stringFormat('decimal', returnDayOverviewToStockResponseClosingOneOfficePurchaseDifferenceRegExp),
+  "driver_note": zod.string()
+}).describe('A driver\'s closing as the office reads it in the day overview: the driver\'s note, and the office\'s count.'),zod.null()]),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string(),
+  "customer_name": zod.string(),
+  "delivery_address": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "total": zod.stringFormat('decimal', returnDayOverviewToStockResponseSalesItemTotalRegExp),
+  "amount_paid": zod.stringFormat('decimal', returnDayOverviewToStockResponseSalesItemAmountPaidRegExp),
+  "amount_due": zod.stringFormat('decimal', returnDayOverviewToStockResponseSalesItemAmountDueRegExp),
+  "payment_method": zod.string(),
+  "from_load": zod.boolean(),
+  "products": zod.string()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.string(),
+  "customer_name": zod.string(),
+  "delivery_address": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "total": zod.stringFormat('decimal', returnDayOverviewToStockResponseDeliveriesItemTotalRegExp),
+  "amount_paid": zod.stringFormat('decimal', returnDayOverviewToStockResponseDeliveriesItemAmountPaidRegExp),
+  "amount_due": zod.stringFormat('decimal', returnDayOverviewToStockResponseDeliveriesItemAmountDueRegExp),
+  "payment_method": zod.string(),
+  "from_load": zod.boolean(),
+  "products": zod.string()
+})),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "method": zod.string(),
+  "amount": zod.stringFormat('decimal', returnDayOverviewToStockResponsePaymentsItemAmountRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+})),
+  "expenses": zod.array(zod.object({
+  "id": zod.int(),
+  "category_name": zod.string(),
+  "description": zod.string(),
+  "amount": zod.stringFormat('decimal', returnDayOverviewToStockResponseExpensesItemAmountRegExp),
+  "status": zod.string(),
+  "payment_method": zod.string(),
+  "paid_by_driver": zod.boolean(),
+  "rejection_reason": zod.string(),
+  "made_at": zod.iso.datetime({"offset":true})
+})),
+  "purchases": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier_name": zod.string(),
+  "status": zod.enum(['submitted', 'validated', 'refused']).describe('* `submitted` - submitted\n* `validated` - validated\n* `refused` - refused'),
+  "total": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchasesItemTotalRegExp),
+  "cash": zod.stringFormat('decimal', returnDayOverviewToStockResponsePurchasesItemCashRegExp),
+  "made_at": zod.iso.datetime({"offset":true})
+}).describe('A purchase at the port made on the day: `status` is "submitted" until the office validates or refuses it.')),
+  "owns_truck": zod.boolean(),
+  "stock": zod.array(zod.object({
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "on_truck": zod.stringFormat('decimal', returnDayOverviewToStockResponseStockItemOnTruckRegExp),
+  "purchased_pending": zod.stringFormat('decimal', returnDayOverviewToStockResponseStockItemPurchasedPendingRegExp)
+}).describe('One product on the truck, now (D-239): its kilos, and the kilos of the day\'s purchases not yet validated.')),
+  "boxes": zod.array(zod.object({
+  "box_type": zod.string(),
+  "on_truck": zod.int(),
+  "left_at_clients": zod.int(),
+  "collected": zod.int(),
+  "from_suppliers": zod.int()
+}).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
+  "review_blockers": zod.array(zod.string())
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -5832,7 +6566,6 @@ export const ListInvoicesResponse = zod.object({
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
 export const createInvoiceBodyApplyVatDefault = true;
-export const createInvoiceBodyWithholdingAppliedDefault = false;
 export const createInvoiceBodyNotesDefault = ``;
 export const createInvoiceBodyIssueNowDefault = false;
 
@@ -5849,7 +6582,6 @@ export const CreateInvoiceBody = zod.object({
 })).optional(),
   "fiscal_stamp": zod.string().nullish(),
   "fees": zod.string().nullish(),
-  "withholding_applied": zod.boolean().default(createInvoiceBodyWithholdingAppliedDefault),
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(createInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(createInvoiceBodyIssueNowDefault),
@@ -6286,7 +7018,6 @@ export const UpdateInvoiceParams = zod.object({
 })
 
 export const updateInvoiceBodyApplyVatDefault = true;
-export const updateInvoiceBodyWithholdingAppliedDefault = false;
 export const updateInvoiceBodyNotesDefault = ``;
 export const updateInvoiceBodyIssueNowDefault = false;
 
@@ -6301,7 +7032,6 @@ export const UpdateInvoiceBody = zod.object({
 })).optional(),
   "fiscal_stamp": zod.string().nullish(),
   "fees": zod.string().nullish(),
-  "withholding_applied": zod.boolean().default(updateInvoiceBodyWithholdingAppliedDefault),
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(updateInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(updateInvoiceBodyIssueNowDefault)
@@ -9729,31 +10459,6 @@ export const RecordMyLocationsResponse = zod.object({
 
 
 /**
- * The money the office gave for purchases at the port today, typed again when it gives more (D-158).
- * 404 before the day is started; refused once its closing is sent.
- */
-export const setMyPurchaseFloatBodyPurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
-
-export const SetMyPurchaseFloatBody = zod.object({
-  "purchase_float": zod.stringFormat('decimal', setMyPurchaseFloatBodyPurchaseFloatRegExp)
-})
-
-export const setMyPurchaseFloatResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const setMyPurchaseFloatResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
-
-export const SetMyPurchaseFloatResponse = zod.object({
-  "id": zod.int(),
-  "date": zod.iso.date(),
-  "truck_name": zod.string(),
-  "opening_cash": zod.stringFormat('decimal', setMyPurchaseFloatResponseOpeningCashRegExp),
-  "purchase_float": zod.stringFormat('decimal', setMyPurchaseFloatResponsePurchaseFloatRegExp),
-  "ended_at": zod.iso.datetime({"offset":true}).nullable()
-})
-
-
-/**
  * The driver's own days, newest first (the last 60), each with its closing when sent (D-134).
  */
 export const listMyDaysResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -11387,10 +12092,12 @@ export const CreatePartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', createPartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -11444,10 +12151,12 @@ export const GetPartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', getPartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -11514,10 +12223,88 @@ export const UpdatePartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', updatePartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
+  "lot_result_id": zod.int().nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string()
+})),
+  "has_sold": zod.boolean()
+})
+
+
+/**
+ * Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+ * still in; the settlement pays the rest.
+ */
+export const AdvancePartnerCapitalParams = zod.object({
+  "partnership_id": zod.int()
+})
+
+export const advancePartnerCapitalBodyReferenceDefault = ``;
+export const advancePartnerCapitalBodyReferenceMax = 50;
+
+export const advancePartnerCapitalBodyNoteDefault = ``;
+export const advancePartnerCapitalBodyNoteMax = 300;
+
+
+
+export const AdvancePartnerCapitalBody = zod.object({
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string().max(advancePartnerCapitalBodyReferenceMax).default(advancePartnerCapitalBodyReferenceDefault),
+  "paid_on": zod.iso.date().optional(),
+  "note": zod.string().max(advancePartnerCapitalBodyNoteMax).default(advancePartnerCapitalBodyNoteDefault)
+})
+
+export const advancePartnerCapitalResponseBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponseOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponsePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponseProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const advancePartnerCapitalResponseLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const advancePartnerCapitalResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponseCapitalEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AdvancePartnerCapitalResponse = zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', advancePartnerCapitalResponseBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', advancePartnerCapitalResponseOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', advancePartnerCapitalResponsePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', advancePartnerCapitalResponseProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', advancePartnerCapitalResponseLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', advancePartnerCapitalResponseCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "capital_entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
+  "amount": zod.stringFormat('decimal', advancePartnerCapitalResponseCapitalEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -11580,10 +12367,12 @@ export const CancelPartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', cancelPartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -14570,7 +15359,7 @@ export const ListSalaryPaymentsResponseItem = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listSalaryPaymentsResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14615,7 +15404,7 @@ export const RecordSalaryPaymentBody = zod.object({
   "paid_on": zod.iso.date(),
   "amount": zod.string(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire').default(recordSalaryPaymentBodyKindDefault),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime').default(recordSalaryPaymentBodyKindDefault),
   "confirm_overpay": zod.boolean().default(recordSalaryPaymentBodyConfirmOverpayDefault),
   "reference": zod.string().max(recordSalaryPaymentBodyReferenceMax).default(recordSalaryPaymentBodyReferenceDefault),
   "notes": zod.string().max(recordSalaryPaymentBodyNotesMax).default(recordSalaryPaymentBodyNotesDefault),
@@ -14642,7 +15431,7 @@ export const RecordSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', recordSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14684,7 +15473,7 @@ export const GetSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14739,7 +15528,7 @@ export const AllocateSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', allocateSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14831,7 +15620,7 @@ export const ListSalaryRecordsResponseItem = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', listSalaryRecordsResponsePaymentsItemAmountRegExp),
@@ -14910,7 +15699,7 @@ export const GetSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', getSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15012,7 +15801,7 @@ export const UpdateSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', updateSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15132,7 +15921,7 @@ export const ApproveSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', approveSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15149,8 +15938,8 @@ export const ApproveSalaryRecordResponse = zod.object({
 
 
 /**
- * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
- * with no separate payment (D-234).
+ * Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+ * It is due on top of the salary and its payment leaves the treasury on the day paid.
  */
 export const AddSalaryPrimeParams = zod.object({
   "record_id": zod.int()
@@ -15162,7 +15951,9 @@ export const addSalaryPrimeBodyReasonMax = 200;
 
 export const AddSalaryPrimeBody = zod.object({
   "amount": zod.string(),
-  "reason": zod.string().max(addSalaryPrimeBodyReasonMax)
+  "reason": zod.string().max(addSalaryPrimeBodyReasonMax),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "paid_on": zod.iso.date()
 })
 
 export const addSalaryPrimeResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15260,7 +16051,7 @@ export const GenerateSalaryMonthResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemPaymentsItemAmountRegExp),
@@ -16864,6 +17655,7 @@ export const GetSupplierBalanceParams = zod.object({
 export const getSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -16876,6 +17668,7 @@ export const GetSupplierBalanceResponse = zod.object({
   "invoiced": zod.stringFormat('decimal', getSupplierBalanceResponseInvoicedRegExp),
   "paid": zod.stringFormat('decimal', getSupplierBalanceResponsePaidRegExp),
   "balance": zod.stringFormat('decimal', getSupplierBalanceResponseBalanceRegExp),
+  "written_off": zod.stringFormat('decimal', getSupplierBalanceResponseWrittenOffRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierBalanceResponseOutstandingRegExp),
   "unallocated": zod.stringFormat('decimal', getSupplierBalanceResponseUnallocatedRegExp),
   "overdue": zod.stringFormat('decimal', getSupplierBalanceResponseOverdueRegExp),
@@ -16885,6 +17678,54 @@ export const GetSupplierBalanceResponse = zod.object({
   "draft_total": zod.stringFormat('decimal', getSupplierBalanceResponseDraftTotalRegExp),
   "uninvoiced_receipts": zod.int(),
   "uninvoiced_total": zod.stringFormat('decimal', getSupplierBalanceResponseUninvoicedTotalRegExp)
+}).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
+
+
+/**
+ * Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+ */
+export const WriteOffSupplierBalanceParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const writeOffSupplierBalanceBodyExpectedAmountMax = 30;
+
+export const writeOffSupplierBalanceBodyReasonMax = 255;
+
+
+
+export const WriteOffSupplierBalanceBody = zod.object({
+  "expected_amount": zod.string().max(writeOffSupplierBalanceBodyExpectedAmountMax),
+  "reason": zod.string().max(writeOffSupplierBalanceBodyReasonMax)
+})
+
+export const writeOffSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseDraftTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseUninvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const WriteOffSupplierBalanceResponse = zod.object({
+  "supplier_id": zod.int(),
+  "invoiced": zod.stringFormat('decimal', writeOffSupplierBalanceResponseInvoicedRegExp),
+  "paid": zod.stringFormat('decimal', writeOffSupplierBalanceResponsePaidRegExp),
+  "balance": zod.stringFormat('decimal', writeOffSupplierBalanceResponseBalanceRegExp),
+  "written_off": zod.stringFormat('decimal', writeOffSupplierBalanceResponseWrittenOffRegExp),
+  "outstanding": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOutstandingRegExp),
+  "unallocated": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUnallocatedRegExp),
+  "overdue": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOverdueRegExp),
+  "open_invoices": zod.int(),
+  "overdue_invoices": zod.int(),
+  "draft_invoices": zod.int(),
+  "draft_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseDraftTotalRegExp),
+  "uninvoiced_receipts": zod.int(),
+  "uninvoiced_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUninvoicedTotalRegExp)
 }).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
 
 
@@ -19419,6 +20260,73 @@ export const ExportAccountStatementResponse = zod.unknown()
 
 
 /**
+ * The lines imported on a bank account between two days (inclusive), oldest first, paginated.
+ */
+export const ListStatementLinesParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const ListStatementLinesQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+})
+
+export const listStatementLinesResponseResultsItemDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listStatementLinesResponseResultsItemCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listStatementLinesResponseResultsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListStatementLinesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "label": zod.string(),
+  "debit": zod.stringFormat('decimal', listStatementLinesResponseResultsItemDebitRegExp),
+  "credit": zod.stringFormat('decimal', listStatementLinesResponseResultsItemCreditRegExp),
+  "balance": zod.stringFormat('decimal', listStatementLinesResponseResultsItemBalanceRegExp).nullable(),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+ * or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+ * already on the account is skipped, so the same file twice adds nothing.
+ */
+export const ImportBankStatementParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const ImportBankStatementBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const ImportBankStatementResponse = zod.object({
+  "created": zod.int(),
+  "skipped": zod.int(),
+  "problems": zod.array(zod.object({
+  "row": zod.int(),
+  "message": zod.string()
+}))
+})
+
+
+/**
  * The banks an effet may be drawn on, in the list's order; `active_only=false` adds those taken off.
  */
 export const listBanksQueryActiveOnlyDefault = true;
@@ -20195,6 +21103,39 @@ export const WithdrawInstrumentsResponse = zod.array(WithdrawInstrumentsResponse
 
 
 /**
+ * The treasury movements written by the given records of one source, each with the account it went through
+ * (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+ */
+export const listMovementsOfQueryFromSourceMax = 40;
+
+export const listMovementsOfQuerySourceIdsMax = 2000;
+
+
+
+export const ListMovementsOfQueryParams = zod.object({
+  "from_source": zod.string().min(1).max(listMovementsOfQueryFromSourceMax),
+  "source_ids": zod.string().min(1).max(listMovementsOfQuerySourceIdsMax)
+})
+
+export const listMovementsOfResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMovementsOfResponseItem = zod.object({
+  "id": zod.int(),
+  "source_id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listMovementsOfResponseAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+})
+})
+export const ListMovementsOfResponse = zod.array(ListMovementsOfResponseItem)
+
+
+/**
  * What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
  * confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
  * drafts) with their total. A party with no such document is not listed.
@@ -20217,6 +21158,58 @@ export const ListPartyDocumentsResponse = zod.object({
   "total": zod.stringFormat('decimal', listPartyDocumentsResponseSuppliersItemTotalRegExp)
 }))
 }).describe('Per customer: its BL, invoices and net to pay. Per supplier: its BR, invoices and invoiced total (D-211).')
+
+
+/**
+ * Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+ * credit. Both left empty clears it.
+ */
+export const SetStatementLinePartyParams = zod.object({
+  "line_id": zod.int()
+})
+
+
+
+
+
+export const SetStatementLinePartyBody = zod.object({
+  "customer": zod.int().min(1).nullish(),
+  "supplier": zod.int().min(1).nullish()
+})
+
+export const setStatementLinePartyResponseDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setStatementLinePartyResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setStatementLinePartyResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetStatementLinePartyResponse = zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "label": zod.string(),
+  "debit": zod.stringFormat('decimal', setStatementLinePartyResponseDebitRegExp),
+  "credit": zod.stringFormat('decimal', setStatementLinePartyResponseCreditRegExp),
+  "balance": zod.stringFormat('decimal', setStatementLinePartyResponseBalanceRegExp).nullable(),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()])
+})
+
+
+/**
+ * Take a line off the statement (owner or manager): a wrong import. It was only a copy of the bank's file.
+ */
+export const DeleteStatementLineParams = zod.object({
+  "line_id": zod.int()
+})
+
+export const DeleteStatementLineResponse = zod.void()
 
 
 /**

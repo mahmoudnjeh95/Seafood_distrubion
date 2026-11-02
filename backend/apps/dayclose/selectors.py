@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
 
+from apps.boxes import selectors as boxes
 from apps.core.models import Membership, Organization
 from apps.expenses import selectors as expenses
 from apps.fleet import selectors as fleet
@@ -341,6 +343,113 @@ def day_row(organization: Organization, driver_day: "DriverDay") -> dict[str, An
     }
 
 
+def _day_expenses(organization: Organization, driver_day: "DriverDay") -> list[Any]:
+    """The road expenses the driver typed in the day's window, refused ones included (their status says so)."""
+    start, end = fleet.day_window(driver_day)
+    return [
+        e
+        for e in expenses.road_expenses(organization, user_id=driver_day.driver_id, day=driver_day.date)
+        if start <= (e.made_at or e.created_at) < end
+    ]
+
+
+def _day_purchases(organization: Organization, driver_day: "DriverDay") -> list[Any]:
+    """The purchases the driver made in the day's window, refused ones included."""
+    start, end = fleet.day_window(driver_day)
+    return purchasing.purchases_made_between(organization, buyer_id=driver_day.driver_id, start=start, end=end)
+
+
+def expense_of_day(organization: Organization, driver_day: "DriverDay", expense_id: int) -> Any:
+    """One of the expenses of the day (D-239); raises ObjectDoesNotExist for any other."""
+    for expense in _day_expenses(organization, driver_day):
+        if expense.pk == expense_id:
+            return expense
+    raise ObjectDoesNotExist(expense_id)
+
+
+def purchase_of_day(organization: Organization, driver_day: "DriverDay", purchase_id: int) -> Any:
+    """One of the purchases made on the day (D-239); raises ObjectDoesNotExist for any other."""
+    for purchase in _day_purchases(organization, driver_day):
+        if purchase.pk == purchase_id:
+            return purchase
+    raise ObjectDoesNotExist(purchase_id)
+
+
+def owns_truck(organization: Organization, driver_day: "DriverDay") -> bool:
+    """Whether the day is the truck's latest: the stock and the boxes it holds now are this day's to give back
+    (D-239). An earlier day's leftovers belong to the later day's stock, so it is not asked for them."""
+    latest = fleet.latest_day_on_truck(organization, truck_id=driver_day.truck_id)
+    return latest is not None and latest.pk == driver_day.pk
+
+
+def _truck_stock(organization: Organization, driver_day: "DriverDay") -> list[dict[str, Any]]:
+    """Per product, what the truck holds now and the kilos of the day's purchases still to validate (D-239): a
+    purchase is counted on the truck as bought, and it enters the stock when the office validates it."""
+    stock = inventory.location_stock(organization, location_id=driver_day.truck.location_id)
+    on_truck = {row["product_id"]: row for row in stock}
+    waiting: dict[int, Decimal] = {}
+    names: dict[int, str] = {product_id: row["product__name"] for product_id, row in on_truck.items()}
+    for purchase in _day_purchases(organization, driver_day):
+        if purchase.status != "submitted":
+            continue
+        for line in purchase.lines.all():
+            if line.product_id is None:
+                continue
+            names[line.product_id] = line.product.name
+            waiting[line.product_id] = waiting.get(line.product_id, ZERO) + line.declared_quantity
+    return [
+        {
+            "product_id": product_id,
+            "product_name": name,
+            "on_truck": on_truck[product_id]["quantity"] if product_id in on_truck else ZERO,
+            "purchased_pending": waiting.get(product_id, ZERO),
+        }
+        for product_id, name in sorted(names.items(), key=lambda item: item[1])
+    ]
+
+
+def _truck_boxes(organization: Organization, driver_day: "DriverDay") -> list[dict[str, Any]]:
+    """Per box type: the boxes the truck holds now, those left with clients and collected on the day, and those the
+    day's purchases brought from suppliers (D-239, boxes that go back to the office or to the supplier)."""
+    from_suppliers: dict[str, int] = {}
+    for purchase in _day_purchases(organization, driver_day):
+        if purchase.status == "refused":
+            continue
+        for box_type, count in (purchase.boxes or {}).items():
+            from_suppliers[box_type] = from_suppliers.get(box_type, 0) + int(count)
+    return [
+        {
+            "box_type": row.box_type,
+            "on_truck": row.expected,
+            "left_at_clients": row.left,
+            "collected": row.collected,
+            "from_suppliers": from_suppliers.get(row.box_type, 0),
+        }
+        for row in boxes.truck_day(organization, driver_day.truck.location, driver_day.date)
+    ]
+
+
+def review_blockers(organization: Organization, driver_day: "DriverDay") -> list[str]:
+    """What the office must still settle before it approves the day (D-239): the expenses to approve or refuse, the
+    purchases to validate or refuse, and, on the truck's latest day, the kilos and boxes the truck still holds."""
+    blockers: list[str] = []
+    waiting_expenses = sum(1 for e in _day_expenses(organization, driver_day) if e.status in ("draft", "pending"))
+    if waiting_expenses:
+        blockers.append(_("%(count)s dépense(s) à approuver ou refuser") % {"count": waiting_expenses})
+    waiting_purchases = sum(1 for p in _day_purchases(organization, driver_day) if p.status == "submitted")
+    if waiting_purchases:
+        blockers.append(_("%(count)s achat(s) au port à valider ou refuser") % {"count": waiting_purchases})
+    if owns_truck(organization, driver_day):
+        location_id = driver_day.truck.location_id
+        on_truck = any(row["quantity"] > 0 for row in inventory.location_stock(organization, location_id=location_id))
+        boxes_on_truck = any(
+            row.expected > 0 for row in boxes.truck_day(organization, driver_day.truck.location, driver_day.date)
+        )
+        if on_truck or boxes_on_truck:
+            blockers.append(_("Le camion a encore du stock ou des caisses : remettez-les en chambre froide"))
+    return blockers
+
+
 def _sale_line(sale: Any) -> dict[str, Any]:
     return {
         "id": sale.pk,
@@ -389,9 +498,14 @@ def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[st
         if start <= (e.made_at or e.created_at) < end
     ]
     bought = purchasing.purchases_made_between(organization, buyer_id=driver_day.driver_id, start=start, end=end)
+    owns = owns_truck(organization, driver_day)
     return {
         **day_row(organization, driver_day),
         "closing": answer["closing"],
+        "owns_truck": owns,
+        "stock": _truck_stock(organization, driver_day) if owns else [],
+        "boxes": _truck_boxes(organization, driver_day) if owns else [],
+        "review_blockers": review_blockers(organization, driver_day),
         "sales": [_sale_line(s) for s in made],
         "deliveries": [_sale_line(s) for s in deliveries],
         "purchases": [
@@ -426,6 +540,8 @@ def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[st
                 "amount": e.amount,
                 "status": e.status,
                 "payment_method": e.payment_method,
+                "paid_by_driver": e.paid_by_driver,
+                "rejection_reason": e.rejection_reason,
                 "made_at": e.made_at or e.created_at,
             }
             for e in spent

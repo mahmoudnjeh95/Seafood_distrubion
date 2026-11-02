@@ -1,17 +1,31 @@
-import { useGetCustomerBalance, useListInstruments } from "@frutti/api";
+import { useGetCustomerBalance, useListInstruments, writeOffCustomerBalance } from "@frutti/api";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, CardTitle, Pill, Table, Td, Th } from "@frutti/ui";
+import { Button, Card, CardTitle, Dialog, Pill, Table, Td, Th } from "@frutti/ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { sum } from "../lib/decimal";
+import { BalanceWriteOffDialog } from "../payments/BalanceWriteOffDialog";
 import { Figure } from "../payments/Figure";
 import { openItems } from "../payments/openItems";
 import { amountToPay } from "../payments/toPay";
 
 /** What the customer owes: "Total à régler" (the same number as the règlement form), what it is made of, ageing,
- * open sales, account history, and the button to collect (D-226). */
-export function BalanceCard({ customer, canCollect }: { customer: { id: number; name: string }; canCollect: boolean }) {
+ * open sales, account history, and the button to collect (D-226). The owner can clear what is left to zero, given up
+ * as a loss on the customer (D-252). */
+export function BalanceCard({
+  customer,
+  canCollect,
+  canClear,
+}: {
+  customer: { id: number; name: string };
+  canCollect: boolean;
+  canClear: boolean;
+}) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [clearing, setClearing] = useState(false);
   const query = useGetCustomerBalance(customer.id);
   // The effets received and not yet cashed: the same query as the règlement form, for the encours (D-210).
   const effets = useListInstruments(
@@ -74,15 +88,35 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
               <dd className="num">{formatMoney(data.ageing.d60_plus)}</dd>
             </div>
           </dl>
-          {canCollect && (
+          {(canCollect || (canClear && !credit && toPay !== "0.000")) && (
             <div className="flex flex-wrap gap-2">
-              <Button variant="primary" asChild>
-                <Link to={`/reglements/nouveau?client=${customer.id}`}>{t("admin.payments.balance.collect")}</Link>
-              </Button>
+              {canCollect && (
+                <Button variant="primary" asChild>
+                  <Link to={`/reglements/nouveau?client=${customer.id}`}>{t("admin.payments.balance.collect")}</Link>
+                </Button>
+              )}
+              {canClear && !credit && toPay !== "0.000" && (
+                <Button variant="danger" onClick={() => setClearing(true)}>
+                  {t("admin.payments.balance.clear")}
+                </Button>
+              )}
             </div>
           )}
         </div>
       </Card>
+
+      <Dialog open={clearing} onOpenChange={setClearing}>
+        <BalanceWriteOffDialog
+          kind="customer"
+          party={customer.name}
+          owed={data.balance}
+          onWrite={(body) => writeOffCustomerBalance(customer.id, body)}
+          onDone={() => {
+            setClearing(false);
+            void queryClient.invalidateQueries();
+          }}
+        />
+      </Dialog>
 
       {data.open_sales.length > 0 && (
         <Card className="col-span-full p-2">
@@ -144,6 +178,7 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
                   <Td className="num whitespace-nowrap">{formatDate(entry.day)}</Td>
                   <Td>
                     {t(`admin.payments.balance.kinds.${entry.kind}`)} <span className="num">{entry.number}</span>
+                    {entry.note && <span className="text-ink-2"> · {entry.note}</span>}
                     {entry.voided && (
                       <Pill tone="bad" className="ms-2">
                         {t("admin.payments.voided")}
@@ -158,6 +193,34 @@ export function BalanceCard({ customer, canCollect }: { customer: { id: number; 
           </Table>
         )}
       </Card>
+
+      {data.write_offs.length > 0 && (
+        <Card className="col-span-full p-2">
+          <CardTitle className="px-2 pt-2">
+            {t("admin.payments.balance.writeOffs")} · {formatMoney(data.written_off_total)}
+          </CardTitle>
+          <Table>
+            <thead>
+              <tr>
+                <Th>{t("admin.payments.columns.date")}</Th>
+                <Th>{t("admin.payments.balance.writeOffReason")}</Th>
+                <Th>{t("admin.payments.balance.writeOffBy")}</Th>
+                <Th numeric>{t("admin.payments.columns.amount")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.write_offs.map((row) => (
+                <tr key={row.id}>
+                  <Td className="num whitespace-nowrap">{formatDate(row.written_on)}</Td>
+                  <Td>{row.reason}</Td>
+                  <Td>{row.created_by}</Td>
+                  <Td numeric>{formatMoney(row.amount)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      )}
     </>
   );
 }

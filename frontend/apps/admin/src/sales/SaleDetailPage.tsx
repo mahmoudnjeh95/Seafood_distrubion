@@ -33,6 +33,7 @@ import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
 import { PdfButton } from "../lib/PdfButton";
 import { openPdf } from "../lib/pdf";
+import { TreasuryTrace } from "../treasury/TreasuryTrace";
 import { canSell, DELIVERY_TONES, refreshAfterSale, STATUS_TONES } from "./shared";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
@@ -226,6 +227,7 @@ export function SaleDetailPage() {
           </Button>
         )}
       </PageHeader>
+      <TreasuryTrace source="sales.sale" ids={[data.id]} />
 
       {data.status === "draft" && fromLoad && (
         <p role="note" className="rounded-chip bg-surface-2 px-3 py-2 text-[0.9rem]">

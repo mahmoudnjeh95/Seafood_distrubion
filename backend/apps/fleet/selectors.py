@@ -163,9 +163,10 @@ def day_fund_of(organization: Organization, *, driver_id: int, on: date_type | N
 
 
 def day_funds_on(organization: Organization, day: date_type) -> list[dict[str, Any]]:
-    """Every active driver with the cash set for them on that day (or none yet) and whether their day started."""
+    """Every active driver with the cash set for them on that day (or none yet), whether their day started and whether
+    its closing is sent (D-248: then the purchase money is locked too)."""
     funds = {fund.driver_id: fund for fund in DayFund.objects.for_organization(organization).filter(date=day)}
-    started = set(DriverDay.objects.for_organization(organization).filter(date=day).values_list("driver_id", flat=True))
+    days = dict(DriverDay.objects.for_organization(organization).filter(date=day).values_list("driver_id", "ended_at"))
     members = (
         Membership.objects.filter(organization=organization, role=Role.DRIVER, is_active=True)
         .select_related("user")
@@ -176,7 +177,8 @@ def day_funds_on(organization: Organization, day: date_type) -> list[dict[str, A
             "driver": member.user,
             "can_buy": member.can_buy,
             "fund": funds.get(member.user_id),
-            "started": member.user_id in started,
+            "started": member.user_id in days,
+            "ended": days.get(member.user_id) is not None,
         }
         for member in members
     ]
@@ -225,6 +227,12 @@ def drivers_with_days(organization: Organization) -> list[dict[str, object]]:
         for day in DriverDay.objects.for_organization(organization).select_related("driver").order_by("id")
     }
     return [{"id": pk, "name": name} for pk, name in sorted(drivers.items(), key=lambda item: item[1].lower())]
+
+
+def latest_day_on_truck(organization: Organization, *, truck_id: int) -> DriverDay | None:
+    """The truck's most recent day (by date, then by its order): the one whose stock and boxes the truck holds now
+    (D-239). An earlier day's leftovers are the later day's own stock."""
+    return DriverDay.objects.for_organization(organization).filter(truck_id=truck_id).order_by("-date", "-pk").first()
 
 
 def driver_day_by_id(organization: Organization, day_id: int) -> DriverDay:
