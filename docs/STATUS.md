@@ -4,6 +4,12 @@ _Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office 
 
 ## Where we are
 
+- **P9-T10 (D-256, branch `bl-invoice-gap`, awaits CI):** a BL paid at its goods and invoiced later no longer looks silently
+  paid. Estimate of the invoice (`GET /invoices/estimate`, `estimated_extra` on open BL), invoice `payment_state` /
+  `paid_total` / `extra_over_goods`, filter and pill on Factures, gap banner with a link to a new règlement. Not done:
+  "Régler TTC" and a per-invoice give-up (see the phase file). Timbre exemption per customer: none, ask the accountant.
+  Check on staging: pay a BL at its goods, invoice it with VAT, the invoice reads "Payée en partie".
+
 - **D-259 (2026-11-02, provisional, PR open):** the driver's "Fonds de caisse" and "Argent pour les achats" for the day go
   back to 0 when the office approves the day, not when the driver sends it (changes D-242). A new load on an approved day
   does not bring them back.

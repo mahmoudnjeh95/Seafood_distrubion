@@ -449,65 +449,93 @@ function Totals({ invoice }: { invoice: InvoiceDetail }) {
   const stamp = !isZero(invoice.fiscal_stamp);
   const showWithholding = invoice.withholding_applied && !isZero(invoice.withholding_rate);
   return (
-    <dl
-      className="ms-auto mt-3.5 flex w-[min(360px,100%)] flex-col gap-1"
-      aria-label={t("admin.invoices.document.totals")}
-    >
-      {!isZero(invoice.discount_total) && (
-        <>
-          <TotalRow label={t("admin.invoices.document.subtotal")}>{formatMoney(invoice.subtotal)}</TotalRow>
-          <TotalRow label={t("admin.invoices.document.discount")}>−{formatMoney(invoice.discount_total)}</TotalRow>
-        </>
-      )}
-      {invoice.apply_vat ? (
-        <>
-          <TotalRow label={t("admin.invoices.document.totalExcl")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
-          {invoice.vat_lines.map((row) => (
-            <TotalRow
-              key={row.rate}
-              label={
-                isZero(row.rate)
-                  ? t("admin.invoices.document.vatExempt")
-                  : t("admin.invoices.document.vatAt", { rate: plainRate(row.rate) })
-              }
-              note={
-                row.amount_overridden
-                  ? t("admin.invoices.document.vatTyped", { computed: formatMoney(row.computed_amount) })
-                  : undefined
-              }
-            >
-              {formatMoney(row.amount)}
-            </TotalRow>
-          ))}
-        </>
-      ) : (
-        <TotalRow label={t("admin.invoices.document.totalNoVat")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
-      )}
-      {stamp && <TotalRow label={t("admin.invoices.document.stamp")}>{formatMoney(invoice.fiscal_stamp)}</TotalRow>}
-      {!isZero(invoice.fees) && (
-        <TotalRow label={t("admin.invoices.document.fees")}>{formatMoney(invoice.fees)}</TotalRow>
-      )}
-      <TotalRow
-        label={invoice.apply_vat ? t("admin.invoices.document.totalIncl") : t("admin.invoices.document.total")}
-        grand
+    <>
+      <dl
+        className="ms-auto mt-3.5 flex w-[min(360px,100%)] flex-col gap-1"
+        aria-label={t("admin.invoices.document.totals")}
       >
-        {formatMoney(invoice.total_incl_tax)}
-      </TotalRow>
-      {showWithholding && (
-        <>
-          <TotalRow label={t("admin.invoices.document.withholding", { rate: plainRate(invoice.withholding_rate) })}>
-            −{formatMoney(invoice.withholding_amount)}
-          </TotalRow>
-          <TotalRow label={t("admin.invoices.document.netToPay")}>{formatMoney(invoice.net_to_pay)}</TotalRow>
-        </>
-      )}
-      {!isZero(invoice.credited_total) && (
-        <>
+        {!isZero(invoice.discount_total) && (
+          <>
+            <TotalRow label={t("admin.invoices.document.subtotal")}>{formatMoney(invoice.subtotal)}</TotalRow>
+            <TotalRow label={t("admin.invoices.document.discount")}>−{formatMoney(invoice.discount_total)}</TotalRow>
+          </>
+        )}
+        {invoice.apply_vat ? (
+          <>
+            <TotalRow label={t("admin.invoices.document.totalExcl")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
+            {invoice.vat_lines.map((row) => (
+              <TotalRow
+                key={row.rate}
+                label={
+                  isZero(row.rate)
+                    ? t("admin.invoices.document.vatExempt")
+                    : t("admin.invoices.document.vatAt", { rate: plainRate(row.rate) })
+                }
+                note={
+                  row.amount_overridden
+                    ? t("admin.invoices.document.vatTyped", { computed: formatMoney(row.computed_amount) })
+                    : undefined
+                }
+              >
+                {formatMoney(row.amount)}
+              </TotalRow>
+            ))}
+          </>
+        ) : (
+          <TotalRow label={t("admin.invoices.document.totalNoVat")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
+        )}
+        {stamp && <TotalRow label={t("admin.invoices.document.stamp")}>{formatMoney(invoice.fiscal_stamp)}</TotalRow>}
+        {!isZero(invoice.fees) && (
+          <TotalRow label={t("admin.invoices.document.fees")}>{formatMoney(invoice.fees)}</TotalRow>
+        )}
+        <TotalRow
+          label={invoice.apply_vat ? t("admin.invoices.document.totalIncl") : t("admin.invoices.document.total")}
+          grand
+        >
+          {formatMoney(invoice.total_incl_tax)}
+        </TotalRow>
+        {showWithholding && (
+          <>
+            <TotalRow label={t("admin.invoices.document.withholding", { rate: plainRate(invoice.withholding_rate) })}>
+              −{formatMoney(invoice.withholding_amount)}
+            </TotalRow>
+            <TotalRow label={t("admin.invoices.document.netToPay")}>{formatMoney(invoice.net_to_pay)}</TotalRow>
+          </>
+        )}
+        {!isZero(invoice.credited_total) && (
           <TotalRow label={t("admin.invoices.document.credited")}>−{formatMoney(invoice.credited_total)}</TotalRow>
+        )}
+        {invoice.status === "issued" && !isZero(invoice.paid_total) && (
+          <TotalRow label={t("admin.invoices.document.paid")}>−{formatMoney(invoice.paid_total)}</TotalRow>
+        )}
+        {(!isZero(invoice.credited_total) || (invoice.status === "issued" && !isZero(invoice.paid_total))) && (
           <TotalRow label={t("admin.invoices.document.remaining")}>{formatMoney(invoice.remaining_to_pay)}</TotalRow>
-        </>
-      )}
-    </dl>
+        )}
+      </dl>
+      <PaymentGap invoice={invoice} />
+    </>
+  );
+}
+
+/** An invoice paid in part: what is left, and how much of it is VAT and stamp the earlier règlement did not cover
+ * (D-256). The rest is collected in a new règlement on this invoice. Not printed. */
+function PaymentGap({ invoice }: { invoice: InvoiceDetail }) {
+  const { t } = useTranslation();
+  if (invoice.payment_state !== "partial") return null;
+  const extra = isZero(invoice.extra_over_goods) ? null : formatMoney(invoice.extra_over_goods);
+  return (
+    <div role="status" className="mt-3 rounded-control bg-warn-soft p-3 text-[0.9rem] print:hidden">
+      <p className="font-semibold">
+        {t("admin.invoices.gap.title", { amount: formatMoney(invoice.remaining_to_pay) })}
+      </p>
+      {extra && <p className="text-ink-2">{t("admin.invoices.gap.extra", { amount: extra })}</p>}
+      <Link
+        to={`/reglements/nouveau?client=${invoice.customer.id}`}
+        className="mt-1 inline-block font-semibold text-sea hover:underline"
+      >
+        {t("admin.invoices.gap.collect")}
+      </Link>
+    </div>
   );
 }
 

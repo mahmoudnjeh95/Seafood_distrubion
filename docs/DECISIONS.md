@@ -3644,6 +3644,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+- D-256 built (2026-11-02, P9-T10, first slice): estimate (`estimate_invoice`, `GET /invoices/estimate`), `estimated_extra` on
+  open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
+  per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).
 
 **D-259 · The driver's "Fonds de caisse" and "Argent pour les achats" go back to zero when the office approves the day (owner answer, 2026-11-02; changes D-242)** · provisional · 2026-11-02
 - `dayclose.approve_day_closing` calls `fleet.services.reset_day_fund`, which sets the office's `DayFund` for that driver
@@ -3702,6 +3705,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   cheque or traite is an effet (D-264).
 - The reset of the fund at the office's approval (D-259) is another change and does not touch this.
 - The app is still in testing with no real data: no backfill.
+
+
 
 **D-264 · A cheque or traite taken at a sale, paid for an expense or given to a partner is an effet, followed like a règlement's (Phase 9, P9-T09g; owner answer)** · accepted · 2026-11-02
 - Before, these were counted at the main bank account on the day. Now a cheque taken at a sale is an effet received

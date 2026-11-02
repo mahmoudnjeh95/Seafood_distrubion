@@ -83,6 +83,7 @@ if TYPE_CHECKING:
 
 # Validity when none is given: the prototype's quote is "valable 3 jours". Provisional (D-050): seafood
 # prices move daily, so a short validity is the safe default.
+ZERO = Decimal("0.000")
 DEFAULT_VALIDITY_DAYS = 3
 MAX_DISCOUNT_RATE = Decimal("100")
 _RATE_STEP = Decimal("0.01")
@@ -2281,6 +2282,79 @@ def _checked_sale_to_invoice(sale: Sale) -> None:
         raise ValidationError(
             _("Cette vente a déjà sa facture %(number)s.") % {"number": live.number or _("(brouillon)")}
         )
+
+
+@dataclass(frozen=True)
+class InvoiceEstimate:
+    """What the invoice of some BL would ask, worked out without saving anything (D-256)."""
+
+    total_excl_tax: Decimal
+    vat_total: Decimal
+    # (rate in percent, VAT amount), highest rate first.
+    vat_by_rate: list[tuple[Decimal, Decimal]]
+    fiscal_stamp: Decimal
+    withholding_amount: Decimal
+    net_to_pay: Decimal
+    # `net_to_pay` less what the BL hold now (their goods without VAT): what a règlement of the goods alone misses.
+    extra: Decimal
+    # `extra` shared over the BL by what each holds, by sale id.
+    extra_by_sale: dict[int, Decimal]
+
+
+def _invoiceable_now(sale: Sale) -> bool:
+    """A confirmed BL of a named customer that is on no live invoice yet (the rules of `_checked_sale_to_invoice`)."""
+    return (
+        sale.status == SaleStatus.CONFIRMED
+        and not sale.is_opening
+        and not sale.customer.is_walk_in
+        and not sale.invoices.exclude(status=InvoiceStatus.CANCELLED).exists()
+    )
+
+
+def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> InvoiceEstimate:
+    """The invoice the given BL would make with the settings in force and the proposed choices (VAT only for
+    goods bought with VAT, D-246; each product's rate; one stamp; the withholding from 1 000 DT): the same
+    arithmetic as `create_invoice` (`invoicing.compute`), nothing saved. BL already invoiced or not invoiceable
+    are left out."""
+    open_sales = [sale for sale in sales if _invoiceable_now(sale)]
+    if not open_sales:
+        return InvoiceEstimate(ZERO, ZERO, [], ZERO, ZERO, ZERO, ZERO, {})
+    version = _settings_in_force(organization)
+    lines = [line for sale in open_sales for line in sale.lines.select_related("product").order_by("id")]
+    amounts = invoicing.compute(
+        [
+            invoicing.LineInput(
+                amount=line.amount, vat_rate=_default_rate(line.product, version), unit_price=line.unit_price
+            )
+            for line in lines
+        ],
+        apply_vat=bool(_vat_product_names(open_sales)),
+        prices_include_vat=version.prices_include_vat,
+        fiscal_stamp=version.fiscal_stamp,
+        withholding_rate=version.withholding_rate,
+    )
+    held = [sum((line.amount for line in sale.lines.all()), ZERO) for sale in open_sales]
+    extra = amounts.net_to_pay - sum(held, ZERO)
+    return InvoiceEstimate(
+        total_excl_tax=amounts.total_excl_tax,
+        vat_total=amounts.vat_total,
+        vat_by_rate=[(group.rate, group.amount) for group in amounts.vat_groups],
+        fiscal_stamp=amounts.fiscal_stamp,
+        withholding_amount=amounts.withholding_amount,
+        net_to_pay=amounts.net_to_pay,
+        extra=extra,
+        extra_by_sale=dict(zip((sale.pk for sale in open_sales), invoicing.shared_by(extra, held), strict=True)),
+    )
+
+
+def estimated_extras(organization: Organization, sale_ids: Sequence[int]) -> dict[int, Decimal]:
+    """For each given BL on no invoice, what its invoice would add to its goods if it were invoiced alone (D-256)."""
+    sales = Sale.objects.filter(organization=organization, pk__in=sale_ids).select_related("customer")
+    return {
+        sale.pk: estimate_invoice(organization=organization, sales=[sale]).extra
+        for sale in sales
+        if _invoiceable_now(sale)
+    }
 
 
 @transaction.atomic
