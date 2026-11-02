@@ -1,26 +1,13 @@
 import { useListEmployees } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatMoney, useTranslation } from "@frutti/i18n";
-import {
-  Button,
-  Card,
-  Dialog,
-  EmptyState,
-  Icon,
-  Input,
-  PageHeader,
-  Pager,
-  Pill,
-  SortTh,
-  Table,
-  Td,
-  useTableView,
-} from "@frutti/ui";
+import { Button, Card, Dialog, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, TotalsRow, useTableView } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { type Status, StatusFilter } from "../lib/StatusFilter";
+import { totalOf } from "../lib/totals";
 import { useDebounced } from "../lib/useDebounced";
 import { EmployeeDialog } from "./EmployeeDialog";
 import { HrTabs } from "./HrTabs";
@@ -166,6 +153,7 @@ function Employees({ canEdit }: { canEdit: boolean }) {
                 </tr>
               ))}
             </tbody>
+              <TotalsRow span={3} cells={[{ value: totalOf(view.rows, (e) => e.monthly_salary) }, { value: totalOf(view.rows, (e) => e.unpaid) }]} />
           </Table>
           <Pager {...view.pager} />
         </Card>

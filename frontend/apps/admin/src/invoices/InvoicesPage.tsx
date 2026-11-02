@@ -6,27 +6,13 @@ import {
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import {
-  Button,
-  Card,
-  cn,
-  EmptyState,
-  Icon,
-  Input,
-  PageHeader,
-  Pager,
-  Pill,
-  SortTh,
-  Table,
-  Td,
-  Th,
-  useServerTable,
-} from "@frutti/ui";
+import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, TotalsRow, useServerTable } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { totalOf } from "../lib/totals";
 import { canInvoice, INVOICE_STATUSES, isZero, STATUS_TONES } from "./shared";
 
 type Tab = "invoices" | "creditNotes";
@@ -176,6 +162,7 @@ export function InvoicesPage() {
                 </tr>
               ))}
             </tbody>
+              <TotalsRow span={4} cells={[{ value: totalOf(list.filter((i) => i.status !== "cancelled"), (i) => i.total_incl_tax) }, { value: totalOf(list.filter((i) => i.status === "issued"), (i) => i.remaining_to_pay), phoneHidden: true }]} />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>
@@ -229,6 +216,7 @@ export function InvoicesPage() {
                 </tr>
               ))}
             </tbody>
+              <TotalsRow span={4} cells={[{ value: totalOf(list, (n) => n.net_amount) }]} />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

@@ -1,27 +1,12 @@
 import { createInvoice, type DeliveryStatusEnum, type SaleStatusEnum, useListSales } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, useTranslation } from "@frutti/i18n";
-import {
-  Button,
-  Card,
-  cn,
-  EmptyState,
-  Icon,
-  Input,
-  PageHeader,
-  Pager,
-  Pill,
-  SortTh,
-  Table,
-  Td,
-  Th,
-  toast,
-  useServerTable,
-} from "@frutti/ui";
+import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, toast, TotalsRow, useServerTable } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
+import { totalOf } from "../lib/totals";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { canSell, DELIVERY_TONES, SALE_STATUSES, STATUS_TONES } from "./shared";
@@ -280,6 +265,7 @@ export function SalesPage() {
                 </tr>
               ))}
             </tbody>
+              <TotalsRow span={(canWrite && uninvoiced ? 1 : 0) + 3} cells={[{ value: totalOf(list.filter((s) => s.status !== "cancelled"), (s) => s.total_excl_tax) }, { value: totalOf(list.filter((s) => s.status === "confirmed"), (s) => s.amount_due), phoneHidden: true }]} />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

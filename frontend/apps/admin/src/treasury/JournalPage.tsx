@@ -19,6 +19,7 @@ import {
   SortTh,
   Table,
   Td,
+  TotalsRow,
   useTableView,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { subtract } from "../lib/decimal";
+import { totalOf } from "../lib/totals";
 import { useDebounced } from "../lib/useDebounced";
 import { compare } from "../purchasing/allocation";
 import { StatementSection } from "./StatementSection";
@@ -164,6 +166,13 @@ export function JournalPage({ kind }: { kind: Kind }) {
                       <MovementLine key={row.id} row={row} />
                     ))}
                   </tbody>
+                <TotalsRow
+                  span={3}
+                  cells={[
+                    { value: totalOf(view.rows.filter((r) => Number(r.amount) > 0), (r) => r.amount) },
+                    { value: totalOf(view.rows.filter((r) => Number(r.amount) < 0), (r) => subtract("0", r.amount)) },
+                  ]}
+                />
                 </Table>
                 <Pager {...view.pager} />
               </>

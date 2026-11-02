@@ -8,27 +8,13 @@ import {
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import {
-  Button,
-  Card,
-  Dialog,
-  EmptyState,
-  Icon,
-  Input,
-  PageHeader,
-  Pager,
-  Pill,
-  SortTh,
-  Table,
-  Td,
-  Th,
-  useServerTable,
-} from "@frutti/ui";
+import { Button, Card, Dialog, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, TotalsRow, useServerTable } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { totalOf } from "../lib/totals";
 import { filterParams, isFiltered, type ListFilters, NO_FILTERS } from "../payments/listFilters";
 import { MeansChips, PaymentListFilters, PaymentTotalsCard } from "../payments/ListParts";
 import { canRecordReceipts } from "../receipts/shared";
@@ -240,6 +226,7 @@ export function SupplierPaymentsPage() {
                 );
               })}
             </tbody>
+              <TotalsRow span={5} cells={[{ value: totalOf(list.filter((p) => !p.is_voided), (p) => p.amount) }]} />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>
