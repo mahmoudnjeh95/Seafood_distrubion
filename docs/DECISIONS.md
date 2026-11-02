@@ -3457,3 +3457,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: a cheque or traite given to a partner is counted at the main bank account on its day, not followed as an
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
+**D-241 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
+- A `CapitalEntryKind.ADVANCE` entry (−) on the partner's capital ledger, with the means of payment and a reference (`method`, `reference`, the entry's date = the day paid). `services.advance_capital`, `POST /partnerships/{id}/advances` (`advancePartnerCapital`). Owner only, like every partnership write.
+- Up to the capital still in: an advance never takes the capital below zero (D-031). Allowed while the lot is open or closed; refused once settled or cancelled.
+- The settlement pays what is left: its `capital_returned` is the capital balance, already net of the advances, so the total paid is unchanged. The partner's period flows count an advance as capital returned.
+- A capital correction (`update_partnership`) cannot take the capital below what was already advanced.
+- Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
+- Provisional: like the settlement payments, an advance is not a treasury movement yet (the means and reference are recorded on the ledger only).

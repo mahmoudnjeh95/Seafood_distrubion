@@ -5761,6 +5761,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotPartnershipDetail'
           description: ''
+  /api/v1/partnerships/{partnership_id}/advances:
+    post:
+      operationId: advancePartnerCapital
+      description: |-
+        Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+        still in; the settlement pays the rest.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
   /api/v1/partnerships/{partnership_id}/cancel:
     post:
       operationId: cancelPartnership
@@ -11860,6 +11895,13 @@ components:
         note:
           type: string
           readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
         lot_result_id:
           type: integer
           readOnly: true
@@ -11879,7 +11921,9 @@ components:
       - id
       - kind
       - lot_result_id
+      - method
       - note
+      - reference
     CapitalEntryKindEnum:
       enum:
       - contribution
@@ -11887,6 +11931,7 @@ components:
       - loss_deduction
       - loss_reversal
       - return
+      - advance
       type: string
       description: |-
         * `contribution` - Apport
@@ -11894,6 +11939,7 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+        * `advance` - Avance sur capital
     CashCount:
       type: object
       properties:
@@ -19613,6 +19659,27 @@ components:
       - profit_rate
       - status
       - terms_pending
+    LotPartnershipAdvance:
+      type: object
+      properties:
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        paid_on:
+          type: string
+          format: date
+        note:
+          type: string
+          default: ''
+          maxLength: 300
+      required:
+      - amount
+      - method
     LotPartnershipCancel:
       type: object
       properties:

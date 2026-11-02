@@ -1,9 +1,13 @@
 # Project status
 
-_Last updated: 2026-11-01 (all open PRs merged and on staging; next free decision D-237)_
+_Last updated: 2026-11-02 (advance to a partner from their capital, D-241, on branch `partner-capital-advance`)_
 
 ## Where we are
 
+- **Owner request 2026-11-02, D-241 (branch `partner-capital-advance`, awaits CI):** in a lot's "Partenariat" section the
+  owner can give the partner an advance from the capital they put in ("Donner une avance"): `ADVANCE` entry on the capital
+  ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
+  the rest. Not a treasury movement yet.
 - **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
   day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
   on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227
@@ -31,11 +35,13 @@ _Last updated: 2026-11-01 (all open PRs merged and on staging; next free decisio
 
 ## Next step
 
+0. D-241: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
+   avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.
 1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
    opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
-3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-237.
+3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-242.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
