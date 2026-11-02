@@ -378,11 +378,14 @@ def _checked_revised_line(
     index: int, item: ReceiptRevisionLineFields, received_on: dt.date, errors: dict[str, str]
 ) -> dict[str, Any]:
     checked: dict[str, Any] = {"use_by": item.get("use_by")}
-    for field in ("invoiced_quantity", "accepted_quantity"):
-        try:
-            checked[field] = checked_quantity(item.get(field, ""))
-        except (ValueError, TypeError):
-            errors[line_error_key(index, field)] = _("Indiquez un poids net en kg, supérieur à zéro.")
+    try:
+        checked["invoiced_quantity"] = checked_quantity(item.get("invoiced_quantity", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "invoiced_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+    try:
+        checked["accepted_quantity"] = checked_quantity(item.get("accepted_quantity", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "accepted_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
     try:
         checked["unit_cost"] = checked_amount(item.get("unit_cost", ""))
     except (ValueError, TypeError):
@@ -511,8 +514,9 @@ def revise_receipt(
         before=before,
         after=after,
     )
-    if receipt.purchase_order_id is not None:
-        refresh_order_status(receipt.purchase_order)
+    order = receipt.purchase_order
+    if order is not None:
+        refresh_order_status(order)
     audit.record(
         organization=organization,
         actor=actor,

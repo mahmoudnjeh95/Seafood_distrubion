@@ -1,6 +1,6 @@
 import datetime as dt
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -18,6 +18,7 @@ from apps.inventory.tests.factories import StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.purchasing import services
 from apps.purchasing.models import GoodsReceipt, GoodsReceiptRevision
+from apps.purchasing.services import ReceiptRevisionFields
 
 pytestmark = pytest.mark.django_db
 
@@ -99,7 +100,7 @@ def revise(receipt, *, revision=None, reason="Pesée corrigée au quai", lines=N
         actor=None,
         revision=receipt.revision if revision is None else revision,
         reason=reason,
-        fields=fields,
+        fields=cast(ReceiptRevisionFields, fields),
     )
 
 
