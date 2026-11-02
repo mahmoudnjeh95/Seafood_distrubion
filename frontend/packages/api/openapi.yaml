@@ -18256,9 +18256,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -18290,9 +18287,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true

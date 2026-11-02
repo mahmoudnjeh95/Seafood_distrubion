@@ -1995,8 +1995,7 @@ class InvoiceChoices(TypedDict, total=False):
     fiscal_stamp: Number | None
     # "Frais" in DT; empty = none (D-126).
     fees: Number | None
-    withholding_applied: bool
-    # Empty = the settings' rate.
+    # Empty = the settings' rate. The withholding itself follows the invoice total (1 000 DT, invoicing.py).
     withholding_rate: Number | None
     notes: str
 
@@ -2009,7 +2008,6 @@ class _Overrides:
     vat_rates: list[Decimal | None]
     vat_amounts: dict[Decimal, Decimal]
     fiscal_stamp: Decimal | None
-    withholding_applied: bool
     withholding_rate: Decimal | None
     notes: str
     fees: Decimal = Decimal("0.000")
@@ -2076,7 +2074,6 @@ def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
         vat_rates=rates,
         vat_amounts=amounts,
         fiscal_stamp=stamp,
-        withholding_applied=choices.get("withholding_applied", False),
         withholding_rate=withholding_rate,
         notes=(choices.get("notes") or "").strip(),
         fees=fees,
@@ -2091,7 +2088,6 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
         vat_rates=[line.vat_rate if line.vat_rate_overridden else None for line in lines],
         vat_amounts={row.rate: row.amount for row in invoice.vat_lines.filter(amount_overridden=True)},
         fiscal_stamp=invoice.fiscal_stamp if invoice.fiscal_stamp_overridden else None,
-        withholding_applied=invoice.withholding_applied,
         withholding_rate=invoice.withholding_rate if invoice.withholding_rate_overridden else None,
         notes=invoice.notes,
         fees=invoice.fees,
@@ -2127,7 +2123,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         apply_vat=overrides.apply_vat,
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=stamp,
-        withholding_rate=withholding_rate if overrides.withholding_applied else None,
+        withholding_rate=withholding_rate,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
     )
@@ -2183,7 +2179,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = overrides.withholding_applied
+    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_incl_tax)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount

@@ -3534,3 +3534,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   an effet (as for salary cheques); (2) primes added before this change have no payment and stay out of the treasury:
   the office pays them through a salary payment, or the owner decides how to record them; (3) the prime does not change
   the CNSS (D-234, the accountant to confirm).
+
+**D-250 · The withholding is taken on every invoice of 1 000 DT and more, and on none below (owner rule, 2026-11-02)** · provisional · 2026-11-02
+- The server decides: an invoice whose **total TTC** (HT + VAT + stamp + fees) reaches 1 000,000 DT carries the
+  retenue à la source at the rate in force; below it, none, whatever the rate typed. The "withholding" checkbox is
+  gone from the invoice form (the API input `withholding_applied` too; the output still says whether one applies).
+- The withholding base is unchanged: (HT + VAT) × rate, stamp and fees left out (D-057). The fees can take an invoice
+  over 1 000 DT without entering the base.
+- Provisional: the base of the threshold is the total with tax as printed (stamp and fees in). The accountant confirms
+  whether the threshold is on the total with VAT only, which would exclude the stamp and fees.
+- The rate stays in Paramètres financiers (0 by default): with a rate at 0, a 1 000 DT invoice shows no line. The
+  owner sets the rate.
+- Issued invoices keep what they had (D-057); a draft takes the rule when it is next saved.

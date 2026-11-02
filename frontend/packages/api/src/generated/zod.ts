@@ -5835,7 +5835,6 @@ export const ListInvoicesResponse = zod.object({
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
 export const createInvoiceBodyApplyVatDefault = true;
-export const createInvoiceBodyWithholdingAppliedDefault = false;
 export const createInvoiceBodyNotesDefault = ``;
 export const createInvoiceBodyIssueNowDefault = false;
 
@@ -5852,7 +5851,6 @@ export const CreateInvoiceBody = zod.object({
 })).optional(),
   "fiscal_stamp": zod.string().nullish(),
   "fees": zod.string().nullish(),
-  "withholding_applied": zod.boolean().default(createInvoiceBodyWithholdingAppliedDefault),
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(createInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(createInvoiceBodyIssueNowDefault),
@@ -6289,7 +6287,6 @@ export const UpdateInvoiceParams = zod.object({
 })
 
 export const updateInvoiceBodyApplyVatDefault = true;
-export const updateInvoiceBodyWithholdingAppliedDefault = false;
 export const updateInvoiceBodyNotesDefault = ``;
 export const updateInvoiceBodyIssueNowDefault = false;
 
@@ -6304,7 +6301,6 @@ export const UpdateInvoiceBody = zod.object({
 })).optional(),
   "fiscal_stamp": zod.string().nullish(),
   "fees": zod.string().nullish(),
-  "withholding_applied": zod.boolean().default(updateInvoiceBodyWithholdingAppliedDefault),
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(updateInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(updateInvoiceBodyIssueNowDefault)
