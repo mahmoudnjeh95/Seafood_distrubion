@@ -27,7 +27,18 @@ type Outcome = Literal["profit", "zero", "loss"]
 
 # The cost kinds in the order the result lists them. Kinds not listed (new ones, P5-T02/T05) come after,
 # by name: the engine takes any kind `expenses.lot_cost_lines` gives without being changed.
-COST_KIND_ORDER: tuple[str, ...] = ("lot", "truck_day", "employee", "cold_room", "cold_room_adjustment", "general")
+# The balance write-offs charged to the lot by hand (D-257) come last: a customer's loss is a cost, a supplier's
+# gain a negative one.
+COST_KIND_ORDER: tuple[str, ...] = (
+    "lot",
+    "truck_day",
+    "employee",
+    "cold_room",
+    "cold_room_adjustment",
+    "general",
+    "customer_write_off",
+    "supplier_write_off",
+)
 
 
 # ---- What goes in ----

@@ -35,6 +35,7 @@ from .models import (
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
+    CustomerWriteOffLotShare,
     DeliveryStatus,
     FinanceSettings,
     Invoice,
@@ -331,6 +332,37 @@ def batch_sales(organization: Organization, *, batch_id: int) -> QuerySet[SaleLi
         )
         .select_related("line__product", "line__sale__customer", "line__sale__location", "batch")
         .order_by("line__sale__sold_at", "line__sale_id", "id")
+    )
+
+
+def customer_lots(organization: Organization, *, customer_id: int) -> list[dict[str, Any]]:
+    """The lots a customer bought from (confirmed sales), newest first, by id with their number and product:
+    the lots a write-off of their balance can be charged to (D-257)."""
+    rows = (
+        SaleLineBatch.objects.for_organization(organization)
+        .filter(line__sale__customer_id=customer_id, line__sale__status=SaleStatus.CONFIRMED)
+        .values("batch_id", "batch__number", "batch__product__name", "batch__received_on")
+        .distinct()
+    )
+    lots = {
+        row["batch_id"]: {
+            "batch_id": row["batch_id"],
+            "number": row["batch__number"],
+            "product": row["batch__product__name"],
+            "received_on": row["batch__received_on"],
+        }
+        for row in rows
+    }
+    return sorted(lots.values(), key=lambda lot: (lot["received_on"], lot["batch_id"]), reverse=True)
+
+
+def write_off_shares_of_batch(organization: Organization, *, batch_id: int) -> QuerySet[CustomerWriteOffLotShare]:
+    """The customer balance write-offs charged to one lot (D-257), oldest first, with the write-off and customer."""
+    return (
+        CustomerWriteOffLotShare.objects.for_organization(organization)
+        .filter(batch_id=batch_id)
+        .select_related("write_off__customer")
+        .order_by("write_off__written_on", "id")
     )
 
 

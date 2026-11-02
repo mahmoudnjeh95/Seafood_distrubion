@@ -110,6 +110,7 @@ export function BalanceCard({
           kind="customer"
           party={customer.name}
           owed={data.balance}
+          lots={data.write_off_lots}
           onWrite={(body) => writeOffCustomerBalance(customer.id, body)}
           onDone={() => {
             setClearing(false);

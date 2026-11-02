@@ -1,5 +1,6 @@
 """Clearing what we owe a supplier to zero (D-252): the supplier takes less than its balance, the rest is a gain on
-them. The amount is typed again, the invoices it settles read as paid, and the balance and statement count it."""
+them. The amount is typed again, the invoices it settles read as paid, and the balance and statement count it. The
+gain is credited to the lots the owner picks (D-257), so it raises their net result."""
 
 import datetime as dt
 from decimal import Decimal
@@ -9,12 +10,19 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.catalog.tests.factories import ProductFactory
+from apps.closing import selectors as closing
 from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
+from apps.inventory.models import Batch
 from apps.inventory.tests.factories import StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.purchasing import selectors, services, statements
-from apps.purchasing.models import SupplierBalanceWriteOff, SupplierInvoice, SupplierInvoiceStatus
+from apps.purchasing.models import (
+    SupplierBalanceWriteOff,
+    SupplierInvoice,
+    SupplierInvoiceStatus,
+    SupplierWriteOffLotShare,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -60,12 +68,21 @@ def owe(organization, supplier, room, product, amount: str, received_on: dt.date
     )
 
 
+def on_the_lot(amount):
+    """The whole gain credited to the one lot the supplier sold us."""
+    return [{"batch": Batch.objects.get().pk, "amount": amount}]
+
+
 def test_the_rest_is_given_up_and_the_invoice_reads_paid(organization, actor, supplier, room, product):
     owe(organization, supplier, room, product, "100.000", timezone.localdate() - dt.timedelta(days=5))
     invoice = SupplierInvoice.objects.get(supplier=supplier)
 
     write_off = services.write_off_supplier_balance(
-        supplier=supplier, actor=actor, expected="100.000", reason="Le fournisseur accepte 0"
+        supplier=supplier,
+        actor=actor,
+        expected="100.000",
+        reason="Le fournisseur accepte 0",
+        lot_shares=on_the_lot("100.000"),
     )
 
     assert (write_off.amount, write_off.reason) == (D("100.000"), "Le fournisseur accepte 0")
@@ -79,7 +96,9 @@ def test_the_rest_is_given_up_and_the_invoice_reads_paid(organization, actor, su
 
 def test_the_statement_shows_the_write_off_and_closes_on_zero(organization, actor, supplier, room, product):
     owe(organization, supplier, room, product, "100.000", timezone.localdate() - dt.timedelta(days=5))
-    services.write_off_supplier_balance(supplier=supplier, actor=actor, expected="100.000", reason="Reste")
+    services.write_off_supplier_balance(
+        supplier=supplier, actor=actor, expected="100.000", reason="Reste", lot_shares=on_the_lot("100.000")
+    )
 
     statement = statements.supplier_statement(organization, supplier.pk, date_from=None, date_to=timezone.localdate())
     assert statement.closing_balance == D("0.000")
@@ -99,4 +118,32 @@ def test_the_amount_must_be_the_balance_shown_now(organization, actor, supplier,
 def test_a_supplier_we_owe_nothing_is_refused(organization, actor, supplier, room, product):
     with pytest.raises(ValidationError):
         services.write_off_supplier_balance(supplier=supplier, actor=actor, expected="0.000", reason="Rien")
+    assert not SupplierBalanceWriteOff.objects.exists()
+
+
+def test_the_gain_raises_the_net_result_of_the_lot_picked(organization, actor, supplier, room, product):
+    owe(organization, supplier, room, product, "100.000", timezone.localdate() - dt.timedelta(days=5))
+    lot = Batch.objects.get()
+    before = closing.live_result(organization, batch_id=lot.pk).net_result
+
+    services.write_off_supplier_balance(
+        supplier=supplier, actor=actor, expected="100.000", reason="Reste", lot_shares=on_the_lot("100.000")
+    )
+
+    share = SupplierWriteOffLotShare.objects.get()
+    assert (share.batch_id, share.amount) == (lot.pk, D("100.000"))
+    after = closing.live_result(organization, batch_id=lot.pk)
+    assert after.net_result == before + D("100.000")
+    group = next(group for group in after.cost_groups if group.kind == "supplier_write_off")
+    assert group.total == D("-100.000")
+
+
+def test_the_lots_must_add_up_to_the_amount(organization, actor, supplier, room, product):
+    owe(organization, supplier, room, product, "100.000", timezone.localdate() - dt.timedelta(days=5))
+
+    with pytest.raises(ValidationError) as refused:
+        services.write_off_supplier_balance(
+            supplier=supplier, actor=actor, expected="100.000", reason="Reste", lot_shares=on_the_lot("60.000")
+        )
+    assert set(refused.value.message_dict) == {"lot_shares"}
     assert not SupplierBalanceWriteOff.objects.exists()

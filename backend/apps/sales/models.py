@@ -1098,6 +1098,27 @@ class CustomerWriteOffAllocation(OrganizationScopedModel):
         return f"{self.write_off} -> {self.sale} · {self.amount}"
 
 
+class CustomerWriteOffLotShare(OrganizationScopedModel):
+    """The part of a balance write-off charged to one lot (D-257): a loss that lowers that lot's net result, so
+    its partner shares the loss. The owner picks the lots and amounts by hand; the shares add up to the write-off.
+    Written once with its write-off."""
+
+    write_off = models.ForeignKey(CustomerBalanceWriteOff, on_delete=models.PROTECT, related_name="lot_shares")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    amount = MoneyField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_write_off_lot_share_positive"),
+            models.UniqueConstraint(fields=["write_off", "batch"], name="customer_write_off_lot_share_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} -> {self.batch_id} · {self.amount}"
+
+
 class UnpaidEffet(OrganizationScopedModel):
     """A customer cheque or traite the bank refused (impayé, D-217): the customer owes its amount again.
 

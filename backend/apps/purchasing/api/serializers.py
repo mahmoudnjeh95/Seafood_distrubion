@@ -673,10 +673,27 @@ class PaymentVoidSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
 
 
+class SupplierWriteOffLotShareSerializer(serializers.Serializer[Any]):
+    """The part of a supplier balance write-off credited to one lot, picked by hand (D-257)."""
+
+    batch = serializers.IntegerField(min_value=1)
+    amount = serializers.CharField(max_length=30)
+
+
+class SupplierWriteOffLotSerializer(serializers.Serializer[Any]):
+    """A lot a supplier balance write-off can be credited to (D-257): one they sold us, not settled."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = serializers.CharField(read_only=True)
+
+
 class BalanceWriteOffSerializer(serializers.Serializer[Any]):
     # The balance as shown on screen, typed again: the write-off is refused when it moved (D-252).
     expected_amount = serializers.CharField(max_length=30)
     reason = serializers.CharField(allow_blank=True, max_length=255)
+    # The lots the gain is credited to, adding up to the balance (D-257); asked for only when a lot is offered.
+    lot_shares = SupplierWriteOffLotShareSerializer(many=True, required=False)
 
 
 class SupplierBalanceSerializer(serializers.Serializer[Any]):
@@ -699,6 +716,8 @@ class SupplierBalanceSerializer(serializers.Serializer[Any]):
     # Received but on no invoice yet: not owed until the supplier's invoice is recorded.
     uninvoiced_receipts = serializers.IntegerField(read_only=True)
     uninvoiced_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # The lots a write-off of this balance can be credited to (D-257), newest first.
+    write_off_lots = SupplierWriteOffLotSerializer(many=True, read_only=True)
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
