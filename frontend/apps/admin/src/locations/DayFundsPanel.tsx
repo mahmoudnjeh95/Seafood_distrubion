@@ -38,7 +38,9 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
       }),
     onSuccess: async () => {
       setError("");
-      toast.success(t("admin.dayFunds.saved", { name: row.driver.name }));
+      toast.success(
+        t(row.started ? "admin.dayFunds.proposed" : "admin.dayFunds.saved", { name: row.driver.name })
+      );
       await queryClient.invalidateQueries({
         predicate: (query) =>
           typeof query.queryKey[0] === "string" && query.queryKey[0].startsWith("/api/v1/day-funds"),
@@ -69,13 +71,21 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
         ) : floatLocked || !canEdit ? (
           <span className="num">{row.fund ? formatMoney(row.fund.purchase_float) : "—"}</span>
         ) : (
-          <MoneyInput
-            aria-label={t("admin.dayFunds.floatOf", { name })}
-            inputMode="decimal"
-            className="num max-w-36"
-            value={float}
-            onChange={(event) => setFloat(event.target.value)}
-          />
+          <div className="space-y-1">
+            <MoneyInput
+              aria-label={t("admin.dayFunds.floatOf", { name })}
+              inputMode="decimal"
+              className="num max-w-36"
+              value={float}
+              onChange={(event) => setFloat(event.target.value)}
+            />
+            {row.started && <p className="text-[0.78rem] text-ink-2">{t("admin.dayFunds.floatHint")}</p>}
+          </div>
+        )}
+        {row.pending_purchase_float != null && (
+          <p className="mt-1 text-[0.78rem] font-semibold text-warn">
+            {t("admin.dayFunds.floatPending", { amount: formatMoney(row.pending_purchase_float) })}
+          </p>
         )}
       </Td>
       <Td>

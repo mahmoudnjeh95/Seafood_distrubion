@@ -16,4 +16,11 @@ export interface DayFundRow {
   readonly fund: DayFund | null;
   readonly started: boolean;
   readonly ended: boolean;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly pending_purchase_float: string | null;
+  /** @nullable */
+  readonly pending_proposed_at: string | null;
 }

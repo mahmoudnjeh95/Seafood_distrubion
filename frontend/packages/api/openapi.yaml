@@ -5052,6 +5052,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
           description: ''
+  /api/v1/my-day/purchase-change:
+    get:
+      operationId: getMyPurchaseChange
+      description: |-
+        The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+        404: nothing waits.
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseFloatChange'
+          description: ''
+  /api/v1/my-day/purchase-change/approve:
+    post:
+      operationId: approveMyPurchaseChange
+      description: |-
+        The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+        once. 404 before the day is started.
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
   /api/v1/my-days:
     get:
       operationId: listMyDays
@@ -14872,11 +14906,24 @@ components:
         ended:
           type: boolean
           readOnly: true
+        pending_purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        pending_proposed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
       required:
       - can_buy
       - driver
       - ended
       - fund
+      - pending_proposed_at
+      - pending_purchase_float
       - started
     DayFundWrite:
       type: object
@@ -24431,6 +24478,29 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
+    PurchaseFloatChange:
+      type: object
+      description: The money for purchases the office proposed on the phone's day,
+        waiting for the driver's approval (D-260).
+      properties:
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        previous_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - previous_amount
     PurchaseOrderStatusEnum:
       enum:
       - open
