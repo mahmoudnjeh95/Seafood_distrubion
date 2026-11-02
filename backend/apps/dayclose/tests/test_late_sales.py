@@ -254,9 +254,9 @@ def test_a_late_sale_enters_a_day_sent_but_not_approved_and_an_earlier_day_than_
     """Only the sale's own day counts: sent to the office but not approved, it still takes the sale; and
     today being approved does not close yesterday."""
     services.submit_day_closing(driver_day=loaded[YESTERDAY], actor=loaded["driver"].user)
-    approve(loaded, TODAY)
-
+    # The late sale is made before today's approval: approving today gives the truck's stock back (D-249).
     late = sell(loaded, "3", made_at=at(YESTERDAY, 15), paid="84.000")
+    approve(loaded, TODAY)
 
     assert late.status_code == 201
     assert sell(loaded, "1", paid="31.000").status_code == 403  # today is approved
