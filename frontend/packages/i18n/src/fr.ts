@@ -895,6 +895,7 @@ export const fr = {
       },
       salesLabel: "Ventes",
       cashLabel: "Argent en main",
+      cashReceivedLabel: "Argent reçu",
       expensesLabel: "Dépenses",
       purchasesLabel: "Achats au port",
       purchasesCount_one: "{{count}} achat",
