@@ -451,7 +451,7 @@ export const fr = {
       documents: "Documents",
       settings: "Paramètres",
       quotes: "Devis",
-      sales: "Ventes & factures",
+      sales: "Bons de livraison",
       invoices: "Factures",
       payments: "Règlements clients",
       supplierSettlements: "Règlements fournisseurs",
