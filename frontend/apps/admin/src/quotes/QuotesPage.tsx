@@ -1,7 +1,23 @@
 import { type QuoteStatusEnum, useListQuotes } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, TotalsRow, useServerTable } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  TotalsRow,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
@@ -149,7 +165,7 @@ export function QuotesPage() {
                 </tr>
               ))}
             </tbody>
-              <TotalsRow span={4} cells={[{ value: totalOf(list, (q) => q.total_excl_tax) }]} />
+            <TotalsRow span={4} cells={[{ value: totalOf(list, (q) => q.total_excl_tax) }]} />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

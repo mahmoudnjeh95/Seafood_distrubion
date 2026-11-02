@@ -166,13 +166,23 @@ export function JournalPage({ kind }: { kind: Kind }) {
                       <MovementLine key={row.id} row={row} />
                     ))}
                   </tbody>
-                <TotalsRow
-                  span={3}
-                  cells={[
-                    { value: totalOf(view.rows.filter((r) => Number(r.amount) > 0), (r) => r.amount) },
-                    { value: totalOf(view.rows.filter((r) => Number(r.amount) < 0), (r) => subtract("0", r.amount)) },
-                  ]}
-                />
+                  <TotalsRow
+                    span={3}
+                    cells={[
+                      {
+                        value: totalOf(
+                          view.rows.filter((r) => Number(r.amount) > 0),
+                          (r) => r.amount,
+                        ),
+                      },
+                      {
+                        value: totalOf(
+                          view.rows.filter((r) => Number(r.amount) < 0),
+                          (r) => subtract("0", r.amount),
+                        ),
+                      },
+                    ]}
+                  />
                 </Table>
                 <Pager {...view.pager} />
               </>

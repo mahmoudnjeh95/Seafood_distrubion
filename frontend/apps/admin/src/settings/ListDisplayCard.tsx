@@ -1,5 +1,13 @@
 import { useTranslation } from "@frutti/i18n";
-import { Card, CardTitle, PAGE_SIZES, rememberedPageSize, rememberPageSize, setShowTotals, useShowTotals } from "@frutti/ui";
+import {
+  Card,
+  CardTitle,
+  PAGE_SIZES,
+  rememberedPageSize,
+  rememberPageSize,
+  setShowTotals,
+  useShowTotals,
+} from "@frutti/ui";
 import { useState } from "react";
 
 /** How lists look for this person on this device: the "Total de la page" row and the number of rows per page. */

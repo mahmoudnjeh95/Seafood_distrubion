@@ -1,7 +1,23 @@
 import { type ListFieldPurchasesStatus, useListFieldPurchases } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, TotalsRow, useServerTable } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  TotalsRow,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
@@ -172,7 +188,30 @@ export function FieldPurchasesPage() {
                 </tr>
               ))}
             </tbody>
-              <TotalsRow span={4} cells={[{ value: totalOf(list.filter((p) => p.status !== "refused"), (p) => p.total) }, { value: totalOf(list.filter((p) => p.status !== "refused"), (p) => p.paid), phoneHidden: true }, { value: totalOf(list.filter((p) => p.status !== "refused"), (p) => p.rest) }]} />
+            <TotalsRow
+              span={4}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((p) => p.status !== "refused"),
+                    (p) => p.total,
+                  ),
+                },
+                {
+                  value: totalOf(
+                    list.filter((p) => p.status !== "refused"),
+                    (p) => p.paid,
+                  ),
+                  phoneHidden: true,
+                },
+                {
+                  value: totalOf(
+                    list.filter((p) => p.status !== "refused"),
+                    (p) => p.rest,
+                  ),
+                },
+              ]}
+            />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

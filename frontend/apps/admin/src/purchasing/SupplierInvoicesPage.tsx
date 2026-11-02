@@ -1,7 +1,23 @@
 import { type ListSupplierInvoicesStatus, useGetSupplier, useListSupplierInvoices } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, TotalsRow, useServerTable } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  TotalsRow,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
@@ -213,7 +229,18 @@ export function SupplierInvoicesPage() {
                 </tr>
               ))}
             </tbody>
-              <TotalsRow span={4} cells={[{ value: totalOf(list, (i) => i.total), phoneHidden: true }, { value: totalOf(list.filter((i) => i.status !== "draft"), (i) => i.outstanding) }]} />
+            <TotalsRow
+              span={4}
+              cells={[
+                { value: totalOf(list, (i) => i.total), phoneHidden: true },
+                {
+                  value: totalOf(
+                    list.filter((i) => i.status !== "draft"),
+                    (i) => i.outstanding,
+                  ),
+                },
+              ]}
+            />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>
