@@ -3457,3 +3457,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: a cheque or traite given to a partner is counted at the main bank account on its day, not followed as an
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
+
+**D-241 · One "Trésorier" entry in the side menu; the règlement and portfolio entries go into the treasury ribbon (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The side menu no longer lists Règlements clients, Règlements fournisseurs, Portefeuille or Banques. A single **Trésorier** entry (Finance group, where Banques was) opens the treasury at its first screen, Encaissement (`/reglements`); the treasury ribbon links every other screen (Décaissement, Portefeuille, Banque, Bordereau, Ordre de paiement, …).
+
+- Only the menu entries move: the routes and pages stay, and the ribbon and the links in the pages still reach them. The Banks page keeps its name, "Banques", since it lists the banks; the ribbon button stays "Banque".
+
+- Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.

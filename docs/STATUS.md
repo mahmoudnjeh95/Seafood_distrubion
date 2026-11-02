@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-01 (all open PRs merged and on staging; next free decision D-237)_
+_Last updated: 2026-11-02 (side menu: one Trésorier entry, D-241; next free decision D-242)_
 
 ## Where we are
 
+- **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
+  (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
+  links them. Routes and pages unchanged; nothing else renamed.
 - **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
   day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
   on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227
