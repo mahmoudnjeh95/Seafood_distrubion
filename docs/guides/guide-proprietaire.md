@@ -104,7 +104,7 @@ Rubrique **Inventaires** : comptez le stock réel ; les écarts deviennent des c
 
 1. Dans **Ventes**, filtrez sur **À facturer**, cochez un ou plusieurs BL **du même client**, puis **Facturer la sélection**.
    Ou, sur un BL : **Facturer**.
-2. Vérifiez la TVA, le timbre fiscal et la retenue à la source ; **Enregistrer et recalculer** si vous changez quelque chose.
+2. Vérifiez la TVA, le timbre fiscal et la retenue à la source (prélevée seule sur les factures dont le total TTC atteint 1 000 DT) ; **Enregistrer et recalculer** si vous changez quelque chose.
 3. **Émettre la facture**, puis **Émettre**. La facture émise est figée.
 4. Pour corriger une facture émise : **Faire un avoir** (total ou partiel). Les kilos rendus peuvent être remis en stock ou passés en perte.
 5. Les règles de TVA et de timbre se règlent dans **Réglages de la facture** (Factures, « Paramètres financiers »).

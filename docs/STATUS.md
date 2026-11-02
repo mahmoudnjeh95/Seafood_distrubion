@@ -61,6 +61,8 @@ _Last updated: 2026-11-02 (prime payment PR #282, D-244; next free decision afte
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
 3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
+   Withholding rule D-250 (PR #277, awaits CI): retenue à la source on invoices of 1 000 DT TTC and more, none below;
+   check on staging with a rate set in Paramètres financiers.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions

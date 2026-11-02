@@ -1054,7 +1054,7 @@ class InvoiceChoicesSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     # "Frais" in DT, outside VAT; empty: none (D-126).
     fees = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
-    withholding_applied = serializers.BooleanField(required=False, default=False)
+    # The withholding is not typed: the server takes it on invoices of 1 000 DT and more (the output says so).
     withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     # Issue it in the same request (numbered and frozen).

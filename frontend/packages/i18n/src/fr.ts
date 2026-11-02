@@ -1550,6 +1550,8 @@ export const fr = {
         // D-126: fees typed by the office, outside VAT, added to the total.
         fees: "Frais (DT, hors TVA)",
         withholding: "Retenue à la source",
+        // Owner rule: taken from a total with tax of 1 000,000 DT, on no invoice below it.
+        withholdingRule: "Prélevée sur les factures dont le total TTC atteint 1 000,000 DT ; aucune en dessous.",
         withholdingRate: "Taux de retenue (%)",
         notes: "Mention sur la facture",
         save: "Enregistrer et recalculer",
@@ -1669,7 +1671,7 @@ export const fr = {
       pricesIncludeVat: "Les prix de vente comprennent la TVA",
       pricesHint: "Coché : la TVA est extraite du prix. Décoché : elle s'ajoute au prix.",
       withholdingRate: "Retenue à la source (%)",
-      withholdingHint: "À 0 %, rien n'apparaît sur la facture ; sinon elle est proposée quand on la choisit.",
+      withholdingHint: "Prélevée sur les factures dont le total TTC atteint 1 000,000 DT ; à 0 %, aucune.",
       seller: "Vendeur imprimé sur les factures",
       legalName: "Raison sociale",
       address: "Adresse",
