@@ -1054,6 +1054,50 @@ class PaymentAllocation(OrganizationScopedModel):
         return f"{self.payment} -> {self.sale} · {self.amount}"
 
 
+class CustomerBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
+    """The rest of a customer's balance given up (D-252): the customer paid less than what was owed and we clear
+    the balance to zero. It is a loss on that customer, kept as it is: never edited, never deleted.
+
+    Its amount is shared over the customer's open sales, oldest first (`CustomerWriteOffAllocation`), so each sale
+    reads as settled by it. Lowers the customer's balance like a payment does.
+    """
+
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="balance_write_offs")
+    written_on = models.DateField()
+    amount = MoneyField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-written_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_write_off_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.customer} · {self.amount}"
+
+
+class CustomerWriteOffAllocation(OrganizationScopedModel):
+    """The part of a balance write-off that settles one sale. Written once with its write-off."""
+
+    write_off = models.ForeignKey(CustomerBalanceWriteOff, on_delete=models.PROTECT, related_name="allocations")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="write_off_allocations")
+    amount = MoneyField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="write_off_allocation_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} -> {self.sale} · {self.amount}"
+
+
 class UnpaidEffet(OrganizationScopedModel):
     """A customer cheque or traite the bank refused (impayé, D-217): the customer owes its amount again.
 

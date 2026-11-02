@@ -19,7 +19,6 @@ export interface InvoiceChoices {
   fiscal_stamp?: string | null;
   /** @nullable */
   fees?: string | null;
-  withholding_applied?: boolean;
   /** @nullable */
   withholding_rate?: string | null;
   notes?: string;

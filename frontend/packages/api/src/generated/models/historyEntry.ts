@@ -17,4 +17,5 @@ export interface HistoryEntry {
   readonly voided: boolean;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly balance: string;
+  readonly note: string;
 }

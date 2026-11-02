@@ -10,6 +10,7 @@
  * * `on_spot` - on_spot
  * * `payment` - payment
  * * `unpaid` - unpaid
+ * * `writeoff` - writeoff
  */
 export type HistoryEntryKindEnum = typeof HistoryEntryKindEnum[keyof typeof HistoryEntryKindEnum];
 
@@ -19,4 +20,5 @@ export const HistoryEntryKindEnum = {
   on_spot: 'on_spot',
   payment: 'payment',
   unpaid: 'unpaid',
+  writeoff: 'writeoff',
 } as const;

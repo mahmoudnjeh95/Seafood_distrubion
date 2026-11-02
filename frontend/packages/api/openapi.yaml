@@ -1318,6 +1318,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/customers/{customer_id}/write-off:
+    post:
+      operationId: writeOffCustomerBalance
+      description: |-
+        Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalance'
+          description: ''
   /api/v1/dashboard:
     get:
       operationId: getDashboard
@@ -3227,7 +3262,7 @@ paths:
       description: |-
         Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
-        `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-241), and
+        `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
         every typed value is flagged and audited. Errors:
         `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
       tags:
@@ -7865,8 +7900,8 @@ paths:
     post:
       operationId: addSalaryPrime
       description: |-
-        Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
-        with no separate payment (D-234).
+        Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+        It is due on top of the salary and its payment leaves the treasury on the day paid.
       parameters:
       - in: path
         name: record_id
@@ -7879,13 +7914,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
         required: true
       security:
       - cookieAuth: []
@@ -8576,6 +8611,41 @@ paths:
         required: true
       tags:
       - supplier-balances
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBalance'
+          description: ''
+  /api/v1/supplier-balances/{supplier_id}/write-off:
+    post:
+      operationId: writeOffSupplierBalance
+      description: |-
+        Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-balances
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -11438,6 +11508,18 @@ components:
       - issued_on
       - number
       - withholding_amount
+    BalanceWriteOff:
+      type: object
+      properties:
+        expected_amount:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - expected_amount
+      - reason
     Bank:
       type: object
       properties:
@@ -13180,6 +13262,16 @@ components:
           items:
             $ref: '#/components/schemas/HistoryEntry'
           readOnly: true
+        write_offs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerWriteOff'
+          readOnly: true
+        written_off_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - ageing
       - available_credit
@@ -13191,6 +13283,8 @@ components:
       - open_sales
       - open_total
       - overdue
+      - write_offs
+      - written_off_total
     CustomerBalances:
       type: object
       properties:
@@ -13840,6 +13934,47 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    CustomerWriteOff:
+      type: object
+      description: 'A balance written off (D-252): the loss on the customer, with
+        its reason.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        written_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - created_by
+      - id
+      - reason
+      - written_on
+    CustomerWriteOffWrite:
+      type: object
+      properties:
+        expected_amount:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          maxLength: 255
+      required:
+      - expected_amount
+      - reason
     Dashboard:
       type: object
       properties:
@@ -17590,12 +17725,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        note:
+          type: string
+          readOnly: true
       required:
       - amount
       - balance
       - day
       - kind
       - method
+      - note
       - number
       - object_id
       - voided
@@ -17605,12 +17744,14 @@ components:
       - on_spot
       - payment
       - unpaid
+      - writeoff
       type: string
       description: |-
         * `sale` - sale
         * `on_spot` - on_spot
         * `payment` - payment
         * `unpaid` - unpaid
+        * `writeoff` - writeoff
     IllustrationEnum:
       enum:
       - shrimp
@@ -18257,9 +18398,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -18291,9 +18429,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -21435,6 +21570,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
           type: string
           format: decimal
@@ -21454,6 +21594,7 @@ components:
       - owed
       - sale_id
       - sold_at
+      - written_off
     Order:
       type: object
       properties:
@@ -23455,6 +23596,24 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PrimeWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+        method:
+          $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        paid_on:
+          type: string
+          format: date
+      required:
+      - amount
+      - method
+      - paid_on
+      - reason
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -25752,10 +25911,12 @@ components:
       enum:
       - salary
       - advance
+      - prime
       type: string
       description: |-
         * `salary` - Salaire
         * `advance` - Avance sur salaire
+        * `prime` - Prime
     SalaryPaymentMethodEnum:
       enum:
       - cash
@@ -28124,6 +28285,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
           type: string
           format: decimal
@@ -28175,6 +28341,7 @@ components:
       - unallocated
       - uninvoiced_receipts
       - uninvoiced_total
+      - written_off
     SupplierBalances:
       type: object
       properties:

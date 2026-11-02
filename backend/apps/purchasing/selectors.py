@@ -44,6 +44,7 @@ from .models import (
     PurchaseOrderStatus,
     RejectedEffet,
     RejectedRelease,
+    SupplierBalanceWriteOff,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -51,6 +52,7 @@ from .models import (
     SupplierPaymentAllocation,
     SupplierPaymentLine,
     SupplierPaymentPlanLine,
+    SupplierWriteOffAllocation,
 )
 
 if TYPE_CHECKING:
@@ -213,6 +215,19 @@ def _sum_of_allocations(**match: Any) -> Coalesce:
     return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
 
 
+def _sum_of_write_offs(**match: Any) -> Coalesce:
+    """What balance write-offs gave up on the invoices matching `match` (an OuterRef), as a subquery (D-252)."""
+    group = next(iter(match))
+    allocations = (
+        SupplierWriteOffAllocation.objects.filter(**match)
+        .order_by()
+        .values(group)
+        .annotate(total=Sum("amount"))
+        .values("total")
+    )
+    return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
+
+
 def _sum_of_releases(**match: Any) -> Coalesce:
     """The sum of what rejected effets took back (`RejectedRelease`) matching `match`, as a subquery (D-218)."""
     group = next(iter(match))
@@ -254,7 +269,9 @@ def invoices_of(
         .prefetch_related(Prefetch("allocations", queryset=allocations))
         .annotate(
             paid_amount=ExpressionWrapper(
-                _sum_of_allocations(invoice=OuterRef("pk")) - _sum_of_releases(invoice=OuterRef("pk")),
+                _sum_of_allocations(invoice=OuterRef("pk"))
+                - _sum_of_releases(invoice=OuterRef("pk"))
+                + _sum_of_write_offs(invoice=OuterRef("pk")),
                 output_field=AMOUNT,
             )
         )
@@ -418,14 +435,15 @@ def payment_totals(payments: QuerySet[SupplierPayment]) -> PaymentTotals:
 class SupplierBalance:
     """What the company owes one supplier for goods: the trade payable only (D-040, D-043).
 
-    `balance` = posted invoices − payments. Negative, the supplier holds an advance. A partner's capital
-    and profit share are other balances (Phase 6) and never appear here.
+    `balance` = posted invoices − payments − what was written off (D-252). Negative, the supplier holds an
+    advance. A partner's capital and profit share are other balances (Phase 6) and never appear here.
     """
 
     supplier_id: int
     invoiced: Decimal  # posted invoices, paid or not
     paid: Decimal  # every payment, allocated or not
     balance: Decimal
+    written_off: Decimal  # what the balance write-offs gave up (D-252): a gain, not paid
     outstanding: Decimal  # still to pay on posted invoices
     unallocated: Decimal  # paid but not allocated to an invoice yet (advances)
     overdue: Decimal  # still to pay on invoices past their due date
@@ -592,11 +610,15 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
         RejectedRelease.objects.for_organization(organization).filter(rejected__supplier_id=supplier_id), "amount"
     )
     paid = _total(payments, "amount") - rejected
+    # The balance we gave up on, clear to zero (D-252): the invoices it settled read as paid by it.
+    write_offs = SupplierBalanceWriteOff.objects.for_organization(organization).filter(supplier_id=supplier_id)
+    written_off = _total(write_offs, "amount")
     return SupplierBalance(
         supplier_id=supplier_id,
         invoiced=invoiced,
         paid=paid,
-        balance=invoiced - paid,
+        balance=invoiced - paid - written_off,
+        written_off=written_off,
         outstanding=sum((getattr(invoice, "outstanding") for invoice in open_invoices), ZERO),  # noqa: B009
         unallocated=paid - (_total(allocations, "amount") - released),
         overdue=sum((getattr(invoice, "outstanding") for invoice in late), ZERO),  # noqa: B009

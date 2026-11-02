@@ -1,12 +1,15 @@
 # Project status
 
-_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); advance D-243, PR #281; next free decision D-248)_
+_Last updated: 2026-11-02 (prime payment PR #282, D-244; next free decision after the open PRs)_
 
 ## Where we are
 
 - **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
   checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice
   from a BL without VAT-bought goods opens with the box unchecked.
+- **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
+  date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
+  treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).
 - **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
   removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
   The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
@@ -33,6 +36,10 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
   primes and advances in the treasury, D-235 party counts in the règlement lists, D-236 bank details.
 - **CI and deploy fixes:** the month-start test failures (#256), build heap 1536 MB on the VPS (#261).
 - **SmartFeesh:** `SmartToolsAgro/SmartFeesh` is pushed only when the owner says "push main" (D-209). It is at #234.
+- **D-252 on branch `customer-supplier-write-off` (awaits CI):** "Remettre le solde à zéro" for a customer (owner; the rest
+  is a loss on the customer, shown on the account) and for a supplier (owner; a gain on the supplier). Two steps: the
+  reason, then the exact balance typed again. Provisional: the loss does not yet change the profit per lot (open question).
+  Check on staging: customer card › Remettre le solde à zéro, then the supplier card.
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
   **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
   issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c
@@ -61,6 +68,8 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
 3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
+   Withholding rule D-250 (PR #277, awaits CI): retenue à la source on invoices of 1 000 DT TTC and more, none below;
+   check on staging with a rate set in Paramètres financiers.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions

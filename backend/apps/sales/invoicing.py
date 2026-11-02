@@ -11,7 +11,7 @@ Rounding (ARCHITECTURE §4.1): half up to the millime, once per rate and once pe
   lines always add up to the totals.
 - Without VAT (`apply_vat` false) nothing is added or taken out: every line is without VAT as charged.
 - Withholding = (total without VAT + VAT) × rate / 100, the stamp excluded; net to pay = total with VAT
-  (stamp included) − withholding.
+  (stamp included) − withholding. Only an invoice whose total with VAT reaches 1 000 DT has one (owner rule).
 """
 
 from collections.abc import Sequence
@@ -24,6 +24,9 @@ ZERO = Decimal("0.000")
 HUNDRED = Decimal("100")
 # The rate stored on the lines of an invoice without VAT.
 NO_RATE = Decimal("0.00")
+# An invoice whose total with tax (stamp and fees included) reaches this amount carries the withholding; below
+# it none is taken, whatever the settings say.
+WITHHOLDING_FROM = Decimal("1000.000")
 
 
 @dataclass(frozen=True)
@@ -88,6 +91,11 @@ def excl_tax(amount: Decimal, rate: Decimal) -> Decimal:
     return money(amount * HUNDRED / (HUNDRED + rate))
 
 
+def withholding_applies(total_incl_tax: Decimal) -> bool:
+    """Whether an invoice with this total carries a withholding: from 1 000 DT, never below (owner rule)."""
+    return total_incl_tax >= WITHHOLDING_FROM
+
+
 def compute(
     lines: Sequence[LineInput],
     *,
@@ -98,8 +106,8 @@ def compute(
     vat_overrides: dict[Decimal, Decimal] | None = None,
     fees: Decimal = ZERO,
 ) -> InvoiceAmounts:
-    """Every amount of an invoice from its lines. `withholding_rate` None means no withholding. `fees` (Frais)
-    add to the total like the stamp: no VAT on them and no withholding (D-126)."""
+    """Every amount of an invoice from its lines. `withholding_rate` None means no withholding, and so does a total
+    under 1 000 DT. `fees` (Frais) add to the total like the stamp: no VAT on them and no withholding (D-126)."""
     overrides = vat_overrides or {}
     refused: dict[Decimal, str] = {}
     results: list[LineResult | None] = [None] * len(lines)
@@ -137,7 +145,7 @@ def compute(
     vat_total = sum((group.amount for group in groups), ZERO)
     total_incl_tax = total_excl_tax + vat_total + fiscal_stamp + fees
     withholding = ZERO
-    if withholding_rate is not None and withholding_rate > 0:
+    if withholding_rate is not None and withholding_rate > 0 and withholding_applies(total_incl_tax):
         withholding = money((total_excl_tax + vat_total) * withholding_rate / HUNDRED)
     return InvoiceAmounts(
         lines=final,

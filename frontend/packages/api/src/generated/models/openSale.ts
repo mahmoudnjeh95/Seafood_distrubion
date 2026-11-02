@@ -26,5 +26,7 @@ export interface OpenSale {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly allocated: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly written_off: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly outstanding: string;
 }

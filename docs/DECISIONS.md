@@ -3458,6 +3458,24 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
 
+**D-252 · Clearing a balance to zero: the rest is given up, as a loss on a customer or a gain on a supplier** · accepted · 2026-11-02
+- Owner request: a customer owed 10 080 DT, paid 10 000 and the 80 DT left are never coming. The owner clears the
+  customer's balance to zero; the amount is recorded as a loss on that customer (a `CustomerBalanceWriteOff`, shown on
+  the customer's account with its reason and who did it). The same for a supplier we owe: the rest we no longer pay is
+  a gain on that supplier.
+- Two steps before anything is written: the reason (required), then the exact balance typed again. The server checks
+  the typed amount against the balance at that moment and refuses a balance that moved, a balance that is not positive
+  (nothing to clear, or credit held) and an empty reason.
+- The amount is spread over the open sales (customers) or invoices (suppliers), oldest first, so those read as settled
+  by it, and the balance (customer or supplier) falls by it. Records are never edited or deleted: a wrong clearance is
+  to be corrected by a new record, not undone (not built yet).
+- Owner only, enforced on the server (customers and suppliers).
+- Provisional: the loss is kept on the customer and the gain on the supplier, but does NOT yet change the profit per lot
+  or the profit shares (open question for the owner: should an uncollected balance reduce the lot's profit?). The
+  supplier gain is not a treasury movement (no money moves).
+- Provisional: the customer's clearance counts toward the credit-limit and encours figures as a settled amount (the
+  balance falls, so the room to sell goes back up).
+
 **D-251 · Each payment, sale and expense shows the account its money went through, linked to that account's journal (Phase 9, P9-T09c)** · accepted · 2026-11-02
 - The payment, sale, expense and partner-payout screens show "Où est passé l'argent": one line per treasury movement the
   record wrote, with the account (Caisse, bank account or a driver's cash) and the day, linked to that account's journal.
@@ -3516,6 +3534,36 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   The fund list reports `ended` for each row so the office screen locks the field.
 - Provisional: the driver does not approve a change the office makes during the day (the owner may want a re-approval
   step instead). A driver who disagrees calls the office, as for the cash (D-203).
+
+**D-244 · A prime is paid when it is added, and its payment is a treasury movement (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- **Why:** a prime (D-234) raised what is due but was never paid by itself, so the treasurer's journal did not show it.
+  The owner wants a payment method on the prime, and the money to leave the treasury like any salary payment.
+- **Supersedes** D-234 provisional (2) "a prime needs no separate payment".
+- **On the screen:** "Ajouter une prime" asks for the amount, the reason, the payment method (espèces, chèque, virement,
+  autre; default espèces) and the payment date (default today). Saving adds the prime and pays it at once, in full.
+- **Treasury:** the prime's payment is a `SalaryPayment` of kind `prime` (migration `hr.0007`), allocated in full to the
+  salary the prime was added to, and writes one outgoing movement the same day: the Caisse for cash, the main bank
+  account for a transfer, a cheque or another means. Label "Prime : <name>", kind "salary", reference = the PS number.
+  The journal and the cash-flow report count it through the salary payment.
+- **API:** `POST salary-records/<id>/primes` now takes `method` and `paid_on` (`PrimeWrite`, `addSalaryPrime`). A refused
+  method, date or amount adds nothing: the prime and its payment are one transaction.
+- **Treasury screens** refresh with the payroll screens after a prime or a salary payment.
+- **Provisional:** (1) a prime paid by cheque or traite is counted at the main bank account on its day, not followed as
+  an effet (as for salary cheques); (2) primes added before this change have no payment and stay out of the treasury:
+  the office pays them through a salary payment, or the owner decides how to record them; (3) the prime does not change
+  the CNSS (D-234, the accountant to confirm).
+
+**D-250 · The withholding is taken on every invoice of 1 000 DT and more, and on none below (owner rule, 2026-11-02)** · provisional · 2026-11-02
+- The server decides: an invoice whose **total TTC** (HT + VAT + stamp + fees) reaches 1 000,000 DT carries the
+  retenue à la source at the rate in force; below it, none, whatever the rate typed. The "withholding" checkbox is
+  gone from the invoice form (the API input `withholding_applied` too; the output still says whether one applies).
+- The withholding base is unchanged: (HT + VAT) × rate, stamp and fees left out (D-057). The fees can take an invoice
+  over 1 000 DT without entering the base.
+- Provisional: the base of the threshold is the total with tax as printed (stamp and fees in). The accountant confirms
+  whether the threshold is on the total with VAT only, which would exclude the stamp and fees.
+- The rate stays in Paramètres financiers (0 by default): with a rate at 0, a 1 000 DT invoice shows no line. The
+  owner sets the rate.
+- Issued invoices keep what they had (D-057); a draft takes the rule when it is next saved.
 **D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
 - A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
   product the box starts unchecked. Before, every invoice started with VAT.

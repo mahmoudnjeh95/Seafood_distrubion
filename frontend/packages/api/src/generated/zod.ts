@@ -2030,9 +2030,12 @@ export const getCustomerBalanceResponseAgeingOneD60PlusRegExp = new RegExp('^-?\
 export const getCustomerBalanceResponseOpenSalesItemOwedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseWriteOffsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseWrittenOffTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetCustomerBalanceResponse = zod.object({
@@ -2070,18 +2073,28 @@ export const GetCustomerBalanceResponse = zod.object({
   "owed": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOwedRegExp),
   "on_spot": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
   "allocated": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
+  "written_off": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemWrittenOffRegExp),
   "outstanding": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
 }).describe('A confirmed sale with something left to collect.')),
   "history": zod.array(zod.object({
-  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid'),
+  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
   "day": zod.iso.date(),
   "number": zod.string(),
   "object_id": zod.int(),
   "amount": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemAmountRegExp),
   "method": zod.string(),
   "voided": zod.boolean(),
-  "balance": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemBalanceRegExp)
-}))
+  "balance": zod.stringFormat('decimal', getCustomerBalanceResponseHistoryItemBalanceRegExp),
+  "note": zod.string()
+})),
+  "write_offs": zod.array(zod.object({
+  "id": zod.int(),
+  "written_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getCustomerBalanceResponseWriteOffsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string()
+}).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
+  "written_off_total": zod.stringFormat('decimal', getCustomerBalanceResponseWrittenOffTotalRegExp)
 })
 
 
@@ -2192,6 +2205,105 @@ export const RestoreCustomerResponse = zod.object({
   "is_walk_in": zod.boolean(),
   "is_active": zod.boolean(),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+ */
+export const WriteOffCustomerBalanceParams = zod.object({
+  "customer_id": zod.int()
+})
+
+export const writeOffCustomerBalanceBodyExpectedAmountMax = 30;
+
+export const writeOffCustomerBalanceBodyReasonMax = 255;
+
+
+
+export const WriteOffCustomerBalanceBody = zod.object({
+  "expected_amount": zod.string().max(writeOffCustomerBalanceBodyExpectedAmountMax),
+  "reason": zod.string().max(writeOffCustomerBalanceBodyReasonMax)
+})
+
+export const writeOffCustomerBalanceResponseCreditLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAvailableCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAgeingOneD030RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAgeingOneD3160RegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseAgeingOneD60PlusRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemOwedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseWriteOffsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseWrittenOffTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const WriteOffCustomerBalanceResponse = zod.object({
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "credit_limit": zod.stringFormat('decimal', writeOffCustomerBalanceResponseCreditLimitRegExp),
+  "balance": zod.stringFormat('decimal', writeOffCustomerBalanceResponseBalanceRegExp),
+  "overdue": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOverdueRegExp),
+  "open_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenTotalRegExp),
+  "credit": zod.stringFormat('decimal', writeOffCustomerBalanceResponseCreditRegExp),
+  "available_credit": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAvailableCreditRegExp),
+  "ageing": zod.object({
+  "d0_30": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAgeingOneD030RegExp),
+  "d31_60": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAgeingOneD3160RegExp),
+  "d60_plus": zod.stringFormat('decimal', writeOffCustomerBalanceResponseAgeingOneD60PlusRegExp)
+}),
+  "open_sales": zod.array(zod.object({
+  "sale_id": zod.int(),
+  "number": zod.string(),
+  "invoice_id": zod.int().nullable(),
+  "invoice_number": zod.string(),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "document_date": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "age_days": zod.int(),
+  "is_overdue": zod.boolean(),
+  "owed": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOwedRegExp),
+  "on_spot": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
+  "allocated": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
+  "written_off": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemWrittenOffRegExp),
+  "outstanding": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
+}).describe('A confirmed sale with something left to collect.')),
+  "history": zod.array(zod.object({
+  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
+  "day": zod.iso.date(),
+  "number": zod.string(),
+  "object_id": zod.int(),
+  "amount": zod.stringFormat('decimal', writeOffCustomerBalanceResponseHistoryItemAmountRegExp),
+  "method": zod.string(),
+  "voided": zod.boolean(),
+  "balance": zod.stringFormat('decimal', writeOffCustomerBalanceResponseHistoryItemBalanceRegExp),
+  "note": zod.string()
+})),
+  "write_offs": zod.array(zod.object({
+  "id": zod.int(),
+  "written_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWriteOffsItemAmountRegExp),
+  "reason": zod.string(),
+  "created_by": zod.string()
+}).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
+  "written_off_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWrittenOffTotalRegExp)
 })
 
 
@@ -5831,11 +5943,10 @@ export const ListInvoicesResponse = zod.object({
 /**
  * Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
  * once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
- * `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-241), and
+ * `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
  * every typed value is flagged and audited. Errors:
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
-export const createInvoiceBodyWithholdingAppliedDefault = false;
 export const createInvoiceBodyNotesDefault = ``;
 export const createInvoiceBodyIssueNowDefault = false;
 
@@ -5852,7 +5963,6 @@ export const CreateInvoiceBody = zod.object({
 })).optional(),
   "fiscal_stamp": zod.string().nullish(),
   "fees": zod.string().nullish(),
-  "withholding_applied": zod.boolean().default(createInvoiceBodyWithholdingAppliedDefault),
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(createInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(createInvoiceBodyIssueNowDefault),
@@ -6288,7 +6398,6 @@ export const UpdateInvoiceParams = zod.object({
   "invoice_id": zod.int()
 })
 
-export const updateInvoiceBodyWithholdingAppliedDefault = false;
 export const updateInvoiceBodyNotesDefault = ``;
 export const updateInvoiceBodyIssueNowDefault = false;
 
@@ -6303,7 +6412,6 @@ export const UpdateInvoiceBody = zod.object({
 })).optional(),
   "fiscal_stamp": zod.string().nullish(),
   "fees": zod.string().nullish(),
-  "withholding_applied": zod.boolean().default(updateInvoiceBodyWithholdingAppliedDefault),
   "withholding_rate": zod.string().nullish(),
   "notes": zod.string().default(updateInvoiceBodyNotesDefault),
   "issue_now": zod.boolean().default(updateInvoiceBodyIssueNowDefault)
@@ -14631,7 +14739,7 @@ export const ListSalaryPaymentsResponseItem = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listSalaryPaymentsResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14676,7 +14784,7 @@ export const RecordSalaryPaymentBody = zod.object({
   "paid_on": zod.iso.date(),
   "amount": zod.string(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire').default(recordSalaryPaymentBodyKindDefault),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime').default(recordSalaryPaymentBodyKindDefault),
   "confirm_overpay": zod.boolean().default(recordSalaryPaymentBodyConfirmOverpayDefault),
   "reference": zod.string().max(recordSalaryPaymentBodyReferenceMax).default(recordSalaryPaymentBodyReferenceDefault),
   "notes": zod.string().max(recordSalaryPaymentBodyNotesMax).default(recordSalaryPaymentBodyNotesDefault),
@@ -14703,7 +14811,7 @@ export const RecordSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', recordSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14745,7 +14853,7 @@ export const GetSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14800,7 +14908,7 @@ export const AllocateSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', allocateSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14892,7 +15000,7 @@ export const ListSalaryRecordsResponseItem = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', listSalaryRecordsResponsePaymentsItemAmountRegExp),
@@ -14971,7 +15079,7 @@ export const GetSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', getSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15073,7 +15181,7 @@ export const UpdateSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', updateSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15193,7 +15301,7 @@ export const ApproveSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', approveSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15210,8 +15318,8 @@ export const ApproveSalaryRecordResponse = zod.object({
 
 
 /**
- * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
- * with no separate payment (D-234).
+ * Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+ * It is due on top of the salary and its payment leaves the treasury on the day paid.
  */
 export const AddSalaryPrimeParams = zod.object({
   "record_id": zod.int()
@@ -15223,7 +15331,9 @@ export const addSalaryPrimeBodyReasonMax = 200;
 
 export const AddSalaryPrimeBody = zod.object({
   "amount": zod.string(),
-  "reason": zod.string().max(addSalaryPrimeBodyReasonMax)
+  "reason": zod.string().max(addSalaryPrimeBodyReasonMax),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "paid_on": zod.iso.date()
 })
 
 export const addSalaryPrimeResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15321,7 +15431,7 @@ export const GenerateSalaryMonthResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemPaymentsItemAmountRegExp),
@@ -16924,6 +17034,7 @@ export const GetSupplierBalanceParams = zod.object({
 export const getSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -16936,6 +17047,7 @@ export const GetSupplierBalanceResponse = zod.object({
   "invoiced": zod.stringFormat('decimal', getSupplierBalanceResponseInvoicedRegExp),
   "paid": zod.stringFormat('decimal', getSupplierBalanceResponsePaidRegExp),
   "balance": zod.stringFormat('decimal', getSupplierBalanceResponseBalanceRegExp),
+  "written_off": zod.stringFormat('decimal', getSupplierBalanceResponseWrittenOffRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierBalanceResponseOutstandingRegExp),
   "unallocated": zod.stringFormat('decimal', getSupplierBalanceResponseUnallocatedRegExp),
   "overdue": zod.stringFormat('decimal', getSupplierBalanceResponseOverdueRegExp),
@@ -16945,6 +17057,54 @@ export const GetSupplierBalanceResponse = zod.object({
   "draft_total": zod.stringFormat('decimal', getSupplierBalanceResponseDraftTotalRegExp),
   "uninvoiced_receipts": zod.int(),
   "uninvoiced_total": zod.stringFormat('decimal', getSupplierBalanceResponseUninvoicedTotalRegExp)
+}).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
+
+
+/**
+ * Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+ */
+export const WriteOffSupplierBalanceParams = zod.object({
+  "supplier_id": zod.int()
+})
+
+export const writeOffSupplierBalanceBodyExpectedAmountMax = 30;
+
+export const writeOffSupplierBalanceBodyReasonMax = 255;
+
+
+
+export const WriteOffSupplierBalanceBody = zod.object({
+  "expected_amount": zod.string().max(writeOffSupplierBalanceBodyExpectedAmountMax),
+  "reason": zod.string().max(writeOffSupplierBalanceBodyReasonMax)
+})
+
+export const writeOffSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseDraftTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseUninvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const WriteOffSupplierBalanceResponse = zod.object({
+  "supplier_id": zod.int(),
+  "invoiced": zod.stringFormat('decimal', writeOffSupplierBalanceResponseInvoicedRegExp),
+  "paid": zod.stringFormat('decimal', writeOffSupplierBalanceResponsePaidRegExp),
+  "balance": zod.stringFormat('decimal', writeOffSupplierBalanceResponseBalanceRegExp),
+  "written_off": zod.stringFormat('decimal', writeOffSupplierBalanceResponseWrittenOffRegExp),
+  "outstanding": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOutstandingRegExp),
+  "unallocated": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUnallocatedRegExp),
+  "overdue": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOverdueRegExp),
+  "open_invoices": zod.int(),
+  "overdue_invoices": zod.int(),
+  "draft_invoices": zod.int(),
+  "draft_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseDraftTotalRegExp),
+  "uninvoiced_receipts": zod.int(),
+  "uninvoiced_total": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUninvoicedTotalRegExp)
 }).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
 
 

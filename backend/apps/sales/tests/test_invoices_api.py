@@ -117,7 +117,6 @@ def test_invoice_a_sale_type_values_issue_and_credit(api, sale):
         "lines": [{"vat_rate": "7"}],
         "vat_amounts": [{"rate": "7.00", "amount": "14.000"}],
         "fiscal_stamp": "",
-        "withholding_applied": False,
         "withholding_rate": "",
         "notes": "",
         "issue_now": True,

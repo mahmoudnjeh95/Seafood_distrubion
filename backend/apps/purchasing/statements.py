@@ -20,6 +20,7 @@ from .models import (
     GoodsReceiptLine,
     PaymentMethod,
     RejectedEffet,
+    SupplierBalanceWriteOff,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -64,7 +65,7 @@ class StatementPayment:
 
 @dataclass(frozen=True)
 class StatementEntry:
-    kind: str  # "invoice", "payment"
+    kind: str  # "invoice", "payment", "rejected", "written_off" (D-252)
     day: dt.date
     number: str
     reference: str
@@ -129,6 +130,11 @@ def supplier_statement(
         )
         for row in rejected
     ]
+    # What the balance write-offs gave up: no money moved, the balance falls by it (D-252).
+    write_offs = SupplierBalanceWriteOff.objects.for_organization(organization).filter(
+        supplier_id=supplier_id, written_on__lte=date_to
+    )
+    moves += [(row.written_on, 3, row.pk, "written_off", "", row.reason, -row.amount) for row in write_offs]
     moves.sort(key=lambda move: (move[0], move[1], move[2]))
     running = ZERO
     opening = ZERO
