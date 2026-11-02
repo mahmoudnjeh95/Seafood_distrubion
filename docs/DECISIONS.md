@@ -3661,7 +3661,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   middle of the day without agreeing. Purchases and the cash split (D-158, D-182) use the amount in force only.
 - Sending the closing before the driver approves expires the proposal ("Non approuvé avant la clôture"); the day keeps the
   amount in force, as sent (D-134). After the closing, the office cannot change the money for purchases of that day.
-- Approval changes the amount in force and the day's fund figure at once. The phone refreshes the proposal every minute,
+- Approval changes the amount in force and the day's fund figure at once, and the treasury follows it then (the Caisse and
+  the driver's cash move by the difference, D-262), not when the office proposes. The phone refreshes the proposal every minute,
   and only on the day screen; the purchase notice on every screen (D-158) is for validated purchases only.
   Provisional: the owner may want a notice on every screen, or a refusal button.
 
@@ -3674,3 +3675,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - No payslip exists yet, so nothing shows a CNSS line for a prime. The CNSS declaration, when built, takes the gross
   salary only.
 - Older primes need nothing: the app is still in testing with no real data (owner).
+
+**D-262 · The driver's cash is in the ledger: the fund out of the Caisse, the counted cash back at approval, the port purchases from it (Phase 9, P9-T09f; owner answer)** · accepted · 2026-11-02
+- The cash the office gives a driver for a day (the fund and the money for buying at the port) leaves the Caisse for that
+  driver's cash when the day starts. When the office changes the money for purchases on a running day, only the
+  difference moves.
+- At the office's approval of the day, the cash it counted (the driver's cash and what is left of the purchase money)
+  goes from the driver's cash to the Caisse, dated the approval day. A new load that opens the day again leaves it in
+  the Caisse (D-134); the next approval moves what is counted then. A gap stays on the driver's cash until it is settled.
+- Cash paid at the port leaves the driver's cash the day of the purchase, written when the office validates the
+  purchase in the day's check, not when the driver enters it. A transfer or a card goes to the bank account; a
+  cheque or traite is an effet (D-264).
+- The reset of the fund at the office's approval (D-259) is another change and does not touch this.
+- The app is still in testing with no real data: no backfill.

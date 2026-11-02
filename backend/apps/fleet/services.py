@@ -16,6 +16,7 @@ from apps.core import audit
 from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
+from apps.treasury import services as treasury
 
 from .models import DayFund, DriverDay, LocationPing, PurchaseFloatChange, Truck, TruckAssignment, TruckCondition
 
@@ -360,6 +361,15 @@ def open_driver_day(
             "purchase_float": str(purchase_float),
         },
     )
+    # The cash given to the driver leaves the Caisse and is in the driver's cash (D-262).
+    treasury.sync_driver_fund(
+        organization=organization,
+        actor=actor,
+        driver=actor,
+        day=date,
+        given=opening_cash + purchase_float,
+        source_id=day.pk,
+    )
     return day
 
 
@@ -481,6 +491,15 @@ def approve_purchase_float(*, driver_day: DriverDay, actor: User) -> DriverDay:
     change.save(update_fields=["status", "decided_by", "decided_at", "updated_at"])
     DayFund.objects.filter(organization=day.organization, driver=day.driver, date=day.date).update(
         purchase_float=change.amount, updated_at=timezone.now()
+    )
+    # The money the driver can spend changes now, so the Caisse and the driver's cash follow it (D-262).
+    treasury.sync_driver_fund(
+        organization=day.organization,
+        actor=actor,
+        driver=day.driver,
+        day=day.date,
+        given=day.opening_cash + day.purchase_float,
+        source_id=day.pk,
     )
     audit.record(
         organization=day.organization,
