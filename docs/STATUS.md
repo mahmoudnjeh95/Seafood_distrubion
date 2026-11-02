@@ -28,14 +28,15 @@ _Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office 
   ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
   the rest. The money is a treasury movement the day it is paid (as settlements, D-240).
 
-- **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
-  (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
-  links them. Routes and pages unchanged; nothing else renamed.
+- **2026-11-02, D-241 (merged, PR #276):** the side menu's Banques became **Trésorier** (opens Encaissement);
+  Règlements clients, Règlements fournisseurs and Portefeuille left the menu, the treasury ribbon links them.
+- **D-261 (branch `treasury-highlight`, awaits CI):** Trésorier stays lit on every treasury ribbon screen (nav items
+  can own more paths, `owns`).
 
-- **2026-11-02, D-248 (branch `driver-purchase-money`, PR #279, awaits CI):** the purchase money ("argent d'achat") is set by
-  the office only; the driver approves it when starting the day and cannot change it on the phone (`PUT /my-day/purchase-float`
-  removed). Check on staging: Camions du jour › Fonds de caisse, change the purchase money of a started day, then the phone
-  shows it read only.
+- **2026-11-02, D-260 (branch `driver-purchase-approval`, awaits CI):** a change of the purchase money during a running day
+  is a proposal the driver approves on the phone ("J'accepte ce montant"); until then the amount in force stays. Changes D-248.
+  Check on staging: Camions du jour › Fonds de caisse on a started day shows "En attente du chauffeur"; the phone's day screen
+  shows the proposal with the accept button; after approval the amount changes.
 - **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
   day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
   on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227

@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.core.models import Membership, Organization, Role, User
 from apps.core.session import TruckRef
 
-from .models import DayFund, DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
+from .models import DayFund, DriverDay, LocationPing, PurchaseFloatChange, Truck, TruckAssignment, TruckCondition
 from .trail import distance_m, stops_of
 
 type TruckStatus = Literal["active", "archived", "all"]
@@ -153,6 +153,15 @@ def driver_day_of(membership: Membership, on: date_type | None = None) -> Driver
     )
 
 
+def pending_purchase_float_of(driver_day: DriverDay) -> PurchaseFloatChange | None:
+    """The money for purchases the office proposed on this running day and the driver has not approved (D-260)."""
+    return (
+        PurchaseFloatChange.objects.for_organization(driver_day.organization)
+        .filter(driver_day=driver_day, status=PurchaseFloatChange.Status.PENDING)
+        .first()
+    )
+
+
 def day_fund_of(organization: Organization, *, driver_id: int, on: date_type | None = None) -> DayFund | None:
     """The cash the office set for this driver on that date (today by default), if any (D-203)."""
     return (
@@ -163,10 +172,17 @@ def day_fund_of(organization: Organization, *, driver_id: int, on: date_type | N
 
 
 def day_funds_on(organization: Organization, day: date_type) -> list[dict[str, Any]]:
-    """Every active driver with the cash set for them on that day (or none yet), whether their day started and whether
-    its closing is sent (D-248: then the purchase money is locked too)."""
+    """Every active driver with the cash set for them on that day (or none yet), whether their day started, whether
+    its closing is sent (D-248: then the purchase money is locked too) and the money for purchases the office proposed
+    that the driver has not approved yet (D-260)."""
     funds = {fund.driver_id: fund for fund in DayFund.objects.for_organization(organization).filter(date=day)}
     days = dict(DriverDay.objects.for_organization(organization).filter(date=day).values_list("driver_id", "ended_at"))
+    pending = {
+        driver_id: (amount, created_at)
+        for driver_id, amount, created_at in PurchaseFloatChange.objects.for_organization(organization)
+        .filter(driver_day__date=day, status=PurchaseFloatChange.Status.PENDING)
+        .values_list("driver_day__driver_id", "amount", "created_at")
+    }
     members = (
         Membership.objects.filter(organization=organization, role=Role.DRIVER, is_active=True)
         .select_related("user")
@@ -179,6 +195,8 @@ def day_funds_on(organization: Organization, day: date_type) -> list[dict[str, A
             "fund": funds.get(member.user_id),
             "started": member.user_id in days,
             "ended": days.get(member.user_id) is not None,
+            "pending_purchase_float": pending.get(member.user_id, (None, None))[0],
+            "pending_proposed_at": pending.get(member.user_id, (None, None))[1],
         }
         for member in members
     ]

@@ -3547,12 +3547,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`PUT /day-funds`). The driver approves it with the cash when starting the day (D-203, `POST /my-day`), then cannot change it.
 - Removed: the driver's `PUT /my-day/purchase-float` (D-158's "typed again while the day runs"). The phone shows the amount
   with "Seul le bureau peut le modifier." and no edit control.
-- The office may still change the purchase money of a running day, with `PUT /day-funds`: the day takes it at once, and the
-  audit log keeps `driver_day.purchase_float_set`. The accepted opening cash stays locked once the day started.
+- The office changes the purchase money of a running day with `PUT /day-funds`. **Changed by D-260:** the change is a
+  proposal the driver approves on the phone; it no longer takes effect at once. The accepted opening cash stays locked.
 - Once the driver's closing is sent, the purchase money is locked for the office too (the day is kept as sent, D-134).
   The fund list reports `ended` for each row so the office screen locks the field.
-- Provisional: the driver does not approve a change the office makes during the day (the owner may want a re-approval
-  step instead). A driver who disagrees calls the office, as for the cash (D-203).
+- Provisional, superseded by D-260: the driver did not approve a change of the office during the day. D-260 now requires it.
 
 **D-244 · A prime is paid when it is added, and its payment is a treasury movement (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
 - **Why:** a prime (D-234) raised what is due but was never paid by itself, so the treasurer's journal did not show it.
@@ -3645,6 +3644,28 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
 
+**D-260 · A change of the purchase money during the day waits for the driver's approval on the phone (owner answer, 2026-11-02; changes D-248)** · accepted (provisional parts marked) · 2026-11-02
+- The office changes the money for purchases of a running day in "Camions du jour › Fonds de caisse" as before. It becomes a
+  proposal (`fleet.PurchaseFloatChange`, pending) and does not change the amount in force. The office list shows
+  "En attente du chauffeur : X".
+- The driver sees the proposal on the phone's day, with the amount in force and the new amount, and approves it with
+  "J'accepte ce montant" (`POST /my-day/purchase-change/approve`). Only approval; the driver cannot edit the amount
+  (no PUT, no field). A driver who disagrees calls the office, as before (D-203).
+- **The record:** the proposal keeps the amount before and the amount proposed, who proposed it, and, once approved, who
+  agreed and when (`decided_by`, `decided_at`), with its status: pending, approved, replaced, or expired. The audit log keeps
+  `driver_day.purchase_float_proposed`, `…_withdrawn` and `…_approved`.
+- A new proposal replaces the pending one, which stays as "replaced". Proposing the amount in force again withdraws the
+  pending proposal. One pending proposal per day (database constraint).
+- **What the driver can spend until they approve (recommended, provisional):** the amount in force. A raised amount cannot
+  be spent until approved, and a lowered amount does not apply until approved either, so the driver is never cut off in the
+  middle of the day without agreeing. Purchases and the cash split (D-158, D-182) use the amount in force only.
+- Sending the closing before the driver approves expires the proposal ("Non approuvé avant la clôture"); the day keeps the
+  amount in force, as sent (D-134). After the closing, the office cannot change the money for purchases of that day.
+- Approval changes the amount in force and the day's fund figure at once, and the treasury follows it then (the Caisse and
+  the driver's cash move by the difference, D-262), not when the office proposes. The phone refreshes the proposal every minute,
+  and only on the day screen; the purchase notice on every screen (D-158) is for validated purchases only.
+  Provisional: the owner may want a notice on every screen, or a refusal button.
+
 **D-263 · Primes are not subject to CNSS (owner answer, 2026-11-02)** · accepted · 2026-11-02
 - The owner answered the open question of D-234: a prime is not subject to CNSS, neither the employer's contribution
   nor the employee's withholding.
@@ -3654,6 +3675,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - No payslip exists yet, so nothing shows a CNSS line for a prime. The CNSS declaration, when built, takes the gross
   salary only.
 - Older primes need nothing: the app is still in testing with no real data (owner).
+
+**D-266 · The retenue à la source defaults to 1 % (owner, 2026-11) · provisional until the accountant confirms** · provisional · 2026-11-02
+- A new organization's first finance settings version takes 1 % (was 0 %). The rate stays editable in Paramètres financiers.
+- Migration `0028_withholding_rate_one_percent`: organizations still at 0 % take 1 % in the version in force today and in any version dated later. Earlier versions keep 0 %, so the history of rates stays true. Issued invoices keep the rate they were issued with (D-057).
+- The withholding still applies only from 1 000 DT TTC (D-241), so a small invoice shows no line whatever the default.
 
 **D-262 · The driver's cash is in the ledger: the fund out of the Caisse, the counted cash back at approval, the port purchases from it (Phase 9, P9-T09f; owner answer)** · accepted · 2026-11-02
 - The cash the office gives a driver for a day (the fund and the money for buying at the port) leaves the Caisse for that
@@ -3671,3 +3697,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - D-256 built (2026-11-02, P9-T10, first slice): estimate (`estimate_invoice`, `GET /invoices/estimate`), `estimated_extra` on
   open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
   per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).
+
+**D-261 · Trésorier stays lit on every treasury screen (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The owner's answer on D-241: the side menu's Trésorier is highlighted on every treasury ribbon screen (Encaissement, Décaissement, Banque, Agences, Caisses, Portefeuille, Bordereau, Ordre de paiement, the journals and états), not only on `/reglements`.
+
+- The menu entry can own more paths: an optional `owns` list on a nav item (`AdminShell`). The active entry is the longest path the page is under, its own or an owned one, so the Trésorier entry owns `/tresorerie`, `/achats/paiements` and `/achats/reglements`, and `Achats` no longer lights up on the supplier payment screens.
