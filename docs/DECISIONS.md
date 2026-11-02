@@ -3466,7 +3466,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 
 - Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
 
-**D-242 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+**D-243 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
 - The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
 - A `CapitalEntryKind.ADVANCE` entry (−) on the partner's capital ledger, with the means of payment and a reference (`method`, `reference`, the entry's date = the day paid). `services.advance_capital`, `POST /partnerships/{id}/advances` (`advancePartnerCapital`). Owner only, like every partnership write.
 - Up to the capital still in: an advance never takes the capital below zero (D-031). Allowed while the lot is open or closed; refused once settled or cancelled.

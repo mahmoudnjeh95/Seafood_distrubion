@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-02 (side menu: one Trésorier entry, D-241; advance to a partner, D-242; next free decision D-243)_
+_Last updated: 2026-11-02 (side menu: one Trésorier entry, D-241; advance to a partner, D-243; next free decision D-244)_
 
 ## Where we are
 
-- **Owner request 2026-11-02, D-242 (branch `partner-capital-advance`, awaits CI):** in a lot's "Partenariat" section the
+- **Owner request 2026-11-02, D-243 (branch `partner-capital-advance`, awaits CI):** in a lot's "Partenariat" section the
   owner can give the partner an advance from the capital they put in ("Donner une avance"): `ADVANCE` entry on the capital
   ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
   the rest. The money is a treasury movement the day it is paid (as settlements, D-240).
@@ -38,13 +38,13 @@ _Last updated: 2026-11-02 (side menu: one Trésorier entry, D-241; advance to a 
 
 ## Next step
 
-0. D-242: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
+0. D-243: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
    avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.
 1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
    opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
-3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-243.
+3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
