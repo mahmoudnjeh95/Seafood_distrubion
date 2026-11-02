@@ -31,7 +31,7 @@ export type Row =
 
 /** Characters per line for the usual paper widths: 58 mm = 32, 75 to 76 mm = 42, 80 mm = 48. */
 export const WIDTHS = [32, 42, 48] as const;
-export const DEFAULT_WIDTH = 42;
+export const DEFAULT_WIDTH = 32;
 
 const GROUP = /\B(?=(\d{3})+(?!\d))/g;
 
