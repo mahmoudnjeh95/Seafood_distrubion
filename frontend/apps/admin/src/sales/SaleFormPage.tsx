@@ -2,7 +2,6 @@ import {
   ApiError,
   createSale,
   type SaleDetail,
-  type SalePaymentMethodEnum,
   type SaleWrite,
   updateSale,
   useGetSale,
@@ -21,7 +20,6 @@ import {
   Field,
   Icon,
   Input,
-  MoneyInput,
   PageHeader,
   Select,
   SelectContent,
@@ -57,13 +55,12 @@ import { LinesGrid } from "../lib/LinesGrid";
 import { LotPicker } from "../lib/LotPicker";
 import { VatHint } from "../lib/VatHint";
 import { addressOf } from "../transfers/formLines";
-import { canSell, localInputOf, momentOf, PAYMENT_METHODS, refreshAfterSale } from "./shared";
+import { canSell, localInputOf, momentOf, refreshAfterSale } from "./shared";
 
 type Errors = Record<string, string>;
 
-// Radix Select has no empty choice: these values stand for "the walk-in customer" and "not paid".
+// Radix Select has no empty choice: this value stands for "the walk-in customer".
 const WALK_IN = "walk-in";
-const NO_METHOD = "none";
 
 const lineKey = (index: number, field: string) => `lines.${index}.${field}`;
 
@@ -109,10 +106,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const [notes, setNotes] = useState(draft?.notes ?? "");
   // Where this delivery goes when it is not the client's own address: for this BL only (D-160).
   const [deliveryAddress, setDeliveryAddress] = useState(draft?.delivery_address ?? "");
-  const [paidInFull, setPaidInFull] = useState(false);
-  const [amountPaid, setAmountPaid] = useState(draft && !isZero(draft.amount_paid) ? asTyped(draft.amount_paid) : "");
-  const [method, setMethod] = useState<string>(draft?.payment_method || NO_METHOD);
-  const [reference, setReference] = useState(draft?.payment_reference ?? "");
   const [lines, setLines] = useState<Line[]>(() =>
     withSpare(
       (draft?.lines ?? []).map((line) =>
@@ -244,11 +237,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
         batch: line.batch ? Number(line.batch) : null,
       });
     });
-    let paid: string | null = null;
-    if (!paidInFull && amountPaid.trim() !== "") {
-      paid = parseDecimalInput(amountPaid.trim(), 3);
-      if (paid === null || paid.startsWith("-")) found.amount_paid = t("admin.sales.form.money");
-    }
     const needs: Need[] = needsOf(rows);
     // A lot picked by hand fixes the place; without one, the place that holds every product is found (D-144).
     const lotPlace = new Set<number>();
@@ -275,10 +263,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
       notes: notes.trim(),
       delivery_address: deliveryAddress.trim(),
       lines: payloadLines,
-      paid_in_full: paidInFull,
-      amount_paid: paid,
-      payment_method: method === NO_METHOD ? "" : (method as SalePaymentMethodEnum),
-      payment_reference: reference.trim(),
       confirm_now: confirmNow,
       below_minimum_reason: belowCount > 0 && canApprove ? belowReason.trim() : "",
     });
@@ -420,50 +404,6 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
           onReason={setBelowReason}
           error={errors.below_minimum_reason}
         />
-
-        <Card className="grid grid-cols-4 items-start gap-4 max-[1000px]:grid-cols-2 max-[600px]:grid-cols-1">
-          <CardTitle className="col-span-4 mb-0 max-[1000px]:col-span-2 max-[600px]:col-span-1">
-            {t("admin.sales.form.payment")}
-          </CardTitle>
-          <label className="flex items-center gap-2 self-end pb-2.5 font-semibold">
-            <input
-              type="checkbox"
-              checked={paidInFull}
-              onChange={(event) => setPaidInFull(event.target.checked)}
-              className="size-4 accent-sea"
-            />
-            {t("admin.sales.form.paidInFull")}
-          </label>
-          <Field label={t("admin.sales.form.amountPaid")} htmlFor={id("amount_paid")} error={errors.amount_paid}>
-            <MoneyInput
-              id={id("amount_paid")}
-              inputMode="decimal"
-              value={paidInFull ? asTyped(totalExclTax) : amountPaid}
-              disabled={paidInFull}
-              onChange={(event) => setAmountPaid(event.target.value)}
-              aria-invalid={errors.amount_paid ? true : undefined}
-              autoComplete="off"
-              className="num"
-            />
-          </Field>
-          {select("payment_method", t("admin.sales.form.method"), method, setMethod, [
-            { value: NO_METHOD, label: t("admin.sales.detail.none") },
-            ...PAYMENT_METHODS.map((value) => ({ value, label: t(`admin.sales.methods.${value}`) })),
-          ])}
-          <Field label={t("admin.sales.form.reference")} htmlFor={id("payment_reference")}>
-            <Input
-              id={id("payment_reference")}
-              value={reference}
-              maxLength={50}
-              onChange={(event) => setReference(event.target.value)}
-            />
-          </Field>
-          {customer === WALK_IN && (
-            <p className="col-span-4 text-[0.85rem] text-ink-2 max-[1000px]:col-span-2 max-[600px]:col-span-1">
-              {t("admin.sales.form.walkInPays")}
-            </p>
-          )}
-        </Card>
 
         <Card className="flex flex-col gap-4">
           <Field

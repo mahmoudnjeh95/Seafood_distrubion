@@ -4,6 +4,7 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 
 ## Where we are
 
+- **Sales, 2026-11-02, D-245 (branch `sales-no-payment`, PR #284, awaits CI):** the office's sale forms, "Vente comptoir" and "Convertir en vente" show no payment; an office sale is unpaid and the office API refuses a payment. The treasurer takes it in Règlements clients, the walk-in customer included (provisional change of D-047). The driver's phone is unchanged. The sale detail links "Encaisser au trésorier" while something is owed.
 - **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
   checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice
   from a BL without VAT-bought goods opens with the box unchecked.

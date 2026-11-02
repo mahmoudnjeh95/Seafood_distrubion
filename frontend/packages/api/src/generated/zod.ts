@@ -16183,8 +16183,9 @@ export const ListSalesResponse = zod.object({
 
 /**
  * Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
- * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
- * who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+ * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
+ * The office types no payment: the money comes in through a règlement of the treasurer. A driver's phone says
+ * what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
  * Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
  * day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
  * day's price, also when it was kept without connection and sent later. Within 5 minutes of the

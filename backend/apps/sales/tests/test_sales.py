@@ -10,8 +10,8 @@ from django.utils import timezone
 
 from apps.catalog import services as catalog
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
-from apps.core.models import AuditLog
-from apps.core.tests.factories import OrganizationFactory, UserFactory
+from apps.core.models import AuditLog, Role
+from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.inventory import selectors as inventory
 from apps.inventory import services as stock
 from apps.inventory.models import LocationKind, MovementKind, StockMovement, StockOnHand
@@ -526,14 +526,14 @@ def test_a_truck_sells_but_a_storage_room_does_not(organization, actor, customer
     assert set(errors_of(refused)) == {"location"}
 
 
-def test_a_counter_sale_without_customer_is_the_walk_in_customer_who_pays_everything(
+def test_a_counter_sale_without_customer_is_the_walk_in_customer_and_its_money_comes_via_the_treasury(
     organization, actor, counter, crevette
 ):
     receive(organization, crevette, counter, "10")
     lines = [{"product": crevette, "quantity": "1"}]
 
-    with pytest.raises(ValidationError) as unpaid:
-        sale(organization, actor, None, counter, lines, confirm=True)
+    # The office types no payment at the counter (D-245): the sale is confirmed unpaid, the treasurer takes the money.
+    unpaid = sale(organization, actor, None, counter, lines, confirm=True)
     paid = sale(
         organization,
         actor,
@@ -544,13 +544,26 @@ def test_a_counter_sale_without_customer_is_the_walk_in_customer_who_pays_everyt
         confirm=True,
     )
 
-    assert "paie toute la vente" in errors_of(unpaid)["amount_paid"][0]
-    assert paid.customer.is_walk_in
+    assert unpaid.customer.is_walk_in
+    assert (unpaid.status, unpaid.amount_paid, unpaid.amount_due) == (
+        SaleStatus.CONFIRMED,
+        Decimal("0.000"),
+        Decimal("42.000"),
+    )
     assert (paid.status, paid.amount_paid, paid.amount_due) == (SaleStatus.CONFIRMED, Decimal("42.000"), Decimal("0"))
-    assert on_hand(organization, counter, crevette) == Decimal("9.000")
+    assert on_hand(organization, counter, crevette) == Decimal("8.000")
 
 
-# ---- cancellation ----
+def test_a_walk_in_sale_a_driver_made_must_be_paid_on_the_spot(organization, actor, counter, crevette):
+    receive(organization, crevette, counter, "10")
+    driver = MembershipFactory.create(role=Role.DRIVER, organization=organization).user
+    lines = [{"product": crevette, "quantity": "1"}]
+
+    # A driver's walk-in sale is the phone's cash (D-047, D-133): the office's rule of paying later does not apply.
+    with pytest.raises(ValidationError) as unpaid:
+        sale(organization, driver, None, counter, lines, confirm=True)
+
+    assert "paie toute la vente" in errors_of(unpaid)["amount_paid"][0]
 
 
 def test_cancelling_a_confirmed_sale_brings_the_kilos_back_to_the_same_batches(
