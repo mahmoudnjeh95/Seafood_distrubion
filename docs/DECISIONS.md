@@ -3706,6 +3706,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The reset of the fund at the office's approval (D-259) is another change and does not touch this.
 - The app is still in testing with no real data: no backfill.
 
+## D-267 Sortable headers and page-by-page tables (2026-11-02)
+
+- Owner request: long tables must not scroll forever; the user picks the rows per page (25, 50, 100, 200; 50 by
+  default) and clicks a column header to sort ascending, then descending, then back to the original order.
+- Shared pieces in `@frutti/ui`: `useTableView` (sort and page rows already in the browser), `SortTh`, `Pager`.
+- First user: Journal des banques / des caisses. Lists the server already pages (`PagedList`) still need an
+  `ordering` parameter before they can sort the whole list; sorting only the visible page would mislead. Follow-up.
 
 
 **D-264 · A cheque or traite taken at a sale, paid for an expense or given to a partner is an effet, followed like a règlement's (Phase 9, P9-T09g; owner answer)** · accepted · 2026-11-02

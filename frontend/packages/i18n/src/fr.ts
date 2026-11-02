@@ -12,6 +12,12 @@ export const fr = {
     back: "Retour",
     comingSoon: "Bientôt disponible",
     comingSoonBody: "Cet écran sera construit dans une prochaine étape du projet.",
+    table: {
+      range: "{{from}}–{{to}} sur {{count}}",
+      perPage: "Lignes par page",
+      previous: "Précédent",
+      next: "Suivant",
+    },
     serverUnreachable: "Serveur injoignable. Vérifiez le réseau puis rechargez la page.",
   },
   brand: {

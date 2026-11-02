@@ -10,14 +10,16 @@ import {
   Field,
   Input,
   PageHeader,
+  Pager,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SortTh,
   Table,
   Td,
-  Th,
+  useTableView,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -30,6 +32,8 @@ import { StatementSection } from "./StatementSection";
 import { TresorerieRibbon } from "./TresorerieRibbon";
 
 type Kind = "bank" | "cash";
+
+const NO_ROWS: MovementRow[] = [];
 
 /** "Journal des banques" and "Journal des caisses" (P9-T08): the movements of one account, in order, with the running
  * balance; the opening and closing balances frame the period. */
@@ -55,6 +59,15 @@ export function JournalPage({ kind }: { kind: Kind }) {
     query: { enabled: account !== undefined, placeholderData: keepPreviousData },
   });
   const data = statement.data;
+  const view = useTableView(data?.rows ?? NO_ROWS, {
+    day: (row) => row.day,
+    label: (row) => `${t(`admin.treasury.journal.kinds.${row.kind}`)} ${row.description}`,
+    reference: (row) => row.reference,
+    in: (row) => (Number(row.amount) > 0 ? Number(row.amount) : null),
+    out: (row) => (Number(row.amount) < 0 ? -Number(row.amount) : null),
+    balance: (row) => Number(row.balance),
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (
     <>
@@ -122,23 +135,38 @@ export function JournalPage({ kind }: { kind: Kind }) {
             ) : data.rows.length === 0 ? (
               <p className="p-2 text-ink-2">{t("admin.treasury.journal.empty")}</p>
             ) : (
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>{t("admin.treasury.journal.columns.day")}</Th>
-                    <Th>{t("admin.treasury.journal.columns.label")}</Th>
-                    <Th>{t("admin.treasury.journal.columns.reference")}</Th>
-                    <Th numeric>{t("admin.treasury.journal.columns.in")}</Th>
-                    <Th numeric>{t("admin.treasury.journal.columns.out")}</Th>
-                    <Th numeric>{t("admin.treasury.journal.columns.balance")}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((row) => (
-                    <MovementLine key={row.id} row={row} />
-                  ))}
-                </tbody>
-              </Table>
+              <>
+                <Table>
+                  <thead>
+                    <tr>
+                      <SortTh sortKey="day" {...sorting}>
+                        {t("admin.treasury.journal.columns.day")}
+                      </SortTh>
+                      <SortTh sortKey="label" {...sorting}>
+                        {t("admin.treasury.journal.columns.label")}
+                      </SortTh>
+                      <SortTh sortKey="reference" {...sorting}>
+                        {t("admin.treasury.journal.columns.reference")}
+                      </SortTh>
+                      <SortTh numeric sortKey="in" {...sorting}>
+                        {t("admin.treasury.journal.columns.in")}
+                      </SortTh>
+                      <SortTh numeric sortKey="out" {...sorting}>
+                        {t("admin.treasury.journal.columns.out")}
+                      </SortTh>
+                      <SortTh numeric sortKey="balance" {...sorting}>
+                        {t("admin.treasury.journal.columns.balance")}
+                      </SortTh>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {view.rows.map((row) => (
+                      <MovementLine key={row.id} row={row} />
+                    ))}
+                  </tbody>
+                </Table>
+                <Pager {...view.pager} />
+              </>
             )}
           </Card>
           {kind === "bank" && account && (
