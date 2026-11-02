@@ -506,6 +506,7 @@ def day_activity(organization: Organization, driver_day: "DriverDay") -> dict[st
         "stock": _truck_stock(organization, driver_day) if owns else [],
         "boxes": _truck_boxes(organization, driver_day) if owns else [],
         "review_blockers": review_blockers(organization, driver_day),
+        "cold_rooms": [{"id": room.pk, "name": room.name} for room in inventory.active_cold_rooms(organization)],
         "sales": [_sale_line(s) for s in made],
         "deliveries": [_sale_line(s) for s in deliveries],
         "purchases": [

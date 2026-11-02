@@ -6,6 +6,7 @@
  */
 import type { DayBox } from './dayBox';
 import type { DayClosingOffice } from './dayClosingOffice';
+import type { DayColdRoom } from './dayColdRoom';
 import type { DayOverviewExpense } from './dayOverviewExpense';
 import type { DayOverviewPayment } from './dayOverviewPayment';
 import type { DayOverviewPurchase } from './dayOverviewPurchase';
@@ -76,4 +77,5 @@ export interface DayOverviewDetail {
   readonly stock: readonly DayStock[];
   readonly boxes: readonly DayBox[];
   readonly review_blockers: readonly string[];
+  readonly cold_rooms: readonly DayColdRoom[];
 }

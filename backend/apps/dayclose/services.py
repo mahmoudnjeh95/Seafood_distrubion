@@ -291,6 +291,8 @@ def approve_day_closing(
             "office_purchase_difference": str(closing.office_purchase_difference),
         },
     )
+    # The driver's starting cash for the day goes back to zero once the office has approved it (D-259).
+    fleet_services.reset_day_fund(driver_day=closing.driver_day)
     # The cash the office counted goes from the driver's cash to the Caisse (D-262). A new load that opens the day
     # again leaves it there; the next approval moves what is counted then.
     treasury_services.hand_over_driver_cash(
@@ -432,10 +434,11 @@ def validate_driver_purchase(*, driver_day: "DriverDay", purchase: "FieldPurchas
 
 
 @transaction.atomic
-def return_truck_to_stock(*, driver_day: "DriverDay", actor: User) -> "Transfer":
-    """The office gives back what the truck still holds, kilos and boxes, to the first active cold room (D-239): one
-    validated transfer from the truck, so the stock and the boxes move with the ledger. Only on the truck's latest
-    day: the stock it holds is then this day's to give back. The driver need not have sent the day."""
+def return_truck_to_stock(*, driver_day: "DriverDay", actor: User, to_location_id: int | None = None) -> "Transfer":
+    """The office gives back what the truck still holds, kilos and boxes, to the cold room it chooses (D-258; the only
+    active one when there is one, D-239): one validated transfer from the truck, so the stock and the boxes move with
+    the ledger. Only on the truck's latest day: the stock it holds is then this day's to give back. The driver need not
+    have sent the day."""
     driver_day = fleet.locked_driver_day(driver_day)
     organization = driver_day.organization
     if not selectors.owns_truck(organization, driver_day):
@@ -443,6 +446,15 @@ def return_truck_to_stock(*, driver_day: "DriverDay", actor: User) -> "Transfer"
     rooms = inventory.active_cold_rooms(organization)
     if not rooms:
         raise ValidationError(_("Aucune chambre froide active pour recevoir le stock."))
+    if to_location_id is None:
+        if len(rooms) > 1:
+            raise ValidationError({"to_location_id": _("Choisissez la chambre froide qui reçoit le stock.")})
+        destination = rooms[0]
+    else:
+        chosen = [room for room in rooms if room.pk == to_location_id]
+        if not chosen:
+            raise ValidationError({"to_location_id": _("Choisissez une chambre froide active.")})
+        destination = chosen[0]
     today = timezone.localdate()
     truck_location = driver_day.truck.location
     lines: list[inventory_services.TransferLineFields] = [
@@ -458,7 +470,7 @@ def return_truck_to_stock(*, driver_day: "DriverDay", actor: User) -> "Transfer"
         organization=organization,
         actor=actor,
         from_location=truck_location,
-        to_location=rooms[0],
+        to_location=destination,
         transferred_on=today,
         lines=lines,
         boxes=counts or None,
