@@ -378,7 +378,7 @@ class CashCountWriteSerializer(serializers.Serializer[Any]):
 
 class MovementOfFilterSerializer(serializers.Serializer[Any]):
     # Where the money was written from: "sales.payment_line", "sales.sale", "expenses.expense"...
-    source = serializers.CharField(max_length=40)
+    from_source = serializers.CharField(max_length=40)
     # The records' ids, comma separated (at most 200).
     source_ids = serializers.CharField(max_length=2000)
 

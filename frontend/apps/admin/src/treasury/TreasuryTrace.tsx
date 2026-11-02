@@ -7,7 +7,10 @@ import { Link } from "react-router";
  * through, linked to that account's journal. Shows nothing when the record moved no money. */
 export function TreasuryTrace({ source, ids }: { source: string; ids: readonly number[] }) {
   const { t } = useTranslation();
-  const movements = useListMovementsOf({ source, source_ids: ids.join(",") }, { query: { enabled: ids.length > 0 } });
+  const movements = useListMovementsOf(
+    { from_source: source, source_ids: ids.join(",") },
+    { query: { enabled: ids.length > 0 } },
+  );
   const rows = movements.data ?? [];
   if (rows.length === 0) return null;
 

@@ -577,5 +577,7 @@ class MovementsOfView(OfficeView):
             raise ValidationError({"source_ids": _("Des numéros de pièce sont attendus.")}) from None
         if len(ids) > 200:
             raise ValidationError({"source_ids": _("200 pièces au plus.")})
-        movements = selectors.movements_of(self.organization, source=filters.validated_data["source"], source_ids=ids)
+        movements = selectors.movements_of(
+            self.organization, source=filters.validated_data["from_source"], source_ids=ids
+        )
         return Response(MovementOfSerializer(movements, many=True).data)

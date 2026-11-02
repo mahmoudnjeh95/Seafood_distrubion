@@ -37,8 +37,8 @@ export function JournalPage({ kind }: { kind: Kind }) {
   const accounts = useListTreasuryAccounts({ active_only: false });
   const choices = (accounts.data ?? []).filter((one) => one.kind === kind);
   // `?compte=3` (from a payment or a sale, "Où est l'argent") opens that account; else the first of the kind.
-  const [params] = useSearchParams();
-  const [chosen, setChosen] = useState(params.get("compte") ?? "");
+  const [urlParams] = useSearchParams();
+  const [chosen, setChosen] = useState(urlParams.get("compte") ?? "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");

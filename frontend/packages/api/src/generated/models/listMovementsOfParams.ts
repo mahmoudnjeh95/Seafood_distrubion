@@ -10,7 +10,7 @@ export type ListMovementsOfParams = {
  * @minLength 1
  * @maxLength 40
  */
-source: string;
+from_source: string;
 /**
  * @minLength 1
  * @maxLength 2000

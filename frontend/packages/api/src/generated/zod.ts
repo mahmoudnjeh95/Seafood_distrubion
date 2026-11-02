@@ -20132,14 +20132,14 @@ export const WithdrawInstrumentsResponse = zod.array(WithdrawInstrumentsResponse
  * The treasury movements written by the given records of one source, each with the account it went through
  * (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
  */
-export const listMovementsOfQuerySourceMax = 40;
+export const listMovementsOfQueryFromSourceMax = 40;
 
 export const listMovementsOfQuerySourceIdsMax = 2000;
 
 
 
 export const ListMovementsOfQueryParams = zod.object({
-  "source": zod.string().min(1).max(listMovementsOfQuerySourceMax),
+  "from_source": zod.string().min(1).max(listMovementsOfQueryFromSourceMax),
   "source_ids": zod.string().min(1).max(listMovementsOfQuerySourceIdsMax)
 })
 

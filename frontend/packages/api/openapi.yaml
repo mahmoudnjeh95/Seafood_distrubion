@@ -10483,7 +10483,7 @@ paths:
         (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
       parameters:
       - in: query
-        name: source
+        name: from_source
         schema:
           type: string
           maxLength: 40
