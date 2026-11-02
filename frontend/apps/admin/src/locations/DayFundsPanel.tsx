@@ -38,9 +38,7 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
       }),
     onSuccess: async () => {
       setError("");
-      toast.success(
-        t(row.started ? "admin.dayFunds.proposed" : "admin.dayFunds.saved", { name: row.driver.name })
-      );
+      toast.success(t(row.started ? "admin.dayFunds.proposed" : "admin.dayFunds.saved", { name: row.driver.name }));
       await queryClient.invalidateQueries({
         predicate: (query) =>
           typeof query.queryKey[0] === "string" && query.queryKey[0].startsWith("/api/v1/day-funds"),
