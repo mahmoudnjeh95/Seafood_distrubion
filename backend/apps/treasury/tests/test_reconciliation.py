@@ -126,3 +126,43 @@ def test_a_wrong_match_can_be_undone(organization, account):
     assert [row.pk for row, _ in selectors.match_candidates(bank_line)] == [movement.pk]
     with pytest.raises(ValidationError):
         statements.unmatch_line(line=bank_line, actor=None)
+
+
+def test_the_lines_can_be_kept_matched_or_unmatched(organization, account):
+    movement = move(organization, account, "100.000")
+    done = statements.match_line(line=line(organization, account, debit=100), movement=movement, actor=None)
+    open_line = line(organization, account, credit=30)
+
+    def ids(state):
+        return [row.pk for row in selectors.statement_lines_of(organization, account, state=state)]
+
+    assert ids("all") == [done.pk, open_line.pk]
+    assert ids("matched") == [done.pk]
+    assert ids("unmatched") == [open_line.pk]
+
+
+def test_the_summary_shows_both_sides_of_what_is_left_to_match(organization, account):
+    movement = move(organization, account, "100.000", source_id=1)
+    statements.match_line(line=line(organization, account, debit=100), movement=movement, actor=None)
+    line(organization, account, debit=40)
+    line(organization, account, credit=25)
+    ours_in = move(organization, account, "70.000", source_id=2)
+    ours_out = move(organization, account, "-15.000", source_id=3)
+
+    summary = selectors.reconciliation_summary(organization, account)
+
+    assert (summary.lines, summary.matched, summary.unmatched) == (3, 1, 2)
+    assert (summary.unmatched_in, summary.unmatched_out) == (D("40.000"), D("25.000"))
+    assert [row.pk for row in summary.movements] == [ours_in.pk, ours_out.pk]
+    assert summary.movements_total == D("55.000")
+
+
+def test_the_summary_keeps_to_the_period(organization, account):
+    line(organization, account, debit=40, day=DAY - dt.timedelta(days=40))
+    move(organization, account, "70.000", DAY - dt.timedelta(days=40), source_id=2)
+    inside = move(organization, account, "5.000", DAY, source_id=3)
+
+    summary = selectors.reconciliation_summary(organization, account, date_from=DAY - dt.timedelta(days=5))
+
+    assert (summary.lines, summary.unmatched) == (0, 0)
+    assert [row.pk for row in summary.movements] == [inside.pk]

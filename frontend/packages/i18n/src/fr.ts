@@ -2940,6 +2940,10 @@ export const fr = {
         match: "Rapprocher",
         matched: "Rapprochée",
         unmatch: "Défaire",
+        summary:
+          "{{matched}} ligne(s) rapprochée(s), {{unmatched}} à rapprocher : {{moneyIn}} encaissés et {{moneyOut}} payés que nous n'avons pas encore rapprochés.",
+        ours: "{{count}} mouvement(s) de notre caisse absents du relevé (total {{total}})",
+        state: { all: "Toutes", unmatched: "À rapprocher", matched: "Rapprochées" },
       },
       match: {
         title: "Rapprochement bancaire",

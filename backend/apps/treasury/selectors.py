@@ -296,8 +296,10 @@ def statement_lines_of(
     *,
     date_from: dt.date | None = None,
     date_to: dt.date | None = None,
+    state: str = "all",
 ) -> QuerySet[BankStatementLine]:
-    """The imported lines of a bank account between two days (inclusive), oldest first."""
+    """The imported lines of a bank account between two days (inclusive), oldest first. `state` narrows them to
+    the matched ones, or to the lines not matched yet (rapprochement, D-274)."""
     lines = BankStatementLine.objects.filter(organization=organization, account=account).select_related(
         "customer", "supplier", "movement"
     )
@@ -305,7 +307,60 @@ def statement_lines_of(
         lines = lines.filter(day__gte=date_from)
     if date_to is not None:
         lines = lines.filter(day__lte=date_to)
+    if state == "matched":
+        lines = lines.filter(movement__isnull=False)
+    elif state == "unmatched":
+        lines = lines.filter(movement__isnull=True)
     return lines.order_by("day", "id")
+
+
+@dataclass(frozen=True)
+class ReconciliationSummary:
+    """Both sides of the rapprochement of a bank account over a period (D-274)."""
+
+    lines: int
+    matched: int
+    unmatched: int
+    # The bank's lines not matched yet: what came in (debits of the file) and what went out (credits).
+    unmatched_in: Decimal
+    unmatched_out: Decimal
+    # Our own movements on the account the bank's file does not show yet, and what they add up to (+ in, − out).
+    movements: list[TreasuryMovement]
+    movements_total: Decimal
+
+
+MOVEMENTS_SHOWN = 200
+
+
+def reconciliation_summary(
+    organization: Organization,
+    account: TreasuryAccount,
+    *,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+) -> ReconciliationSummary:
+    """What is left to match on a bank account between two days: the lines of the bank's statement with no
+    movement, and the movements of our ledger with no line (both sides, D-274). Nothing here changes a balance."""
+    lines = statement_lines_of(organization, account, date_from=date_from, date_to=date_to)
+    unmatched_lines = lines.filter(movement__isnull=True)
+    sums = unmatched_lines.aggregate(
+        money_in=Coalesce(Sum("debit"), Decimal("0.000")), money_out=Coalesce(Sum("credit"), Decimal("0.000"))
+    )
+    ours = TreasuryMovement.objects.filter(organization=organization, account=account, statement_line__isnull=True)
+    if date_from is not None:
+        ours = ours.filter(day__gte=date_from)
+    if date_to is not None:
+        ours = ours.filter(day__lte=date_to)
+    total = ours.aggregate(total=Coalesce(Sum("amount"), Decimal("0.000")))["total"]
+    return ReconciliationSummary(
+        lines=lines.count(),
+        matched=lines.filter(movement__isnull=False).count(),
+        unmatched=unmatched_lines.count(),
+        unmatched_in=sums["money_in"],
+        unmatched_out=sums["money_out"],
+        movements=list(ours.order_by("day", "id")[:MOVEMENTS_SHOWN]),
+        movements_total=total,
+    )
 
 
 def statement_line_of(organization: Organization, line_id: int) -> BankStatementLine:

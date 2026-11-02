@@ -142,6 +142,7 @@ import type {
   GetMonthResultReportParams,
   GetPartnerReportParams,
   GetPayrollSummaryParams,
+  GetReconciliationSummaryParams,
   GetSalesReportParams,
   GetSlowMovingReportParams,
   GetSupplierPaymentTotalsParams,
@@ -335,6 +336,7 @@ import type {
   ReceiptWrite,
   ReceivablesAgeing,
   Recipient,
+  ReconciliationSummary,
   RecurringCost,
   RecurringCostWrite,
   ReopenLot,
@@ -32630,6 +32632,121 @@ export function useExportAccountStatement<TData = Awaited<ReturnType<typeof expo
 
 
 
+export const getGetReconciliationSummaryUrl = (accountId: number,
+    params?: GetReconciliationSummaryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/accounts/${accountId}/reconciliation?${stringifiedParams}` : `/api/v1/treasury/accounts/${accountId}/reconciliation`
+}
+
+/**
+ * The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+ * matched, the money of those not matched yet, and our own movements the statement does not show (at most
+ * 200). It changes no balance.
+ */
+export const getReconciliationSummary = async (accountId: number,
+    params?: GetReconciliationSummaryParams, options?: Parameters<typeof apiFetch>[1]): Promise<ReconciliationSummary> => {
+
+  return apiFetch<ReconciliationSummary>(getGetReconciliationSummaryUrl(accountId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReconciliationSummaryQueryKey = (accountId: number,
+    params?: GetReconciliationSummaryParams,) => {
+    return [
+    `/api/v1/treasury/accounts/${accountId}/reconciliation`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetReconciliationSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReconciliationSummaryQueryKey(accountId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReconciliationSummary>>> = ({ signal }) => getReconciliationSummary(accountId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: accountId !== null && accountId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReconciliationSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getReconciliationSummary>>>
+export type GetReconciliationSummaryQueryError = unknown
+
+
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params: undefined |  GetReconciliationSummaryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReconciliationSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReconciliationSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReconciliationSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReconciliationSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReconciliationSummaryQueryOptions(accountId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListStatementLinesUrl = (accountId: number,
     params?: ListStatementLinesParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -32647,7 +32764,8 @@ export const getListStatementLinesUrl = (accountId: number,
 }
 
 /**
- * The lines imported on a bank account between two days (inclusive), oldest first, paginated.
+ * The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+ * keeps only the matched lines, or only those not matched yet.
  */
 export const listStatementLines = async (accountId: number,
     params?: ListStatementLinesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedBankStatementLineList> => {

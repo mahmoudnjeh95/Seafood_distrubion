@@ -466,6 +466,23 @@ class MatchWriteSerializer(serializers.Serializer[Any]):
 class StatementLineFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
+    # all (default), matched, or unmatched: the lines with no movement of ours yet (D-274).
+    state = serializers.ChoiceField(choices=["all", "matched", "unmatched"], required=False, default="all")
+
+
+class ReconciliationFilterSerializer(serializers.Serializer[Any]):
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+
+
+class ReconciliationSummarySerializer(serializers.Serializer[Any]):
+    lines = serializers.IntegerField(read_only=True)
+    matched = serializers.IntegerField(read_only=True)
+    unmatched = serializers.IntegerField(read_only=True)
+    unmatched_in = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    unmatched_out = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    movements = MatchedMovementSerializer(many=True, read_only=True)
+    movements_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
 class StatementLinePartySerializer(serializers.Serializer[Any]):

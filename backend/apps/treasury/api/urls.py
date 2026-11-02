@@ -42,6 +42,11 @@ urlpatterns = [
         name="treasury-statement-line-list",
     ),
     path(
+        "treasury/accounts/<int:account_id>/reconciliation",
+        views.ReconciliationView.as_view(),
+        name="treasury-reconciliation",
+    ),
+    path(
         "treasury/statement-lines/<int:line_id>",
         views.StatementLineDetailView.as_view(),
         name="treasury-statement-line-detail",

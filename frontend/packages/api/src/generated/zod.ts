@@ -21006,17 +21006,59 @@ export const ExportAccountStatementResponse = zod.unknown()
 
 
 /**
- * The lines imported on a bank account between two days (inclusive), oldest first, paginated.
+ * The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+ * matched, the money of those not matched yet, and our own movements the statement does not show (at most
+ * 200). It changes no balance.
+ */
+export const GetReconciliationSummaryParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const GetReconciliationSummaryQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional()
+})
+
+export const getReconciliationSummaryResponseUnmatchedInRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReconciliationSummaryResponseUnmatchedOutRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReconciliationSummaryResponseMovementsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReconciliationSummaryResponseMovementsTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetReconciliationSummaryResponse = zod.object({
+  "lines": zod.int(),
+  "matched": zod.int(),
+  "unmatched": zod.int(),
+  "unmatched_in": zod.stringFormat('decimal', getReconciliationSummaryResponseUnmatchedInRegExp),
+  "unmatched_out": zod.stringFormat('decimal', getReconciliationSummaryResponseUnmatchedOutRegExp),
+  "movements": zod.array(zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', getReconciliationSummaryResponseMovementsItemAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "label": zod.string(),
+  "reference": zod.string()
+}).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).')),
+  "movements_total": zod.stringFormat('decimal', getReconciliationSummaryResponseMovementsTotalRegExp)
+})
+
+
+/**
+ * The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+ * keeps only the matched lines, or only those not matched yet.
  */
 export const ListStatementLinesParams = zod.object({
   "account_id": zod.int()
 })
 
+export const listStatementLinesQueryStateDefault = `all`;
+
 export const ListStatementLinesQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
-  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "state": zod.enum(['all', 'matched', 'unmatched']).default(listStatementLinesQueryStateDefault).describe('* `all` - all\n* `matched` - matched\n* `unmatched` - unmatched')
 })
 
 export const listStatementLinesResponseResultsItemDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');

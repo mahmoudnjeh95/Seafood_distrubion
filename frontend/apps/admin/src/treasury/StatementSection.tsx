@@ -5,6 +5,7 @@ import {
   setStatementLineParty,
   unmatchStatementLine,
   useListCustomers,
+  useGetReconciliationSummary,
   useListStatementLines,
   useListSuppliers,
 } from "@frutti/api";
@@ -42,8 +43,15 @@ export function StatementSection({
   const [problems, setProblems] = useState<Problem[]>([]);
   const [busy, setBusy] = useState(false);
   const [matching, setMatching] = useState<BankStatementLine | null>(null);
+  const [state, setState] = useState<"all" | "matched" | "unmatched">("all");
+  const period = {
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  };
+  const summary = useGetReconciliationSummary(accountId, period).data;
   const lines = useListStatementLines(accountId, {
     limit: 500,
+    state,
     ...(dateFrom ? { date_from: dateFrom } : {}),
     ...(dateTo ? { date_to: dateTo } : {}),
   });
@@ -135,6 +143,46 @@ export function StatementSection({
         )}
       </div>
       <p className="text-[0.85rem] text-ink-2">{t("admin.treasury.statement.intro")}</p>
+
+      {summary && summary.lines > 0 && (
+        <div className="flex flex-col gap-2 rounded-chip bg-surface-2 px-3 py-2 text-[0.85rem]">
+          <p>
+            {t("admin.treasury.statement.summary", {
+              matched: summary.matched,
+              unmatched: summary.unmatched,
+              moneyIn: formatMoney(summary.unmatched_in),
+              moneyOut: formatMoney(summary.unmatched_out),
+            })}
+          </p>
+          {summary.movements.length > 0 && (
+            <details>
+              <summary className="cursor-pointer font-semibold">
+                {t("admin.treasury.statement.ours", {
+                  count: summary.movements.length,
+                  total: formatMoney(summary.movements_total),
+                })}
+              </summary>
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {summary.movements.map((move) => (
+                  <li key={move.id} className="flex gap-3">
+                    <span className="num">{formatDate(move.day)}</span>
+                    <span className="flex-1">{move.label}</span>
+                    <span className="num">{formatMoney(move.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-1">
+        {(["all", "unmatched", "matched"] as const).map((choice) => (
+          <Button key={choice} variant={state === choice ? "primary" : "ghost"} onClick={() => setState(choice)}>
+            {t(`admin.treasury.statement.state.${choice}`)}
+          </Button>
+        ))}
+      </div>
 
       {problems.length > 0 && (
         <ul role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.85rem] text-bad">

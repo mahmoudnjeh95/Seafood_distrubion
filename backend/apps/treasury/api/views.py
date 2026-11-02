@@ -62,6 +62,8 @@ from .serializers import (
     MovementOfFilterSerializer,
     MovementOfSerializer,
     PartyDocumentsSerializer,
+    ReconciliationFilterSerializer,
+    ReconciliationSummarySerializer,
     StatementFilterSerializer,
     StatementImportReportSerializer,
     StatementImportSerializer,
@@ -650,12 +652,36 @@ class StatementLineListView(OfficeView, ListAPIView[BankStatementLine]):
             account,
             date_from=filters.validated_data.get("date_from"),
             date_to=filters.validated_data.get("date_to"),
+            state=filters.validated_data["state"],
         )
 
     @extend_schema(operation_id="listStatementLines", parameters=[StatementLineFilterSerializer])
     def get(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """The lines imported on a bank account between two days (inclusive), oldest first, paginated."""
+        """The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+        keeps only the matched lines, or only those not matched yet."""
         return super().get(request, *args, **kwargs)
+
+
+class ReconciliationView(OfficeView):
+    @extend_schema(
+        operation_id="getReconciliationSummary",
+        parameters=[ReconciliationFilterSerializer],
+        responses=ReconciliationSummarySerializer,
+    )
+    def get(self, request: Request, account_id: int) -> Response:
+        """The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+        matched, the money of those not matched yet, and our own movements the statement does not show (at most
+        200). It changes no balance."""
+        account = _account(self.organization, account_id)
+        filters = ReconciliationFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        summary = selectors.reconciliation_summary(
+            self.organization,
+            account,
+            date_from=filters.validated_data.get("date_from"),
+            date_to=filters.validated_data.get("date_to"),
+        )
+        return Response(ReconciliationSummarySerializer(summary).data)
 
 
 class StatementLineDetailView(OfficeView):
