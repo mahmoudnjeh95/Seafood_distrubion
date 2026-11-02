@@ -227,6 +227,12 @@ def drivers_with_days(organization: Organization) -> list[dict[str, object]]:
     return [{"id": pk, "name": name} for pk, name in sorted(drivers.items(), key=lambda item: item[1].lower())]
 
 
+def latest_day_on_truck(organization: Organization, *, truck_id: int) -> DriverDay | None:
+    """The truck's most recent day (by date, then by its order): the one whose stock and boxes the truck holds now
+    (D-239). An earlier day's leftovers are the later day's own stock."""
+    return DriverDay.objects.for_organization(organization).filter(truck_id=truck_id).order_by("-date", "-pk").first()
+
+
 def driver_day_by_id(organization: Organization, day_id: int) -> DriverDay:
     """One driver's day with its truck and driver. Raises DriverDay.DoesNotExist outside the organization."""
     return driver_days_between(organization).get(pk=day_id)

@@ -19,6 +19,21 @@ urlpatterns = [
     path("day-overview/drivers", views.DayOverviewDriversView.as_view(), name="day-overview-drivers"),
     path("day-overview/<int:day_id>", views.DayOverviewDetailView.as_view(), name="day-overview-detail"),
     path("day-overview/<int:day_id>/route", views.DayOverviewRouteView.as_view(), name="day-overview-route"),
+    path(
+        "day-overview/<int:day_id>/expenses/<int:expense_id>/decide",
+        views.DayOverviewExpenseDecisionView.as_view(),
+        name="day-overview-expense-decide",
+    ),
+    path(
+        "day-overview/<int:day_id>/purchases/<int:purchase_id>/validate",
+        views.DayOverviewPurchaseValidateView.as_view(),
+        name="day-overview-purchase-validate",
+    ),
+    path(
+        "day-overview/<int:day_id>/return-to-stock",
+        views.DayOverviewReturnToStockView.as_view(),
+        name="day-overview-return-to-stock",
+    ),
     path("day-closings", views.DayClosingListView.as_view(), name="day-closing-list"),
     path("day-closings/<int:closing_id>", views.DayClosingDetailView.as_view(), name="day-closing-detail"),
     path("day-closings/<int:closing_id>/approve", views.DayClosingApproveView.as_view(), name="day-closing-approve"),

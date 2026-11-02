@@ -810,7 +810,7 @@ def _prepared_transfer(
     """The kind, the checked lines, the box counts and the client parts of a transfer, or a ValidationError
     with every problem. `lines` and `boxes` are the part not given to a client (kept on the truck)."""
     errors = _transfer_header_errors(organization, from_location, to_location, from_cold_rooms)
-    if not lines and not deliveries:
+    if not lines and not deliveries and not boxes:
         errors["lines"] = _("Ajoutez au moins un produit.")
     kind = transfer_kind(from_location, to_location)
     at = moment_of(transferred_on)

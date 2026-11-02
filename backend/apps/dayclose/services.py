@@ -12,18 +12,26 @@ from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.boxes import selectors as boxes
+from apps.catalog import selectors as catalog
 from apps.core import audit
 from apps.core.models import Organization, User
+from apps.expenses import services as expenses_services
 from apps.fleet import selectors as fleet
 from apps.fleet import services as fleet_services
+from apps.inventory import selectors as inventory
+from apps.inventory import services as inventory_services
+from apps.purchasing import services as purchasing_services
 from apps.sales import services as sales_services
 
 from . import selectors
 from .models import DayClosing, DayClosingRevision, DayClosingStatus, DayReopening, SyncProblem
 
 if TYPE_CHECKING:
+    from apps.expenses.models import Expense
     from apps.fleet.models import DriverDay
     from apps.inventory.models import Transfer
+    from apps.purchasing.models import FieldPurchase
 
 
 def _plain(value: Any) -> Any:
@@ -256,6 +264,10 @@ def approve_day_closing(
         raise ValidationError(
             {"office_counted_purchase_cash": _("Comptez l'argent des achats qui reste avant d'approuver.")}
         )
+    # The office checks the day as it stands: what it still has to settle is refused (D-239).
+    blockers = selectors.review_blockers(closing.organization, closing.driver_day)
+    if blockers:
+        raise ValidationError({"review": "; ".join(blockers)})
     gap = closing.office_difference != 0 or closing.office_purchase_difference != 0
     if gap and not note.strip():
         raise ValidationError(
@@ -312,13 +324,15 @@ def correct_day_closing(
         raise ValidationError({"office_counted_cash": _("Comptez d'abord l'argent du chauffeur.")})
     before = _figures_of(closing.summary, closing)
     live = selectors.day_summary(closing.organization, closing.driver_day)
+    # A change of a product's kilos alone moves no day figure, but it is a change to correct too (D-239).
+    moved = selectors.changed_since_sent(closing)
     closing.summary = _plain(live)
     closing.expected_cash = live["expected_cash"]
     closing.expected_purchase_cash = live["expected_purchase_cash"]
     if cash is not None:
         _set_office_count(closing, cash, purchase)
     after = _figures_of(closing.summary, closing)
-    if after == before:
+    if after == before and not moved:
         raise ValidationError(_("Rien n'a changé : il n'y a rien à corriger."))
     closing.save(update_fields=["summary", "expected_cash", "expected_purchase_cash", *_COUNT_FIELDS, "updated_at"])
     last = closing.revisions.aggregate(last=Max("number"))["last"] or 0
@@ -361,6 +375,87 @@ def request_justification(*, closing: DayClosing, actor: User, reason: str) -> D
         after={"reason": closing.review_note},
     )
     return closing
+
+
+def _refresh_after_review(*, driver_day: "DriverDay", actor: User, reason: str) -> None:
+    """An office decision that moves the figures the driver sent (an expense refused, a purchase refused...) is kept
+    as a correction of the sent day, with its reason, so the day can be approved as it stands (D-220, D-239). Nothing
+    happens for a day not sent yet, a reopened one, or one whose figures did not move."""
+    closing = selectors.closing_of(driver_day)
+    if closing is None or closing.status not in (DayClosingStatus.SUBMITTED, DayClosingStatus.JUSTIFICATION):
+        return
+    if selectors.changed_since_sent(closing):
+        correct_day_closing(closing=closing, actor=actor, reason=reason)
+
+
+@transaction.atomic
+def decide_driver_expense(
+    *, driver_day: "DriverDay", expense: "Expense", actor: User, approve: bool, reason: str = ""
+) -> "Expense":
+    """The office approves or refuses one expense the driver typed on the day (D-239). An approved one counts as the
+    expense it is; a refused one needs its reason and never counts (D-205)."""
+    if approve:
+        decided = expenses_services.approve_expense(expense=expense, actor=actor)
+    else:
+        decided = expenses_services.reject_expense(expense=expense, actor=actor, reason=reason)
+    _refresh_after_review(
+        driver_day=driver_day,
+        actor=actor,
+        reason=_("Dépense « %(category)s » %(verdict)s par le bureau")
+        % {"category": expense.category.name, "verdict": "approuvée" if approve else "refusée"},
+    )
+    return decided
+
+
+@transaction.atomic
+def validate_driver_purchase(*, driver_day: "DriverDay", purchase: "FieldPurchase", actor: User) -> "FieldPurchase":
+    """The office validates a purchase the driver made on the day, from the day's check (D-239): its kilos enter the
+    truck's stock. Refused when the purchase is not complete (supplier, products or place still to set)."""
+    validated = purchasing_services.validate_field_purchase(purchase=purchase, actor=actor)
+    _refresh_after_review(
+        driver_day=driver_day,
+        actor=actor,
+        reason=_("Achat %(number)s validé par le bureau") % {"number": validated.number},
+    )
+    return validated
+
+
+@transaction.atomic
+def return_truck_to_stock(*, driver_day: "DriverDay", actor: User) -> "Transfer":
+    """The office gives back what the truck still holds, kilos and boxes, to the first active cold room (D-239): one
+    validated transfer from the truck, so the stock and the boxes move with the ledger. Only on the truck's latest
+    day: the stock it holds is then this day's to give back. The driver need not have sent the day."""
+    driver_day = fleet.locked_driver_day(driver_day)
+    organization = driver_day.organization
+    if not selectors.owns_truck(organization, driver_day):
+        raise ValidationError(_("Le camion a déjà un jour plus récent : son stock appartient à ce jour-là."))
+    rooms = inventory.active_cold_rooms(organization)
+    if not rooms:
+        raise ValidationError(_("Aucune chambre froide active pour recevoir le stock."))
+    today = timezone.localdate()
+    truck_location = driver_day.truck.location
+    lines = [
+        {"product": catalog.product_of(organization, row["product_id"]), "quantity": row["quantity"]}
+        for row in inventory.location_stock(organization, location_id=truck_location.pk)
+    ]
+    counts = {
+        row.box_type: row.expected for row in boxes.truck_day(organization, truck_location, today) if row.expected > 0
+    }
+    if not lines and not counts:
+        raise ValidationError(_("Le camion est vide : rien à remettre en stock."))
+    transfer = inventory_services.create_transfer(
+        organization=organization,
+        actor=actor,
+        from_location=truck_location,
+        to_location=rooms[0],
+        transferred_on=today,
+        lines=lines,
+        boxes=counts or None,
+        notes=_("Remis en stock par le bureau (journée du %(day)s)") % {"day": driver_day.date.isoformat()},
+        validate=True,
+    )
+    _refresh_after_review(driver_day=driver_day, actor=actor, reason=_("Camion remis en stock"))
+    return transfer
 
 
 @transaction.atomic
