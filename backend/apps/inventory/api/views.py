@@ -48,6 +48,7 @@ from .serializers import (
     RoadLossSerializer,
     RoadLossWriteSerializer,
     RoadReturnSerializer,
+    StockAdjustmentWriteSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
@@ -801,6 +802,44 @@ class ProductStockView(OfficeView):
             raise Http404 from None
         batches = selectors.batch_holdings(self.organization, product_id=product_id)
         return Response(ProductStockDetailSerializer(_StockWithBatches(stock, batches)).data)
+
+
+class StockAdjustmentView(OfficeView):
+    @extend_schema(
+        operation_id="adjustStock",
+        request=StockAdjustmentWriteSerializer,
+        responses={201: ProductStockDetailSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+        kilos keep the lot's cost. The answer is the product's stock again, with its new average price."""
+        serializer = StockAdjustmentWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        errors: dict[str, str] = {}
+        try:
+            location = selectors.location_of(self.organization, data["location"])
+        except StockLocation.DoesNotExist:
+            errors["location"] = _("Emplacement inconnu.")
+        try:
+            batch = selectors.batch_of(self.organization, data["batch"])
+        except Batch.DoesNotExist:
+            errors["batch"] = _("Lot inconnu.")
+        if errors:
+            raise ValidationError(errors)
+        services.adjust_stock(
+            organization=self.organization,
+            actor=self.membership.user,
+            location=location,
+            batch=batch,
+            add=data["direction"] == "add",
+            quantity=data["quantity"],
+            reason=data["reason"],
+        )
+        stock = selectors.product_stock(self.organization, batch.product_id)
+        batches = selectors.batch_holdings(self.organization, product_id=batch.product_id)
+        answer = ProductStockDetailSerializer(_StockWithBatches(stock, batches)).data
+        return Response(answer, status=status.HTTP_201_CREATED)
 
 
 class MovementListView(OfficeView, ListAPIView[Any]):

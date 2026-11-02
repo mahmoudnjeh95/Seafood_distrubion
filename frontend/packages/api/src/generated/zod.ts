@@ -16634,6 +16634,71 @@ export const ListProductBatchesResponse = zod.array(ListProductBatchesResponseIt
 
 
 /**
+ * Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+ * kilos keep the lot's cost. The answer is the product's stock again, with its new average price.
+ */
+
+
+export const adjustStockBodyReasonMax = 200;
+
+
+
+export const AdjustStockBody = zod.object({
+  "location": zod.int().min(1),
+  "batch": zod.int().min(1),
+  "direction": zod.enum(['add', 'remove']).describe('* `add` - add\n* `remove` - remove'),
+  "quantity": zod.string(),
+  "reason": zod.string().max(adjustStockBodyReasonMax)
+})
+
+export const adjustStockResponseMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseLocationsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseAverageCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseLastCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseBatchesItemValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const adjustStockResponseBatchesItemLocationsItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const AdjustStockResponse = zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "illustration": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "min_stock": zod.stringFormat('decimal', adjustStockResponseMinStockRegExp),
+  "quantity": zod.stringFormat('decimal', adjustStockResponseQuantityRegExp),
+  "is_low": zod.boolean(),
+  "locations": zod.array(zod.object({
+  "location_id": zod.int(),
+  "quantity": zod.stringFormat('decimal', adjustStockResponseLocationsItemQuantityRegExp)
+})),
+  "average_cost": zod.stringFormat('decimal', adjustStockResponseAverageCostRegExp).nullable(),
+  "last_cost": zod.stringFormat('decimal', adjustStockResponseLastCostRegExp).nullable(),
+  "batches": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "supplier_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', adjustStockResponseBatchesItemUnitCostRegExp),
+  "quantity": zod.stringFormat('decimal', adjustStockResponseBatchesItemQuantityRegExp),
+  "value": zod.stringFormat('decimal', adjustStockResponseBatchesItemValueRegExp),
+  "locations": zod.array(zod.object({
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "quantity": zod.stringFormat('decimal', adjustStockResponseBatchesItemLocationsItemQuantityRegExp)
+}))
+}).describe('A batch of the product still on hand.'))
+}).describe('One product\'s stock: kg per location, the minimum-stock warning and the purchase prices (D-048).')
+
+
+/**
  * The stock ledger, newest first, paginated (`limit`, `offset`). A location filter keeps the
  * movements coming in or going out of it; dates are inclusive.
  */

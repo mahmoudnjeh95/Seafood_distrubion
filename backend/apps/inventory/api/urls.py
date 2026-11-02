@@ -42,5 +42,6 @@ urlpatterns = [
     # P1-T11 · stock screens
     path("stock/overview", views.StockOverviewView.as_view(), name="stock-overview"),
     path("stock/products/<int:product_id>", views.ProductStockView.as_view(), name="stock-product"),
+    path("stock/adjustments", views.StockAdjustmentView.as_view(), name="stock-adjustment"),
     path("stock/movements", views.MovementListView.as_view(), name="movement-list"),
 ]

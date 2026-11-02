@@ -3476,6 +3476,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: "day ends" is read as the closing being sent. If the owner means the office's approval, which comes
   later, the reset moves to `approve_day_closing`. The owner's peer PM confirmed this reading on 2026-11-02 (take the
   recommended option); the provisional status stays so the owner can move it.
+**D-247 · Stock adjustment by hand: add or remove kilos of a lot; the average price is worked out again (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- An office adjustment is an `adjustment` movement (the existing kind, reason required) posted by `services.adjust_stock`:
+  `POST /api/v1/stock/adjustments` (`adjustStock`) with a place, a lot, `add` or `remove`, kilos and the reason. Owners and
+  managers only; the answer is the product's stock with its new average price. Screen: "Ajuster le stock" on the product
+  page (`/stock/produits/:id`).
+- The kilos added keep the lot's cost. The average purchase price is not stored: it is weighted by the kilos on hand, so it
+  is worked out again from the ledger as soon as the adjustment is saved (no step to run). A removal is refused past what
+  the place holds, like any movement.
+- Provisional: the lots offered are those still on hand (a sold-out lot cannot be topped up: a receipt does that); no new
+  cost is typed on an addition (the lot's cost is used, a different cost is a receipt); no owner approval step (unlike a
+  loss above the threshold, D-045); the monthly closing counts an adjustment as spoilage, like a count correction.
 **D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
 - A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
   product the box starts unchecked. Before, every invoice started with VAT.

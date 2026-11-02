@@ -8408,6 +8408,35 @@ paths:
                 items:
                   $ref: '#/components/schemas/LocationBatch'
           description: ''
+  /api/v1/stock/adjustments:
+    post:
+      operationId: adjustStock
+      description: |-
+        Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+        kilos keep the lot's cost. The answer is the product's stock again, with its new average price.
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStockDetail'
+          description: ''
   /api/v1/stock/movements:
     get:
       operationId: listMovements
@@ -27640,6 +27669,36 @@ components:
       required:
       - count
       - total
+    StockAdjustmentWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        batch:
+          type: integer
+          minimum: 1
+        direction:
+          $ref: '#/components/schemas/StockAdjustmentWriteDirectionEnum'
+        quantity:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+      required:
+      - batch
+      - direction
+      - location
+      - quantity
+      - reason
+    StockAdjustmentWriteDirectionEnum:
+      enum:
+      - add
+      - remove
+      type: string
+      description: |-
+        * `add` - add
+        * `remove` - remove
     StockCheckHealth:
       type: object
       properties:

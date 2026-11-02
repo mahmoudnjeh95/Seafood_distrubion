@@ -346,6 +346,7 @@ import type {
   SiteRequestReceived,
   SiteSettings,
   SlowReport,
+  StockAdjustmentWrite,
   StockCheckHealth,
   StockLocation,
   StockLocationCreate,
@@ -27063,6 +27064,92 @@ export function useListProductBatches<TData = Awaited<ReturnType<typeof listProd
 
 
 
+
+export const getAdjustStockUrl = () => {
+
+
+
+
+  return `/api/v1/stock/adjustments`
+}
+
+/**
+ * Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+ * kilos keep the lot's cost. The answer is the product's stock again, with its new average price.
+ */
+export const adjustStock = async (stockAdjustmentWrite: StockAdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ProductStockDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ProductStockDetail>(getAdjustStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockAdjustmentWrite)
+  }
+);}
+
+
+
+
+
+export const getAdjustStockMutationKey = () => ['adjustStock'] as const;
+
+export const getAdjustStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext> => {
+
+const mutationKey = getAdjustStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustStock>>, AdjustStockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  adjustStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustStockMutationResult = NonNullable<Awaited<ReturnType<typeof adjustStock>>>
+    export type AdjustStockMutationBody = StockAdjustmentWrite
+    export type AdjustStockMutationError = unknown
+    export type AdjustStockMutationVariables = {data: StockAdjustmentWrite}
+
+    export const useAdjustStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof adjustStock>>,
+        TError,
+        AdjustStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdjustStockMutationOptions(options), queryClient);
+    }
 
 export const getListMovementsUrl = (params?: ListMovementsParams,) => {
   const normalizedParams = new URLSearchParams();
