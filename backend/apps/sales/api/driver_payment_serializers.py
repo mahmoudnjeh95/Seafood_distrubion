@@ -14,6 +14,12 @@ class RoadPaymentWriteSerializer(serializers.Serializer[Any]):
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
     # When the driver's phone says it happened (D-133); the server checks it.
     made_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    # The driver confirmed on the phone a cash amount at or above the cash limit (D-280).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
+
+
+class CashLimitSerializer(serializers.Serializer[Any]):
+    cash_limit = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
 class RoadPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):

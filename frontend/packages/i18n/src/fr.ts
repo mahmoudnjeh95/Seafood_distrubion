@@ -5563,6 +5563,10 @@ export const fr = {
       saved: "Règlement enregistré.",
       kept: "Pas de réseau : règlement gardé sur le téléphone, il partira tout seul.",
       failed: "Le règlement n'a pas pu être enregistré. Réessayez.",
+      overLimit:
+        "Cet encaissement en espèces atteint le plafond légal ({{limit}} DT). Vérifiez le montant : en l'enregistrant, vous confirmez l'avoir reçu.",
+      overLimitRow: "Plafond des espèces",
+      overLimitYes: "Dépassé, confirmé",
       today: "Mes règlements d'aujourd'hui",
     },
     offline: {

@@ -10575,6 +10575,18 @@ export const GetMyBoxDayResponse = zod.object({
 
 
 /**
+ * The amount from which a cash collection needs the driver's confirmation (D-273, D-280): the phone asks
+ * before sending, and keeps the answer for when it has no connection.
+ */
+export const getMyCashLimitResponseCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMyCashLimitResponse = zod.object({
+  "cash_limit": zod.stringFormat('decimal', getMyCashLimitResponseCashLimitRegExp)
+})
+
+
+/**
  * Active customers for a driver to sell to (name and city only, never what they owe: D-207): the ones
  * they sold to lately first, the walk-in customer last. Filter with `search`. At most 30 rows. When today's
  * load of the driver's truck names clients, only those clients and the walk-in customer are listed (D-174).
@@ -12196,13 +12208,15 @@ export const ListMyPaymentsResponse = zod.array(ListMyPaymentsResponseItem)
  */
 
 export const collectMyPaymentBodyMethodDefault = `cash`;
+export const collectMyPaymentBodyConfirmCashLimitDefault = false;
 
 export const CollectMyPaymentBody = zod.object({
   "customer": zod.int().min(1),
   "amount": zod.string(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire').default(collectMyPaymentBodyMethodDefault),
   "client_uuid": zod.uuid().nullish(),
-  "made_at": zod.iso.datetime({"offset":true}).nullish()
+  "made_at": zod.iso.datetime({"offset":true}).nullish(),
+  "confirm_cash_limit": zod.boolean().default(collectMyPaymentBodyConfirmCashLimitDefault)
 })
 
 export const collectMyPaymentResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -14909,7 +14923,7 @@ export const createReceiptBodyBoxesMinOne = 0;
 export const createReceiptBodyPaymentsItemReferenceDefault = ``;
 export const createReceiptBodyPaymentsItemReferenceMax = 50;
 
-
+export const createReceiptBodyConfirmCashLimitDefault = false;
 
 export const CreateReceiptBody = zod.object({
   "supplier": zod.int().min(1),
@@ -14934,7 +14948,8 @@ export const CreateReceiptBody = zod.object({
   "amount": zod.string(),
   "reference": zod.string().max(createReceiptBodyPaymentsItemReferenceMax).default(createReceiptBodyPaymentsItemReferenceDefault),
   "cash_on": zod.iso.date().nullish()
-})).optional()
+})).optional(),
+  "confirm_cash_limit": zod.boolean().default(createReceiptBodyConfirmCashLimitDefault)
 })
 
 export const createReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');

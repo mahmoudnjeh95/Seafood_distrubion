@@ -5,6 +5,7 @@ import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput, toast } fro
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { overCashLimit, useCashLimit } from "./cashLimit";
 import { sendOrKeep } from "./sendOrKeep";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
@@ -31,6 +32,7 @@ export function PaymentPage() {
   const [uuid, setUuid] = useState(newUuid);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const cashLimit = useCashLimit();
 
   if (!hasTruck) {
     return (
@@ -40,13 +42,21 @@ export function PaymentPage() {
     );
   }
   const amountValue = parseDecimalInput(amount.trim(), 3);
+  // At or above the cash limit the driver confirms, and the payment goes with that confirmation (D-280).
+  const needsConfirm = overCashLimit(amountValue, cashLimit);
   const ready = customer !== null && amountValue !== null && Number(amountValue) > 0;
 
   const save = async () => {
     if (customer === null || amountValue === null) return;
     setSaving(true);
     setError("");
-    const data = { customer: customer.id, amount: amountValue, method: "cash" as const, client_uuid: uuid };
+    const data = {
+      customer: customer.id,
+      amount: amountValue,
+      method: "cash" as const,
+      client_uuid: uuid,
+      ...(needsConfirm ? { confirm_cash_limit: true } : {}),
+    };
     try {
       const outcome = await sendOrKeep(
         {
@@ -127,6 +137,11 @@ export function PaymentPage() {
               onChange={(event) => setAmount(event.target.value)}
             />
           </div>
+          {needsConfirm ? (
+            <p role="alert" className="rounded-chip bg-warn-soft px-3 py-2 font-semibold text-warn">
+              {t("truck.payment.overLimit", { limit: formatMoney(cashLimit) })}
+            </p>
+          ) : null}
           {error === "" ? null : <p className="text-bad">{error}</p>}
           <ConfirmButton
             size="lg"
@@ -134,7 +149,12 @@ export function PaymentPage() {
             className="py-4 text-lg"
             disabled={!ready || saving}
             title={customer?.name}
-            rows={[[t("truck.payment.amount"), formatMoney(amountValue ?? "0")]]}
+            rows={[
+              [t("truck.payment.amount"), formatMoney(amountValue ?? "0")],
+              ...(needsConfirm
+                ? [[t("truck.payment.overLimitRow"), t("truck.payment.overLimitYes")] as [string, string]]
+                : []),
+            ]}
             onConfirm={() => void save()}
           >
             {t("truck.payment.save")}

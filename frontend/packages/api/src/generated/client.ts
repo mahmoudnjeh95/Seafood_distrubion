@@ -42,6 +42,7 @@ import type {
   CashCount,
   CashCountWrite,
   CashFlow,
+  CashLimit,
   Category,
   ChangePassword,
   CloseLot,
@@ -15478,6 +15479,105 @@ export function useGetMyBoxDay<TData = Awaited<ReturnType<typeof getMyBoxDay>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetMyBoxDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyCashLimitUrl = () => {
+
+
+
+
+  return `/api/v1/my-cash-limit`
+}
+
+/**
+ * The amount from which a cash collection needs the driver's confirmation (D-273, D-280): the phone asks
+ * before sending, and keeps the answer for when it has no connection.
+ */
+export const getMyCashLimit = async ( options?: Parameters<typeof apiFetch>[1]): Promise<CashLimit> => {
+
+  return apiFetch<CashLimit>(getGetMyCashLimitUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyCashLimitQueryKey = () => {
+    return [
+    `/api/v1/my-cash-limit`
+    ] as const;
+    }
+
+
+export const getGetMyCashLimitQueryOptions = <TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyCashLimitQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCashLimit>>> = ({ signal }) => getMyCashLimit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyCashLimitQueryResult = NonNullable<Awaited<ReturnType<typeof getMyCashLimit>>>
+export type GetMyCashLimitQueryError = unknown
+
+
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyCashLimit>>,
+          TError,
+          Awaited<ReturnType<typeof getMyCashLimit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyCashLimit>>,
+          TError,
+          Awaited<ReturnType<typeof getMyCashLimit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyCashLimitQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

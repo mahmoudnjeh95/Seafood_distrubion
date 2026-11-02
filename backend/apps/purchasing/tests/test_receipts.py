@@ -17,7 +17,7 @@ from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.partnerships.models import LotPartnership
 from apps.purchasing import selectors, services
-from apps.purchasing.models import GoodsReceipt
+from apps.purchasing.models import GoodsReceipt, SupplierPayment
 
 pytestmark = pytest.mark.django_db
 
@@ -399,3 +399,26 @@ def test_a_line_amount_too_big_to_store_is_refused_on_its_cost(organization, act
         )
     assert "lines.0.unit_cost" in failure.value.message_dict
     assert not GoodsReceipt.objects.exists()
+
+
+def test_money_given_at_reception_needs_the_cash_limit_confirmation(db):
+    client, owner = client_for(Role.OWNER)
+    organization = owner.organization
+    supplier = SupplierFactory.create(organization=organization)
+    room = StockLocationFactory.create(organization=organization)
+    product = ProductFactory.create(organization=organization)
+    body = {
+        **payload(supplier, room, product, unit_cost="100.000"),
+        "payments": [{"method": "cash", "amount": "5000.000"}],
+    }
+
+    refused = client.post(reverse("receipt-list"), body, format="json")
+
+    assert refused.status_code == 400
+    assert "cash_limit" in refused.json()
+    assert GoodsReceipt.objects.count() == 0  # the whole receipt rolled back
+
+    confirmed = client.post(reverse("receipt-list"), {**body, "confirm_cash_limit": True}, format="json")
+
+    assert confirmed.status_code == 201
+    assert SupplierPayment.objects.get().cash_limit_confirmed is True

@@ -2436,6 +2436,7 @@ def receive_goods(
     boxes: Mapping[str, int] | None = None,
     payments: Sequence[FieldPaymentFields] = (),
     with_vat: bool = False,
+    confirm_cash_limit: bool = False,
 ) -> GoodsReceipt:
     """Record goods received: the receipt, its batches, stock and boxes (D-268). No invoice is made here: the
     office makes the supplier's invoice afterwards, from this receipt. `payments` are the sums given now (D-192):
@@ -2483,6 +2484,7 @@ def receive_goods(
             cash_on=payment["cash_on"],
             notes=_("Donné à la réception %(number)s") % {"number": receipt.number},
             allocations=[],
+            confirm_cash_limit=confirm_cash_limit,
         )
     return receipt
 
