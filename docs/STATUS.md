@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; next free decision D-243)_
+_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); next free decision D-248)_
 
 ## Where we are
 
+- **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
+  removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
+  The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
 - **D-242 (2026-11-02, PR open, provisional):** sending a driver's closing resets that driver's "Fonds de caisse" and
   "Argent pour les achats" for the day to 0 (`fleet.services.end_driver_day`). The day's own figures stay. Check on staging:
   Camions du jour › Fonds de caisse after a closing is sent shows 0 for that driver.
@@ -38,6 +41,7 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
 
 ## Next step
 
+0. P1-T15 (#280): merge once green. On staging: a product, "Ajuster le stock", add 10 kg to a lot then remove it; the average on the product page and on Prix du jour moves.
 1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
    opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
