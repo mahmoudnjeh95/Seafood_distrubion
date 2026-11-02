@@ -15,6 +15,7 @@ from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.dayclose.models import DayClosing, DayClosingRevision, DayClosingStatus
 from apps.fleet import services as fleet
+from apps.fleet.models import DayFund
 from apps.inventory import services as inventory
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
@@ -230,6 +231,19 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     assert approved.json()["review_note"] == "Billet faux"
     assert day["api"].post(reverse("my-day-closing"), {}, format="json").status_code == 400  # locked
     assert day["office"].post(url).status_code == 400
+
+
+def test_sending_the_day_resets_the_cash_the_office_set_for_that_driver_to_zero(day):
+    sell(day, "5", "100.000")
+    DayFund.objects.filter(driver=day["driver"]).update(purchase_float=Decimal("30.000"))
+
+    sent = day["api"].post(reverse("my-day-closing"), {}, format="json")
+
+    assert (sent.status_code, sent.json()["closing"]["expected_cash"]) == (201, "150.000")  # the day keeps its start
+    assert (day["api"].get(reverse("my-day-fund")).json()["opening_cash"]) == "0.000"
+    rows = day["office"].get(reverse("day-fund-list"), {"date": timezone.localdate().isoformat()}).json()
+    mine = next(row for row in rows if row["driver"]["id"] == day["driver"].pk)
+    assert (mine["fund"]["opening_cash"], mine["fund"]["purchase_float"]) == ("0.000", "0.000")
 
 
 def load_again(day, kg):

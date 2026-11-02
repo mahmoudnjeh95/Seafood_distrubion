@@ -465,11 +465,37 @@ def set_purchase_float(*, driver_day: DriverDay, actor: User, purchase_float: De
 
 def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
     """The driver sent the day's closing: the day is over and its records stop here (D-134). Called inside the
-    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end."""
+    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end. The office's
+    cash for that driver and day is reset to zero (D-242): the day keeps the amounts it started with."""
     if driver_day.ended_at is None:
         driver_day.ended_at = ended_at
         driver_day.save(update_fields=["ended_at", "updated_at"])
+        _reset_day_fund(driver_day)
     return driver_day
+
+
+def _reset_day_fund(driver_day: DriverDay) -> None:
+    """Set the driver's "Fonds de caisse" and "Argent pour les achats" of that day back to zero (D-242). The fund
+    row stays, with its acceptance, so the office still sees the day was started."""
+    fund = (
+        DayFund.objects.select_for_update()
+        .filter(organization=driver_day.organization, driver=driver_day.driver, date=driver_day.date)
+        .first()
+    )
+    if fund is None or (fund.opening_cash == 0 and fund.purchase_float == 0):
+        return
+    before = {"opening_cash": str(fund.opening_cash), "purchase_float": str(fund.purchase_float)}
+    fund.opening_cash = Decimal("0.000")
+    fund.purchase_float = Decimal("0.000")
+    fund.save(update_fields=["opening_cash", "purchase_float", "updated_at"])
+    audit.record(
+        organization=driver_day.organization,
+        actor=None,
+        action="day_fund.reset",
+        target=fund,
+        before=before,
+        after={"opening_cash": "0.000", "purchase_float": "0.000", "date": str(driver_day.date)},
+    )
 
 
 def reopen_driver_day(*, driver_day: DriverDay) -> DriverDay:

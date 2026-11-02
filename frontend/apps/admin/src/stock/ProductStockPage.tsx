@@ -1,9 +1,12 @@
 import { ApiError, useGetProductStock, useListLocations, useListMovements } from "@frutti/api";
+import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
-import { Card, CardTitle, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
-import { Link, useParams } from "react-router";
+import { Button, Card, CardTitle, Dialog, Icon, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import { useState } from "react";
+import { Link, useOutletContext, useParams } from "react-router";
 
 import { StockTabs } from "../lib/StockTabs";
+import { AdjustStockDialog } from "./AdjustStockDialog";
 import { MovementsTable } from "./MovementsTable";
 import { PurchasePrices } from "./StockProductCard";
 
@@ -12,10 +15,14 @@ const HISTORY_SIZE = 20;
 /** One product: totals and purchase prices, the batches still on hand, and the latest movements. */
 export function ProductStockPage() {
   const { t } = useTranslation();
+  const session = useOutletContext<Session>();
   const productId = Number(useParams().productId);
   const stock = useGetProductStock(productId);
   const places = useListLocations({ status: "all" });
   const movements = useListMovements({ product: productId, limit: HISTORY_SIZE });
+  const [adjusting, setAdjusting] = useState(false);
+  // Adjusting by hand is for the owner and the manager; the server refuses the others too.
+  const canAdjust = session.role === "owner" || session.role === "manager";
 
   const back = (
     <Link to="/stock" className="text-[0.85rem] font-semibold text-sea hover:underline">
@@ -49,6 +56,17 @@ export function ProductStockPage() {
         )}
       </PageHeader>
       <StockTabs />
+      {canAdjust && (
+        <div>
+          <Button onClick={() => setAdjusting(true)}>
+            <Icon name="plus" />
+            {t("admin.stock.product.adjust.open")}
+          </Button>
+        </div>
+      )}
+      <Dialog open={adjusting} onOpenChange={setAdjusting}>
+        {adjusting && <AdjustStockDialog stock={data} onDone={() => setAdjusting(false)} />}
+      </Dialog>
 
       <Card className="grid gap-4 p-4 sm:grid-cols-3" role="region" aria-label={t("admin.stock.product.summary")}>
         <div>
