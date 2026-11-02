@@ -5682,6 +5682,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/TruckDay'
           description: ''
+  /api/v1/notifications/payment-orders/{plan_line_id}:
+    post:
+      operationId: notifyPaymentOrder
+      description: |-
+        Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
+        and it opens the supplier règlements.
+      parameters:
+      - in: path
+        name: plan_line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderNotice'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderNotice'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderNotice'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/notifications/recipients:
+    get:
+      operationId: listNoticeRecipients
+      description: 'The people a payment order can be sent to: the active owners and
+        managers (D-255).'
+      tags:
+      - notifications
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipient'
+          description: ''
   /api/v1/numbering:
     get:
       operationId: getNumbering
@@ -23751,6 +23800,14 @@ components:
         * `transfer` - Virement
         * `bill` - Traite
         * `other` - Autre
+    PaymentOrderNotice:
+      type: object
+      properties:
+        recipient:
+          type: integer
+          minimum: 1
+      required:
+      - recipient
     PaymentRef:
       type: object
       properties:
@@ -25607,6 +25664,18 @@ components:
       - happened_on
       - note
       - to_status
+    Recipient:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
     RecordPayment:
       type: object
       description: The part of one payment that settled the salary.

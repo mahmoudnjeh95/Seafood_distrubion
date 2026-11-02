@@ -3728,6 +3728,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 
 - The menu entry can own more paths: an optional `owns` list on a nav item (`AdminShell`). The active entry is the longest path the page is under, its own or an owned one, so the Trésorier entry owns `/tresorerie`, `/achats/paiements` and `/achats/reglements`, and `Achats` no longer lights up on the supplier payment screens.
 
+**D-255 · "Notifier" on an ordre de paiement tells one person of the office (Phase 9, P9-T09h)** · accepted · 2026-11-02
+- On a planned supplier payment (D-192), "Notifier" picks an owner or a manager and sends them the order: it appears in
+  their bell ("Untel vous envoie un ordre de paiement : fournisseur, facture, montant") and opens the supplier règlements.
+- A notification can now be addressed to one office person (`recipient` on an office notification): only they read it.
+  The whole office's notifications stay as they were.
+- Only owners and managers are offered: the accountant reads the books and is not told.
 **D-258 · The office chooses the cold room that takes the truck's stock back (owner request, 2026-11-02; updates D-249)** · accepted · 2026-11-02
 - The owner's answer to D-249's provisional points: the approval stays blocked while the truck holds stock or boxes, and
   the return no longer goes to the first active cold room by itself. "Remettre le camion en stock" asks for the cold

@@ -302,6 +302,7 @@ import type {
   PatchedTruckWrite,
   PatchedUpdateProfile,
   PaymentAllocate,
+  PaymentOrderNotice,
   PaymentTotals,
   PaymentVoid,
   PayrollSummary,
@@ -325,6 +326,7 @@ import type {
   Receipt,
   ReceiptWrite,
   ReceivablesAgeing,
+  Recipient,
   RecurringCost,
   RecurringCostWrite,
   ReopenLot,
@@ -18198,6 +18200,191 @@ export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetMyTruckDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getNotifyPaymentOrderUrl = (planLineId: number,) => {
+
+
+
+
+  return `/api/v1/notifications/payment-orders/${planLineId}`
+}
+
+/**
+ * Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
+ * and it opens the supplier règlements.
+ */
+export const notifyPaymentOrder = async (planLineId: number,
+    paymentOrderNotice: PaymentOrderNotice, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getNotifyPaymentOrderUrl(planLineId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentOrderNotice)
+  }
+);}
+
+
+
+
+
+export const getNotifyPaymentOrderMutationKey = () => ['notifyPaymentOrder'] as const;
+
+export const getNotifyPaymentOrderMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notifyPaymentOrder>>, TError,NotifyPaymentOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof notifyPaymentOrder>>, TError,NotifyPaymentOrderMutationVariables, TContext> => {
+
+const mutationKey = getNotifyPaymentOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notifyPaymentOrder>>, NotifyPaymentOrderMutationVariables> = (props) => {
+          const {planLineId,data} = props ?? {};
+
+          return  notifyPaymentOrder(planLineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotifyPaymentOrderMutationResult = NonNullable<Awaited<ReturnType<typeof notifyPaymentOrder>>>
+    export type NotifyPaymentOrderMutationBody = PaymentOrderNotice
+    export type NotifyPaymentOrderMutationError = unknown
+    export type NotifyPaymentOrderMutationVariables = {planLineId: number;data: PaymentOrderNotice}
+
+    export const useNotifyPaymentOrder = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notifyPaymentOrder>>, TError,NotifyPaymentOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notifyPaymentOrder>>,
+        TError,
+        NotifyPaymentOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNotifyPaymentOrderMutationOptions(options), queryClient);
+    }
+
+export const getListNoticeRecipientsUrl = () => {
+
+
+
+
+  return `/api/v1/notifications/recipients`
+}
+
+/**
+ * The people a payment order can be sent to: the active owners and managers (D-255).
+ */
+export const listNoticeRecipients = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Recipient[]> => {
+
+  return apiFetch<Recipient[]>(getListNoticeRecipientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNoticeRecipientsQueryKey = () => {
+    return [
+    `/api/v1/notifications/recipients`
+    ] as const;
+    }
+
+
+export const getListNoticeRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNoticeRecipientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNoticeRecipients>>> = ({ signal }) => listNoticeRecipients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListNoticeRecipientsQueryResult = NonNullable<Awaited<ReturnType<typeof listNoticeRecipients>>>
+export type ListNoticeRecipientsQueryError = unknown
+
+
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNoticeRecipients>>,
+          TError,
+          Awaited<ReturnType<typeof listNoticeRecipients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNoticeRecipients>>,
+          TError,
+          Awaited<ReturnType<typeof listNoticeRecipients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListNoticeRecipientsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -11997,6 +11997,34 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
+ * Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
+ * and it opens the supplier règlements.
+ */
+export const NotifyPaymentOrderParams = zod.object({
+  "plan_line_id": zod.int()
+})
+
+
+
+
+export const NotifyPaymentOrderBody = zod.object({
+  "recipient": zod.int().min(1)
+})
+
+export const NotifyPaymentOrderResponse = zod.void()
+
+
+/**
+ * The people a payment order can be sent to: the active owners and managers (D-255).
+ */
+export const ListNoticeRecipientsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})
+export const ListNoticeRecipientsResponse = zod.array(ListNoticeRecipientsResponseItem)
+
+
+/**
  * The prefixes of every number and the next number of each kind (Paramètres, D-223). Owners and managers
  * change them; the accountant reads them; drivers do not see them.
  */

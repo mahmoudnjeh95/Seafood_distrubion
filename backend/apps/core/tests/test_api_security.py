@@ -152,7 +152,7 @@ OWNER_ONLY_CLEARING = (
 # Loading the company's data (P4-T01, D-112) and managing other users (D-123): the owner alone.
 OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members")
 # The API map: owner and manager only.
-OFFICE_ONLY = ("/api/v1/schema",)
+OFFICE_ONLY = ("/api/v1/schema", "/api/v1/notifications/recipients")
 
 
 def test_every_route_checks_a_role():
@@ -336,6 +336,7 @@ OWN_DEFAULTS = {
     "/api/v1/members",
     "/api/v1/months",
     "/api/v1/numbering",
+    "/api/v1/notifications/recipients",
 }
 
 
