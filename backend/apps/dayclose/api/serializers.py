@@ -112,6 +112,9 @@ class MyDayRowSerializer(serializers.Serializer[Any]):
 
 
 class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
+    # The driver's day: the office's review of it (expenses, purchases, stock, boxes) is read from it (D-239).
+    driver_day_id = serializers.IntegerField(read_only=True)
+
     date = serializers.DateField(source="driver_day.date", read_only=True)
     truck_name = serializers.CharField(source="driver_day.truck.location.name", read_only=True)
     driver_name = serializers.SerializerMethodField()
@@ -121,6 +124,7 @@ class DayClosingRowSerializer(serializers.ModelSerializer[DayClosing]):
         model = DayClosing
         fields: tuple[str, ...] = (
             "id",
+            "driver_day_id",
             "date",
             "truck_name",
             "driver_name",
@@ -221,6 +225,8 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
     changes_since_sent = serializers.SerializerMethodField()
     # Any such difference: the office waits for the day sent again (D-132).
     changed_since_sent = serializers.SerializerMethodField()
+    # What the office must still settle before the approval (D-239); empty when it can approve.
+    review_blockers = serializers.SerializerMethodField()
 
     class Meta(DayClosingRowSerializer.Meta):
         fields: tuple[str, ...] = (
@@ -235,6 +241,7 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
             "revisions",
             "changes_since_sent",
             "changed_since_sent",
+            "review_blockers",
         )
         read_only_fields = fields
 
@@ -244,6 +251,10 @@ class DayClosingDetailSerializer(DayClosingRowSerializer):
 
     def get_changed_since_sent(self, closing: DayClosing) -> bool:
         return selectors.changed_since_sent(closing)
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_review_blockers(self, closing: DayClosing) -> list[str]:
+        return selectors.review_blockers(closing.organization, closing.driver_day)
 
     def get_reviewed_by_name(self, closing: DayClosing) -> str:
         return _person(closing.reviewed_by)
@@ -377,8 +388,11 @@ class DayOverviewExpenseSerializer(serializers.Serializer[Any]):
     category_name = serializers.CharField(read_only=True)
     description = serializers.CharField(read_only=True)
     amount = _money()
+    # "draft" or "pending" until the office approves or refuses it (D-239), then "approved" or "rejected".
     status = serializers.CharField(read_only=True)
     payment_method = serializers.CharField(read_only=True)
+    paid_by_driver = serializers.BooleanField(read_only=True)
+    rejection_reason = serializers.CharField(read_only=True)
     made_at = serializers.DateTimeField(read_only=True)
 
 
@@ -394,6 +408,26 @@ class DayOverviewPurchaseSerializer(serializers.Serializer[Any]):
     made_at = serializers.DateTimeField(read_only=True)
 
 
+class DayStockSerializer(serializers.Serializer[Any]):
+    """One product on the truck, now (D-239): its kilos, and the kilos of the day's purchases not yet validated."""
+
+    product_id = serializers.IntegerField(read_only=True)
+    product_name = serializers.CharField(read_only=True)
+    on_truck = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    purchased_pending = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+
+
+class DayBoxSerializer(serializers.Serializer[Any]):
+    """One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what
+    the day's purchases brought from suppliers."""
+
+    box_type = serializers.CharField(read_only=True)
+    on_truck = serializers.IntegerField(read_only=True)
+    left_at_clients = serializers.IntegerField(read_only=True)
+    collected = serializers.IntegerField(read_only=True)
+    from_suppliers = serializers.IntegerField(read_only=True)
+
+
 class DayOverviewDetailSerializer(DayOverviewRowSerializer):
     closing = DayClosingOfficeSerializer(read_only=True, allow_null=True)
     sales = DayOverviewSaleSerializer(many=True, read_only=True)
@@ -401,9 +435,21 @@ class DayOverviewDetailSerializer(DayOverviewRowSerializer):
     payments = DayOverviewPaymentSerializer(many=True, read_only=True)
     expenses = DayOverviewExpenseSerializer(many=True, read_only=True)
     purchases = DayOverviewPurchaseSerializer(many=True, read_only=True)
+    # The truck's stock and boxes are the day's to give back only on the truck's latest day (D-239).
+    owns_truck = serializers.BooleanField(read_only=True)
+    stock = DayStockSerializer(many=True, read_only=True)
+    boxes = DayBoxSerializer(many=True, read_only=True)
+    # What the office must still settle before it approves the day.
+    review_blockers = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     class Meta:
         ref_name = "DayOverviewDetail"
+
+
+class DayExpenseDecisionSerializer(serializers.Serializer[Any]):
+    decision = serializers.ChoiceField(choices=(("approve", "approve"), ("reject", "reject")))
+    # Why it is refused (kept on the expense, shown to the driver).
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
 
 
 class DayOverviewFilterSerializer(serializers.Serializer[Any]):

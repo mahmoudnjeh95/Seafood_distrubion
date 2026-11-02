@@ -13,5 +13,7 @@ export interface DayOverviewExpense {
   readonly amount: string;
   readonly status: string;
   readonly payment_method: string;
+  readonly paid_by_driver: boolean;
+  readonly rejection_reason: string;
   readonly made_at: string;
 }

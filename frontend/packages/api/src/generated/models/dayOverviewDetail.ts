@@ -4,12 +4,14 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { DayBox } from './dayBox';
 import type { DayClosingOffice } from './dayClosingOffice';
 import type { DayOverviewExpense } from './dayOverviewExpense';
 import type { DayOverviewPayment } from './dayOverviewPayment';
 import type { DayOverviewPurchase } from './dayOverviewPurchase';
 import type { DayOverviewSale } from './dayOverviewSale';
 import type { DayProduct } from './dayProduct';
+import type { DayStock } from './dayStock';
 import type { PhaseEnum } from './phaseEnum';
 
 /**
@@ -70,4 +72,8 @@ export interface DayOverviewDetail {
   readonly payments: readonly DayOverviewPayment[];
   readonly expenses: readonly DayOverviewExpense[];
   readonly purchases: readonly DayOverviewPurchase[];
+  readonly owns_truck: boolean;
+  readonly stock: readonly DayStock[];
+  readonly boxes: readonly DayBox[];
+  readonly review_blockers: readonly string[];
 }

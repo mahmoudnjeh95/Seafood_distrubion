@@ -1909,6 +1909,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/DayOverviewDetail'
           description: ''
+  /api/v1/day-overview/{day_id}/expenses/{expense_id}/decide:
+    post:
+      operationId: decideDayOverviewExpense
+      description: |-
+        Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+        A sent day whose figures move is corrected with a revision.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/purchases/{purchase_id}/validate:
+    post:
+      operationId: validateDayOverviewPurchase
+      description: |-
+        Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+        while the purchase is not complete (supplier, products, place).
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/return-to-stock:
+    post:
+      operationId: returnDayOverviewToStock
+      description: |-
+        Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
+        or not the driver sent the day; only on the truck's latest day.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
   /api/v1/day-overview/{day_id}/route:
     get:
       operationId: getDayRoute
@@ -10062,6 +10153,80 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/treasury/accounts/{account_id}/statement-lines:
+    get:
+      operationId: listStatementLines
+      description: The lines imported on a bank account between two days (inclusive),
+        oldest first, paginated.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBankStatementLineList'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/statement/import:
+    post:
+      operationId: importBankStatement
+      description: |-
+        Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+        or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+        already on the account is skipped, so the same file twice adds nothing.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementImport'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportReport'
+          description: ''
   /api/v1/treasury/banks:
     get:
       operationId: listBanks
@@ -10635,6 +10800,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/PartyDocuments'
           description: ''
+  /api/v1/treasury/statement-lines/{line_id}:
+    put:
+      operationId: setStatementLineParty
+      description: |-
+        Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+        credit. Both left empty clears it.
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+          description: ''
+    delete:
+      operationId: deleteStatementLine
+      description: 'Take a line off the statement (owner or manager): a wrong import.
+        It was only a copy of the bank''s file.'
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/treasury/transfers:
     get:
       operationId: listAccountTransfers
@@ -11548,6 +11764,54 @@ components:
       - is_active
       - name
       - swift
+    BankStatementLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        debit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+      required:
+      - balance
+      - credit
+      - customer
+      - day
+      - debit
+      - id
+      - label
+      - supplier
     BankWrite:
       type: object
       properties:
@@ -14102,6 +14366,33 @@ components:
       - sales
       - settlements_undefined_late
       - stock_value
+    DayBox:
+      type: object
+      description: |-
+        One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what
+        the day's purchases brought from suppliers.
+      properties:
+        box_type:
+          type: string
+          readOnly: true
+        on_truck:
+          type: integer
+          readOnly: true
+        left_at_clients:
+          type: integer
+          readOnly: true
+        collected:
+          type: integer
+          readOnly: true
+        from_suppliers:
+          type: integer
+          readOnly: true
+      required:
+      - box_type
+      - collected
+      - from_suppliers
+      - left_at_clients
+      - on_truck
     DayClosingApprove:
       type: object
       properties:
@@ -14155,6 +14446,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14243,10 +14537,16 @@ components:
         changed_since_sent:
           type: boolean
           readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
       - changed_since_sent
       - changes_since_sent
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14257,6 +14557,7 @@ components:
       - office_difference
       - office_purchase_difference
       - reopenings
+      - review_blockers
       - review_note
       - reviewed_at
       - reviewed_by_name
@@ -14271,6 +14572,9 @@ components:
         the driver''s note, and the office''s count.'
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14324,6 +14628,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14368,6 +14673,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14418,6 +14726,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - expected_cash
       - expected_purchase_cash
@@ -14490,6 +14799,17 @@ components:
         note:
           type: string
           default: ''
+    DayExpenseDecision:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - decision
     DayFund:
       type: object
       description: The cash the office set for a driver's day (D-203).
@@ -14916,7 +15236,26 @@ components:
           items:
             $ref: '#/components/schemas/DayOverviewPurchase'
           readOnly: true
+        owns_truck:
+          type: boolean
+          readOnly: true
+        stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayStock'
+          readOnly: true
+        boxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayBox'
+          readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
+      - boxes
       - cash_received
       - closing
       - closing_id
@@ -14937,6 +15276,7 @@ components:
       - opening_cash
       - other_payments
       - owed_to_driver
+      - owns_truck
       - payments
       - payments_cash
       - phase
@@ -14948,9 +15288,11 @@ components:
       - purchases_from_sales
       - purchases_other
       - purchases_total
+      - review_blockers
       - sales
       - sales_count
       - sales_total
+      - stock
       - truck_name
     DayOverviewDriver:
       type: object
@@ -14988,6 +15330,12 @@ components:
         payment_method:
           type: string
           readOnly: true
+        paid_by_driver:
+          type: boolean
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
         made_at:
           type: string
           format: date-time
@@ -14998,7 +15346,9 @@ components:
       - description
       - id
       - made_at
+      - paid_by_driver
       - payment_method
+      - rejection_reason
       - status
     DayOverviewPayment:
       type: object
@@ -15457,6 +15807,32 @@ components:
       - last
       - points
       - stops
+    DayStock:
+      type: object
+      description: 'One product on the truck, now (D-239): its kilos, and the kilos
+        of the day''s purchases not yet validated.'
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        on_truck:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        purchased_pending:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - on_truck
+      - product_id
+      - product_name
+      - purchased_pending
     DaySummary:
       type: object
       properties:
@@ -15606,6 +15982,14 @@ components:
       - sales_count
       - sales_total
       - truck_name
+    DecisionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
     Deliver:
       type: object
       description: The delivery of the BL of a truck load, from the driver's phone
@@ -21840,6 +22224,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AccountTransfer'
+    PaginatedBankStatementLineList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankStatementLine'
     PaginatedBatchList:
       type: object
       required:
@@ -27918,6 +28325,55 @@ components:
       - rows
       - total_quantity
       - total_value
+    StatementImport:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    StatementImportReport:
+      type: object
+      properties:
+        created:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementRowError'
+          readOnly: true
+      required:
+      - created
+      - problems
+      - skipped
+    StatementLineParty:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+          nullable: true
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+    StatementRowError:
+      type: object
+      properties:
+        row:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - message
+      - row
     StatusTotal:
       type: object
       properties:

@@ -3523,6 +3523,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
 - The money leaves our accounts the day it is paid, as a settlement payment does (D-240): a treasury movement out of the account its means goes to, kind `partner_settlement`, labelled "Avance". Provisional: the kind is shared with the settlements.
 
+**D-253 · The bank's statement is imported from Excel as a copy, line by line, each line given to a customer or a supplier (Phase 9, P9-T09d)** · accepted · 2026-11-02
+- On the Journal des banques, a bank account takes the bank's Excel file (columns DATE, LIBELLE, DEBIT, CREDIT and,
+  optionally, SOLDE; a date is an Excel date or text like "03-janv-24"; amounts may have a decimal comma). All or
+  nothing: one unreadable row, listed with its row number, and nothing is saved.
+- A line already on the account (same day, label, debit, credit and balance) is skipped, so the same file twice adds
+  nothing; two identical lines inside one new file are both kept.
+- The lines are a copy of what the bank says (`BankStatementLine`): they move no money and change no balance of ours.
+  The matching of a line with our own movements (rapprochement bancaire) is still to be decided with the accountant.
+- A line at the debit takes a customer, a line at the credit a supplier (Perfaxis' "Tiers"); both can be cleared. A
+  wrong import is fixed by removing lines (audited).
+- Limits: 5 MB and 5 000 rows a file, as for the other imports.
 **D-248 · The purchase money is set by the office only; the driver approves it when starting the day (owner request, 2026-11-02)** · accepted · 2026-11-02
 - The money for purchases at the port (`DriverDay.purchase_float`) is typed by the office in "Camions du jour › Fonds de caisse"
   (`PUT /day-funds`). The driver approves it with the cash when starting the day (D-203, `POST /my-day`), then cannot change it.
@@ -3564,6 +3575,32 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The rate stays in Paramètres financiers (0 by default): with a rate at 0, a 1 000 DT invoice shows no line. The
   owner sets the rate.
 - Issued invoices keep what they had (D-057); a draft takes the rule when it is next saved.
+
+**D-249 · The office checks a driver's day before approving it: expenses, purchases, the truck's stock and boxes (owner list 2026-11-02, items 1 to 4)** · provisional · 2026-11-02
+- **Where:** the day's check sits in the closing window ("Clôtures à vérifier") and in "Suivi des chauffeurs", as the
+  component `DayReview`. It reads `GET /day-overview/<id>` (new `owns_truck`, `stock`, `boxes`, `review_blockers`).
+- **Expenses (item 1):** each driver expense of the day is approved or refused from there
+  (`POST /day-overview/<id>/expenses/<expense>/decide`, a refusal needs its reason). Only the day's own expenses (typed by
+  its driver, dated in its window).
+- **Purchases (item 3):** a purchase made on the day is counted on the truck as bought ("Acheté, à valider" kilos in the
+  stock table). The office validates it with one button (`POST …/purchases/<purchase>/validate`, the same validation as
+  the purchase page: its kilos enter the truck's stock). A purchase missing its supplier, product or place is refused
+  with the reason; the office completes it on the purchase page.
+- **Stock and boxes back to the cold room (items 2 and 4):** one button, "Remettre le camion en stock", posts a return
+  transfer of everything the truck holds (kilos and boxes) to the first active cold room, validated at once
+  (`POST …/return-to-stock`). It works whether or not the driver sent the day. Provisional: the cold room is the first
+  active one by id (no choice on the button yet).
+- **Only the truck's latest day owns its stock:** `fleet.latest_day_on_truck`. On an earlier day the stock and boxes are
+  not shown and cannot be returned (they belong to a later day), and they do not block its approval.
+- **Approval is refused** while the day still has an expense to approve or refuse, a purchase to validate or refuse, or
+  (on the truck's latest day) kilos or boxes in the truck. The reason shows on the closing (`review_blockers`).
+- **A sent day moved by the office's decision is corrected, not re-sent:** refusing an expense or validating/refusing a
+  purchase that changes the figures calls the existing correction (D-220) with the reason, so the revision shows who and
+  why. A return changes no figure of the day (it happens after the send), so it creates no revision.
+- Also: a transfer may carry only boxes (no product line), needed for the truck that gives back its boxes alone.
+- Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier);
+  choosing the cold room for the return; the owner may prefer approval to ask for a reason instead of blocking.
+- Migration: none. Tests: `dayclose/tests/test_day_review.py`.
 **D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
 - A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
   product the box starts unchecked. Before, every invoice started with VAT.

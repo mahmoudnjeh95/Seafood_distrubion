@@ -25,6 +25,7 @@ from .serializers import (
     DayClosingFilterSerializer,
     DayClosingRowSerializer,
     DayClosingWriteSerializer,
+    DayExpenseDecisionSerializer,
     DayOverviewDetailSerializer,
     DayOverviewDriverSerializer,
     DayOverviewFilterSerializer,
@@ -221,6 +222,69 @@ class DayOverviewDetailView(DayClosingView):
         except ObjectDoesNotExist:
             raise Http404 from None
         return Response(DayOverviewDetailSerializer(selectors.day_activity(self.membership.organization, day)).data)
+
+
+class DayOverviewActionView(DayClosingView):
+    """Base of the office's decisions on a driver's day (D-239): each one answers with the day as it stands."""
+
+    def day(self, day_id: int) -> "DriverDay":
+        try:
+            return fleet.driver_day_by_id(self.membership.organization, day_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+
+    def answer_day(self, day: "DriverDay") -> Response:
+        return Response(DayOverviewDetailSerializer(selectors.day_activity(self.membership.organization, day)).data)
+
+
+class DayOverviewExpenseDecisionView(DayOverviewActionView):
+    @extend_schema(
+        operation_id="decideDayOverviewExpense",
+        request=DayExpenseDecisionSerializer,
+        responses=DayOverviewDetailSerializer,
+    )
+    def post(self, request: Request, day_id: int, expense_id: int) -> Response:
+        """Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+        A sent day whose figures move is corrected with a revision."""
+        serializer = DayExpenseDecisionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        day = self.day(day_id)
+        try:
+            expense = selectors.expense_of_day(self.membership.organization, day, expense_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.decide_driver_expense(
+            driver_day=day,
+            expense=expense,
+            actor=self.membership.user,
+            approve=serializer.validated_data["decision"] == "approve",
+            reason=serializer.validated_data["reason"],
+        )
+        return self.answer_day(day)
+
+
+class DayOverviewPurchaseValidateView(DayOverviewActionView):
+    @extend_schema(operation_id="validateDayOverviewPurchase", request=None, responses=DayOverviewDetailSerializer)
+    def post(self, request: Request, day_id: int, purchase_id: int) -> Response:
+        """Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+        while the purchase is not complete (supplier, products, place)."""
+        day = self.day(day_id)
+        try:
+            purchase = selectors.purchase_of_day(self.membership.organization, day, purchase_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.validate_driver_purchase(driver_day=day, purchase=purchase, actor=self.membership.user)
+        return self.answer_day(day)
+
+
+class DayOverviewReturnToStockView(DayOverviewActionView):
+    @extend_schema(operation_id="returnDayOverviewToStock", request=None, responses=DayOverviewDetailSerializer)
+    def post(self, request: Request, day_id: int) -> Response:
+        """Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
+        or not the driver sent the day; only on the truck's latest day."""
+        day = self.day(day_id)
+        services.return_truck_to_stock(driver_day=day, actor=self.membership.user)
+        return self.answer_day(day)
 
 
 class DayOverviewRouteView(DayClosingView):

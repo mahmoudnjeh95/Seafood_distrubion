@@ -24,6 +24,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
 
+import { DayReview } from "./DayReview";
 import { ROUTE_MAP_ENABLED, RouteMap } from "./RouteMap";
 
 const SELECT_CLASSES = "rounded-control border border-line bg-surface px-3 py-2 text-ink";
@@ -199,7 +200,7 @@ function MoneyLine({ label, value, strong }: { label: string; value: string; str
   );
 }
 
-function DayDialog({ id }: { id: number }) {
+function DayDialog({ id, canDecide }: { id: number; canDecide: boolean }) {
   const { t } = useTranslation();
   const day = useGetDayOverview(id);
   const d = day.data;
@@ -219,6 +220,8 @@ function DayDialog({ id }: { id: number }) {
           <DialogDescription>
             {formatDate(d.date)} · <Pill tone={PHASE_TONES[d.phase]}>{t(`admin.dayOverview.phases.${d.phase}`)}</Pill>
           </DialogDescription>
+
+          <DayReview dayId={id} canDecide={canDecide} />
 
           {ROUTE_MAP_ENABLED && (
             <Section title={t(`${k}.route.title`)}>
@@ -375,7 +378,7 @@ function DayDialog({ id }: { id: number }) {
 }
 
 /** What each driver is doing: their money, sales, deliveries and expenses per day, filtered by driver, truck and day. */
-export function DaysOverview() {
+export function DaysOverview({ canDecide }: { canDecide: boolean }) {
   const { t } = useTranslation();
   const [dateFrom, setDateFrom] = useState(() => daysAgo(0));
   const [dateTo, setDateTo] = useState(() => daysAgo(0));
@@ -489,7 +492,7 @@ export function DaysOverview() {
         </>
       )}
       <Dialog open={open !== null} onOpenChange={(value) => !value && setOpen(null)}>
-        {open !== null && <DayDialog id={open} />}
+        {open !== null && <DayDialog id={open} canDecide={canDecide} />}
       </Dialog>
     </>
   );
