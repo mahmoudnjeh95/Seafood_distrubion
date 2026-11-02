@@ -676,3 +676,13 @@ class StatementLineDetailView(OfficeView):
         line = _statement_line(self.organization, line_id)
         statements.delete_line(line=line, actor=self.membership.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DueAlertsView(OfficeView):
+    @extend_schema(operation_id="listDueAlerts", responses=InstrumentSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+        today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+        15 days before, until the bank debits it). At most 200."""
+        rows = selectors.due_alerts(self.organization, today=timezone.localdate())[: selectors.DUE_ALERTS_LIMIT]
+        return Response(InstrumentSerializer(rows, many=True).data)
