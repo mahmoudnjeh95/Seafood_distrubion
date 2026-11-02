@@ -36,6 +36,7 @@ import {
   Td,
   Th,
   toast,
+  TotalsRow,
   useServerTable,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +44,7 @@ import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { currentMonth, monthLabel, shiftMonth } from "../hr/shared";
+import { totalOf } from "../lib/totals";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { ExpensesTabs } from "./ExpensesTabs";
@@ -459,6 +461,17 @@ export function ExpensesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={4}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((e) => e.status !== "rejected"),
+                    (e) => e.amount,
+                  ),
+                },
+              ]}
+            />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

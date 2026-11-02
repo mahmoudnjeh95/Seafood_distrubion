@@ -3825,3 +3825,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   the 15-character form the office's spec shows, which has no check to verify.
 - A Tunisian IBAN with wrong check digits is refused with a clear message. Spaces are dropped; each IBAN still belongs to
   one account of the organization.
+
+## D-272 "Total de la page" row, set in the display settings (2026-11-02)
+
+- Money tables end with a "Total de la page" row: the sum of what the page shows, exact to the millime (`totalOf`).
+  Cancelled, voided, refused or rejected documents and unissued amounts are left out of the sum.
+- On for: customer and supplier payments, invoices, credit notes, sales, quotes, supplier invoices, expenses, field
+  purchases, employees and the two journals.
+- Whether the row shows is a display choice kept in the browser (`frutti.showTotals`), edited in Paramètres and in
+  Mon profil under "Affichage des listes", with the default rows per page. It is per person and device, not per company.
+- Not done, by choice: CSV export of the sorted view (the server exports already cover the main lists), hiding
+  columns, filters in the URL. They add screens and state for little gain at this stage.
