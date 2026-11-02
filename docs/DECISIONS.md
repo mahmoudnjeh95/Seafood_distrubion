@@ -3609,3 +3609,21 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The refusal of an invoice without VAT on VAT-bought goods (D-202) is unchanged.
 - The "Achat avec TVA" box on a receipt (D-202) already starts unchecked and is not changed.
 - Provisional: the rule is read from the lots, so a mixed BL with one VAT-bought product is invoiced with VAT as a whole.
+
+**D-256 · A BL paid before it is invoiced: the VAT and timbre still to come are shown, then collected or given up (owner request 2026-11-02, P9-T10)** · provisional · 2026-11-02
+- Problem: a BL holds only its goods (HT); the VAT, timbre and withholding live on the invoice (D-057), shared back over the BL when
+  it is issued (D-101). A BL paid at HT therefore turned unpaid again for the VAT and timbre, and nothing said so.
+- **Estimate before invoicing.** A BL's règlement line shows "Reste estimé à l'émission": VAT per line and the timbre. It uses the
+  invoice's own engine in a no-save simulation, so it follows the same rules (the VAT only on goods bought with VAT, D-202/D-246;
+  a product or lot without VAT gives a timbre-only estimate; each rate on its own row). The timbre is once per invoice, so on a BL
+  it reads "une seule fois par facture" and is never added once per BL.
+- **"Régler TTC"** box on the règlement line (off by default): sizes the amount on HT + estimated VAT + timbre.
+- **At issue.** The invoice is "Payée" only when what is allocated on all its BL equals its net to pay. Otherwise it reads "Payée
+  en partie: reste X DT (TVA a, timbre b)". Several BL: one comparison per invoice; an overpayment on one BL covers a shortfall on
+  another, and the gap is shown once. A mixed group (some BL paid, some not) only warns, it is never refused.
+- **The gap is collected by default**: one new règlement for the difference, allocated by BL share. **Giving it up** reuses D-252
+  (the rest cleared to zero as a loss), owner only, with a reason; it is recorded, nothing is edited.
+- **Seen afterwards**: "Écart de facturation" on the invoice and BL (goods, VAT, timbre paid or missing); a "BL payé, facture non
+  soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
+- **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
+- Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
