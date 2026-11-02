@@ -229,6 +229,9 @@ def test_a_time_in_the_future_is_refused(loaded, ahead):
 
 def approve(road, day):
     closing = services.submit_day_closing(driver_day=road[day], actor=road["driver"].user)
+    if day == TODAY:
+        # Today is the truck's latest day: the office gives back its stock before approving it (D-249).
+        services.return_truck_to_stock(driver_day=road[day], actor=road["actor"])
     # The office counts what the driver should hold: no gap, so no note is needed.
     return services.approve_day_closing(closing=closing, actor=road["actor"], office_counted_cash=closing.expected_cash)
 
