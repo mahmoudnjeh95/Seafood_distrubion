@@ -6,6 +6,7 @@ from django.db import transaction
 from apps.core.models import Organization
 from apps.expenses import services as expenses
 from apps.hr import services as hr
+from apps.partnerships import services as partnerships
 from apps.purchasing import services as purchasing
 from apps.sales import services as sales
 from apps.treasury import services
@@ -16,8 +17,8 @@ class Command(BaseCommand):
     help = (
         "Write the treasury movements of what was recorded before the accounts existed (D-219): the cash, transfer "
         "and card lines of the customer and supplier règlements, the effets cashed, taken back or debited, the "
-        "undoing of the voided règlements, the salary payments (D-234) and the approved expenses. Safe to run again: "
-        "a record's movement "
+        "undoing of the voided règlements, the salary payments (D-234), the approved expenses (D-238), the money paid "
+        "at the sales (D-239) and the partner settlements (D-240). Safe to run again: a record's movement "
         "is never written twice."
     )
 
@@ -37,5 +38,6 @@ class Command(BaseCommand):
                 services.post_effet_history(organization=organization)
                 hr.post_treasury_history(organization=organization)
                 expenses.post_treasury_history(organization=organization)
+                partnerships.post_treasury_history(organization=organization)
             written = TreasuryMovement.objects.filter(organization=organization).count() - before
             self.stdout.write(f"{organization}: {written} movement(s) written.")

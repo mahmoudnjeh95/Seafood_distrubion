@@ -3448,3 +3448,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The sales confirmed before the ledger are written by `backfill_treasury`.
 - Provisional: a cheque paid at the sale is counted at the main bank account on the sale's day; it is not followed as
   an effet until the office decides how cheques given at the door are tracked.
+
+**D-240 · The money paid to a partner at a settlement leaves our accounts the day it is paid (Phase 9, P9-T05b)** · accepted · 2026-11-02
+- Each payment of a partner settlement is a treasury movement, out of the account its method goes to: the Caisse for
+  cash, the main bank account for a transfer, a cheque, a traite or another way. The three balances (capital, profit
+  share, payables) are unchanged: only the money moves here.
+- The settlements paid before the ledger are written by `backfill_treasury`.
+- Provisional: a cheque or traite given to a partner is counted at the main bank account on its day, not followed as an
+  effet issued (the office decides how these are tracked, as for supplier cheques).
+- Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
