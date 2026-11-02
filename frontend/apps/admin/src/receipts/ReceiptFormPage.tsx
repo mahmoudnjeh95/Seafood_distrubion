@@ -3,7 +3,6 @@
   type LastCost,
   type Order,
   type PaymentMethodEnum,
-  type PaymentTermsEnum,
   type ReceiptWrite,
   useGetPurchaseOrder,
   useListLastPurchaseCosts,
@@ -57,7 +56,6 @@ import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { pickable } from "../lib/pickable";
 import { useDebounced } from "../lib/useDebounced";
-import { dueDateOf } from "../fieldpurchases/shared";
 import { canWriteResults } from "../partnerships/shared";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, refreshAfterReceipt, todayInTunis } from "./shared";
@@ -157,10 +155,6 @@ export function ReceiptFormPage() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [boxes, setBoxes] = useState<BoxCountInputs>(NO_BOX_INPUTS);
-  // Owed at once (D-159): a posted supplier invoice for the receipt, due by the deal made for this delivery.
-  const [invoiceNow, setInvoiceNow] = useState(true);
-  const [terms, setTerms] = useState<PaymentTermsEnum>("days");
-  const [dueDays, setDueDays] = useState("30");
   const [payments, setPayments] = useState<Payment[]>([]);
   const [errors, setErrors] = useState<Errors>({});
 
@@ -263,34 +257,25 @@ export function ReceiptFormPage() {
     });
     const boxCounts = boxCountsFromInputs(boxes);
     for (const boxType of boxCounts.invalid) found[`boxes.${boxType}`] = t("admin.boxes.form.invalid");
-    const days = terms === "cash" ? 0 : Number(dueDays || "0");
-    if (invoiceNow && (!Number.isInteger(days) || days < (terms === "days" ? 1 : 0) || days > 365)) {
-      found.due_days = t("admin.receipts.form.dueDaysError");
-    }
-    // What is given now (D-192) only exists with the invoice; more than its total is refused, as on the server.
+    // What is given now (D-192) is an advance the invoice made from this receipt takes (D-268); more than the
+    // receipt's total is refused, as on the server.
     const payloadPayments: NonNullable<ReceiptWrite["payments"]> = [];
-    if (invoiceNow) {
-      payments.forEach((payment, index) => {
-        const amount = parseDecimalInput(payment.amount.trim(), 3);
-        if (amount === null || amount.startsWith("-") || /^0+(\.0+)?$/.test(amount))
-          found[paymentKey(index, "amount")] = t("admin.receipts.form.money");
-        payloadPayments.push({
-          method: payment.method,
-          amount: amount ?? "",
-          reference: payment.reference.trim(),
-          cash_on: payment.cash_on || null,
-        });
+    payments.forEach((payment, index) => {
+      const amount = parseDecimalInput(payment.amount.trim(), 3);
+      if (amount === null || amount.startsWith("-") || /^0+(\.0+)?$/.test(amount))
+        found[paymentKey(index, "amount")] = t("admin.receipts.form.money");
+      payloadPayments.push({
+        method: payment.method,
+        amount: amount ?? "",
+        reference: payment.reference.trim(),
+        cash_on: payment.cash_on || null,
       });
-      if (
-        Object.keys(found).length === 0 &&
-        payloadPayments.length > 0 &&
-        subtract(invoicedTotal, paid).startsWith("-")
-      )
-        found[paymentKey(payloadPayments.length - 1, "amount")] = t("admin.receipts.form.overpaid", {
-          paid: formatMoney(paid),
-          total: formatMoney(invoicedTotal),
-        });
-    }
+    });
+    if (Object.keys(found).length === 0 && payloadPayments.length > 0 && subtract(invoicedTotal, paid).startsWith("-"))
+      found[paymentKey(payloadPayments.length - 1, "amount")] = t("admin.receipts.form.overpaid", {
+        paid: formatMoney(paid),
+        total: formatMoney(invoicedTotal),
+      });
     setErrors(found);
     // An order picked but still loading: wait, or the delivery would be saved without it.
     if (Object.keys(found).length > 0 || (orderId !== null && !order)) return;
@@ -304,9 +289,6 @@ export function ReceiptFormPage() {
       notes: notes.trim(),
       lines: payloadLines,
       boxes: boxCounts.counts,
-      invoice_now: invoiceNow,
-      terms,
-      due_days: days,
       payments: payloadPayments,
     });
   }
@@ -699,158 +681,107 @@ export function ReceiptFormPage() {
         </Card>
 
         <Card className="flex flex-col gap-3">
-          <label className="flex items-center gap-2 font-semibold">
-            <input
-              type="checkbox"
-              checked={invoiceNow}
-              onChange={(event) => setInvoiceNow(event.target.checked)}
-              className="size-4 accent-coral"
-            />
-            {t("admin.receipts.form.invoiceNow")}
-          </label>
-          <p className="text-[0.85rem] text-ink-2">
-            {t(invoiceNow ? "admin.receipts.form.invoiceNowHint" : "admin.receipts.form.invoiceLaterHint")}
-          </p>
-          {invoiceNow && (
-            <div className="grid grid-cols-3 items-start gap-4 max-[640px]:grid-cols-1">
+          <CardTitle className="mb-0">{t("admin.receipts.form.payments")}</CardTitle>
+          <p className="font-semibold">{t("admin.receipts.form.givenNow")}</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t("admin.receipts.form.givenNow")}>
+            {(["none", "part", "all"] as const).map((choice) => (
+              <Button
+                key={choice}
+                variant={givenChoice === choice ? "primary" : "secondary"}
+                aria-pressed={givenChoice === choice}
+                onClick={() => chooseGiven(choice)}
+              >
+                {t(`admin.fieldPurchases.form.choice.${choice}`)}
+              </Button>
+            ))}
+          </div>
+          {payments.map((payment, index) => (
+            <div
+              key={payment.key}
+              role="group"
+              aria-label={t("admin.fieldPurchases.form.paymentNumber", { number: index + 1 })}
+              className="grid grid-cols-[repeat(4,1fr)_auto] items-start gap-3 rounded-card border border-line p-3 max-[960px]:grid-cols-2"
+            >
               {select(
-                "terms",
-                t("admin.receipts.form.terms"),
-                terms,
-                (value) => setTerms(value as PaymentTermsEnum),
-                (["cash", "days", "month_end"] as const).map((choice) => ({
-                  value: choice,
-                  label: t(`admin.fieldPurchases.termsChoice.${choice}`),
-                })),
+                paymentKey(index, "method"),
+                t("admin.fieldPurchases.form.method"),
+                payment.method,
+                (value) => setPayment(payment.key, { method: value as PaymentMethodEnum }),
+                METHODS.map((method) => ({ value: method, label: t(`admin.supplierPayments.method.${method}`) })),
               )}
-              {terms !== "cash" && (
-                <Field label={t("admin.receipts.form.dueDays")} htmlFor={id("due_days")} error={errors.due_days}>
-                  <Input
-                    id={id("due_days")}
-                    type="number"
-                    min="0"
-                    max="365"
-                    value={dueDays}
-                    onChange={(event) => setDueDays(event.target.value)}
-                    aria-invalid={errors.due_days ? true : undefined}
-                  />
-                </Field>
-              )}
-              <p className="num self-end py-2.5 font-semibold text-ink-2">
-                {t("admin.receipts.form.dueOn", {
-                  date: formatDate(
-                    dueDateOf(receivedOn || todayInTunis(), terms, terms === "cash" ? 0 : Number(dueDays || "0") || 0),
-                  ),
-                })}
-              </p>
+              <Field
+                label={t("admin.fieldPurchases.form.paymentAmount")}
+                htmlFor={id(paymentKey(index, "amount"))}
+                error={errors[paymentKey(index, "amount")]}
+              >
+                <MoneyInput
+                  id={id(paymentKey(index, "amount"))}
+                  inputMode="decimal"
+                  value={payment.amount}
+                  onChange={(event) => setPayment(payment.key, { amount: event.target.value })}
+                  aria-invalid={errors[paymentKey(index, "amount")] ? true : undefined}
+                />
+              </Field>
+              <Field
+                label={t("admin.fieldPurchases.form.reference")}
+                htmlFor={id(paymentKey(index, "reference"))}
+                error={errors[paymentKey(index, "reference")]}
+              >
+                <Input
+                  id={id(paymentKey(index, "reference"))}
+                  value={payment.reference}
+                  onChange={(event) => setPayment(payment.key, { reference: event.target.value })}
+                />
+              </Field>
+              <Field
+                label={t("admin.fieldPurchases.form.cashOn")}
+                htmlFor={id(paymentKey(index, "cash_on"))}
+                error={errors[paymentKey(index, "cash_on")]}
+              >
+                <Input
+                  id={id(paymentKey(index, "cash_on"))}
+                  type="date"
+                  min={receivedOn}
+                  value={payment.cash_on}
+                  onChange={(event) => setPayment(payment.key, { cash_on: event.target.value })}
+                />
+              </Field>
+              <div className="flex items-end self-stretch max-[960px]:col-span-2 max-[960px]:justify-end">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t("admin.fieldPurchases.form.removePayment")}
+                  title={t("admin.fieldPurchases.form.removePayment")}
+                  onClick={() => setPayments((current) => current.filter((other) => other.key !== payment.key))}
+                >
+                  <Icon name="trash" />
+                </Button>
+              </div>
+            </div>
+          ))}
+          {payments.length > 0 && (
+            <div>
+              <Button onClick={() => setPayments((current) => [...current, newPayment()])}>
+                <Icon name="plus" />
+                {t("admin.fieldPurchases.form.addPayment")}
+              </Button>
             </div>
           )}
-        </Card>
-
-        {invoiceNow && (
-          <Card className="flex flex-col gap-3">
-            <CardTitle className="mb-0">{t("admin.receipts.form.payments")}</CardTitle>
-            <p className="font-semibold">{t("admin.receipts.form.givenNow")}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t("admin.receipts.form.givenNow")}>
-              {(["none", "part", "all"] as const).map((choice) => (
-                <Button
-                  key={choice}
-                  variant={givenChoice === choice ? "primary" : "secondary"}
-                  aria-pressed={givenChoice === choice}
-                  onClick={() => chooseGiven(choice)}
-                >
-                  {t(`admin.fieldPurchases.form.choice.${choice}`)}
-                </Button>
-              ))}
+          <dl className="flex flex-wrap justify-end gap-x-8 gap-y-2">
+            <div>
+              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.owedTotal")}</dt>
+              <dd className="num">{formatMoney(invoicedTotal)}</dd>
             </div>
-            {payments.map((payment, index) => (
-              <div
-                key={payment.key}
-                role="group"
-                aria-label={t("admin.fieldPurchases.form.paymentNumber", { number: index + 1 })}
-                className="grid grid-cols-[repeat(4,1fr)_auto] items-start gap-3 rounded-card border border-line p-3 max-[960px]:grid-cols-2"
-              >
-                {select(
-                  paymentKey(index, "method"),
-                  t("admin.fieldPurchases.form.method"),
-                  payment.method,
-                  (value) => setPayment(payment.key, { method: value as PaymentMethodEnum }),
-                  METHODS.map((method) => ({ value: method, label: t(`admin.supplierPayments.method.${method}`) })),
-                )}
-                <Field
-                  label={t("admin.fieldPurchases.form.paymentAmount")}
-                  htmlFor={id(paymentKey(index, "amount"))}
-                  error={errors[paymentKey(index, "amount")]}
-                >
-                  <MoneyInput
-                    id={id(paymentKey(index, "amount"))}
-                    inputMode="decimal"
-                    value={payment.amount}
-                    onChange={(event) => setPayment(payment.key, { amount: event.target.value })}
-                    aria-invalid={errors[paymentKey(index, "amount")] ? true : undefined}
-                  />
-                </Field>
-                <Field
-                  label={t("admin.fieldPurchases.form.reference")}
-                  htmlFor={id(paymentKey(index, "reference"))}
-                  error={errors[paymentKey(index, "reference")]}
-                >
-                  <Input
-                    id={id(paymentKey(index, "reference"))}
-                    value={payment.reference}
-                    onChange={(event) => setPayment(payment.key, { reference: event.target.value })}
-                  />
-                </Field>
-                <Field
-                  label={t("admin.fieldPurchases.form.cashOn")}
-                  htmlFor={id(paymentKey(index, "cash_on"))}
-                  error={errors[paymentKey(index, "cash_on")]}
-                >
-                  <Input
-                    id={id(paymentKey(index, "cash_on"))}
-                    type="date"
-                    min={receivedOn}
-                    value={payment.cash_on}
-                    onChange={(event) => setPayment(payment.key, { cash_on: event.target.value })}
-                  />
-                </Field>
-                <div className="flex items-end self-stretch max-[960px]:col-span-2 max-[960px]:justify-end">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t("admin.fieldPurchases.form.removePayment")}
-                    title={t("admin.fieldPurchases.form.removePayment")}
-                    onClick={() => setPayments((current) => current.filter((other) => other.key !== payment.key))}
-                  >
-                    <Icon name="trash" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            {payments.length > 0 && (
-              <div>
-                <Button onClick={() => setPayments((current) => [...current, newPayment()])}>
-                  <Icon name="plus" />
-                  {t("admin.fieldPurchases.form.addPayment")}
-                </Button>
-              </div>
-            )}
-            <dl className="flex flex-wrap justify-end gap-x-8 gap-y-2">
-              <div>
-                <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.owedTotal")}</dt>
-                <dd className="num">{formatMoney(invoicedTotal)}</dd>
-              </div>
-              <div>
-                <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.paidNow")}</dt>
-                <dd className="num">{formatMoney(paid)}</dd>
-              </div>
-              <div>
-                <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.restToDefine")}</dt>
-                <dd className="num font-semibold">{formatMoney(subtract(invoicedTotal, paid))}</dd>
-              </div>
-            </dl>
-          </Card>
-        )}
+            <div>
+              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.paidNow")}</dt>
+              <dd className="num">{formatMoney(paid)}</dd>
+            </div>
+            <div>
+              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.restToDefine")}</dt>
+              <dd className="num font-semibold">{formatMoney(subtract(invoicedTotal, paid))}</dd>
+            </div>
+          </dl>
+        </Card>
 
         <BoxCountsFields
           title={t("admin.boxes.form.receiptTitle")}

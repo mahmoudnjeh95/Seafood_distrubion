@@ -159,27 +159,19 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     def post(self, request: Request) -> Response:
         """Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
-        `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`."""
+        against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+        invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+        kept as advances the invoice takes (D-268)."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = _resolved(self.organization, serializer.validated_data, is_owner=self.membership.role == Role.OWNER)
-        invoice_now, terms, due_days = data.pop("invoice_now"), data.pop("terms"), data.pop("due_days")
         payments = data.pop("payments", [])
-        if payments and not invoice_now:
-            raise ValidationError({"payments": _("Un paiement à la réception demande « Dû dès la réception ».")})
-        if invoice_now:
-            # Owed at once, due by the deal made for this delivery (D-159).
-            receipt = services.receive_and_invoice(
-                organization=self.organization,
-                actor=self.membership.user,
-                terms=terms,
-                due_days=due_days,
-                payments=payments,
-                **data,
-            )
-        else:
-            receipt = services.create_receipt(organization=self.organization, actor=self.membership.user, **data)
+        receipt = services.receive_goods(
+            organization=self.organization,
+            actor=self.membership.user,
+            payments=payments,
+            **data,
+        )
         return Response(
             ReceiptSerializer(selectors.receipt_of(self.organization, receipt.pk)).data,
             status=status.HTTP_201_CREATED,

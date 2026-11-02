@@ -14525,8 +14525,9 @@ export const ListReceiptsResponse = zod.object({
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
  * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
- * against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
- * `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
+ * against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+ * invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+ * kept as advances the invoice takes (D-268).
  */
 
 
@@ -14538,12 +14539,6 @@ export const createReceiptBodyWithVatDefault = false;
 export const createReceiptBodyNotesDefault = ``;
 
 export const createReceiptBodyBoxesMinOne = 0;
-
-export const createReceiptBodyInvoiceNowDefault = false;
-export const createReceiptBodyTermsDefault = `days`;
-export const createReceiptBodyDueDaysDefault = 30;
-export const createReceiptBodyDueDaysMin = 0;
-export const createReceiptBodyDueDaysMax = 365;
 
 export const createReceiptBodyPaymentsItemReferenceDefault = ``;
 export const createReceiptBodyPaymentsItemReferenceMax = 50;
@@ -14568,9 +14563,6 @@ export const CreateReceiptBody = zod.object({
   "partner": zod.int().min(1).nullish()
 })),
   "boxes": zod.record(zod.string(), zod.int().min(createReceiptBodyBoxesMinOne)).optional(),
-  "invoice_now": zod.boolean().default(createReceiptBodyInvoiceNowDefault),
-  "terms": zod.enum(['cash', 'days', 'month_end']).describe('* `cash` - Comptant\n* `days` - À N jours\n* `month_end` - Fin de mois').default(createReceiptBodyTermsDefault),
-  "due_days": zod.int().min(createReceiptBodyDueDaysMin).max(createReceiptBodyDueDaysMax).default(createReceiptBodyDueDaysDefault),
   "payments": zod.array(zod.object({
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
   "amount": zod.string(),

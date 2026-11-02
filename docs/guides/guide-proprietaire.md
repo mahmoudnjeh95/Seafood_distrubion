@@ -37,10 +37,11 @@ Un arrivage se saisit avec son **poids net réel** : le stock et les lots se cr�
 5. Touchez **Enregistrer la réception**. « Réception … enregistrée : lots créés et stock mis à jour. »
 
 Une réception enregistrée ne se modifie plus : une erreur se corrige par un retour fournisseur ou un ajustement.
+La réception ne fait pas de facture : la facture du fournisseur se fait ensuite, depuis la réception (**Créer la facture**). Une somme donnée au fournisseur à la réception reste une avance : la facture faite ensuite la prend.
 
 ### Payer le fournisseur
 
-1. Onglet **Factures**, **Nouvelle facture** : choisissez les réceptions, puis **Enregistrer et valider** (ou **Enregistrer le brouillon**).
+1. Onglet **Factures**, **Nouvelle facture** : choisissez les réceptions, puis **Enregistrer et valider** (ou **Enregistrer le brouillon**). Depuis une réception, **Créer la facture** la prépare avec ce bon de livraison.
    Une facture validée compte dans le solde du fournisseur et ne se modifie plus.
 2. Onglet **Paiements**, **Nouveau paiement** : choisissez les « Factures à régler », puis **Enregistrer le paiement**.
 

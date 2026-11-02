@@ -2177,7 +2177,7 @@ def validate_field_purchase(*, purchase: FieldPurchase, actor: User | None) -> F
 
 
 @transaction.atomic
-def receive_and_invoice(
+def receive_goods(
     *,
     organization: Organization,
     actor: User | None,
@@ -2185,8 +2185,6 @@ def receive_and_invoice(
     location: "StockLocation",
     received_on: dt.date,
     lines: Sequence[ReceiptLineFields],
-    terms: str,
-    due_days: int = 0,
     supplier_reference: str = "",
     notes: str = "",
     purchase_order: PurchaseOrder | None = None,
@@ -2194,17 +2192,11 @@ def receive_and_invoice(
     payments: Sequence[FieldPaymentFields] = (),
     with_vat: bool = False,
 ) -> GoodsReceipt:
-    """Record goods received and, in the same step, what is owed for them (D-159): a posted supplier invoice for the
-    receipt, due by the deal made for this delivery, as a purchase at the port is (D-176). The debt starts at the
-    reception; a paper invoice of the supplier, if one comes, is only matched by its number. `payments` are the
-    sums given now (D-192), recorded and allocated to that invoice; more than its total is refused."""
+    """Record goods received: the receipt, its batches, stock and boxes (D-268). No invoice is made here: the
+    office makes the supplier's invoice afterwards, from this receipt. `payments` are the sums given now (D-192):
+    each is recorded as money not yet allocated to an invoice, an advance that the invoice made from this receipt
+    takes (`apply_advances`). More than the receipt's value is refused, as a typing mistake (D-181)."""
     errors: dict[str, str] = {}
-    if terms not in PaymentTerms.values:
-        errors["terms"] = _("Accord de paiement inconnu.")
-    elif not 0 <= due_days <= 365:
-        errors["due_days"] = _("Indiquez un nombre de jours entre 0 et 365.")
-    elif terms == PaymentTerms.DAYS and due_days == 0:
-        errors["due_days"] = _("Indiquez dans combien de jours la livraison est payée.")
     checked_payments = _checked_payment_lines(payments, received_on, errors)
     if errors:
         raise ValidationError(errors)
@@ -2221,26 +2213,17 @@ def receive_and_invoice(
         boxes=boxes,
         with_vat=with_vat,
     )
-    invoice = create_invoice(
-        organization=organization,
-        actor=actor,
-        supplier=supplier,
-        receipts=[receipt],
-        invoice_date=received_on,
-        due_date=due_date_of(received_on, terms, due_days if terms != PaymentTerms.CASH else 0),
-        supplier_reference=receipt.supplier_reference,
-        post=True,
-    )
     given = sum((payment["amount"] for payment in checked_payments), ZERO)
-    if given > invoice.total:
-        # Rolls the whole receipt back: more given than owed is a typing mistake (D-181).
+    received = sum((line.invoiced_amount for line in receipt.lines.all()), ZERO)
+    if given > received:
+        # Rolls the whole receipt back: more given than the receipt is worth is a typing mistake (D-181).
         raise ValidationError(
             {
                 payment_error_key(len(checked_payments) - 1, "amount"): _(
                     "L'argent donné (%(given)s DT) dépasse le montant de la réception (%(total)s DT) : "
                     "vérifiez les montants."
                 )
-                % {"given": display_money(given), "total": display_money(invoice.total)}
+                % {"given": display_money(given), "total": display_money(received)}
             }
         )
     for payment in checked_payments:
@@ -2254,7 +2237,7 @@ def receive_and_invoice(
             reference=payment["reference"],
             cash_on=payment["cash_on"],
             notes=_("Donné à la réception %(number)s") % {"number": receipt.number},
-            allocations=[{"invoice": invoice, "amount": payment["amount"]}],
+            allocations=[],
         )
     return receipt
 
