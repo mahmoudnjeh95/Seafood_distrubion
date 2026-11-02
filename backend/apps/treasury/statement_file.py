@@ -1,4 +1,4 @@
-"""Reading a bank's statement from its Excel file (P9-T09d, D-252).
+"""Reading a bank's statement from its Excel file (P9-T09d, D-253).
 
 The first sheet has a header row with the columns DATE, LIBELLE (the title may go on: "LIBELLE STE LOGISTICA"),
 DEBIT, CREDIT and, optionally, SOLDE. A date is a real Excel date or text such as "03-janv-24" or "03/01/2024";

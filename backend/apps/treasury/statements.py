@@ -1,4 +1,4 @@
-"""The lines of a bank's statement (P9-T09d, D-252): the import of the bank's Excel file, the third party of a line,
+"""The lines of a bank's statement (P9-T09d, D-253): the import of the bank's Excel file, the third party of a line,
 deleting a line. A copy of what the bank says: nothing here moves money or changes an account's balance."""
 
 import datetime as dt

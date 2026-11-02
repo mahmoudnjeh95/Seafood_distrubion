@@ -20,7 +20,7 @@ import { compare } from "../purchasing/allocation";
 
 type Problem = { row: number; message: string };
 
-/** The bank's own statement of one bank account (P9-T09d, D-252): the Excel file the bank gives, imported line by
+/** The bank's own statement of one bank account (P9-T09d, D-253): the Excel file the bank gives, imported line by
  * line, each line given to a customer (a debit) or a supplier (a credit). A copy of the bank's file: it changes no
  * balance of ours. */
 export function StatementSection({

@@ -382,7 +382,7 @@ class CashCount(OrganizationScopedModel):
 
 
 class BankStatementLine(OrganizationScopedModel, TimeStampedModel):
-    """One line of a bank's statement, as the bank's Excel file gives it (P9-T09d, D-252): the day, the label, a debit
+    """One line of a bank's statement, as the bank's Excel file gives it (P9-T09d, D-253): the day, the label, a debit
     or a credit and the balance the bank shows. A copy of what the bank says, kept beside our own movements: it
     never changes an account's balance. Only its third party (the customer or supplier it belongs to) is edited."""
 

@@ -1,4 +1,4 @@
-"""The bank's statement imported from Excel (P9-T09d, D-252): the lines are a copy of the bank's file; a line takes a
+"""The bank's statement imported from Excel (P9-T09d, D-253): the lines are a copy of the bank's file; a line takes a
 customer (debit) or a supplier (credit); nothing here moves money."""
 
 import datetime as dt
