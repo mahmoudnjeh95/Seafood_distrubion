@@ -47,6 +47,8 @@ export function DayReview({ dayId, canDecide }: { dayId: number; canDecide: bool
   // The expense being refused, and why (a refusal needs its reason).
   const [refusing, setRefusing] = useState<number | null>(null);
   const [reason, setReason] = useState("");
+  // The cold room that takes the truck's stock back (D-258); the only active one is preselected.
+  const [coldRoom, setColdRoom] = useState("");
   const refresh = () => {
     void queryClient.invalidateQueries();
   };
@@ -83,6 +85,7 @@ export function DayReview({ dayId, canDecide }: { dayId: number; canDecide: bool
   const data = day.data;
   if (data === undefined) return null;
   const stockLeft = data.stock.some((row) => Number(row.on_truck) > 0) || data.boxes.some((row) => row.on_truck > 0);
+  const room = coldRoom !== "" ? coldRoom : data.cold_rooms.length === 1 ? String(data.cold_rooms[0].id) : "";
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-card border border-line p-3">
@@ -301,13 +304,32 @@ export function DayReview({ dayId, canDecide }: { dayId: number; canDecide: bool
           </section>
 
           {canDecide && (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <p className="text-[0.85rem] text-ink-2">{t(`${K}.returnHint`)}</p>
+              {data.cold_rooms.length === 0 ? (
+                <p className="font-semibold text-bad">{t(`${K}.noColdRoom`)}</p>
+              ) : (
+                <label className="flex flex-col gap-1 self-start">
+                  <span className="text-[0.85rem] font-semibold">{t(`${K}.returnRoom`)}</span>
+                  <select
+                    className="rounded-control border border-line bg-surface px-3 py-2 text-ink"
+                    value={room}
+                    onChange={(event) => setColdRoom(event.target.value)}
+                  >
+                    <option value="">{t(`${K}.chooseRoom`)}</option>
+                    {data.cold_rooms.map((cold) => (
+                      <option key={cold.id} value={String(cold.id)}>
+                        {cold.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <Button
                 className="self-start"
                 variant="primary"
-                disabled={back.isPending || !stockLeft}
-                onClick={() => back.mutate({ dayId })}
+                disabled={back.isPending || !stockLeft || room === ""}
+                onClick={() => back.mutate({ dayId, data: { to_location_id: Number(room) } })}
               >
                 {t(`${K}.returnAll`)}
               </Button>

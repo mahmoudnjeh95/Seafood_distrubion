@@ -428,6 +428,13 @@ class DayBoxSerializer(serializers.Serializer[Any]):
     from_suppliers = serializers.IntegerField(read_only=True)
 
 
+class DayColdRoomSerializer(serializers.Serializer[Any]):
+    """An active cold room the office can give the truck's stock back to (D-258)."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
 class DayOverviewDetailSerializer(DayOverviewRowSerializer):
     closing = DayClosingOfficeSerializer(read_only=True, allow_null=True)
     sales = DayOverviewSaleSerializer(many=True, read_only=True)
@@ -441,9 +448,16 @@ class DayOverviewDetailSerializer(DayOverviewRowSerializer):
     boxes = DayBoxSerializer(many=True, read_only=True)
     # What the office must still settle before it approves the day.
     review_blockers = serializers.ListField(child=serializers.CharField(), read_only=True)
+    # The active cold rooms the truck's stock can go back to (D-258).
+    cold_rooms = DayColdRoomSerializer(many=True, read_only=True)
 
     class Meta:
         ref_name = "DayOverviewDetail"
+
+
+class DayReturnToStockSerializer(serializers.Serializer[Any]):
+    # The cold room that receives the truck's stock (D-258); empty is accepted only when there is one active room.
+    to_location_id = serializers.IntegerField(required=False, allow_null=True, default=None)
 
 
 class DayExpenseDecisionSerializer(serializers.Serializer[Any]):
