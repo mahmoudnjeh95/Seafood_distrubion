@@ -182,8 +182,7 @@ def test_withholding_certificate_and_summary(api, setup, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     _customer, sale = setup
     invoice = services.create_invoice(
-        apply_vat=True,
-        sale=sale, actor=None, issue=True, withholding_applied=True, withholding_rate="1.5"
+        apply_vat=True, sale=sale, actor=None, issue=True, withholding_applied=True, withholding_rate="1.5"
     )
     today = timezone.localdate().isoformat()
     summary = api.get(reverse("withholding-summary")).json()
