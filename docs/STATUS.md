@@ -1,10 +1,13 @@
 # Project status
 
-_Last updated: 2026-11-02 (receipt corrections are not spoilage, D-270, PR open; next free decision D-271)_
+_Last updated: 2026-11-02 (print after confirming a sale or purchase, D-278; next free decision D-281)_
 
 ## Where we are
 
-- **P3-T10 printing (D-278, branch `driver-receipt-printing`, awaits CI):** "Imprimer le reçu" on the driver's sale receipt and "Mes achats", 58/75/80 mm setting, office copy, ESC/POS over Web Bluetooth. **Blocker:** the Digipos DPP-58 did not show in an iPhone BLE scanner, so it is likely classic Bluetooth: next step is the Android scan test (Serial Bluetooth Terminal); if classic, wrap the app with Capacitor or change printer.
+- **P3-T10 print after confirmation (D-278 addendum, branch `claude/practical-allen-66nje7`):** "Imprimer le reçu" on the
+  purchase confirmation (sent, kept offline or changed) and on a sale kept on the phone ("Provisoire" receipt). Check on
+  staging (Android, Chrome): send a purchase, the summary shows the button; in airplane mode save a sale, print it.
+- **P3-T10 printing (D-278, merged #311):** "Imprimer le reçu" on the driver's sale receipt and "Mes achats", 58/75/80 mm setting, office copy, ESC/POS over Web Bluetooth. **Blocker:** the Digipos DPP-58 did not show in an iPhone BLE scanner, so it is likely classic Bluetooth: next step is the Android scan test (Serial Bluetooth Terminal); if classic, wrap the app with Capacitor or change printer.
 
 - **P9-T10 finished (D-256, branch `bl-gap-finish`, awaits CI):** "TTC" button on a BL line of Nouveau règlement (pay up to
   goods + estimated VAT and stamp), owner-only "Abandonner l'écart" on a partly paid invoice (lots picked, typed amount,

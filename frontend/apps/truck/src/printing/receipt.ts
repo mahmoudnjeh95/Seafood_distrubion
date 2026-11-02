@@ -6,7 +6,13 @@ export type ReceiptKind = "sale" | "purchase";
 /** Who keeps this paper: the customer or supplier, or the office (with a line for the signature). */
 export type ReceiptCopy = "party" | "office";
 
-export type ReceiptLine = { name: string; quantity: string; unitPrice: string; amount: string };
+/** `unitPrice` is left out when only the kilos and the amount are known (a sale still kept on the phone). */
+export type ReceiptLine = { name: string; quantity: string; unitPrice?: string; amount: string };
+
+/** The number printed on a receipt the office has not received yet: it gets its real number when it is sent. */
+export const PROVISIONAL = "Provisoire";
+/** The line printed under the totals of such a receipt. */
+export const PROVISIONAL_NOTE = "Pas encore envoyé au bureau : le numéro sera donné à l'envoi.";
 
 export type ReceiptData = {
   kind: ReceiptKind;
@@ -112,7 +118,8 @@ export function layoutReceipt(data: ReceiptData, copy: ReceiptCopy, cols: number
   rows.push({ rule: "-" });
   for (const line of data.lines) {
     for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
-    rows.push({ text: twoColumns(`  ${kilos(line.quantity)} x ${amount(line.unitPrice)}`, amount(line.amount), cols) });
+    const each = line.unitPrice === undefined ? "" : ` x ${amount(line.unitPrice)}`;
+    rows.push({ text: twoColumns(`  ${kilos(line.quantity)}${each}`, amount(line.amount), cols) });
   }
   rows.push({ rule: "-" });
   rows.push({ text: twoColumns("TOTAL DT", amount(data.total), cols), bold: true });

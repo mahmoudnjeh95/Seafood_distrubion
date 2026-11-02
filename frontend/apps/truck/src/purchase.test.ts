@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dueDateOn, lineAmount, purchaseTotals } from "./purchase";
+import { amountLeft, dueDateOn, lineAmount, purchaseTotals } from "./purchase";
 import { decisionsToRead } from "./purchaseWatch";
 
 describe("lineAmount", () => {
@@ -61,5 +61,13 @@ describe("decisionsToRead", () => {
       purchase(4, "validated", "2026-10-01T09:00:00Z"),
     ];
     expect(decisionsToRead(rows, [3], now).map((row) => row.id)).toEqual([2]);
+  });
+});
+
+describe("amountLeft", () => {
+  it("is the total minus what was paid, never below zero", () => {
+    expect(amountLeft("130.000", "100")).toBe("30.000");
+    expect(amountLeft("130", "130.000")).toBe("0.000");
+    expect(amountLeft("50", "80")).toBe("0.000");
   });
 });

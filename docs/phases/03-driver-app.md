@@ -108,6 +108,7 @@ Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android 
 - [ ] No printer is chosen yet (Q13): propose two or three models, pick one with the client and buy it
       for testing (human).
 - [x] Receipt layout for the paper width; works offline; reprint from the sale screen (D-278; not yet tested on the real printer).
+- [x] Print right after confirming a sale or a purchase, also when it is kept on the phone (provisional receipt, D-278).
 - [x] The receipt is in French (Q13), whatever language the driver uses in the app.
 - [ ] If native: store accounts, builds, and getting the app onto the drivers' phones (human + agent).
 
