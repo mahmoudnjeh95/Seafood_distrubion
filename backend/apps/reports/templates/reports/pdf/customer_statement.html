@@ -52,7 +52,7 @@
     <thead><tr><th>Produit</th><th class="r">Kg</th><th class="r">Prix/kg</th><th class="r">Remise</th><th class="r">Montant</th></tr></thead>
     <tbody>
       {% for sale in statement.sales %}
-      <tr class="group"><td colspan="5"><span class="num">{{ sale.day|day }}</span> · {{ sale.number }}{% if sale.invoice_number %} · Facture {{ sale.invoice_number }}{% endif %}{% if sale.is_opening %} · Solde d'ouverture{% endif %}</td></tr>
+      <tr class="group"><td colspan="5"><span class="num">{{ sale.day|day }}</span> · {{ sale.number }}{% if sale.invoice_number %} · Facture {{ sale.invoice_number }}{% endif %}{% if sale.is_opening %} · Solde d'ouverture{% endif %}{% if sale.gap_left %} · BL réglé, facture non soldée : reste {{ sale.gap_left|money }} DT{% endif %}</td></tr>
       {% for line in sale.lines %}
       <tr>
         <td>{{ line.product_name }} <span class="muted small">{{ line.product_reference }}</span></td>

@@ -54,7 +54,7 @@ export function BalanceWriteOffDialog({
   onWrite,
   onDone,
 }: {
-  kind: "customer" | "supplier";
+  kind: "customer" | "supplier" | "invoice";
   party: string;
   // The balance as the server sends it ("10.000"): what the office types again.
   owed: string;
@@ -73,6 +73,7 @@ export function BalanceWriteOffDialog({
   const [errors, setErrors] = useState<Errors>({});
   const [pending, setPending] = useState(false);
   const amount = formatMoney(owed);
+  const forInvoice = kind === "invoice";
   const owedMillimes = Math.round(Number(owed) * 1000);
   const spread = rows.reduce((total, row) => total + (millimes(row.amount) ?? 0), 0);
   const lotsReady =
@@ -123,7 +124,7 @@ export function BalanceWriteOffDialog({
           })),
         }),
       });
-      toast.success(t("admin.balanceWriteOff.done"));
+      toast.success(t(forInvoice ? "admin.balanceWriteOff.invoiceDone" : "admin.balanceWriteOff.done"));
       onDone();
     } catch (failure) {
       const fromServer = fieldErrors(failure);
@@ -136,7 +137,9 @@ export function BalanceWriteOffDialog({
   if (step === "reason") {
     return (
       <DialogContent>
-        <DialogTitle>{t("admin.balanceWriteOff.title")}</DialogTitle>
+        <DialogTitle>
+          {t(forInvoice ? "admin.balanceWriteOff.invoiceTitle" : "admin.balanceWriteOff.title")}
+        </DialogTitle>
         <DialogDescription>{t(`admin.balanceWriteOff.${kind}Hint`, { party, amount })}</DialogDescription>
         <form id={formId} onSubmit={next} noValidate className="flex flex-col gap-4">
           <Field label={t("admin.balanceWriteOff.reason")} htmlFor={`${formId}-reason`} error={errors.reason}>
@@ -238,7 +241,9 @@ export function BalanceWriteOffDialog({
 
   return (
     <DialogContent>
-      <DialogTitle>{t("admin.balanceWriteOff.confirmTitle")}</DialogTitle>
+      <DialogTitle>
+        {t(forInvoice ? "admin.balanceWriteOff.invoiceConfirmTitle" : "admin.balanceWriteOff.confirmTitle")}
+      </DialogTitle>
       <DialogDescription>{t("admin.balanceWriteOff.typeAmount", { amount })}</DialogDescription>
       <form id={formId} onSubmit={(event) => void confirm(event)} noValidate className="flex flex-col gap-4">
         <Field label={t("admin.balanceWriteOff.amount")} htmlFor={`${formId}-amount`} error={errors.expected_amount}>
@@ -267,7 +272,7 @@ export function BalanceWriteOffDialog({
             {t("admin.balanceWriteOff.back")}
           </Button>
           <Button type="submit" variant="danger" disabled={pending || !sameAmount(typed, owed)}>
-            {t("admin.balanceWriteOff.submit")}
+            {t(forInvoice ? "admin.balanceWriteOff.invoiceSubmit" : "admin.balanceWriteOff.submit")}
           </Button>
         </DialogFooter>
       </form>

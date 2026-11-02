@@ -6,6 +6,7 @@
  */
 import type { CreditNote } from './creditNote';
 import type { EInvoiceStatusEnum } from './eInvoiceStatusEnum';
+import type { GapLot } from './gapLot';
 import type { InvoiceCertificate } from './invoiceCertificate';
 import type { InvoiceLine } from './invoiceLine';
 import type { InvoiceStatusEnum } from './invoiceStatusEnum';
@@ -69,6 +70,7 @@ export interface InvoiceDetail {
   readonly einvoice_status: EInvoiceStatusEnum;
   readonly einvoice_reference: string;
   readonly certificate: InvoiceCertificate | null;
+  readonly gap_lots: readonly GapLot[];
   readonly notes: string;
   readonly fiscal_stamp_overridden: boolean;
   readonly withholding_rate_overridden: boolean;

@@ -1662,6 +1662,7 @@ export const fr = {
         title: "Payée en partie : il reste {{amount}} DT à encaisser.",
         extra: "Dont {{amount}} DT de TVA et de timbre que le règlement du BL ne couvrait pas.",
         collect: "Encaisser le reste (nouveau règlement)",
+        giveUp: "Abandonner l'écart",
       },
       detail: {
         print: "Imprimer",
@@ -1994,6 +1995,7 @@ export const fr = {
         paid: "Payé sur place",
         due: "Reste dû",
         settle: "Encaisser au trésorier",
+        estimatedExtra: "Reste estimé à l'émission de la facture : {{amount}} DT (TVA, timbre)",
         costTotal: "Coût des marchandises",
         margin: "Marge",
         costLater: "à la confirmation",
@@ -3153,6 +3155,8 @@ export const fr = {
         late_one: "{{count}} j de retard",
         late_other: "{{count}} j de retard",
         payAll: "Solder {{number}}",
+        payTtc: "Régler {{number}} TTC",
+        payTtcHint: "Biens + TVA et timbre estimés : {{amount}} DT",
         auto: "Affecter automatiquement",
         clear: "Tout effacer",
         receivedTotal: "Total reçu",
@@ -3436,6 +3440,15 @@ export const fr = {
       removeLot: "Retirer ce lot",
       lotsTotal: "Réparti : {{spread}} sur {{amount}}",
       lotsMismatch: "Choisissez des lots différents, et des montants qui totalisent exactement {{amount}}.",
+      // D-256: only the unpaid gap of one invoice, charged to the lots of its BL.
+      invoiceTitle: "Abandonner l'écart de la facture",
+      invoiceHint:
+        "La facture {{party}} demande encore {{amount}}. Cet écart n'est plus réclamé : il est enregistré comme une perte sur ce client. Le geste est définitif.",
+      invoiceLotsHint:
+        "La perte de {{amount}} baisse le résultat des lots choisis, et leur partenaire en prend sa part. Répartissez-la sur les lots des BL de cette facture.",
+      invoiceConfirmTitle: "Confirmer l'abandon de l'écart",
+      invoiceSubmit: "Abandonner l'écart",
+      invoiceDone: "Écart abandonné",
     },
     supplierBalance: {
       title: "Solde fournisseur",

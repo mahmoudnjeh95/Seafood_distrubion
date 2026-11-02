@@ -477,10 +477,18 @@ class SaleDetailSerializer(SaleSerializer):
     boxes = serializers.SerializerMethodField()
     # Every version of the BL of a truck load, oldest first (D-178); empty for any other sale.
     revisions = SaleRevisionSerializer(many=True, read_only=True)
+    # A BL on no invoice yet: what its invoice would add to the goods (VAT, stamp), D-256; "0.000" otherwise.
+    estimated_extra = serializers.SerializerMethodField()
 
     class Meta(SaleSerializer.Meta):
-        fields = (*SaleSerializer.Meta.fields, "lines", "boxes", "revisions")
+        fields = (*SaleSerializer.Meta.fields, "lines", "boxes", "revisions", "estimated_extra")
         read_only_fields = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_estimated_extra(self, sale: Sale) -> str:
+        from apps.sales import services
+
+        return str(services.estimated_extras(sale.organization, [sale.pk]).get(sale.pk, Decimal("0.000")))
 
     @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
     def get_boxes(self, sale: Sale) -> dict[str, int]:
@@ -972,7 +980,18 @@ class InvoiceCertificateSerializer(serializers.ModelSerializer[WithholdingCertif
         return person_name(certificate.created_by)
 
 
+class GapLotSerializer(serializers.Serializer[Any]):
+    """A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL's lots, not settled."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = serializers.CharField(read_only=True)
+
+
 class InvoiceDetailSerializer(InvoiceSerializer):
+    # The lots the invoice's gap can be given up against (D-256, D-257); empty unless issued.
+    gap_lots = serializers.SerializerMethodField()
+
     lines = InvoiceLineSerializer(many=True, read_only=True)
     vat_lines = InvoiceVatLineSerializer(many=True, read_only=True)
     credit_notes = CreditNoteSerializer(many=True, read_only=True)
@@ -994,6 +1013,10 @@ class InvoiceDetailSerializer(InvoiceSerializer):
     # The live withholding certificate (P2-T06), if one was recorded.
     certificate = serializers.SerializerMethodField()
 
+    @extend_schema_field(GapLotSerializer(many=True))
+    def get_gap_lots(self, invoice: Invoice) -> list[dict[str, Any]]:
+        return [dict(GapLotSerializer(lot).data) for lot in self.context.get("gap_lots", [])]
+
     @extend_schema_field(InvoiceCertificateSerializer(allow_null=True))
     def get_certificate(self, invoice: Invoice) -> dict[str, Any] | None:
         live = next((row for row in invoice.certificates.all() if row.voided_at is None), None)
@@ -1003,6 +1026,7 @@ class InvoiceDetailSerializer(InvoiceSerializer):
         fields = (
             *InvoiceSerializer.Meta.fields,
             "certificate",
+            "gap_lots",
             "notes",
             "fiscal_stamp_overridden",
             "withholding_rate_overridden",

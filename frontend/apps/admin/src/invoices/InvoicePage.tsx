@@ -2,6 +2,7 @@ import {
   ApiError,
   type CreditNote,
   deleteInvoice,
+  giveUpInvoiceGap,
   type InvoiceDetail,
   type InvoiceLine,
   updateInvoice,
@@ -46,6 +47,7 @@ import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { formatRate } from "../quotes/shared";
+import { BalanceWriteOffDialog } from "../payments/BalanceWriteOffDialog";
 import { CertificateCard } from "./CertificateCard";
 import { CreditNoteDialog } from "./CreditNoteDialog";
 import { canInvoice, isZero, plainRate, refreshAfterInvoice, STATUS_TONES, toInput } from "./shared";
@@ -444,7 +446,7 @@ function LinesTable({ invoice }: { invoice: InvoiceDetail }) {
   );
 }
 
-function Totals({ invoice }: { invoice: InvoiceDetail }) {
+function Totals({ invoice, owner }: { invoice: InvoiceDetail; owner: boolean }) {
   const { t } = useTranslation();
   const stamp = !isZero(invoice.fiscal_stamp);
   const showWithholding = invoice.withholding_applied && !isZero(invoice.withholding_rate);
@@ -512,15 +514,17 @@ function Totals({ invoice }: { invoice: InvoiceDetail }) {
           <TotalRow label={t("admin.invoices.document.remaining")}>{formatMoney(invoice.remaining_to_pay)}</TotalRow>
         )}
       </dl>
-      <PaymentGap invoice={invoice} />
+      <PaymentGap invoice={invoice} owner={owner} />
     </>
   );
 }
 
 /** An invoice paid in part: what is left, and how much of it is VAT and stamp the earlier règlement did not cover
  * (D-256). The rest is collected in a new règlement on this invoice. Not printed. */
-function PaymentGap({ invoice }: { invoice: InvoiceDetail }) {
+function PaymentGap({ invoice, owner }: { invoice: InvoiceDetail; owner: boolean }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [giving, setGiving] = useState(false);
   if (invoice.payment_state !== "partial") return null;
   const extra = isZero(invoice.extra_over_goods) ? null : formatMoney(invoice.extra_over_goods);
   return (
@@ -535,6 +539,26 @@ function PaymentGap({ invoice }: { invoice: InvoiceDetail }) {
       >
         {t("admin.invoices.gap.collect")}
       </Link>
+      {owner && (
+        <>
+          <Button variant="danger" className="ms-3" onClick={() => setGiving(true)}>
+            {t("admin.invoices.gap.giveUp")}
+          </Button>
+          <Dialog open={giving} onOpenChange={setGiving}>
+            <BalanceWriteOffDialog
+              kind="invoice"
+              party={invoice.number}
+              owed={invoice.remaining_to_pay}
+              lots={invoice.gap_lots}
+              onWrite={(body) => giveUpInvoiceGap(invoice.id, body)}
+              onDone={() => {
+                setGiving(false);
+                void queryClient.invalidateQueries();
+              }}
+            />
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
@@ -652,7 +676,7 @@ export function InvoicePage() {
             }
           />
           <LinesTable invoice={invoice} />
-          <Totals invoice={invoice} />
+          <Totals invoice={invoice} owner={session.role === "owner"} />
           {invoice.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{invoice.notes}</p>
           )}

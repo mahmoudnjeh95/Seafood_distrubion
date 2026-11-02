@@ -216,6 +216,7 @@ export * from './figureEnum';
 export * from './financeSettings';
 export * from './financeSettingsOverview';
 export * from './financeSettingsWrite';
+export * from './gapLot';
 export * from './generalCost';
 export * from './generalCostWrite';
 export * from './generatedMonth';

@@ -189,10 +189,10 @@ bordereau de versement, the états des factures); the flow and the rules stay ou
 - [x] Invoice `payment_state` (unpaid / partial / paid / none), `paid_total`, `extra_over_goods`; list filter `payment_state`.
 - [x] Office: "Reste estimé à l'émission" under a BL on Nouveau règlement; "Payée en partie" with the gap and a link to a
       new règlement on the invoice's page; a payment filter and a pill on the invoice list. Tests: `test_invoice_gap.py`.
-- [ ] "Régler TTC" box: needs a règlement allowed above a BL's goods before its invoice exists (server cap today).
-- [ ] Give the gap up for one invoice (owner only, reason, recorded): D-252 clears a whole customer balance, so this needs
-      a per-invoice write-off.
-- [ ] A line on the customer statement ("BL payé, facture non soldée") and the estimate in the BL's own screen.
+- [x] "Régler TTC": a règlement on a BL not yet invoiced may go up to its estimated TTC (button "TTC" on the line); above stays refused.
+- [x] "Abandonner l'écart" on a partly paid invoice (owner only, reason, typed amount, lots of its BL picked by hand,
+      `CustomerBalanceWriteOff.invoice`, `POST /invoices/{id}/give-up-gap`).
+- [x] Line "BL réglé, facture non soldée" on the customer statement PDF and the estimate on the BL's screen.
 
 ## Defaults chosen without the owner (provisional, D-197)
 

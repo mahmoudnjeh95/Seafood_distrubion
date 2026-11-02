@@ -1063,6 +1063,10 @@ class CustomerBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
     """
 
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="balance_write_offs")
+    # Set when only the unpaid gap of one issued invoice was given up (D-256); empty for a whole balance (D-252).
+    invoice = models.ForeignKey(
+        "sales.Invoice", null=True, blank=True, on_delete=models.PROTECT, related_name="gap_write_offs"
+    )
     written_on = models.DateField()
     amount = MoneyField()
     reason = models.CharField(max_length=255)

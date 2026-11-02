@@ -148,6 +148,7 @@ OWNER_ONLY_WRITES = (
 OWNER_ONLY_CLEARING = (
     "/api/v1/customers/<int:customer_id>/write-off",
     "/api/v1/supplier-balances/<int:supplier_id>/write-off",
+    "/api/v1/invoices/<int:invoice_id>/give-up-gap",
 )
 # Loading the company's data (P4-T01, D-112) and managing other users (D-123): the owner alone.
 OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members")

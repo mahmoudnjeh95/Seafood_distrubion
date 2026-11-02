@@ -25,9 +25,11 @@ from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.sales import selectors, services
-from apps.sales.models import CreditNote, DeliveryStatus, Invoice, PriceSource, Quote, Sale, SaleStatus
+from apps.sales.models import CreditNote, DeliveryStatus, Invoice, InvoiceStatus, PriceSource, Quote, Sale, SaleStatus
 
+from .payment_serializers import CustomerWriteOffWriteSerializer
 from .serializers import (
     BatchSalesSerializer,
     CreditNoteFilterSerializer,
@@ -620,9 +622,22 @@ class InvoiceView(OfficeView):
         except Invoice.DoesNotExist:
             raise Http404 from None
 
+    def gap_lots(self, invoice: Invoice) -> list[dict[str, Any]]:
+        """The lots the gap of a partly paid invoice can be charged to (its BL's lots, not settled, D-256)."""
+        if invoice.status != InvoiceStatus.ISSUED:
+            return []
+        return partnerships.open_write_off_lots(
+            self.organization,
+            selectors.customer_lots(
+                self.organization,
+                customer_id=invoice.customer_id,
+                sale_ids=[sale.pk for sale in invoice.sales.all()],
+            ),
+        )
+
     def answer(self, invoice_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
         invoice = self.invoice(invoice_id)
-        context = {"credited": selectors.credited_by_line(invoice)}
+        context = {"credited": selectors.credited_by_line(invoice), "gap_lots": self.gap_lots(invoice)}
         return Response(InvoiceDetailSerializer(invoice, context=context).data, status=status_code)
 
 
@@ -678,6 +693,29 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
             sales=sales, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
         )
         return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
+
+
+class InvoiceGiveUpGapView(InvoiceView):
+    @extend_schema(
+        operation_id="giveUpInvoiceGap", request=CustomerWriteOffWriteSerializer, responses=InvoiceDetailSerializer
+    )
+    def post(self, request: Request, invoice_id: int) -> Response:
+        """Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
+        amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
+        its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire abandonne l'écart d'une facture."))
+        serializer = CustomerWriteOffWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invoice = self.invoice(invoice_id)
+        services.write_off_invoice_gap(
+            invoice=invoice,
+            actor=self.membership.user,
+            expected=serializer.validated_data["expected_amount"],
+            reason=serializer.validated_data["reason"],
+            lot_shares=serializer.validated_data.get("lot_shares", []),
+        )
+        return self.answer(invoice_id)
 
 
 class InvoiceEstimateView(OfficeView):

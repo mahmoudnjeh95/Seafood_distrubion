@@ -92,14 +92,18 @@ export function CustomerPaymentFormPage() {
 
   const total = linesTotal(lines);
   const typed = items.map((item) => ({ item, value: parseDecimalInput((allocations[item.key] ?? "").trim(), 3) }));
+  // A BL on no invoice may be paid up to its estimated TTC: its goods plus the VAT and stamp to come (D-256).
+  const hasExtra = (item: OpenItem): boolean => item.kind === "sale" && toThousandths(item.estimatedExtra) > 0n;
+  const maxFor = (item: OpenItem): string =>
+    hasExtra(item) ? sum([item.outstanding, item.estimatedExtra]) : item.outstanding;
   const itemProblem = (item: OpenItem): string | null => {
     const raw = (allocations[item.key] ?? "").trim();
     if (raw === "") return null;
     const value = parseDecimalInput(raw, 3);
     if (value === null || value.startsWith("-")) return t("admin.supplierPayments.form.money");
     if (compare(value, "0") === 0) return t("admin.supplierPayments.form.positive");
-    if (compare(value, item.outstanding) > 0)
-      return t("admin.supplierPayments.form.tooMuch", { amount: formatMoney(item.outstanding) });
+    if (compare(value, maxFor(item)) > 0)
+      return t("admin.supplierPayments.form.tooMuch", { amount: formatMoney(maxFor(item)) });
     return null;
   };
   const allocated = sum(typed.flatMap(({ value }) => (value !== null && !value.startsWith("-") ? [value] : [])));
@@ -404,6 +408,19 @@ export function CustomerPaymentFormPage() {
                           >
                             =
                           </Button>
+                          {hasExtra(item) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t("admin.treasury.form.payTtc", { number: item.number })}
+                              title={t("admin.treasury.form.payTtcHint", { amount: formatMoney(maxFor(item)) })}
+                              onClick={() =>
+                                setAllocations((current) => ({ ...current, [item.key]: asTyped(maxFor(item)) }))
+                              }
+                            >
+                              TTC
+                            </Button>
+                          )}
                         </div>
                         {problem && <p className="mt-1 text-start text-[0.78rem] font-semibold text-bad">{problem}</p>}
                       </Td>
