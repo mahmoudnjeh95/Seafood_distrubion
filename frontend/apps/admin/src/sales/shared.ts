@@ -1,4 +1,4 @@
-import type { DeliveryStatusEnum, SalePaymentMethodEnum, SaleStatusEnum } from "@frutti/api";
+import type { DeliveryStatusEnum, SaleStatusEnum } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -24,8 +24,6 @@ export function canSell(session: Session): boolean {
 }
 
 export const SALE_STATUSES: SaleStatusEnum[] = ["draft", "confirmed", "cancelled"];
-
-export const PAYMENT_METHODS: SalePaymentMethodEnum[] = ["cash", "card", "cheque", "transfer"];
 
 export const STATUS_TONES = {
   draft: "neutral",

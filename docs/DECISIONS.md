@@ -3407,8 +3407,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Expense side unchanged:** the month's expense is still the approved salary (gross, employer CNSS, adjustments). An
   advance is a payment against that salary, not an extra expense.
 - **Provisional:** (1) an advance paid in cash goes to the Caisse; (2) a prime needs no separate payment; (3) an advance
-  above the month's due needs the confirmation flag; (4) a prime does not recompute the CNSS, as an adjustment does
-  (D-228): the accountant to confirm whether primes are subject to CNSS; (5) the code `advance` (not `avance`) is a
+  above the month's due needs the confirmation flag; (4) primes are not subject to CNSS (owner, D-263): a prime
+  and an adjustment change neither the employer nor the employee contribution; (5) the code `advance` (not `avance`) is a
   naming choice.
 - **Built with:** migration `hr.0006_salary_payment_kinds_and_primes` (`kind` on payments and adjustments); API
   `POST salary-records/<id>/primes` (`addSalaryPrime`), `kind` and `confirm_overpay` on `POST salary-payments`, and
@@ -3513,6 +3513,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   cost is typed on an addition (the lot's cost is used, a different cost is a receipt); no owner approval step (unlike a
   loss above the threshold, D-045); the monthly closing counts an adjustment as spoilage, like a count correction.
 
+**D-245 · The office types no payment on a sale: the money comes in through a règlement of the treasurer (owner request, 2026-11-02, P9-T09c)** · accepted (provisional parts marked) · 2026-11-02
+- Owner request: "remove payment surface in vente as everything should pass by trésorier". The sale form, the "Vente comptoir" and the "Convertir en vente" window (from a quote) show no payment block any more.
+- Server: an office create or conversion that carries a payment (`paid_in_full`, `amount_paid`, `payment_method`) is refused (400 on `detail`), so the sale is unpaid. An office edit of a draft keeps what the draft already says (a driver's phone may have recorded it).
+- The sale detail shows "Encaisser au trésorier" while something is still owed; it opens `/reglements/nouveau?client=<id>`.
+- The driver's phone is unchanged: cash in hand is recorded on the phone (D-133), a BL delivered there keeps its payment (D-047, D-239).
+- **Provisional, changes D-047 for the office:** the walk-in customer ("Client de passage") can owe at the office. A counter sale is confirmed unpaid and the treasurer settles it with a règlement for "Client de passage", allocated to the oldest sale. The walk-in is in the règlement customer picker, and the refusal of a walk-in règlement and the "pays on the spot" check are lifted for the office. A walk-in sale a driver made still must be paid on the spot.
+- Unchanged: a règlement posts its money the day it is received (D-219); a sale's money at confirmation is still the driver's (D-239).
+- Tests: the office API and service tests now expect the unpaid counter sale and the refused payment; a walk-in payment test and a driver walk-in test were added. The e2e counter and quote specs follow the new labels ("Enregistrer la vente").
 
 **D-243 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
 - The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
@@ -3561,8 +3569,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Treasury screens** refresh with the payroll screens after a prime or a salary payment.
 - **Provisional:** (1) a prime paid by cheque or traite is counted at the main bank account on its day, not followed as
   an effet (as for salary cheques); (2) primes added before this change have no payment and stay out of the treasury:
-  the office pays them through a salary payment, or the owner decides how to record them; (3) the prime does not change
-  the CNSS (D-234, the accountant to confirm).
+  the office pays them through a salary payment, or the owner decides how to record them.
+- Not subject to CNSS: the owner's answer of 2026-11-02 (D-263).
 
 **D-250 · The withholding is taken on every invoice of 1 000 DT and more, and on none below (owner rule, 2026-11-02)** · provisional · 2026-11-02
 - The server decides: an invoice whose **total TTC** (HT + VAT + stamp + fees) reaches 1 000,000 DT carries the
@@ -3610,6 +3618,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The "Achat avec TVA" box on a receipt (D-202) already starts unchecked and is not changed.
 - Provisional: the rule is read from the lots, so a mixed BL with one VAT-bought product is invoiced with VAT as a whole.
 
+**D-254 · The dashboard lists the cheques and traites that need someone today (Phase 9, P9-T09e)** · accepted · 2026-11-02
+- Nothing told the office about a due date: the notifications come from actions (D-175), not from the calendar. The
+  dashboard now lists the effets to follow, worked out when it is read (no scheduler, nothing to miss or repeat):
+  a cheque or traite we received and still hold or have at the bank, from its due day; a cheque of ours from the day
+  before it falls due; a traite of ours from 15 days before; each until it is cashed or debited. Red once due.
+- The rules are the Perfaxis ones (cheque the day of or after the due day, traite 15 days away), applied from the due
+  day for what we receive, so that no due day goes by unseen. Provisional: the days are constants in
+  `treasury.selectors`.
+- Not in the bell: the bell keeps telling what drivers and the office did. A bell reminder is a later step if wanted.
 **D-256 · A BL paid before it is invoiced: the VAT and timbre still to come are shown, then collected or given up (owner request 2026-11-02, P9-T10)** · provisional · 2026-11-02
 - Problem: a BL holds only its goods (HT); the VAT, timbre and withholding live on the invoice (D-057), shared back over the BL when
   it is issued (D-101). A BL paid at HT therefore turned unpaid again for the VAT and timbre, and nothing said so.
@@ -3627,6 +3644,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+
+**D-263 · Primes are not subject to CNSS (owner answer, 2026-11-02)** · accepted · 2026-11-02
+- The owner answered the open question of D-234: a prime is not subject to CNSS, neither the employer's contribution
+  nor the employee's withholding.
+- The code already does this, so nothing changes in it: the contributions are computed on the gross salary at
+  generation and on a draft's edit (base, bonus, overtime). A `SalaryAdjustment`, prime or not, is added to what is due
+  and to the month's expense, and never recomputes `employer_cnss` or `employee_cnss`.
+- No payslip exists yet, so nothing shows a CNSS line for a prime. The CNSS declaration, when built, takes the gross
+  salary only.
+- Older primes need nothing: the app is still in testing with no real data (owner).
+
+**D-262 · The driver's cash is in the ledger: the fund out of the Caisse, the counted cash back at approval, the port purchases from it (Phase 9, P9-T09f; owner answer)** · accepted · 2026-11-02
+- The cash the office gives a driver for a day (the fund and the money for buying at the port) leaves the Caisse for that
+  driver's cash when the day starts. When the office changes the money for purchases on a running day, only the
+  difference moves.
+- At the office's approval of the day, the cash it counted (the driver's cash and what is left of the purchase money)
+  goes from the driver's cash to the Caisse, dated the approval day. A new load that opens the day again leaves it in
+  the Caisse (D-134); the next approval moves what is counted then. A gap stays on the driver's cash until it is settled.
+- Cash paid at the port leaves the driver's cash the day of the purchase, written when the office validates the
+  purchase in the day's check, not when the driver enters it. A transfer or a card goes to the bank account; a
+  cheque or traite is an effet (D-264).
+- The reset of the fund at the office's approval (D-259) is another change and does not touch this.
+- The app is still in testing with no real data: no backfill.
 
 **D-261 · Trésorier stays lit on every treasury screen (Phase 9, P9-T08)** · accepted · 2026-11-02
 

@@ -16,6 +16,7 @@ from apps.core import audit
 from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
+from apps.treasury import services as treasury
 
 from .models import DayFund, DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
 
@@ -360,6 +361,15 @@ def open_driver_day(
             "purchase_float": str(purchase_float),
         },
     )
+    # The cash given to the driver leaves the Caisse and is in the driver's cash (D-262).
+    treasury.sync_driver_fund(
+        organization=organization,
+        actor=actor,
+        driver=actor,
+        day=date,
+        given=opening_cash + purchase_float,
+        source_id=day.pk,
+    )
     return day
 
 
@@ -423,6 +433,15 @@ def set_day_fund(
             target=day,
             before={"purchase_float": day_before},
             after={"purchase_float": str(purchase_float)},
+        )
+        # More (or less) money for purchases: the difference moves between the Caisse and the driver's cash (D-262).
+        treasury.sync_driver_fund(
+            organization=organization,
+            actor=actor,
+            driver=driver,
+            day=date,
+            given=day.opening_cash + day.purchase_float,
+            source_id=day.pk,
         )
     return fund
 

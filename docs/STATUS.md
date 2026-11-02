@@ -1,9 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-251)_
+_Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-264)_
 
 ## Where we are
 
+- **Sales, 2026-11-02, D-245 (branch `sales-no-payment`, PR #284, awaits CI):** the office's sale forms, "Vente comptoir" and "Convertir en vente" show no payment; an office sale is unpaid and the office API refuses a payment. The treasurer takes it in Règlements clients, the walk-in customer included (provisional change of D-047). The driver's phone is unchanged. The sale detail links "Encaisser au trésorier" while something is owed.
 - **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
   checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice
   from a BL without VAT-bought goods opens with the box unchecked.
@@ -76,7 +77,7 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 
 ## Open owner decisions
 
-- D-234 (provisional): whether primes are subject to CNSS (accountant); an advance above the month's due needs a confirmation.
+- D-234 (provisional): an advance above the month's due needs a confirmation. Primes are not subject to CNSS (owner, D-263).
 - Q29 (D-197, provisional): invoice paid when the effet is received or when cashed; the company's bank accounts; bank
   charges of an impayé; endorsing customer traites to suppliers.
 - Backups off-site and the private key (D-139); boxes opening balances (D-135); driver day cash handover (D-134);
