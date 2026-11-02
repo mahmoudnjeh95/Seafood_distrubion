@@ -1552,8 +1552,9 @@ paths:
   /api/v1/day-funds:
     get:
       operationId: listDayFunds
-      description: Every active driver with the cash set for them on a day (today
-        by default) and whether they started.
+      description: |-
+        Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent.
       parameters:
       - in: query
         name: date
@@ -1575,8 +1576,9 @@ paths:
           description: ''
     put:
       operationId: setDayFund
-      description: Set the cash handed to a driver for a day (D-203); it changes until
-        the driver accepts it.
+      description: |-
+        Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248).
       tags:
       - day-funds
       requestBody:
@@ -4922,35 +4924,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
-          description: ''
-  /api/v1/my-day/purchase-float:
-    put:
-      operationId: setMyPurchaseFloat
-      description: |-
-        The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent.
-      tags:
-      - my-day
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DriverDay'
           description: ''
   /api/v1/my-days:
     get:
@@ -14440,9 +14413,13 @@ components:
         started:
           type: boolean
           readOnly: true
+        ended:
+          type: boolean
+          readOnly: true
       required:
       - can_buy
       - driver
+      - ended
       - fund
       - started
     DayFundWrite:
@@ -23887,15 +23864,6 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
-    PurchaseFloat:
-      type: object
-      properties:
-        purchase_float:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-      required:
-      - purchase_float
     PurchaseOrderStatusEnum:
       enum:
       - open

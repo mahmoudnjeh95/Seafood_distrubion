@@ -3504,3 +3504,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A capital correction (`update_partnership`) cannot take the capital below what was already advanced.
 - Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
 - The money leaves our accounts the day it is paid, as a settlement payment does (D-240): a treasury movement out of the account its means goes to, kind `partner_settlement`, labelled "Avance". Provisional: the kind is shared with the settlements.
+
+**D-248 · The purchase money is set by the office only; the driver approves it when starting the day (owner request, 2026-11-02)** · accepted · 2026-11-02
+- The money for purchases at the port (`DriverDay.purchase_float`) is typed by the office in "Camions du jour › Fonds de caisse"
+  (`PUT /day-funds`). The driver approves it with the cash when starting the day (D-203, `POST /my-day`), then cannot change it.
+- Removed: the driver's `PUT /my-day/purchase-float` (D-158's "typed again while the day runs"). The phone shows the amount
+  with "Seul le bureau peut le modifier." and no edit control.
+- The office may still change the purchase money of a running day, with `PUT /day-funds`: the day takes it at once, and the
+  audit log keeps `driver_day.purchase_float_set`. The accepted opening cash stays locked once the day started.
+- Once the driver's closing is sent, the purchase money is locked for the office too (the day is kept as sent, D-134).
+  The fund list reports `ended` for each row so the office screen locks the field.
+- Provisional: the driver does not approve a change the office makes during the day (the owner may want a re-approval
+  step instead). A driver who disagrees calls the office, as for the cash (D-203).

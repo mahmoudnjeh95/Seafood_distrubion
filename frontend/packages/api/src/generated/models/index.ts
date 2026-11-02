@@ -554,7 +554,6 @@ export * from './productStockDetail';
 export * from './profilePhotoUpload';
 export * from './profitShareEntry';
 export * from './profitShareKindEnum';
-export * from './purchaseFloat';
 export * from './purchaseOrderStatusEnum';
 export * from './purchaseTypeEnum';
 export * from './quote';

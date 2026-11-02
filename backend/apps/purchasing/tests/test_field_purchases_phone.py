@@ -312,13 +312,33 @@ def test_the_closing_shows_the_purchase_money_and_the_office_counts_it_apart(set
     assert late.status_code == 403
 
 
-def test_the_purchase_money_can_be_typed_again_while_the_day_runs(setup):
-    changed = setup["api"].put(reverse("my-purchase-float"), {"purchase_float": "1500"}, format="json")
-    assert changed.status_code == 200
+def test_the_purchase_money_is_changed_by_the_office_only_while_the_day_runs(setup):
+    # The driver cannot type it any more (D-248): there is no route for it on the phone.
+    refused = setup["api"].put("/api/v1/my-day/purchase-float", {"purchase_float": "1500"}, format="json")
+    assert refused.status_code == 404
+    today = timezone.localdate().isoformat()
+    driver_id = setup["driver"].user_id
+    changed = setup["owner"].put(
+        reverse("day-fund-list"),
+        {"driver": driver_id, "date": today, "opening_cash": "50", "purchase_float": "1500"},
+        format="json",
+    )
+    assert changed.status_code == 200, changed.json()
     assert changed.json()["purchase_float"] == "1500.000"
     assert summary(setup)["expected_purchase_cash"] == "1500.000"
+    # The cash the driver accepted does not change once the day runs.
+    cash_changed = setup["owner"].put(
+        reverse("day-fund-list"),
+        {"driver": driver_id, "date": today, "opening_cash": "80", "purchase_float": "1500"},
+        format="json",
+    )
+    assert cash_changed.status_code == 400
     setup["api"].post(reverse("my-day-closing"), {}, format="json")
-    after = setup["api"].put(reverse("my-purchase-float"), {"purchase_float": "2000"}, format="json")
+    after = setup["owner"].put(
+        reverse("day-fund-list"),
+        {"driver": driver_id, "date": today, "opening_cash": "50", "purchase_float": "2000"},
+        format="json",
+    )
     assert after.status_code == 400
 
 

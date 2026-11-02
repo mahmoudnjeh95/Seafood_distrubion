@@ -3055,7 +3055,8 @@ export const RequestDayJustificationResponse = zod.object({
 
 
 /**
- * Every active driver with the cash set for them on a day (today by default) and whether they started.
+ * Every active driver with the cash set for them on a day (today by default), whether they started and whether
+ * their closing is sent.
  */
 export const ListDayFundsQueryParams = zod.object({
   "date": zod.iso.date().optional()
@@ -3077,13 +3078,15 @@ export const ListDayFundsResponseItem = zod.object({
   "set_at": zod.iso.datetime({"offset":true}),
   "accepted_at": zod.iso.datetime({"offset":true}).nullable()
 }).describe('The cash the office set for a driver\'s day (D-203).'),zod.null()]),
-  "started": zod.boolean()
+  "started": zod.boolean(),
+  "ended": zod.boolean()
 }).describe('One driver on the office\'s "Fonds de caisse" list of a day.')
 export const ListDayFundsResponse = zod.array(ListDayFundsResponseItem)
 
 
 /**
- * Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it.
+ * Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+ * the money for purchases changes, and only here (D-248).
  */
 
 export const setDayFundBodyOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -9725,31 +9728,6 @@ export const RecordMyLocationsBody = zod.object({
 
 export const RecordMyLocationsResponse = zod.object({
   "saved": zod.int()
-})
-
-
-/**
- * The money the office gave for purchases at the port today, typed again when it gives more (D-158).
- * 404 before the day is started; refused once its closing is sent.
- */
-export const setMyPurchaseFloatBodyPurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
-
-export const SetMyPurchaseFloatBody = zod.object({
-  "purchase_float": zod.stringFormat('decimal', setMyPurchaseFloatBodyPurchaseFloatRegExp)
-})
-
-export const setMyPurchaseFloatResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const setMyPurchaseFloatResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-
-
-export const SetMyPurchaseFloatResponse = zod.object({
-  "id": zod.int(),
-  "date": zod.iso.date(),
-  "truck_name": zod.string(),
-  "opening_cash": zod.stringFormat('decimal', setMyPurchaseFloatResponseOpeningCashRegExp),
-  "purchase_float": zod.stringFormat('decimal', setMyPurchaseFloatResponsePurchaseFloatRegExp),
-  "ended_at": zod.iso.datetime({"offset":true}).nullable()
 })
 
 
