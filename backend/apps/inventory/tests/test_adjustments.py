@@ -73,6 +73,7 @@ def test_adding_kilos_keeps_the_lot_cost_and_the_average_is_worked_out_again(org
     assert average(organization, dorade) == Decimal("26.000")
 
     movement = adjust(organization, old, cold_room, add=True, quantity="10")
+    movement.refresh_from_db()
 
     # (20 x 20 + 30 x 28) / 50
     assert (movement.kind, movement.to_location, movement.from_location) == (MovementKind.ADJUSTMENT, cold_room, None)

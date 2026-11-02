@@ -59,8 +59,10 @@ export function AdjustStockDialog({ stock, onDone }: { stock: ProductStockDetail
       const after = answer.average_cost ? formatMoney(answer.average_cost) : t("admin.stock.none");
       toast.success(t("admin.stock.product.adjust.saved", { before, after }));
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          typeof query.queryKey[0] === "string" && REFRESHED.some((prefix) => query.queryKey[0].startsWith(prefix)),
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === "string" && REFRESHED.some((prefix) => key.startsWith(prefix));
+        },
       });
       onDone();
     },
