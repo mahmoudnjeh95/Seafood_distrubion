@@ -252,7 +252,7 @@ def test_approving_the_day_resets_the_cash_the_office_set_for_that_driver_to_zer
     closing = day["office"].get(reverse("day-closing-list")).json()[0]
     counted = day["office"].post(
         reverse("day-closing-count", args=[closing["id"]]),
-        {"office_counted_cash": "150.000", "office_counted_purchase_cash": "30.000"},
+        {"office_counted_cash": "150.000", "office_counted_purchase_cash": "0.000"},
         format="json",
     )
     assert counted.status_code == 200
