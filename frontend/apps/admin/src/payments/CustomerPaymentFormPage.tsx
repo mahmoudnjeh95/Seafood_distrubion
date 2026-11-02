@@ -34,6 +34,7 @@ import { subtract, sum, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { asTyped, compare, spread } from "../purchasing/allocation";
 import { FormPanel } from "../treasury/FormPanel";
+import { CashLimitNotice } from "./CashLimitNotice";
 import { ConfirmPaymentDialog } from "./ConfirmPaymentDialog";
 import { Figure } from "./Figure";
 import {
@@ -79,6 +80,8 @@ export function CustomerPaymentFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverLineErrors, setServerLineErrors] = useState<Record<number, Record<string, string>>>({});
   const [confirming, setConfirming] = useState<CustomerPaymentWrite | null>(null);
+  // A cash line at or above the cash limit, refused until confirmed (D-273): its message and the payment to resend.
+  const [cashWarning, setCashWarning] = useState<{ message: string; payload: CustomerPaymentWrite } | null>(null);
 
   const customerId = Number(customer) || 0;
   const balance = useGetCustomerBalance(customerId, { query: { enabled: customerId > 0 } });
@@ -132,9 +135,13 @@ export function CustomerPaymentFormPage() {
       await refreshAfterPayment(queryClient);
       void navigate(`/clients/${customer}`);
     },
-    onError: (failure) => {
+    onError: (failure, payload) => {
       setConfirming(null);
       const fromServer = fieldErrors(failure);
+      if (fromServer.cash_limit) {
+        setCashWarning({ message: fromServer.cash_limit, payload });
+        return;
+      }
       const { lines: byLine, rest } = errorsByLine(fromServer);
       setServerLineErrors(byLine);
       setErrors(Object.keys(fromServer).length > 0 ? rest : { detail: t("admin.payments.dialog.error") });
@@ -152,6 +159,7 @@ export function CustomerPaymentFormPage() {
     setErrors(found);
     setChecked(true);
     setServerLineErrors({});
+    setCashWarning(null);
     if (Object.keys(found).length > 0 || Object.keys(problems).length > 0 || refused || overAllocated) return;
     setConfirming({
       customer: customerId,
@@ -447,6 +455,18 @@ export function CustomerPaymentFormPage() {
             />
           </Field>
         </Card>
+
+        {cashWarning && (
+          <CashLimitNotice
+            message={cashWarning.message}
+            pending={save.isPending}
+            onConfirm={() => {
+              const payload = cashWarning.payload;
+              setCashWarning(null);
+              save.mutate({ ...payload, confirm_cash_limit: true });
+            }}
+          />
+        )}
 
         {errors.detail && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">

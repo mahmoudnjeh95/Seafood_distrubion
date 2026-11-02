@@ -438,6 +438,21 @@ def finance_settings_on(organization: Organization, day: dt.date | None = None) 
     return finance_settings_history(organization).filter(valid_from__lte=day).first()
 
 
+DEFAULT_CASH_LIMIT = Decimal("5000.000")
+
+
+def cash_limit_on(organization: Organization, day: dt.date | None = None) -> Decimal:
+    """The amount from which a cash line of a payment needs confirming, in force on `day` (D-273)."""
+    version = finance_settings_on(organization, day)
+    return version.cash_limit if version is not None else DEFAULT_CASH_LIMIT
+
+
+def cash_over_limit(organization: Organization, day: dt.date, cash_lines: Iterable[Decimal]) -> bool:
+    """True when one cash line of a payment is at or above the cash limit of its day."""
+    limit = cash_limit_on(organization, day)
+    return any(value >= limit for value in cash_lines)
+
+
 # ---- Invoices and credit notes (P2-T05, D-057) ----
 
 

@@ -21,6 +21,7 @@ from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 from apps.partnerships import services as partnerships
+from apps.sales import selectors as sales_selectors
 from apps.treasury import services as treasury
 
 from . import selectors
@@ -1433,6 +1434,7 @@ def record_payment(
     post_to_treasury: bool = True,
     driver: User | None = None,
     movement_kind: str = "supplier_payment",
+    confirm_cash_limit: bool = False,
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles (D-043, D-208).
 
@@ -1495,6 +1497,14 @@ def record_payment(
     settled = _checked_plan_lines(organization, supplier, named, allocated, errors) if named else []
     if plan_line is not None and "plan_lines.0" in errors and not plan_lines:
         errors["plan_line"] = errors.pop("plan_lines.0")
+    over_limit = not errors and sales_selectors.cash_over_limit(
+        organization, paid_on, (value for line_method, value, _line in checked if line_method == "cash")
+    )
+    if over_limit and not confirm_cash_limit:
+        # A cash line at or above the limit goes through only when confirmed (D-273).
+        errors["cash_limit"] = _(
+            "Paiement en espèces au-delà du plafond légal (%(limit)s DT) : confirmez pour continuer."
+        ) % {"limit": display_money(sales_selectors.cash_limit_on(organization, paid_on))}
     if errors:
         raise ValidationError(errors)
     assert total is not None  # an amount error would have been raised above
@@ -1502,6 +1512,7 @@ def record_payment(
     only = checked[0][2] if len(checked) == 1 else None
     payment = SupplierPayment.objects.create(
         organization=organization,
+        cash_limit_confirmed=over_limit,
         number=numbering.next_number(organization, "supplier_payment"),
         supplier=supplier,
         paid_on=paid_on,
@@ -2314,6 +2325,8 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
             # office validated it (D-262).
             driver=purchase.buyer,
             movement_kind="field_purchase",
+            # Paid at the port by the driver, validated by the office: the cash limit flag is recorded (D-273).
+            confirm_cash_limit=True,
         )
         payment.save(update_fields=["supplier_payment"])
     purchase.status = FieldPurchaseStatus.VALIDATED

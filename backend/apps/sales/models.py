@@ -548,6 +548,8 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     prices_include_vat = models.BooleanField(default=False)
     # Percent, 2 decimals: the withholding tax (retenue à la source) on invoices of 1 000 DT and more; 0 = never shown.
     withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    # A cash line of this amount or more on a payment needs the office's explicit confirmation (D-273, owner: 5 000 DT).
+    cash_limit = MoneyField(default=Decimal("5000.000"))
     # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.
     credit_policy = models.CharField(max_length=20, choices=CreditPolicy.choices, default=CreditPolicy.BLOCK)
     # Who issues the invoices, as printed on them (article 18 of the VAT code).
@@ -988,6 +990,8 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
     void_reason = models.CharField(max_length=255, blank=True)
     # Sent by the driver app, which may retry: the same value never records a payment twice (P3-T11).
     client_uuid = models.UUIDField(null=True, blank=True)
+    # A cash line at or above the cash limit was confirmed by the person who recorded it (D-273).
+    cash_limit_confirmed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-received_on", "-id"]

@@ -38,6 +38,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
   const [vatRate, setVatRate] = useState(toInput(current.vat_rate));
   const [stamp, setStamp] = useState(toInput(current.fiscal_stamp));
   const [withholding, setWithholding] = useState(toInput(current.withholding_rate));
+  const [cashLimit, setCashLimit] = useState(toInput(current.cash_limit));
   const [includeVat, setIncludeVat] = useState(current.prices_include_vat);
   const [creditPolicy, setCreditPolicy] = useState<CreditPolicyEnum>(current.credit_policy);
   const [validFrom, setValidFrom] = useState("");
@@ -54,10 +55,18 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
       const rate = parseDecimalInput(vatRate, 2);
       const rateWithholding = parseDecimalInput(withholding, 2);
       const stampValue = parseDecimalInput(stamp, 3);
+      const limitValue = parseDecimalInput(cashLimit, 3);
       if (rate === null) found.vat_rate = t("admin.financeSettings.rateError");
       if (rateWithholding === null) found.withholding_rate = t("admin.financeSettings.rateError");
       if (stampValue === null) found.fiscal_stamp = t("admin.financeSettings.moneyError");
-      if (Object.keys(found).length > 0 || rate === null || rateWithholding === null || stampValue === null) {
+      if (limitValue === null) found.cash_limit = t("admin.financeSettings.moneyError");
+      if (
+        Object.keys(found).length > 0 ||
+        rate === null ||
+        rateWithholding === null ||
+        stampValue === null ||
+        limitValue === null
+      ) {
         setErrors(found);
         return Promise.reject(new Error("invalid"));
       }
@@ -67,6 +76,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
         fiscal_stamp: stampValue,
         prices_include_vat: includeVat,
         withholding_rate: rateWithholding,
+        cash_limit: limitValue,
         credit_policy: creditPolicy,
         legal_name: legalName.trim(),
         address: address.trim(),
@@ -94,14 +104,16 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
 
   const mayEdit = overview.may_edit;
   const field = (key: string, label: string, value: string, set: (value: string) => void, hint?: string) => {
-    const Control = key === "fiscal_stamp" ? MoneyInput : Input;
+    const Control = key === "fiscal_stamp" || key === "cash_limit" ? MoneyInput : Input;
     return (
       <Field label={label} htmlFor={`${formId}-${key}`} error={errors[key]}>
         <Control
           id={`${formId}-${key}`}
           value={value}
           disabled={!mayEdit}
-          inputMode={["vat_rate", "fiscal_stamp", "withholding_rate"].includes(key) ? "decimal" : undefined}
+          inputMode={
+            ["vat_rate", "fiscal_stamp", "withholding_rate", "cash_limit"].includes(key) ? "decimal" : undefined
+          }
           onChange={(event) => set(event.target.value)}
           aria-invalid={errors[key] ? true : undefined}
           autoComplete="off"
@@ -130,6 +142,13 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
             stamp,
             setStamp,
             t("admin.financeSettings.stampHint"),
+          )}
+          {field(
+            "cash_limit",
+            t("admin.financeSettings.cashLimit"),
+            cashLimit,
+            setCashLimit,
+            t("admin.financeSettings.cashLimitHint"),
           )}
           <label className="flex items-start gap-2.5">
             <input

@@ -650,6 +650,7 @@ class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
             "fiscal_stamp",
             "prices_include_vat",
             "withholding_rate",
+            "cash_limit",
             "credit_policy",
             "legal_name",
             "address",
@@ -681,8 +682,10 @@ class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.CharField(allow_blank=True)
     prices_include_vat = serializers.BooleanField()
     withholding_rate = serializers.CharField(allow_blank=True)
+    # DT, as a string: a cash line of this amount or more needs confirming (D-273). Left out: no change.
+    cash_limit = serializers.CharField(required=False, allow_blank=True)
     # What happens above a customer's credit limit: block, ask the owner or a manager, or warn and log.
-    # Empty keeps the version in force.
+    # Left out, it keeps the version in force.
     credit_policy = serializers.ChoiceField(choices=CreditPolicy.choices, required=False)
     legal_name = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
     address = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)

@@ -27,4 +27,5 @@ export interface CustomerPaymentWrite {
   reason?: string;
   /** @maxLength 120 */
   paid_by?: string;
+  confirm_cash_limit?: boolean;
 }

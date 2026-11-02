@@ -31,6 +31,7 @@ export interface SupplierPayment {
   readonly created_by: string;
   readonly created_at: string;
   readonly is_voided: boolean;
+  readonly cash_limit_confirmed: boolean;
   /** @nullable */
   readonly voided_at: string | null;
   readonly voided_by: string;

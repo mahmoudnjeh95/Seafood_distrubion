@@ -192,7 +192,7 @@ def test_an_invoice_cannot_take_more_than_it_owes(organization, actor, customer,
             organization,
             actor,
             customer,
-            [{"method": "cash", "amount": "9999.000"}],
+            [{"method": "transfer", "amount": "9999.000"}],
             allocations=[{"invoice": invoice, "amount": "9999.000"}],
         )
     assert "ne doit plus que" in refused.value.message_dict["allocations.0.amount"][0]

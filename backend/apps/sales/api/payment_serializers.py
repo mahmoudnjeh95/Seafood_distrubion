@@ -82,6 +82,7 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
             "unallocated",
             "remaining",
             "is_voided",
+            "cash_limit_confirmed",
             "voided_at",
             "voided_by",
             "void_reason",
@@ -230,6 +231,8 @@ class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     # What the money is for, and who handed it over (both optional).
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
     paid_by = serializers.CharField(required=False, allow_blank=True, default="", max_length=120)
+    # True: a cash line at or above the cash limit is confirmed by the person recording the payment (D-273).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
 
 
 class UnpaidWriteSerializer(serializers.Serializer[Any]):

@@ -176,6 +176,7 @@ class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment])
             reason=data["reason"],
             paid_by=data["paid_by"],
             allocations=_allocations(self.organization, data["allocations"]),
+            confirm_cash_limit=data["confirm_cash_limit"],
         )
         return self.answer(payment.pk, status_code=status.HTTP_201_CREATED)
 
