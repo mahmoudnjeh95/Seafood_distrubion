@@ -3801,3 +3801,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Hand-made stock adjustments (D-247) keep the `adjustment` kind: they still count as spoilage and still lock the cost and VAT of a lot.
 - A receipt correction does not lock the lot's cost or VAT (the cost lock only watches sales, losses, returns, counts and hand adjustments).
 - Migration `inventory.0013_receipt_correction_kind` (choices only; no data changes). The ledger stays append-only: corrections already posted before this change (since D-269 was deployed) keep the `adjustment` kind and so still count as spoilage. They can be identified by their source (the receipt line). Reclassifying them would mean rewriting movements, which the ledger does not allow; the owner decides whether to leave them or record a separate correction.
+
+## D-271 Sorting and paging on every long list (2026-11-02)
+
+- Server-paged lists (`PagedList`) take `?ordering=key` or `-key`; each view lists its sortable columns in
+  `ordering_columns`. Only stored columns sort (number, date, partner name, kind...); computed amounts
+  (totals, remaining) are not sortable there yet. Ties fall back to `-pk`.
+- `useServerTable` (limit, offset, ordering) and `Pager` replace the old Précédent/Suivant strips on the 16 lists.
+- Lists loaded whole (customers, suppliers, employees, labourers, recurring costs, partnerships, flat document list)
+  use `useTableView`. The document tree keeps its order; only the flat view sorts.
+- The rows-per-page choice (25/50/100/200) is remembered in the browser for all lists (`frutti.pageSize`).

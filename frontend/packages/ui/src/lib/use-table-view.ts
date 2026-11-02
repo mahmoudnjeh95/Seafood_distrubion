@@ -6,6 +6,26 @@ export type TableSort = { key: string; direction: SortDirection } | null;
 
 export const PAGE_SIZES = [25, 50, 100, 200] as const;
 
+const PAGE_SIZE_KEY = "frutti.pageSize";
+
+/** The rows per page the user picked last time, on any list; storage can be blocked, so it is only a convenience. */
+export function rememberedPageSize(fallback: number): number {
+  try {
+    const saved = Number(window.localStorage.getItem(PAGE_SIZE_KEY));
+    return (PAGE_SIZES as readonly number[]).includes(saved) ? saved : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function rememberPageSize(size: number): void {
+  try {
+    window.localStorage.setItem(PAGE_SIZE_KEY, String(size));
+  } catch {
+    // Not remembered: the list still works.
+  }
+}
+
 function compare(a: SortValue, b: SortValue): number {
   // Empty values always go last, whatever the direction.
   if (a == null || a === "") return b == null || b === "" ? 0 : 1;
@@ -23,7 +43,7 @@ export function useTableView<Row>(
   { pageSize: initialSize = 50 }: { pageSize?: number } = {},
 ) {
   const [sort, setSort] = useState<TableSort>(null);
-  const [pageSize, setPageSizeState] = useState(initialSize);
+  const [pageSize, setPageSizeState] = useState(() => rememberedPageSize(initialSize));
   const [requestedPage, setPage] = useState(1);
 
   const sorted = useMemo(() => {
@@ -63,6 +83,7 @@ export function useTableView<Row>(
       onPage: setPage,
       onPageSize: (size: number) => {
         setPageSizeState(size);
+        rememberPageSize(size);
         setPage(1);
       },
     },

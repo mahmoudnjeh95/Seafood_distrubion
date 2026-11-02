@@ -23,6 +23,10 @@ limit?: number;
  */
 offset?: number;
 /**
+ * Column to sort by; a leading `-` sorts descending.
+ */
+ordering?: string;
+/**
  * * `unpaid` - unpaid
  * * `partial` - partial
  * * `paid` - paid

@@ -50,6 +50,12 @@ class BoxBalanceListView(BoxOfficeView):
 class BoxMovementListView(BoxOfficeView, ListAPIView[BoxMovement]):
     serializer_class = BoxMovementSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "date": ("made_at",),
+        "kind": ("kind",),
+        "boxType": ("box_type",),
+        "count": ("count",),
+    }
 
     def get_queryset(self) -> QuerySet[BoxMovement]:
         filters = BoxMovementFilterSerializer(data=self.request.query_params)

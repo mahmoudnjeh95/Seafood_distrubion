@@ -8,7 +8,22 @@ import {
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, Dialog, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  Dialog,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
@@ -23,7 +38,6 @@ import { compare } from "./allocation";
 import { PurchasingTabs } from "./PurchasingTabs";
 import { idFrom } from "./shared";
 
-const PAGE_SIZE = 50;
 const METHODS: readonly SupplierPaymentMethodEnum[] = ["cash", "cheque", "bill", "transfer", "other", "mixed"];
 
 /** "Paiements fournisseurs": every règlement, filtered by days, means and state, with the totals of the filter and
@@ -39,7 +53,7 @@ export function SupplierPaymentsPage() {
   const supplier = useGetSupplier(supplierId ?? 0, { query: { enabled: supplierId !== null } });
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ListFilters<SupplierPaymentMethodEnum>>(NO_FILTERS);
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const [allocating, setAllocating] = useState<SupplierPayment | null>(null);
   const query = useDebounced(search.trim());
   const methodLabel = (method: string) => t(`admin.supplierPayments.method.${method as SupplierPaymentMethodEnum}`);
@@ -50,7 +64,7 @@ export function SupplierPaymentsPage() {
     ...(supplierId ? { supplier: supplierId } : {}),
   };
   const payments = useListSupplierPayments(
-    { limit: PAGE_SIZE, offset, ...shared },
+    { ...table.params, ...shared },
     { query: { placeholderData: keepPreviousData } },
   );
   const totals = useGetSupplierPaymentTotals(shared, { query: { placeholderData: keepPreviousData } });
@@ -85,7 +99,7 @@ export function SupplierPaymentsPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -93,7 +107,7 @@ export function SupplierPaymentsPage() {
           filters={filters}
           onChange={(next) => {
             setFilters(next);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           methods={METHODS}
           methodLabel={methodLabel}
@@ -106,7 +120,7 @@ export function SupplierPaymentsPage() {
               className="font-semibold text-sea hover:underline"
               onClick={() => {
                 setParams({});
-                setOffset(0);
+                table.backToFirstPage();
               }}
             >
               {t("admin.supplierInvoices.clearSupplier")}
@@ -144,9 +158,15 @@ export function SupplierPaymentsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.supplierPayments.columns.number")}</Th>
-                <Th>{t("admin.supplierPayments.columns.date")}</Th>
-                <Th>{t("admin.supplierPayments.columns.supplier")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.supplierPayments.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.supplierPayments.columns.date")}
+                </SortTh>
+                <SortTh sortKey="supplier" {...table.sorting}>
+                  {t("admin.supplierPayments.columns.supplier")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.supplierPayments.columns.reason")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.treasury.list.means")}</Th>
                 <Th numeric>{t("admin.supplierPayments.columns.amount")}</Th>
@@ -221,23 +241,7 @@ export function SupplierPaymentsPage() {
               })}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.supplierPayments.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.supplierPayments.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.supplierPayments.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
 

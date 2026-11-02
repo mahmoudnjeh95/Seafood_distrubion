@@ -197,6 +197,11 @@ class ExpenseView(OfficeView):
 class ExpenseListView(ExpenseView, ListAPIView[Expense]):
     serializer_class = ExpenseSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("spent_on",),
+        "category": ("category__name",),
+    }
 
     def get_queryset(self) -> QuerySet[Expense]:
         return self.filtered()

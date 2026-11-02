@@ -1,7 +1,21 @@
 import { useListReceipts } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
@@ -9,8 +23,6 @@ import { Link, useNavigate, useOutletContext } from "react-router";
 import { useDebounced } from "../lib/useDebounced";
 import { PurchasingTabs } from "../purchasing/PurchasingTabs";
 import { canRecordReceipts } from "./shared";
-
-const PAGE_SIZE = 50;
 
 export function ReceiptsPage() {
   const { t } = useTranslation();
@@ -20,11 +32,11 @@ export function ReceiptsPage() {
   const differencesId = useId();
   const [search, setSearch] = useState("");
   const [onlyDifferences, setOnlyDifferences] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const receipts = useListReceipts(
-    { limit: PAGE_SIZE, offset, differences: onlyDifferences, ...(query ? { search: query } : {}) },
+    { ...table.params, differences: onlyDifferences, ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = receipts.data;
@@ -54,7 +66,7 @@ export function ReceiptsPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -65,7 +77,7 @@ export function ReceiptsPage() {
             checked={onlyDifferences}
             onChange={(event) => {
               setOnlyDifferences(event.target.checked);
-              setOffset(0);
+              table.backToFirstPage();
             }}
             className="size-4 accent-coral"
           />
@@ -95,9 +107,15 @@ export function ReceiptsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.receipts.columns.number")}</Th>
-                <Th>{t("admin.receipts.columns.date")}</Th>
-                <Th>{t("admin.receipts.columns.supplier")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.receipts.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.receipts.columns.date")}
+                </SortTh>
+                <SortTh sortKey="supplier" {...table.sorting}>
+                  {t("admin.receipts.columns.supplier")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.receipts.columns.location")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.receipts.columns.lines")}</Th>
                 <Th numeric>{t("admin.receipts.columns.invoiced")}</Th>
@@ -143,23 +161,7 @@ export function ReceiptsPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.receipts.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.receipts.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.receipts.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

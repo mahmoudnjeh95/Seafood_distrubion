@@ -302,6 +302,11 @@ class TransferView(OfficeView):
 class TransferListView(TransferView, ListAPIView[Transfer]):
     serializer_class = TransferSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("transferred_on",),
+        "kind": ("kind",),
+    }
 
     def get_queryset(self) -> QuerySet[Transfer]:
         filters = TransferFilterSerializer(data=self.request.query_params)
@@ -584,6 +589,12 @@ class LossView(OfficeView):
 class LossListView(LossView, ListAPIView[StockLoss]):
     serializer_class = LossSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("lost_on",),
+        "product": ("product__name",),
+        "location": ("location__name",),
+    }
 
     def get_queryset(self) -> QuerySet[StockLoss]:
         filters = LossFilterSerializer(data=self.request.query_params)
@@ -700,6 +711,11 @@ class CountView(OfficeView):
 class CountListView(CountView, ListAPIView[StockCount]):
     serializer_class = CountSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("counted_on",),
+        "location": ("location__name",),
+    }
 
     def get_queryset(self) -> QuerySet[StockCount]:
         filters = CountFilterSerializer(data=self.request.query_params)
@@ -845,6 +861,11 @@ class StockAdjustmentView(OfficeView):
 class MovementListView(OfficeView, ListAPIView[Any]):
     serializer_class = StockMovementSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "when": ("occurred_at",),
+        "kind": ("kind",),
+        "product": ("product__name",),
+    }
 
     def get_queryset(self) -> QuerySet[Any]:
         filters = StockMovementFilterSerializer(data=self.request.query_params)

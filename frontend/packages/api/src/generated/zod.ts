@@ -242,7 +242,8 @@ export const ListBoxMovementsQueryParams = zod.object({
   "box_type": zod.enum(['small', 'big']).optional().describe('* `small` - Petite caisse\n* `big` - Grande caisse'),
   "holder": zod.int().min(1).optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
-  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.')
 })
 
 export const ListBoxMovementsResponse = zod.object({
@@ -504,6 +505,7 @@ export const ListCountsQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "status": zod.enum(['counting', 'approved', 'cancelled']).optional().describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé')
 })
 
@@ -823,6 +825,7 @@ export const ListCreditNotesQueryParams = zod.object({
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listCreditNotesQuerySearchMax).default(listCreditNotesQuerySearchDefault)
 })
 
@@ -1062,6 +1065,7 @@ export const ListCustomerPaymentsQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listCustomerPaymentsQuerySearchMax).default(listCustomerPaymentsQuerySearchDefault),
   "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated')
 })
@@ -5076,6 +5080,7 @@ export const ListExpensesQueryParams = zod.object({
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listExpensesQuerySearchMax).default(listExpensesQuerySearchDefault),
   "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).optional().describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
   "truck": zod.int().min(1).optional()
@@ -5591,6 +5596,7 @@ export const listFieldPurchasesQuerySearchMax = 100;
 export const ListFieldPurchasesQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listFieldPurchasesQuerySearchMax).default(listFieldPurchasesQuerySearchDefault),
   "status": zod.enum(['submitted', 'validated', 'refused']).optional().describe('* `submitted` - À valider\n* `validated` - Validé\n* `refused` - Refusé')
 })
@@ -6528,6 +6534,7 @@ export const ListInvoicesQueryParams = zod.object({
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "payment_state": zod.enum(['unpaid', 'partial', 'paid']).optional().describe('* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
   "sale": zod.int().min(1).optional(),
   "search": zod.string().max(listInvoicesQuerySearchMax).default(listInvoicesQuerySearchDefault),
@@ -7882,6 +7889,7 @@ export const ListLossesQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listLossesQuerySearchMax).default(listLossesQuerySearchDefault),
   "status": zod.enum(['pending', 'approved', 'rejected']).optional().describe('* `pending` - En attente\n* `approved` - Validée\n* `rejected` - Refusée')
 })
@@ -13284,6 +13292,7 @@ export const listPurchaseOrdersQuerySearchMax = 100;
 export const ListPurchaseOrdersQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listPurchaseOrdersQuerySearchMax).default(listPurchaseOrdersQuerySearchDefault),
   "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled', 'pending']).optional().describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé\n* `pending` - pending'),
   "supplier": zod.int().min(1).optional()
@@ -13573,6 +13582,7 @@ export const ListQuotesQueryParams = zod.object({
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listQuotesQuerySearchMax).default(listQuotesQuerySearchDefault),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).optional().describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré')
 })
@@ -14447,6 +14457,7 @@ export const ListReceiptsQueryParams = zod.object({
   "differences": zod.boolean().default(listReceiptsQueryDifferencesDefault),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "purchase_order": zod.int().min(1).optional(),
   "search": zod.string().max(listReceiptsQuerySearchMax).default(listReceiptsQuerySearchDefault),
   "supplier": zod.int().min(1).optional(),
@@ -16395,6 +16406,7 @@ export const ListSalesQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listSalesQuerySearchMax).default(listSalesQuerySearchDefault),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
   "uninvoiced": zod.boolean().default(listSalesQueryUninvoicedDefault)
@@ -17816,6 +17828,7 @@ export const ListMovementsQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "product": zod.int().min(1).optional()
 })
 
@@ -18207,6 +18220,7 @@ export const listSupplierInvoicesQuerySearchMax = 100;
 export const ListSupplierInvoicesQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "overdue": zod.boolean().default(listSupplierInvoicesQueryOverdueDefault),
   "search": zod.string().max(listSupplierInvoicesQuerySearchMax).default(listSupplierInvoicesQuerySearchDefault),
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid', 'open']).optional().describe('* `draft` - draft\n* `posted` - posted\n* `partly_paid` - partly_paid\n* `paid` - paid\n* `open` - open'),
@@ -18621,6 +18635,7 @@ export const ListSupplierPaymentsQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listSupplierPaymentsQuerySearchMax).default(listSupplierPaymentsQuerySearchDefault),
   "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
   "supplier": zod.int().min(1).optional(),
@@ -19616,6 +19631,7 @@ export const ListTransfersQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listTransfersQuerySearchMax).default(listTransfersQuerySearchDefault),
   "status": zod.enum(['draft', 'validated', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `validated` - Validé\n* `cancelled` - Annulé')
 })
@@ -22106,6 +22122,7 @@ export const ListWebRequestsQueryParams = zod.object({
   "kind": zod.enum(['quote', 'order']).optional().describe('* `quote` - Demande de devis\n* `order` - Commande'),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().default(listWebRequestsQuerySearchDefault),
   "status": zod.enum(['new', 'handled', 'cancelled']).optional().describe('* `new` - Nouvelle\n* `handled` - Traitée\n* `cancelled` - Annulée')
 })
