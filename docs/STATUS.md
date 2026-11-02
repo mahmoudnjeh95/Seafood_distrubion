@@ -1,8 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); next free decision D-248)_
+_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); next free decision D-249)_
 
 ## Where we are
+
+- **Sales, 2026-11-02, D-245 (branch `sales-no-payment`, PR #284, awaits CI):** the office's sale forms, "Vente comptoir" and "Convertir en vente" show no payment; an office sale is unpaid and the office API refuses a payment. The treasurer takes it in Règlements clients, the walk-in customer included (provisional change of D-047). The driver's phone is unchanged. The sale detail links "Encaisser au trésorier" while something is owed.
 
 - **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
   removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
