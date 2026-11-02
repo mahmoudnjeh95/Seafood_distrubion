@@ -1604,3 +1604,23 @@ def adjust_stock(
         },
     )
     return movement
+
+
+@transaction.atomic
+def correct_batch(
+    *,
+    batch: Batch,
+    unit_cost: Decimal,
+    use_by: dt.date | None,
+    bought_with_vat: bool,
+    receipt_reference: str,
+) -> Batch:
+    """Correct what a lot says about its price, use-by date, VAT and receipt reference, for a receipt changed
+    after saving (D-269). The caller checks that nothing valued has left the lot; the kilos themselves move
+    through movements, never here."""
+    batch.unit_cost = unit_cost
+    batch.use_by = use_by
+    batch.bought_with_vat = bought_with_vat
+    batch.receipt_reference = receipt_reference
+    batch.save(update_fields=["unit_cost", "use_by", "bought_with_vat", "receipt_reference", "updated_at"])
+    return batch

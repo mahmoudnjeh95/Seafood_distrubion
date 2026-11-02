@@ -3772,3 +3772,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   on the account only, as before.
 - Server-side: the shares are checked in `partnerships.services.checked_write_off_lot_shares`, inside the write-off's
   transaction; the API refuses a share on a lot that was not offered.
+
+**D-269 · A goods receipt (BR) can be changed after saving; every change is kept as a revision (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- **Who and when:** the owner and the manager, enforced on the server. A receipt changes while no supplier invoice carries it. Once any invoice carries it, the change is refused: a draft invoice must be deleted first, a posted one is corrected through the invoice or a supplier return (provisional: the draft is not updated with the new figures; refusing is simpler and safe).
+- **What changes:** the supplier reference, the notes, the VAT flag, and for each line the invoiced weight, the accepted weight, the cost per kg and the use-by date. Every line is sent, by id; lines are not added or removed (a new BR does that).
+- **Stock stays an append-only ledger:** a changed accepted weight posts an `adjustment` movement on the lot, from or to the receipt's place, with the reason "Correction du bon BR-…", its source the receipt line. The original receipt movement is never edited. It is refused when it would leave the lot below what already left it (accepted weight minus what is on hand). Provisional: the monthly closing counts this correction as spoilage, like an adjustment or a count correction.
+- **Cost and VAT:** the lot's cost per kg and its VAT flag change only while nothing valued has left the lot: no sale, loss, return, count or adjustment (other than the receipt's own weight corrections). A transfer to a truck does not lock them. Provisional: the use-by date always changes freely.
+- **Revisions:** `GoodsReceiptRevision` keeps the number of the change, who, when, a required reason, and the snapshot before and after. A change must name the revision it changes (`GoodsReceipt.revision`), so two people never overwrite each other. The detail page shows "Modifier" and the history of changes; each change is also audited (`receipt.edited`).
+- The purchase order's status follows a changed accepted weight, as it does for a receipt.
+- Endpoint: `POST /api/v1/receipts/{id}/revise` (`reviseReceipt`).

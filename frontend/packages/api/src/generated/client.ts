@@ -327,6 +327,7 @@ import type {
   QuoteRefuse,
   QuoteWrite,
   Receipt,
+  ReceiptRevisionWrite,
   ReceiptWrite,
   ReceivablesAgeing,
   Recipient,
@@ -22288,6 +22289,94 @@ export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TE
 
 
 
+
+export const getReviseReceiptUrl = (receiptId: number,) => {
+
+
+
+
+  return `/api/v1/receipts/${receiptId}/revise`
+}
+
+/**
+ * Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+ * invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+ * it, and when `revision` is not its current one. `reason` is required. Each change stays in its history.
+ */
+export const reviseReceipt = async (receiptId: number,
+    receiptRevisionWrite: ReceiptRevisionWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Receipt>(getReviseReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(receiptRevisionWrite)
+  }
+);}
+
+
+
+
+
+export const getReviseReceiptMutationKey = () => ['reviseReceipt'] as const;
+
+export const getReviseReceiptMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviseReceipt>>, TError,ReviseReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviseReceipt>>, TError,ReviseReceiptMutationVariables, TContext> => {
+
+const mutationKey = getReviseReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviseReceipt>>, ReviseReceiptMutationVariables> = (props) => {
+          const {receiptId,data} = props ?? {};
+
+          return  reviseReceipt(receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviseReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof reviseReceipt>>>
+    export type ReviseReceiptMutationBody = ReceiptRevisionWrite
+    export type ReviseReceiptMutationError = unknown
+    export type ReviseReceiptMutationVariables = {receiptId: number;data: ReceiptRevisionWrite}
+
+    export const useReviseReceipt = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviseReceipt>>, TError,ReviseReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reviseReceipt>>,
+        TError,
+        ReviseReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviseReceiptMutationOptions(options), queryClient);
+    }
 
 export const getListReceiptDifferencesUrl = (params?: ListReceiptDifferencesParams,) => {
   const normalizedParams = new URLSearchParams();

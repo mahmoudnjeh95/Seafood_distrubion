@@ -7042,6 +7042,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/Receipt'
           description: ''
+  /api/v1/receipts/{receipt_id}/revise:
+    post:
+      operationId: reviseReceipt
+      description: |-
+        Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+        invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+        it, and when `revision` is not its current one. `reason` is required. Each change stays in its history.
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptRevisionWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptRevisionWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptRevisionWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
   /api/v1/receipts/differences:
     get:
       operationId: listReceiptDifferences
@@ -18361,6 +18397,33 @@ components:
       - created
       - month
       - records
+    GoodsReceiptRevision:
+      type: object
+      properties:
+        number:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptChange'
+          readOnly: true
+      required:
+      - changes
+      - created_at
+      - created_by
+      - number
+      - reason
     Health:
       type: object
       properties:
@@ -25547,10 +25610,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoodsReceiptRevision'
+          readOnly: true
+        editable:
+          type: boolean
+          readOnly: true
       required:
       - accepted_total
       - created_at
       - created_by
+      - editable
       - has_differences
       - id
       - invoice
@@ -25561,6 +25636,8 @@ components:
       - number
       - purchase_order
       - received_on
+      - revision
+      - revisions
       - supplier
       - supplier_reference
       - with_vat
@@ -25582,6 +25659,29 @@ components:
       - id
       - number
       - use_by
+    ReceiptChange:
+      type: object
+      properties:
+        field:
+          type: string
+          readOnly: true
+        line:
+          type: integer
+          readOnly: true
+          nullable: true
+        before:
+          type: string
+          readOnly: true
+          nullable: true
+        after:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - after
+      - before
+      - field
+      - line
     ReceiptLine:
       type: object
       properties:
@@ -25703,6 +25803,54 @@ components:
       - number
       - received_on
       - supplier
+    ReceiptRevisionLineWrite:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        invoiced_quantity:
+          type: string
+        accepted_quantity:
+          type: string
+        unit_cost:
+          type: string
+        use_by:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - accepted_quantity
+      - id
+      - invoiced_quantity
+      - unit_cost
+    ReceiptRevisionWrite:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 0
+        reason:
+          type: string
+          maxLength: 300
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        with_vat:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptRevisionLineWrite'
+      required:
+      - lines
+      - reason
+      - revision
+      - with_vat
     ReceiptWrite:
       type: object
       properties:

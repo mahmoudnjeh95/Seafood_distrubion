@@ -7,6 +7,7 @@ urlpatterns = [
     path("receipts/differences", views.ReceiptDifferenceListView.as_view(), name="receipt-differences"),
     path("receipts/last-costs", views.LastCostListView.as_view(), name="receipt-last-costs"),
     path("receipts/<int:receipt_id>", views.ReceiptDetailView.as_view(), name="receipt-detail"),
+    path("receipts/<int:receipt_id>/revise", views.ReceiptReviseView.as_view(), name="receipt-revise"),
     path("purchase-orders", views.OrderListView.as_view(), name="purchase-order-list"),
     path("purchase-orders/<int:order_id>", views.OrderDetailView.as_view(), name="purchase-order-detail"),
     path("purchase-orders/<int:order_id>/cancel", views.OrderCancelView.as_view(), name="purchase-order-cancel"),

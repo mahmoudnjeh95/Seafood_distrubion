@@ -1,10 +1,15 @@
 import { ApiError, type ReceiptLine, useGetReceipt } from "@frutti/api";
+import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
-import { Card, CardTitle, cn, EmptyState, Icon, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import { Button, Card, CardTitle, cn, Dialog, EmptyState, Icon, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { useState } from "react";
+import { Link, useOutletContext, useParams } from "react-router";
 
 import { subtract } from "../lib/decimal";
+import { canRecordReceipts } from "./shared";
+import { ReceiptEditDialog } from "./ReceiptEditDialog";
+import { ReceiptHistory } from "./ReceiptHistory";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
   return (
@@ -24,10 +29,12 @@ function Gap({ accepted, other }: { accepted: string; other: string }) {
 
 export function ReceiptDetailPage() {
   const { t } = useTranslation();
+  const session = useOutletContext<Session>();
   const { receiptId } = useParams();
   const id = Number(receiptId);
   const validId = Number.isInteger(id) && id > 0;
   const receipt = useGetReceipt(id, { query: { enabled: validId, retry: false } });
+  const [editing, setEditing] = useState(false);
 
   const back = (
     <Link to="/achats" className="text-[0.85rem] font-semibold text-sea hover:underline">
@@ -50,6 +57,8 @@ export function ReceiptDetailPage() {
   }
 
   const data = receipt.data;
+  // Changed by the owner or the manager while no invoice carries it; the server refuses the rest (D-269).
+  const canEdit = data.editable && canRecordReceipts(session);
   const none = t("admin.receipts.detail.none");
   const differing = data.lines.filter((line) => line.has_difference);
   // The ordered weight is optional: a receipt where none was typed (or against a purchase order) has no such column.
@@ -75,6 +84,14 @@ export function ReceiptDetailPage() {
       <PageHeader eyebrow={`${formatDate(data.received_on)} · ${data.supplier.name}`} title={data.number}>
         {data.has_differences && <Pill tone="warn">{t("admin.receipts.difference")}</Pill>}
       </PageHeader>
+      {canEdit && (
+        <div>
+          <Button onClick={() => setEditing(true)}>{t("admin.receipts.edit.open")}</Button>
+        </div>
+      )}
+      <Dialog open={editing} onOpenChange={setEditing}>
+        {editing && <ReceiptEditDialog receipt={data} onDone={() => setEditing(false)} />}
+      </Dialog>
 
       {differing.length > 0 && (
         <div role="note" className="flex items-start gap-3 rounded-card border border-line bg-warn-soft p-3">
@@ -210,7 +227,11 @@ export function ReceiptDetailPage() {
         </dl>
       </Card>
 
-      <p className="text-[0.85rem] text-ink-2">{t("admin.receipts.detail.immutable")}</p>
+      <ReceiptHistory receipt={data} />
+
+      <p className="text-[0.85rem] text-ink-2">
+        {t(data.editable ? "admin.receipts.detail.changeable" : "admin.receipts.detail.locked")}
+      </p>
     </>
   );
 }

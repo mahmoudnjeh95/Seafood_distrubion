@@ -14517,7 +14517,21 @@ export const ListReceiptsResponse = zod.object({
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
 }).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revision": zod.int(),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "reason": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "editable": zod.boolean()
 }))
 })
 
@@ -14639,7 +14653,21 @@ export const CreateReceiptResponse = zod.object({
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
 }).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revision": zod.int(),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "reason": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "editable": zod.boolean()
 })
 
 
@@ -14707,7 +14735,133 @@ export const GetReceiptResponse = zod.object({
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
 }).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
   "created_by": zod.string(),
-  "created_at": zod.iso.datetime({"offset":true})
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revision": zod.int(),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "reason": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "editable": zod.boolean()
+})
+
+
+/**
+ * Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+ * invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+ * it, and when `revision` is not its current one. `reason` is required. Each change stays in its history.
+ */
+export const ReviseReceiptParams = zod.object({
+  "receipt_id": zod.int()
+})
+
+export const reviseReceiptBodyRevisionMin = 0;
+
+export const reviseReceiptBodyReasonMax = 300;
+
+export const reviseReceiptBodySupplierReferenceDefault = ``;
+export const reviseReceiptBodySupplierReferenceMax = 50;
+
+export const reviseReceiptBodyNotesDefault = ``;
+
+
+export const ReviseReceiptBody = zod.object({
+  "revision": zod.int().min(reviseReceiptBodyRevisionMin),
+  "reason": zod.string().max(reviseReceiptBodyReasonMax),
+  "supplier_reference": zod.string().max(reviseReceiptBodySupplierReferenceMax).default(reviseReceiptBodySupplierReferenceDefault),
+  "notes": zod.string().default(reviseReceiptBodyNotesDefault),
+  "with_vat": zod.boolean(),
+  "lines": zod.array(zod.object({
+  "id": zod.int().min(1),
+  "invoiced_quantity": zod.string(),
+  "accepted_quantity": zod.string(),
+  "unit_cost": zod.string(),
+  "use_by": zod.iso.date().nullish()
+}))
+})
+
+export const reviseReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ReviseReceiptResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "purchase_order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}).describe('The purchase order a receipt delivers against.'),zod.null()]),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "with_vat": zod.boolean(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "use_by": zod.iso.date().nullable()
+}),
+  "ordered_quantity": zod.stringFormat('decimal', reviseReceiptResponseLinesItemOrderedQuantityRegExp).nullable(),
+  "invoiced_quantity": zod.stringFormat('decimal', reviseReceiptResponseLinesItemInvoicedQuantityRegExp),
+  "accepted_quantity": zod.stringFormat('decimal', reviseReceiptResponseLinesItemAcceptedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', reviseReceiptResponseLinesItemUnitCostRegExp),
+  "invoiced_amount": zod.stringFormat('decimal', reviseReceiptResponseLinesItemInvoicedAmountRegExp),
+  "accepted_amount": zod.stringFormat('decimal', reviseReceiptResponseLinesItemAcceptedAmountRegExp),
+  "has_difference": zod.boolean()
+})),
+  "has_differences": zod.boolean(),
+  "invoiced_total": zod.stringFormat('decimal', reviseReceiptResponseInvoicedTotalRegExp),
+  "accepted_total": zod.stringFormat('decimal', reviseReceiptResponseAcceptedTotalRegExp),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
+}).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revision": zod.int(),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "reason": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "editable": zod.boolean()
 })
 
 

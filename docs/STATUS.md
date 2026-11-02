@@ -1,9 +1,13 @@
 # Project status
 
-_Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-264)_
+_Last updated: 2026-11-02 (BR changes after saving, D-269, PR open; next free decision D-270)_
 
 ## Where we are
 
+- **Owner request 2026-11-02 (D-269, P1-T16, branch `receipt-edit-revisions`, PR open):** a goods receipt (BR) can be
+  changed after saving while no invoice carries it: supplier reference, notes, VAT, and each line's weights, cost and
+  use-by date. A weight change posts an adjustment; cost and VAT lock once something valued has left the lot. Every change
+  is a revision with a reason; the BR page shows "Modifier" and the history.
 - **P9-T10 (D-256, branch `bl-invoice-gap`, awaits CI):** a BL paid at its goods and invoiced later no longer looks silently
   paid. Estimate of the invoice (`GET /invoices/estimate`, `estimated_extra` on open BL), invoice `payment_state` /
   `paid_total` / `extra_over_goods`, filter and pill on Factures, gap banner with a link to a new règlement. Not done:
@@ -76,6 +80,7 @@ _Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office 
 
 ## Next step
 
+0. P1-T16 (D-269): merge the PR once green. On staging: a receipt with an accepted weight and a cost change, then Prix du jour and the stock page.
 0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
 0. D-243: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
    avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.

@@ -85,7 +85,7 @@ def receipts_of(
     receipts = (
         GoodsReceipt.objects.for_organization(organization)
         .select_related("supplier", "location", "created_by", "invoice_link__invoice", "purchase_order")
-        .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(Prefetch("lines", queryset=lines), "revisions")
         .annotate(has_differences=Exists(GoodsReceiptLine.objects.filter(DIFFERENT, receipt=OuterRef("pk"))))
         .order_by("-received_on", "-id")
     )
@@ -1175,3 +1175,28 @@ def supplier_documents(organization: Organization) -> dict[int, PartyDocuments]:
         current = documents.get(row["supplier_id"], PartyDocuments(party_id=row["supplier_id"]))
         documents[row["supplier_id"]] = replace(current, invoices=row["count"], total=row["total"])
     return documents
+
+
+def _shown_flag(value: Any) -> str | None:
+    if isinstance(value, bool):
+        return "oui" if value else "non"
+    return _shown(value)
+
+
+def receipt_changes(before: dict[str, Any], after: dict[str, Any]) -> list[RevisionChange]:
+    """What one change of a goods receipt changed (D-269): its header values, then each line's by its position."""
+    changes: list[RevisionChange] = []
+    for key in ("supplier_reference", "notes", "with_vat"):
+        if before.get(key) != after.get(key):
+            changes.append(
+                RevisionChange(
+                    field=key, line=None, before=_shown_flag(before.get(key)), after=_shown_flag(after.get(key))
+                )
+            )
+    for position, (old, new) in enumerate(zip(before.get("lines", []), after.get("lines", []), strict=False)):
+        for key in ("invoiced_quantity", "accepted_quantity", "unit_cost", "use_by"):
+            if old.get(key) != new.get(key):
+                changes.append(
+                    RevisionChange(field=key, line=position, before=_shown(old.get(key)), after=_shown(new.get(key)))
+                )
+    return changes
