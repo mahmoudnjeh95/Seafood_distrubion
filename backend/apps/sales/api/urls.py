@@ -11,6 +11,7 @@ urlpatterns = [
         name="my-delivery-not-delivered",
     ),
     path("my-payments", driver_payment_views.MyPaymentsView.as_view(), name="my-payments"),
+    path("my-cash-limit", driver_payment_views.MyCashLimitView.as_view(), name="my-cash-limit"),
     # P2-T03 · quotes
     path("quotes", views.QuoteListView.as_view(), name="quote-list"),
     path("quotes/<int:quote_id>", views.QuoteDetailView.as_view(), name="quote-detail"),

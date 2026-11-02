@@ -57,6 +57,7 @@ import { fieldErrors } from "../lib/errors";
 import { pickable } from "../lib/pickable";
 import { useDebounced } from "../lib/useDebounced";
 import { canWriteResults } from "../partnerships/shared";
+import { CashLimitNotice } from "../payments/CashLimitNotice";
 import { idFrom } from "../purchasing/shared";
 import { canRecordReceipts, refreshAfterReceipt, todayInTunis } from "./shared";
 
@@ -157,6 +158,8 @@ export function ReceiptFormPage() {
   const [boxes, setBoxes] = useState<BoxCountInputs>(NO_BOX_INPUTS);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [errors, setErrors] = useState<Errors>({});
+  // A cash payment at or above the cash limit, refused until confirmed (D-273, D-280): its message and the receipt to resend.
+  const [cashWarning, setCashWarning] = useState<{ message: string; payload: ReceiptWrite } | null>(null);
 
   // Choosing an order (or arriving from its page) fills the supplier and the lines, once per order.
   const [filledFrom, setFilledFrom] = useState<number | null>(null);
@@ -211,8 +214,12 @@ export function ReceiptFormPage() {
       await refreshAfterReceipt(queryClient);
       leave(`/achats/${saved.id}`);
     },
-    onError: (failure) => {
+    onError: (failure, payload) => {
       const fromServer = fieldErrors(failure);
+      if (fromServer.cash_limit) {
+        setCashWarning({ message: fromServer.cash_limit, payload });
+        return;
+      }
       setErrors(Object.keys(fromServer).length > 0 ? fromServer : { detail: t("admin.receipts.form.error") });
     },
   });
@@ -222,6 +229,7 @@ export function ReceiptFormPage() {
   function submit(event: FormEvent) {
     event.preventDefault();
     const found: Errors = {};
+    setCashWarning(null);
     if (!supplier) found.supplier = t("admin.receipts.form.required");
     if (!chosenLocation) found.location = t("admin.receipts.form.required");
     if (!receivedOn) found.received_on = t("admin.receipts.form.required");
@@ -802,6 +810,18 @@ export function ReceiptFormPage() {
             />
           </Field>
         </Card>
+
+        {cashWarning && (
+          <CashLimitNotice
+            message={cashWarning.message}
+            pending={save.isPending}
+            onConfirm={() => {
+              const payload = cashWarning.payload;
+              setCashWarning(null);
+              save.mutate({ ...payload, confirm_cash_limit: true });
+            }}
+          />
+        )}
 
         {errors.detail && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">

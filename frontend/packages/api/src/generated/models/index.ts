@@ -44,6 +44,7 @@ export * from './cashCountWrite';
 export * from './cashDifference';
 export * from './cashFlow';
 export * from './cashFlowGroupByEnum';
+export * from './cashLimit';
 export * from './cashLine';
 export * from './cashTypeEnum';
 export * from './category';

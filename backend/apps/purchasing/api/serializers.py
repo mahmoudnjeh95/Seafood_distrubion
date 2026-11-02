@@ -234,6 +234,8 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
     # Given now (D-192): kept as an advance that the supplier's invoice made from this receipt takes (D-268).
     payments = FieldPurchasePaymentWriteSerializer(many=True, required=False, default=list)
+    # The office confirmed a cash payment at or above the cash limit (D-273, D-280).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
 
 
 class ReceiptRevisionLineWriteSerializer(serializers.Serializer[Any]):

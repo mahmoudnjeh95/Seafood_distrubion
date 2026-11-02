@@ -3840,8 +3840,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The limit is a finance setting (Paramètres financiers), versioned like the others, 5 000 DT by default; it must stay
   above zero.
 - A port purchase paid in cash by a driver and validated by the office is recorded as confirmed (no screen to confirm on).
-- Not covered: a payment made through another door (a receipt paid at once, a payment plan line) is refused without a way
-  to confirm on its own screen; the règlement forms are the way to record a large cash payment.
+- Every door has its confirmation (D-280): the driver's phone, the money given at reception, and paying a plan line.
 **D-278 · Driver receipts printed on a small thermal printer, first step: Android over Bluetooth LE (P3-T10)** · accepted (provisional parts marked) · 2026-11-02
 - Owner bought a Digipos DPP-58 (the data sheet says 58 mm paper, 203 dpi). **Paper width is a phone setting**: 32 (default, 58 mm), 42 or 48 characters per line, with a test page that prints a ruler.
 - The receipt is laid out as text rows (`truck/src/printing/receipt.ts`), then turned into ESC/POS bytes (`escpos.ts`, code page 858 for the French accents; setting to drop accents). In French, whatever the app language (Q13). Works offline: it uses only the sale or purchase already on the phone.
@@ -3870,3 +3869,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The statement lines list takes `state` (`all` default, `matched`, `unmatched`); the Journal des banques shows it as three buttons.
 - `GET treasury/accounts/<id>/reconciliation?date_from&date_to` gives both sides of the rapprochement over the period: the lines matched and not matched, the money of the unmatched lines (debits in, credits out), and our own movements the bank's file does not show (at most 200, with their total).
 - Read only: it changes no balance and posts nothing.
+
+**D-280 · The cash limit confirmation reaches the driver phone, the reception form and the plan lines (Phase 9, P9-T09k)** · accepted · 2026-11-02
+- D-273 was "confirm to proceed", never a block, so no door refuses without a way to confirm.
+- Driver phone: `GET my-cash-limit` gives the limit; the phone keeps it, so it still asks with no connection (5 000 DT until it has heard once). At or above it, the collection screen shows a warning and a "Plafond des espèces" row in the confirmation, and the payment is sent with `confirm_cash_limit`. The queued item carries the flag, so the retry path is unchanged. The server still decides: it records `cash_limit_confirmed` and refuses a cash line over the limit sent without the flag.
+- Reception (BR): the form takes `confirm_cash_limit`; refused, it shows the same notice and a confirm button, and the whole receipt is saved only then.
+- A payment plan is not a payment: planning a cash line of any size never asks. The question comes when the line is paid, on the règlement form (the same notice).

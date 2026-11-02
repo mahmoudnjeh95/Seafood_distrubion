@@ -893,3 +893,18 @@ def test_a_day_a_new_load_reopened_is_not_corrected_on_its_old_send(day):
     )
 
     assert response.status_code == 400
+
+
+def test_a_driver_cash_collection_at_the_limit_goes_through_once_the_phone_confirms(day):
+    from apps.sales.models import CustomerPayment
+
+    assert day["api"].get(reverse("my-cash-limit")).json() == {"cash_limit": "5000.000"}
+    body = {"customer": day["customer"].pk, "amount": "5000.000", "method": "cash", "client_uuid": str(uuid4())}
+
+    refused = day["api"].post(reverse("my-payments"), body, format="json")
+    assert refused.status_code == 400
+    assert "cash_limit" in refused.json()
+
+    confirmed = day["api"].post(reverse("my-payments"), {**body, "confirm_cash_limit": True}, format="json")
+    assert confirmed.status_code == 201
+    assert CustomerPayment.objects.get().cash_limit_confirmed is True

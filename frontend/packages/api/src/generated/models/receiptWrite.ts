@@ -26,4 +26,5 @@ export interface ReceiptWrite {
   lines: ReceiptLineWrite[];
   boxes?: ReceiptWriteBoxes;
   payments?: FieldPurchasePaymentWrite[];
+  confirm_cash_limit?: boolean;
 }

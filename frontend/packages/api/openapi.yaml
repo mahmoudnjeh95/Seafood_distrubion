@@ -5127,6 +5127,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyBoxDay'
           description: ''
+  /api/v1/my-cash-limit:
+    get:
+      operationId: getMyCashLimit
+      description: |-
+        The amount from which a cash collection needs the driver's confirmation (D-273, D-280): the phone asks
+        before sending, and keeps the answer for when it has no connection.
+      tags:
+      - my-cash-limit
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashLimit'
+          description: ''
   /api/v1/my-customers:
     get:
       operationId: listMyCustomers
@@ -13233,6 +13250,16 @@ components:
         * `day` - day
         * `week` - week
         * `month` - month
+    CashLimit:
+      type: object
+      properties:
+        cash_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cash_limit
     CashLine:
       type: object
       properties:
@@ -26421,6 +26448,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FieldPurchasePaymentWrite'
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - lines
       - location
@@ -27241,6 +27271,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - amount
       - customer
