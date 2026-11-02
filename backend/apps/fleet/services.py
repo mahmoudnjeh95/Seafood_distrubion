@@ -461,18 +461,17 @@ def accept_day_fund(*, organization: Organization, actor: User, truck: Truck, da
 
 def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
     """The driver sent the day's closing: the day is over and its records stop here (D-134). Called inside the
-    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end. The office's
-    cash for that driver and day is reset to zero (D-242): the day keeps the amounts it started with."""
+    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end."""
     if driver_day.ended_at is None:
         driver_day.ended_at = ended_at
         driver_day.save(update_fields=["ended_at", "updated_at"])
-        _reset_day_fund(driver_day)
     return driver_day
 
 
-def _reset_day_fund(driver_day: DriverDay) -> None:
-    """Set the driver's "Fonds de caisse" and "Argent pour les achats" of that day back to zero (D-242). The fund
-    row stays, with its acceptance, so the office still sees the day was started."""
+def reset_day_fund(*, driver_day: DriverDay) -> None:
+    """Set the driver's "Fonds de caisse" and "Argent pour les achats" of that day back to zero, when the office
+    approves the day (D-259). The fund row stays, with its acceptance, so the office still sees the day was started.
+    A new load that reopens the day does not bring the amounts back."""
     fund = (
         DayFund.objects.select_for_update()
         .filter(organization=driver_day.organization, driver=driver_day.driver, date=driver_day.date)

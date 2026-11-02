@@ -3492,6 +3492,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
 
 **D-242 · Sending the closing resets that driver's "Fonds de caisse" and "Argent pour les achats" to zero (owner request, 2026-11-02)** · provisional · 2026-11-02
+- Changed by D-259: the reset happens when the office approves the day, not when the driver sends it. The rest stands.
 - Sending the closing ends the day (D-134). At that moment the office's `DayFund` for that driver and date is set to 0
   for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`, so the office still sees the day
   was started. Only that driver's row is touched.
@@ -3627,3 +3628,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+
+**D-259 · The driver's "Fonds de caisse" and "Argent pour les achats" go back to zero when the office approves the day (owner answer, 2026-11-02; changes D-242)** · provisional · 2026-11-02
+- `dayclose.approve_day_closing` calls `fleet.services.reset_day_fund`, which sets the office's `DayFund` for that driver
+  and date to 0 for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`. Only that driver's row
+  is touched.
+- Sending the closing no longer touches the fund: until the office approves, the phone and the office list keep the amounts.
+- Unchanged: the day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing. A new load that
+  reopens an approved day (D-134) does not bring the amounts back.
+- Provisional: the owner's answer came relayed by the PM session. The owner can move it back to sending if needed.

@@ -4,6 +4,10 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 
 ## Where we are
 
+- **D-259 (2026-11-02, provisional, PR open):** the driver's "Fonds de caisse" and "Argent pour les achats" for the day go
+  back to 0 when the office approves the day, not when the driver sends it (changes D-242). A new load on an approved day
+  does not bring them back.
+
 - **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
   checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice
   from a BL without VAT-bought goods opens with the box unchecked.

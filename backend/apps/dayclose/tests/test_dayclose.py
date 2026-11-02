@@ -240,17 +240,31 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     assert day["office"].post(url).status_code == 400
 
 
-def test_sending_the_day_resets_the_cash_the_office_set_for_that_driver_to_zero(day):
+def test_approving_the_day_resets_the_cash_the_office_set_for_that_driver_to_zero(day):
     sell(day, "5", "100.000")
     DayFund.objects.filter(driver=day["driver"]).update(purchase_float=Decimal("30.000"))
+    today = timezone.localdate().isoformat()
 
     sent = day["api"].post(reverse("my-day-closing"), {}, format="json")
 
-    assert (sent.status_code, sent.json()["closing"]["expected_cash"]) == (201, "150.000")  # the day keeps its start
-    assert (day["api"].get(reverse("my-day-fund")).json()["opening_cash"]) == "0.000"
-    rows = day["office"].get(reverse("day-fund-list"), {"date": timezone.localdate().isoformat()}).json()
+    assert (sent.status_code, sent.json()["closing"]["expected_cash"]) == (201, "150.000")
+    assert (day["api"].get(reverse("my-day-fund")).json()["opening_cash"]) == "50.000"  # sending keeps the cash
+    closing = day["office"].get(reverse("day-closing-list")).json()[0]
+    counted = day["office"].post(
+        reverse("day-closing-count", args=[closing["id"]]),
+        {"office_counted_cash": "150.000", "office_counted_purchase_cash": "30.000"},
+        format="json",
+    )
+    assert counted.status_code == 200
+    approved = day["office"].post(reverse("day-closing-approve", args=[closing["id"]]), {}, format="json")
+    assert approved.json()["status"] == "approved"
+    fund = day["api"].get(reverse("my-day-fund")).json()
+    assert (fund["opening_cash"], fund["purchase_float"]) == ("0.000", "0.000")
+    rows = day["office"].get(reverse("day-fund-list"), {"date": today}).json()
     mine = next(row for row in rows if row["driver"]["id"] == day["driver"].pk)
     assert (mine["fund"]["opening_cash"], mine["fund"]["purchase_float"]) == ("0.000", "0.000")
+    load_again(day, "1")  # a new load reopens the approved day; the amounts do not come back (D-259)
+    assert day["api"].get(reverse("my-day-fund")).json()["opening_cash"] == "0.000"
 
 
 def load_again(day, kg):

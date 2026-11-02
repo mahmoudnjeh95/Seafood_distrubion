@@ -290,6 +290,8 @@ def approve_day_closing(
             "office_purchase_difference": str(closing.office_purchase_difference),
         },
     )
+    # The driver's starting cash for the day goes back to zero once the office has approved it (D-259).
+    fleet_services.reset_day_fund(driver_day=closing.driver_day)
     return closing
 
 
