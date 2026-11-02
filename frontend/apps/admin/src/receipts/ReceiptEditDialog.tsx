@@ -20,7 +20,16 @@ import { type FormEvent, useId, useState } from "react";
 import { fieldErrors } from "../lib/errors";
 import { refreshAfterReceipt } from "./shared";
 
-type Draft = { invoiced: string; accepted: string; cost: string; useBy: string };
+// One row per line of the receipt, with what it shows and what is typed; the line's id travels with it.
+type Draft = {
+  id: number;
+  product: string;
+  batch: string;
+  invoiced: string;
+  accepted: string;
+  cost: string;
+  useBy: string;
+};
 type Errors = Record<string, string>;
 
 const weightOf = (typed: string) => {
@@ -44,6 +53,9 @@ export function ReceiptEditDialog({ receipt, onDone }: { receipt: Receipt; onDon
   const [withVat, setWithVat] = useState(receipt.with_vat);
   const [drafts, setDrafts] = useState<Draft[]>(() =>
     receipt.lines.map((line) => ({
+      id: line.id,
+      product: line.product.name,
+      batch: line.batch.number,
       invoiced: line.invoiced_quantity,
       accepted: line.accepted_quantity,
       cost: line.unit_cost,
@@ -82,7 +94,7 @@ export function ReceiptEditDialog({ receipt, onDone }: { receipt: Receipt; onDon
       if (accepted === null) found[`lines.${index}.accepted_quantity`] = t("admin.receipts.edit.weight");
       if (cost === null) found[`lines.${index}.unit_cost`] = t("admin.receipts.edit.money");
       lines.push({
-        id: receipt.lines[index].id,
+        id: row.id,
         invoiced_quantity: invoiced ?? "",
         accepted_quantity: accepted ?? "",
         unit_cost: cost ?? "",
@@ -159,18 +171,18 @@ export function ReceiptEditDialog({ receipt, onDone }: { receipt: Receipt; onDon
               </tr>
             </thead>
             <tbody>
-              {receipt.lines.map((line, index) => (
-                <tr key={line.id}>
+              {drafts.map((row, index) => (
+                <tr key={row.id}>
                   <Td>
-                    <span className="font-semibold">{line.product.name}</span>
-                    <div className="num text-[0.8rem] text-ink-2">{line.batch.number}</div>
+                    <span className="font-semibold">{row.product}</span>
+                    <div className="num text-[0.8rem] text-ink-2">{row.batch}</div>
                   </Td>
                   <Td className="p-0">
                     <input
                       aria-label={t("admin.receipts.edit.invoiced")}
                       inputMode="decimal"
                       className={`num ${cellClass}`}
-                      value={drafts[index].invoiced}
+                      value={row.invoiced}
                       onChange={(event) => setDraft(index, "invoiced", event.target.value)}
                       aria-invalid={errors[`lines.${index}.invoiced_quantity`] ? true : undefined}
                     />
@@ -181,7 +193,7 @@ export function ReceiptEditDialog({ receipt, onDone }: { receipt: Receipt; onDon
                       aria-label={t("admin.receipts.edit.accepted")}
                       inputMode="decimal"
                       className={`num ${cellClass}`}
-                      value={drafts[index].accepted}
+                      value={row.accepted}
                       onChange={(event) => setDraft(index, "accepted", event.target.value)}
                       aria-invalid={errors[`lines.${index}.accepted_quantity`] ? true : undefined}
                     />
@@ -191,7 +203,7 @@ export function ReceiptEditDialog({ receipt, onDone }: { receipt: Receipt; onDon
                     <MoneyInput
                       aria-label={t("admin.receipts.edit.cost")}
                       className={`num ${cellClass}`}
-                      value={drafts[index].cost}
+                      value={row.cost}
                       onChange={(event) => setDraft(index, "cost", event.target.value)}
                       aria-invalid={errors[`lines.${index}.unit_cost`] ? true : undefined}
                     />
@@ -202,7 +214,7 @@ export function ReceiptEditDialog({ receipt, onDone }: { receipt: Receipt; onDon
                       type="date"
                       aria-label={t("admin.receipts.edit.useBy")}
                       className="num w-full bg-transparent px-2.5 py-1.5"
-                      value={drafts[index].useBy}
+                      value={row.useBy}
                       onChange={(event) => setDraft(index, "useBy", event.target.value)}
                       aria-invalid={errors[`lines.${index}.use_by`] ? true : undefined}
                     />
