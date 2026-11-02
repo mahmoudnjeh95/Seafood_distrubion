@@ -242,6 +242,16 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
 
 def test_approving_the_day_resets_the_cash_the_office_set_for_that_driver_to_zero(day):
     sell(day, "5", "100.000")
+    # The office refuses an approval while the truck still holds stock: the 7 kg left go back to the cold room first.
+    inventory.create_transfer(
+        organization=day["organization"],
+        actor=None,
+        from_location=day["truck"].location,
+        to_location=day["room"],
+        transferred_on=timezone.localdate(),
+        lines=[{"product": day["product"], "quantity": Decimal("7")}],
+        validate=True,
+    )
     DayFund.objects.filter(driver=day["driver"]).update(purchase_float=Decimal("30.000"))
     today = timezone.localdate().isoformat()
 
