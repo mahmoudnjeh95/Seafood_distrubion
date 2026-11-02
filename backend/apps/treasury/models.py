@@ -377,3 +377,40 @@ class CashCount(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.account} · {self.counted_on}"
+
+
+class BankStatementLine(OrganizationScopedModel, TimeStampedModel):
+    """One line of a bank's statement, as the bank's Excel file gives it (P9-T09d, D-252): the day, the label, a debit
+    or a credit and the balance the bank shows. A copy of what the bank says, kept beside our own movements: it
+    never changes an account's balance. Only its third party (the customer or supplier it belongs to) is edited."""
+
+    account = models.ForeignKey(TreasuryAccount, on_delete=models.PROTECT, related_name="statement_lines")
+    day = models.DateField()
+    label = models.CharField(max_length=255)
+    debit = MoneyField(default=0)
+    credit = MoneyField(default=0)
+    # The balance column of the file, when it has one.
+    balance = MoneyField(null=True, blank=True)
+    # A debit belongs to a customer, a credit to a supplier (Perfaxis' "Tiers").
+    customer = models.ForeignKey(
+        "partners.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="statement_lines"
+    )
+    supplier = models.ForeignKey(
+        "partners.Supplier", null=True, blank=True, on_delete=models.PROTECT, related_name="statement_lines"
+    )
+    imported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["account", "day", "id"]
+        indexes = [models.Index(fields=["organization", "account", "day"], name="treasury_stmt_account_day_idx")]
+        constraints = [
+            models.CheckConstraint(
+                condition=~(models.Q(customer__isnull=False) & models.Q(supplier__isnull=False)),
+                name="treasury_stmt_one_third_party",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.account} · {self.day} · {self.label}"

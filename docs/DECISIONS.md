@@ -3504,3 +3504,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A capital correction (`update_partnership`) cannot take the capital below what was already advanced.
 - Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
 - The money leaves our accounts the day it is paid, as a settlement payment does (D-240): a treasury movement out of the account its means goes to, kind `partner_settlement`, labelled "Avance". Provisional: the kind is shared with the settlements.
+
+**D-252 · The bank's statement is imported from Excel as a copy, line by line, each line given to a customer or a supplier (Phase 9, P9-T09d)** · accepted · 2026-11-02
+- On the Journal des banques, a bank account takes the bank's Excel file (columns DATE, LIBELLE, DEBIT, CREDIT and,
+  optionally, SOLDE; a date is an Excel date or text like "03-janv-24"; amounts may have a decimal comma). All or
+  nothing: one unreadable row, listed with its row number, and nothing is saved.
+- A line already on the account (same day, label, debit, credit and balance) is skipped, so the same file twice adds
+  nothing; two identical lines inside one new file are both kept.
+- The lines are a copy of what the bank says (`BankStatementLine`): they move no money and change no balance of ours.
+  The matching of a line with our own movements (rapprochement bancaire) is still to be decided with the accountant.
+- A line at the debit takes a customer, a line at the credit a supplier (Perfaxis' "Tiers"); both can be cleared. A
+  wrong import is fixed by removing lines (audited).
+- Limits: 5 MB and 5 000 rows a file, as for the other imports.

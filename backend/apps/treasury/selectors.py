@@ -14,6 +14,7 @@ from .models import (
     AccountKind,
     AccountTransfer,
     Bank,
+    BankStatementLine,
     CashCount,
     Deposit,
     Instrument,
@@ -286,4 +287,29 @@ def movements_of(organization: Organization, *, source: str, source_ids: list[in
         TreasuryMovement.objects.filter(organization=organization, source=source, source_id__in=source_ids)
         .select_related("account")
         .order_by("day", "id")
+    )
+
+
+def statement_lines_of(
+    organization: Organization,
+    account: TreasuryAccount,
+    *,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+) -> QuerySet[BankStatementLine]:
+    """The imported lines of a bank account between two days (inclusive), oldest first."""
+    lines = BankStatementLine.objects.filter(organization=organization, account=account).select_related(
+        "customer", "supplier"
+    )
+    if date_from is not None:
+        lines = lines.filter(day__gte=date_from)
+    if date_to is not None:
+        lines = lines.filter(day__lte=date_to)
+    return lines.order_by("day", "id")
+
+
+def statement_line_of(organization: Organization, line_id: int) -> BankStatementLine:
+    """One imported line. Raises BankStatementLine.DoesNotExist outside the organization."""
+    return BankStatementLine.objects.select_related("customer", "supplier", "account").get(
+        organization=organization, pk=line_id
     )

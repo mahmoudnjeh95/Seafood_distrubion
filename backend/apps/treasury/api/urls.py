@@ -30,4 +30,19 @@ urlpatterns = [
     path("treasury/transfers/<int:transfer_id>/void", views.TransferVoidView.as_view(), name="treasury-transfer-void"),
     path("treasury/cash-counts", views.CashCountListView.as_view(), name="treasury-cash-count-list"),
     path("treasury/movements-of", views.MovementsOfView.as_view(), name="treasury-movements-of"),
+    path(
+        "treasury/accounts/<int:account_id>/statement/import",
+        views.StatementImportView.as_view(),
+        name="treasury-statement-import",
+    ),
+    path(
+        "treasury/accounts/<int:account_id>/statement-lines",
+        views.StatementLineListView.as_view(),
+        name="treasury-statement-line-list",
+    ),
+    path(
+        "treasury/statement-lines/<int:line_id>",
+        views.StatementLineDetailView.as_view(),
+        name="treasury-statement-line-detail",
+    ),
 ]

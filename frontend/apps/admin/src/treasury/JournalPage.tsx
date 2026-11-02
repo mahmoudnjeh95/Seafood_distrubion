@@ -26,6 +26,7 @@ import { useSearchParams } from "react-router";
 import { subtract } from "../lib/decimal";
 import { useDebounced } from "../lib/useDebounced";
 import { compare } from "../purchasing/allocation";
+import { StatementSection } from "./StatementSection";
 import { TresorerieRibbon } from "./TresorerieRibbon";
 
 type Kind = "bank" | "cash";
@@ -140,6 +141,9 @@ export function JournalPage({ kind }: { kind: Kind }) {
               </Table>
             )}
           </Card>
+          {kind === "bank" && account && (
+            <StatementSection accountId={account.id} dateFrom={dateFrom} dateTo={dateTo} />
+          )}
         </>
       )}
     </>

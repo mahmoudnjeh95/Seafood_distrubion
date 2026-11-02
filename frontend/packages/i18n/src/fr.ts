@@ -2777,6 +2777,28 @@ export const fr = {
       trace: {
         title: "Où est passé l'argent",
       },
+      statement: {
+        title: "Relevé de la banque",
+        intro:
+          "Le fichier Excel de la banque (colonnes DATE, LIBELLE, DEBIT, CREDIT, SOLDE), ligne par ligne. C'est une copie du relevé : il ne change aucun solde. Un client se choisit sur une ligne au débit, un fournisseur sur une ligne au crédit.",
+        upload: "Importer le relevé (.xlsx)",
+        imported: "{{created}} ligne(s) ajoutée(s), {{skipped}} déjà présente(s).",
+        refused: "Le fichier n'a pas été importé : corrigez les lignes ci-dessous.",
+        rowError: "Ligne {{row}} : {{message}}",
+        error: "L'import a échoué. Vérifiez le fichier puis réessayez.",
+        empty: "Aucune ligne importée sur ce compte pour cette période.",
+        noParty: "Aucun tiers ne correspond.",
+        columns: {
+          day: "Date",
+          label: "Libellé",
+          debit: "Débit",
+          credit: "Crédit",
+          balance: "Solde",
+          party: "Tiers",
+        },
+        remove: "Retirer",
+        removeTitle: "Retirer cette ligne du relevé ?",
+      },
       accounts: {
         bank: {
           title: "Agence bancaire",
