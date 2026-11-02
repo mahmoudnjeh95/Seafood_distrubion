@@ -3865,3 +3865,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   per-device choice. Status chips and date filters are not in the URL yet.
 - Several address changes in one event are composed (`changeParams`), because React Router drops the first one.
 - Inventaires got a search (number, place); the box history and the movements already filter by place and product.
+
+**D-274 · Unmatched bank lines: a filter and a two-sided report on the Journal des banques (Phase 9)** · accepted · 2026-11-02
+- The statement lines list takes `state` (`all` default, `matched`, `unmatched`); the Journal des banques shows it as three buttons.
+- `GET treasury/accounts/<id>/reconciliation?date_from&date_to` gives both sides of the rapprochement over the period: the lines matched and not matched, the money of the unmatched lines (debits in, credits out), and our own movements the bank's file does not show (at most 200, with their total).
+- Read only: it changes no balance and posts nothing.

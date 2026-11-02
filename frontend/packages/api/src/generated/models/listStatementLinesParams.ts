@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ListStatementLinesState } from './listStatementLinesState';
 
 export type ListStatementLinesParams = {
 date_from?: string;
@@ -16,4 +17,11 @@ limit?: number;
  * L'index initial depuis lequel retourner les résultats.
  */
 offset?: number;
+/**
+ * * `all` - all
+ * * `matched` - matched
+ * * `unmatched` - unmatched
+ * @minLength 1
+ */
+state?: ListStatementLinesState;
 };

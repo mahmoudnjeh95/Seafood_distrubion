@@ -10755,11 +10755,46 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/treasury/accounts/{account_id}/reconciliation:
+    get:
+      operationId: getReconciliationSummary
+      description: |-
+        The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+        matched, the money of those not matched yet, and our own movements the statement does not show (at most
+        200). It changes no balance.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationSummary'
+          description: ''
   /api/v1/treasury/accounts/{account_id}/statement-lines:
     get:
       operationId: listStatementLines
-      description: The lines imported on a bank account between two days (inclusive),
-        oldest first, paginated.
+      description: |-
+        The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+        keeps only the matched lines, or only those not matched yet.
       parameters:
       - in: path
         name: account_id
@@ -10788,6 +10823,20 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - in: query
+        name: state
+        schema:
+          enum:
+          - all
+          - matched
+          - unmatched
+          type: string
+          default: all
+          minLength: 1
+        description: |-
+          * `all` - all
+          * `matched` - matched
+          * `unmatched` - unmatched
       tags:
       - treasury
       security:
@@ -26452,6 +26501,46 @@ components:
       required:
       - id
       - name
+    ReconciliationSummary:
+      type: object
+      properties:
+        lines:
+          type: integer
+          readOnly: true
+        matched:
+          type: integer
+          readOnly: true
+        unmatched:
+          type: integer
+          readOnly: true
+        unmatched_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unmatched_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        movements:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchedMovement'
+          readOnly: true
+        movements_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - lines
+      - matched
+      - movements
+      - movements_total
+      - unmatched
+      - unmatched_in
+      - unmatched_out
     RecordPayment:
       type: object
       description: The part of one payment that settled the salary.
