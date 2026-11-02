@@ -11,7 +11,11 @@ from apps.expenses import services as expenses
 from apps.expenses.models import ExpenseCategory
 from apps.inventory import selectors as inventory_selectors
 
-from .test_dayclose import day, sell  # noqa: F401 - the day fixture, a driver with a loaded truck
+from . import test_dayclose
+
+# The day fixture (a driver with a loaded truck) and the sale helper of the summary tests.
+day = test_dayclose.day
+sell = test_dayclose.sell
 
 pytestmark = pytest.mark.django_db
 
