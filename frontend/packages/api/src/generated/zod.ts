@@ -11387,10 +11387,12 @@ export const CreatePartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', createPartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -11444,10 +11446,12 @@ export const GetPartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', getPartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -11514,10 +11518,88 @@ export const UpdatePartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', updatePartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
+  "lot_result_id": zod.int().nullable(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string()
+})),
+  "has_sold": zod.boolean()
+})
+
+
+/**
+ * Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+ * still in; the settlement pays the rest.
+ */
+export const AdvancePartnerCapitalParams = zod.object({
+  "partnership_id": zod.int()
+})
+
+export const advancePartnerCapitalBodyReferenceDefault = ``;
+export const advancePartnerCapitalBodyReferenceMax = 50;
+
+export const advancePartnerCapitalBodyNoteDefault = ``;
+export const advancePartnerCapitalBodyNoteMax = 300;
+
+
+
+export const AdvancePartnerCapitalBody = zod.object({
+  "amount": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string().max(advancePartnerCapitalBodyReferenceMax).default(advancePartnerCapitalBodyReferenceDefault),
+  "paid_on": zod.iso.date().optional(),
+  "note": zod.string().max(advancePartnerCapitalBodyNoteMax).default(advancePartnerCapitalBodyNoteDefault)
+})
+
+export const advancePartnerCapitalResponseBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponseOwnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponsePartnerCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponseProfitRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const advancePartnerCapitalResponseLossRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const advancePartnerCapitalResponseCapitalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const advancePartnerCapitalResponseCapitalEntriesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const AdvancePartnerCapitalResponse = zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', advancePartnerCapitalResponseBatchOneUnitCostRegExp)
+}),
+  "partner": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "owner_capital": zod.stringFormat('decimal', advancePartnerCapitalResponseOwnerCapitalRegExp),
+  "partner_capital": zod.stringFormat('decimal', advancePartnerCapitalResponsePartnerCapitalRegExp),
+  "profit_rate": zod.stringFormat('decimal', advancePartnerCapitalResponseProfitRateRegExp),
+  "loss_rate": zod.stringFormat('decimal', advancePartnerCapitalResponseLossRateRegExp),
+  "status": zod.enum(['open', 'closed', 'settled', 'cancelled']).describe('* `open` - En cours\n* `closed` - Clôturé\n* `settled` - Réglé\n* `cancelled` - Annulé'),
+  "terms_pending": zod.boolean(),
+  "notes": zod.string(),
+  "capital": zod.stringFormat('decimal', advancePartnerCapitalResponseCapitalRegExp),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by_name": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "capital_entries": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
+  "amount": zod.stringFormat('decimal', advancePartnerCapitalResponseCapitalEntriesItemAmountRegExp),
+  "entry_date": zod.iso.date(),
+  "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()
@@ -11580,10 +11662,12 @@ export const CancelPartnershipResponse = zod.object({
   "cancel_reason": zod.string(),
   "capital_entries": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement'),
+  "kind": zod.enum(['contribution', 'correction', 'loss_deduction', 'loss_reversal', 'return', 'advance']).describe('* `contribution` - Apport\n* `correction` - Correction de l\'apport\n* `loss_deduction` - Part de perte déduite\n* `loss_reversal` - Annulation de la déduction\n* `return` - Remboursement\n* `advance` - Avance sur capital'),
   "amount": zod.stringFormat('decimal', cancelPartnershipResponseCapitalEntriesItemAmountRegExp),
   "entry_date": zod.iso.date(),
   "note": zod.string(),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre'),
+  "reference": zod.string(),
   "lot_result_id": zod.int().nullable(),
   "created_at": zod.iso.datetime({"offset":true}),
   "created_by_name": zod.string()

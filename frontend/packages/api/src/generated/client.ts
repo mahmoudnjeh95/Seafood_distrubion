@@ -213,6 +213,7 @@ import type {
   LossWrite,
   LotCosts,
   LotFigure,
+  LotPartnershipAdvance,
   LotPartnershipCancel,
   LotPartnershipDetail,
   LotPartnershipWrite,
@@ -18467,6 +18468,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdatePartnershipMutationOptions(options), queryClient);
+    }
+
+export const getAdvancePartnerCapitalUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/v1/partnerships/${partnershipId}/advances`
+}
+
+/**
+ * Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+ * still in; the settlement pays the rest.
+ */
+export const advancePartnerCapital = async (partnershipId: number,
+    lotPartnershipAdvance: LotPartnershipAdvance, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotPartnershipDetail>(getAdvancePartnerCapitalUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lotPartnershipAdvance)
+  }
+);}
+
+
+
+
+
+export const getAdvancePartnerCapitalMutationKey = () => ['advancePartnerCapital'] as const;
+
+export const getAdvancePartnerCapitalMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext> => {
+
+const mutationKey = getAdvancePartnerCapitalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof advancePartnerCapital>>, AdvancePartnerCapitalMutationVariables> = (props) => {
+          const {partnershipId,data} = props ?? {};
+
+          return  advancePartnerCapital(partnershipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdvancePartnerCapitalMutationResult = NonNullable<Awaited<ReturnType<typeof advancePartnerCapital>>>
+    export type AdvancePartnerCapitalMutationBody = LotPartnershipAdvance
+    export type AdvancePartnerCapitalMutationError = unknown
+    export type AdvancePartnerCapitalMutationVariables = {partnershipId: number;data: LotPartnershipAdvance}
+
+    export const useAdvancePartnerCapital = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof advancePartnerCapital>>,
+        TError,
+        AdvancePartnerCapitalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdvancePartnerCapitalMutationOptions(options), queryClient);
     }
 
 export const getCancelPartnershipUrl = (partnershipId: number,) => {

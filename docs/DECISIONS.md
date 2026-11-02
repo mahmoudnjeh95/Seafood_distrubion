@@ -3487,3 +3487,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: the lots offered are those still on hand (a sold-out lot cannot be topped up: a receipt does that); no new
   cost is typed on an addition (the lot's cost is used, a different cost is a receipt); no owner approval step (unlike a
   loss above the threshold, D-045); the monthly closing counts an adjustment as spoilage, like a count correction.
+
+
+**D-243 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
+- A `CapitalEntryKind.ADVANCE` entry (−) on the partner's capital ledger, with the means of payment and a reference (`method`, `reference`, the entry's date = the day paid). `services.advance_capital`, `POST /partnerships/{id}/advances` (`advancePartnerCapital`). Owner only, like every partnership write.
+- Up to the capital still in: an advance never takes the capital below zero (D-031). Allowed while the lot is open or closed; refused once settled or cancelled.
+- The settlement pays what is left: its `capital_returned` is the capital balance, already net of the advances, so the total paid is unchanged. The partner's period flows count an advance as capital returned.
+- A capital correction (`update_partnership`) cannot take the capital below what was already advanced.
+- Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
+- The money leaves our accounts the day it is paid, as a settlement payment does (D-240): a treasury movement out of the account its means goes to, kind `partner_settlement`, labelled "Avance". Provisional: the kind is shared with the settlements.

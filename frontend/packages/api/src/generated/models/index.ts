@@ -394,6 +394,7 @@ export * from './lotCosts';
 export * from './lotFigure';
 export * from './lotOutcomeEnum';
 export * from './lotPartnership';
+export * from './lotPartnershipAdvance';
 export * from './lotPartnershipCancel';
 export * from './lotPartnershipDetail';
 export * from './lotPartnershipWrite';
