@@ -3659,3 +3659,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A new organization's first finance settings version takes 1 % (was 0 %). The rate stays editable in Paramètres financiers.
 - Migration `0028_withholding_rate_one_percent`: organizations still at 0 % take 1 % in the version in force today and in any version dated later. Earlier versions keep 0 %, so the history of rates stays true. Issued invoices keep the rate they were issued with (D-057).
 - The withholding still applies only from 1 000 DT TTC (D-241), so a small invoice shows no line whatever the default.
+
+**D-262 · The driver's cash is in the ledger: the fund out of the Caisse, the counted cash back at approval, the port purchases from it (Phase 9, P9-T09f; owner answer)** · accepted · 2026-11-02
+- The cash the office gives a driver for a day (the fund and the money for buying at the port) leaves the Caisse for that
+  driver's cash when the day starts. When the office changes the money for purchases on a running day, only the
+  difference moves.
+- At the office's approval of the day, the cash it counted (the driver's cash and what is left of the purchase money)
+  goes from the driver's cash to the Caisse, dated the approval day. A new load that opens the day again leaves it in
+  the Caisse (D-134); the next approval moves what is counted then. A gap stays on the driver's cash until it is settled.
+- Cash paid at the port leaves the driver's cash the day of the purchase, written when the office validates the
+  purchase in the day's check, not when the driver enters it. A transfer or a card goes to the bank account; a
+  cheque or traite is an effet (D-264).
+- The reset of the fund at the office's approval (D-259) is another change and does not touch this.
+- The app is still in testing with no real data: no backfill.
