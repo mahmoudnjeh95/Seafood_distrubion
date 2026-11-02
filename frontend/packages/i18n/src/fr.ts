@@ -59,6 +59,7 @@ export const fr = {
     kinds: {
       // Told to the office
       effet_unpaid: "Impayé : {{number}} de {{customer}}, {{amount}}",
+      payment_order: "{{sender}} vous envoie un ordre de paiement : {{supplier}}, facture {{invoice}}, {{amount}}",
       day_started: "{{driver}} a commencé sa journée sur {{truck}}",
       day_sent: "{{driver}} a envoyé sa clôture du {{date}}",
       day_resent: "{{driver}} a renvoyé sa clôture du {{date}}",
@@ -2385,6 +2386,16 @@ export const fr = {
     },
     // ---- Supplier settlements: paid, planned, to define (P3-T16b, D-192) ----
     supplierSettlements: {
+      notify: {
+        open: "Notifier",
+        title: "Notifier un ordre de paiement",
+        body: "La personne choisie voit l'ordre dans ses notifications et peut l'ouvrir ici.",
+        who: "Personne à notifier",
+        choose: "Choisir",
+        send: "Envoyer",
+        sent: "La notification est envoyée.",
+        error: "L'envoi a échoué. Réessayez.",
+      },
       select: "Choisir {{amount}} de {{number}} pour un paiement groupé",
       selection_one: "{{count}} ligne choisie · {{amount}}",
       selection_other: "{{count}} lignes choisies · {{amount}}",
