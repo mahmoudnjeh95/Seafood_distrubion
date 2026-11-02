@@ -1643,7 +1643,35 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
             target=sale,
             after={"lines": [{"product": line.product_id, "unit_price": str(line.unit_price)} for line in below]},
         )
+    _post_sale_cash(sale, actor=actor)
     return sale
+
+
+# The treasury movement of the money a sale was paid at the sale (P9-T05b, D-239): cash a driver took on the road is
+# in the driver's cash, other cash in the Caisse, a transfer or a card in the main bank account.
+SALE_SOURCE = "sales.sale"
+
+
+def _post_sale_cash(sale: Sale, *, actor: User | None) -> None:
+    """Written once, when the sale is confirmed, with what it was paid then. A sale cancelled later keeps its money:
+    what was paid becomes the customer's credit (the P2-T06 hook), so nothing is reversed here."""
+    if sale.amount_paid <= 0:
+        return
+    driver = None
+    if sale.delivered_by is not None and _is_driver(sale.delivered_by, sale.organization):
+        driver = sale.delivered_by
+    treasury.post_movement(
+        organization=sale.organization,
+        account=treasury.line_account(sale.organization, sale.payment_method, None, driver=driver),
+        day=timezone.localtime(sale.sold_at).date(),
+        amount=sale.amount_paid,
+        kind="sale_cash",
+        label=f"{sale.number} · {sale.customer.name}",
+        reference=sale.number,
+        source=SALE_SOURCE,
+        source_id=sale.pk,
+        actor=actor,
+    )
 
 
 @transaction.atomic
@@ -3146,7 +3174,15 @@ def _reverse_line_money(payment: CustomerPayment, actor: User | None, day: dt.da
 
 def post_treasury_history(*, organization: Organization) -> None:
     """Write the treasury movements of the règlements recorded before the accounts existed (D-219), and undo those
-    of the voided ones on the day they were voided. Safe to run again."""
+    of the voided ones on the day they were voided. Safe to run again. The money paid at the sale of the confirmed
+    sales is written too (D-239)."""
+    paid_at_sale = Sale.objects.filter(
+        organization=organization,
+        status__in=(SaleStatus.CONFIRMED, SaleStatus.CANCELLED),
+        amount_paid__gt=0,
+    ).select_related("organization", "customer", "delivered_by")
+    for sale in paid_at_sale:
+        _post_sale_cash(sale, actor=None)
     done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
     lines = (
         CustomerPaymentLine.objects.filter(organization=organization, instrument__isnull=True)
