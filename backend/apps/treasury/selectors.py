@@ -313,3 +313,38 @@ def statement_line_of(organization: Organization, line_id: int) -> BankStatement
     return BankStatementLine.objects.select_related("customer", "supplier", "account").get(
         organization=organization, pk=line_id
     )
+
+
+# Our cheques are watched from the day before they fall due, our traites from 15 days before (D-254).
+ISSUED_CHEQUE_WARNING_DAYS = 1
+ISSUED_BILL_WARNING_DAYS = 15
+DUE_ALERTS_LIMIT = 200
+
+
+def due_alerts(organization: Organization, *, today: dt.date) -> QuerySet[Instrument]:
+    """The effets that need someone today, soonest due first: a cheque or traite we received and still hold or have
+    at the bank (due today or before: cash it, or chase the bank); a cheque of ours from the day before it falls due
+    and a traite of ours from 15 days before, until the bank debits it."""
+    received = Q(
+        direction=InstrumentDirection.RECEIVED,
+        status__in=(InstrumentStatus.PORTFOLIO, InstrumentStatus.DEPOSITED),
+        due_on__lte=today,
+    )
+    our_cheques = Q(
+        direction=InstrumentDirection.ISSUED,
+        status=InstrumentStatus.ISSUED,
+        kind=InstrumentKind.CHEQUE,
+        due_on__lte=today + dt.timedelta(days=ISSUED_CHEQUE_WARNING_DAYS),
+    )
+    our_bills = Q(
+        direction=InstrumentDirection.ISSUED,
+        status=InstrumentStatus.ISSUED,
+        kind=InstrumentKind.BILL,
+        due_on__lte=today + dt.timedelta(days=ISSUED_BILL_WARNING_DAYS),
+    )
+    return (
+        Instrument.objects.filter(organization=organization)
+        .filter(received | our_cheques | our_bills)
+        .select_related("bank", "customer", "supplier", "deposit")
+        .order_by("due_on", "id")
+    )

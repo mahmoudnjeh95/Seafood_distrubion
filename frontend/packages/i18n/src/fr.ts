@@ -2834,6 +2834,11 @@ export const fr = {
       trace: {
         title: "Où est passé l'argent",
       },
+      dueAlerts: {
+        title: "Chèques et traites à suivre",
+        toCash: "À encaisser : {{kind}} {{number}} · {{party}}",
+        toPay: "À payer : {{kind}} {{number}} · {{party}}",
+      },
       statement: {
         title: "Relevé de la banque",
         intro:

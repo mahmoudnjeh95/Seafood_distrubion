@@ -32486,6 +32486,106 @@ export function useGetDeposit<TData = Awaited<ReturnType<typeof getDeposit>>, TE
 
 
 
+export const getListDueAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/due-alerts`
+}
+
+/**
+ * The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+ * today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+ * 15 days before, until the bank debits it). At most 200.
+ */
+export const listDueAlerts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+  return apiFetch<Instrument[]>(getListDueAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDueAlertsQueryKey = () => {
+    return [
+    `/api/v1/treasury/due-alerts`
+    ] as const;
+    }
+
+
+export const getListDueAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDueAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDueAlerts>>> = ({ signal }) => listDueAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDueAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listDueAlerts>>>
+export type ListDueAlertsQueryError = unknown
+
+
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDueAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listDueAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDueAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listDueAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDueAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListInstrumentsUrl = (params?: ListInstrumentsParams,) => {
   const normalizedParams = new URLSearchParams();
 

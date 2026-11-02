@@ -20736,6 +20736,54 @@ export const GetDepositResponse = zod.object({
 
 
 /**
+ * The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+ * today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+ * 15 days before, until the bank debits it). At most 200.
+ */
+export const listDueAlertsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListDueAlertsResponseItem = zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['received', 'issued']).describe('* `received` - Reçu\n* `issued` - Émis'),
+  "kind": zod.enum(['cheque', 'bill']).describe('* `cheque` - Chèque\n* `bill` - Traite'),
+  "number": zod.string(),
+  "bank": zod.union([zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "swift": zod.string(),
+  "address": zod.string(),
+  "is_active": zod.boolean()
+}),zod.null()]),
+  "drawer": zod.string(),
+  "amount": zod.stringFormat('decimal', listDueAlertsResponseAmountRegExp),
+  "issued_on": zod.iso.date(),
+  "due_on": zod.iso.date(),
+  "status": zod.enum(['portfolio', 'deposited', 'cashed', 'unpaid', 'returned', 'endorsed', 'issued', 'debited', 'rejected', 'cancelled']).describe('* `portfolio` - En portefeuille\n* `deposited` - Remis en banque\n* `cashed` - Encaissé\n* `unpaid` - Impayé\n* `returned` - Restitué\n* `endorsed` - Endossé\n* `issued` - Émis\n* `debited` - Débité\n* `rejected` - Rejeté\n* `cancelled` - Annulé'),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "source_number": zod.string(),
+  "notes": zod.string(),
+  "deposit": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "deposited_on": zod.iso.date()
+}),zod.null()]),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListDueAlertsResponse = zod.array(ListDueAlertsResponseItem)
+
+
+/**
  * Cheques and traites, received and issued, soonest due first, paginated. Filter by direction, kind,
  * status (comma separated), customer, supplier, bank, bordereau, due days (inclusive) or `search` (number,
  * drawer, règlement, party).

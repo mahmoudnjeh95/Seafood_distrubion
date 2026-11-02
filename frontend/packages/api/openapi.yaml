@@ -10453,6 +10453,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Deposit'
           description: ''
+  /api/v1/treasury/due-alerts:
+    get:
+      operationId: listDueAlerts
+      description: |-
+        The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+        today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+        15 days before, until the bank debits it). At most 200.
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+          description: ''
   /api/v1/treasury/instruments:
     get:
       operationId: listInstruments

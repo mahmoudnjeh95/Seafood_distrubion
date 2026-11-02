@@ -3610,6 +3610,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The "Achat avec TVA" box on a receipt (D-202) already starts unchecked and is not changed.
 - Provisional: the rule is read from the lots, so a mixed BL with one VAT-bought product is invoiced with VAT as a whole.
 
+**D-254 · The dashboard lists the cheques and traites that need someone today (Phase 9, P9-T09e)** · accepted · 2026-11-02
+- Nothing told the office about a due date: the notifications come from actions (D-175), not from the calendar. The
+  dashboard now lists the effets to follow, worked out when it is read (no scheduler, nothing to miss or repeat):
+  a cheque or traite we received and still hold or have at the bank, from its due day; a cheque of ours from the day
+  before it falls due; a traite of ours from 15 days before; each until it is cashed or debited. Red once due.
+- The rules are the Perfaxis ones (cheque the day of or after the due day, traite 15 days away), applied from the due
+  day for what we receive, so that no due day goes by unseen. Provisional: the days are constants in
+  `treasury.selectors`.
+- Not in the bell: the bell keeps telling what drivers and the office did. A bell reminder is a later step if wanted.
 **D-256 · A BL paid before it is invoiced: the VAT and timbre still to come are shown, then collected or given up (owner request 2026-11-02, P9-T10)** · provisional · 2026-11-02
 - Problem: a BL holds only its goods (HT); the VAT, timbre and withholding live on the invoice (D-057), shared back over the BL when
   it is issued (D-101). A BL paid at HT therefore turned unpaid again for the VAT and timbre, and nothing said so.

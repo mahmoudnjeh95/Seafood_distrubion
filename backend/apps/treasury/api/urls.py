@@ -30,6 +30,7 @@ urlpatterns = [
     path("treasury/transfers/<int:transfer_id>/void", views.TransferVoidView.as_view(), name="treasury-transfer-void"),
     path("treasury/cash-counts", views.CashCountListView.as_view(), name="treasury-cash-count-list"),
     path("treasury/movements-of", views.MovementsOfView.as_view(), name="treasury-movements-of"),
+    path("treasury/due-alerts", views.DueAlertsView.as_view(), name="treasury-due-alerts"),
     path(
         "treasury/accounts/<int:account_id>/statement/import",
         views.StatementImportView.as_view(),
