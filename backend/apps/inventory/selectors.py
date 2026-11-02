@@ -98,6 +98,32 @@ def batches_of(
     return batches
 
 
+# Movements that carry the lot's value: once one has happened, the lot's price and VAT are settled (D-269).
+VALUED_KINDS = (
+    MovementKind.SALE,
+    MovementKind.CUSTOMER_RETURN,
+    MovementKind.SUPPLIER_RETURN,
+    MovementKind.LOSS,
+    MovementKind.ADJUSTMENT,
+    MovementKind.COUNT_CORRECTION,
+)
+
+
+def batch_valued_outside(organization: Organization, *, batch_id: int, source: Any) -> bool:
+    """Whether a lot has moved in a way that carries its value (a sale, a loss, a return, a count or an
+    adjustment), leaving out the weight corrections posted from `source`, the receipt line itself (D-269)."""
+    return (
+        StockMovement.objects.for_organization(organization)
+        .filter(batch_id=batch_id, kind__in=VALUED_KINDS)
+        .exclude(
+            kind=MovementKind.ADJUSTMENT,
+            source_type=ContentType.objects.get_for_model(source),
+            source_id=source.pk,
+        )
+        .exists()
+    )
+
+
 def batch_of(organization: Organization, batch_id: int) -> Batch:
     """One batch. Raises Batch.DoesNotExist outside the organization."""
     return batches_of(organization).get(pk=batch_id)

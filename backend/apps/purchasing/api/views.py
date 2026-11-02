@@ -57,6 +57,7 @@ from .serializers import (
     PaymentVoidSerializer,
     PlanWriteSerializer,
     ReceiptFilterSerializer,
+    ReceiptRevisionWriteSerializer,
     ReceiptSerializer,
     ReceiptWriteSerializer,
     SettlementFilterSerializer,
@@ -186,6 +187,29 @@ class ReceiptDetailView(PurchasingView):
         except GoodsReceipt.DoesNotExist:
             raise Http404 from None
         return Response(ReceiptSerializer(receipt).data)
+
+
+class ReceiptReviseView(PurchasingView):
+    @extend_schema(operation_id="reviseReceipt", request=ReceiptRevisionWriteSerializer, responses=ReceiptSerializer)
+    def post(self, request: Request, receipt_id: int) -> Response:
+        """Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+        invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+        it, and when `revision` is not its current one. `reason` is required. Each change stays in its history."""
+        try:
+            receipt = selectors.receipt_of(self.organization, receipt_id)
+        except GoodsReceipt.DoesNotExist:
+            raise Http404 from None
+        serializer = ReceiptRevisionWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.revise_receipt(
+            receipt=receipt,
+            actor=self.membership.user,
+            revision=data["revision"],
+            reason=data["reason"],
+            fields=data,
+        )
+        return Response(ReceiptSerializer(selectors.receipt_of(self.organization, receipt_id)).data)
 
 
 class ReceiptDifferenceListView(PurchasingView, ListAPIView[GoodsReceiptLine]):

@@ -13,8 +13,9 @@ from apps.core.money import MoneyField, QuantityField, line_total
 class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     """Goods received from a supplier on one day into one location, with their real net weight (Q12).
 
-    Saving it creates one batch per line and posts the receipt movements (P1-T07). A receipt is never
-    edited afterwards: a mistake is corrected by a supplier return or an adjustment (ARCHITECTURE §4.5).
+    Saving it creates one batch per line and posts the receipt movements (P1-T07). Afterwards it may be
+    corrected (D-269) while no supplier invoice carries it: each change is kept as a revision, and what
+    left the stock is never edited, only corrected by an adjustment (ARCHITECTURE §4.5).
     """
 
     # "BR-0001", "BR-0002"... per organization, given by `services.create_receipt`.
@@ -33,6 +34,9 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     # Bought with VAT: its lots are sold with VAT on the invoice (D-202).
     with_vat = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
+    # The number of the last change made after saving (D-269): a change must name it, so two people never
+    # overwrite each other. Zero until the receipt is changed.
+    revision = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
@@ -45,6 +49,29 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+class GoodsReceiptRevision(OrganizationScopedModel):
+    """One change made to a goods receipt after it was saved (D-269): who, when, why, and what it said
+    before and after. Never changed nor deleted; a mistake is corrected by another change."""
+
+    receipt = models.ForeignKey(GoodsReceipt, on_delete=models.CASCADE, related_name="revisions")
+    number = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # Required: why the receipt was changed.
+    reason = models.TextField()
+    before = models.JSONField(encoder=DjangoJSONEncoder)
+    after = models.JSONField(encoder=DjangoJSONEncoder)
+
+    class Meta:
+        ordering = ["receipt", "number"]
+        constraints = [models.UniqueConstraint(fields=["receipt", "number"], name="goods_receipt_revision_unique")]
+
+    def __str__(self) -> str:
+        return f"{self.receipt} · v{self.number}"
 
 
 class GoodsReceiptLine(OrganizationScopedModel):

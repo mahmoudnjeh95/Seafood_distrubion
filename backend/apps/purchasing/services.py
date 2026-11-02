@@ -17,6 +17,7 @@ from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total
+from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 from apps.partnerships import services as partnerships
@@ -35,6 +36,7 @@ from .models import (
     FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
+    GoodsReceiptRevision,
     PaymentTerms,
     PlanLineStatus,
     PurchaseOrder,
@@ -293,6 +295,235 @@ def create_receipt(
         action="receipt.created",
         target=receipt,
         after=_snapshot(receipt, saved),
+    )
+    return receipt
+
+
+# ---- Changing a goods receipt after it was saved (D-269) ----
+# Allowed while no supplier invoice carries it. What it moved out of the stock is never edited: a change of an
+# accepted weight is a correction movement, and a price or VAT change waits until nothing valued has left the lot.
+
+
+class ReceiptRevisionLineFields(TypedDict, total=False):
+    id: int
+    invoiced_quantity: Number
+    accepted_quantity: Number
+    unit_cost: Number
+    use_by: dt.date | None
+
+
+class ReceiptRevisionFields(TypedDict, total=False):
+    supplier_reference: str
+    notes: str
+    with_vat: bool
+    lines: Sequence[ReceiptRevisionLineFields]
+
+
+def receipt_snapshot(receipt: GoodsReceipt) -> dict[str, Any]:
+    """What a receipt says, as plain values: what a change keeps, and what two versions are compared on."""
+    lines = list(receipt.lines.select_related("product", "batch").order_by("id"))
+    return {
+        "supplier_reference": receipt.supplier_reference,
+        "notes": receipt.notes,
+        "with_vat": receipt.with_vat,
+        "lines": [
+            {
+                "product": line.product.name,
+                "invoiced_quantity": str(line.invoiced_quantity),
+                "accepted_quantity": str(line.accepted_quantity),
+                "unit_cost": str(line.unit_cost),
+                "use_by": line.batch.use_by.isoformat() if line.batch.use_by else None,
+            }
+            for line in lines
+        ],
+    }
+
+
+def _locked_receipt(receipt: GoodsReceipt, revision: int) -> GoodsReceipt:
+    """The receipt re-read under a row lock: refused while an invoice carries it, or when someone changed it since
+    `revision`."""
+    locked = (
+        GoodsReceipt.objects.select_for_update(of=("self",))
+        .select_related("organization", "location", "purchase_order")
+        .get(pk=receipt.pk)
+    )
+    link = getattr(locked, "invoice_link", None)
+    if link is not None:
+        invoice = link.invoice
+        if invoice.status == SupplierInvoiceStatus.DRAFT:
+            raise ValidationError(
+                _("La réception %(number)s est sur la facture brouillon %(invoice)s : supprimez d'abord ce brouillon.")
+                % {"number": locked.number, "invoice": invoice.number}
+            )
+        raise ValidationError(
+            _(
+                "La réception %(number)s est sur la facture validée %(invoice)s : elle ne se modifie plus. "
+                "Corrigez par la facture ou par un retour fournisseur."
+            )
+            % {"number": locked.number, "invoice": invoice.number}
+        )
+    if revision != locked.revision:
+        raise ValidationError(
+            {
+                "revision": _(
+                    "La réception %(number)s a été modifiée entre-temps (version %(revision)s) : rechargez-la."
+                )
+                % {"number": locked.number, "revision": locked.revision}
+            }
+        )
+    return locked
+
+
+def _checked_revised_line(
+    index: int, item: ReceiptRevisionLineFields, received_on: dt.date, errors: dict[str, str]
+) -> dict[str, Any]:
+    checked: dict[str, Any] = {"use_by": item.get("use_by")}
+    try:
+        checked["invoiced_quantity"] = checked_quantity(item.get("invoiced_quantity", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "invoiced_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+    try:
+        checked["accepted_quantity"] = checked_quantity(item.get("accepted_quantity", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "accepted_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+    try:
+        checked["unit_cost"] = checked_amount(item.get("unit_cost", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "unit_cost")] = _("Indiquez un coût en DT par kg, au millime près.")
+    if "unit_cost" in checked and "invoiced_quantity" in checked and "accepted_quantity" in checked:
+        biggest = max(checked["invoiced_quantity"], checked["accepted_quantity"])
+        if line_total(biggest, checked["unit_cost"]) > MAX_AMOUNT:
+            errors[line_error_key(index, "unit_cost")] = _(
+                "Le montant de cette ligne est trop grand : vérifiez le coût au kg."
+            )
+    use_by = checked["use_by"]
+    if use_by is not None and use_by < received_on:
+        errors[line_error_key(index, "use_by")] = _("La date limite ne peut pas précéder la réception.")
+    return checked
+
+
+@transaction.atomic
+def revise_receipt(
+    *,
+    receipt: GoodsReceipt,
+    actor: User | None,
+    revision: int,
+    reason: str,
+    fields: ReceiptRevisionFields,
+) -> GoodsReceipt:
+    """Change a goods receipt after it was saved (D-269): its supplier reference, notes and VAT flag, and each of
+    its lines' invoiced and accepted weight, cost per kg and use-by date. Every line is sent, by its id.
+
+    Refused while an invoice carries the receipt (a draft one is deleted first), when `revision` is not its current
+    one, and without a reason. A changed accepted weight posts an adjustment on the lot, from the receipt's place,
+    and the original movement stays as it was; it is refused when it would take the lot below what already left it.
+    A changed cost or VAT flag is refused once something valued has left the lot (a sale, a loss, a return, a count).
+    Each change is kept as a revision with its before and after, and audited. Problems come back together.
+    """
+    receipt = _locked_receipt(receipt, revision)
+    organization = receipt.organization
+    before = receipt_snapshot(receipt)
+    errors: dict[str, str] = {}
+    reason = reason.strip()
+    if not reason:
+        errors["reason"] = _("Indiquez la raison de la modification.")
+    lines = {line.pk: line for line in receipt.lines.select_related("product", "batch")}
+    sent = list(fields.get("lines", []))
+    if sorted(item["id"] for item in sent) != sorted(lines):
+        errors["lines"] = _("Renvoyez toutes les lignes de la réception, sans en ajouter ni en retirer.")
+    checked: list[tuple[int, GoodsReceiptLine, dict[str, Any]]] = []
+    for index, item in enumerate(sent):
+        if item["id"] in lines:
+            checked.append((index, lines[item["id"]], _checked_revised_line(index, item, receipt.received_on, errors)))
+    if errors:
+        raise ValidationError(errors)
+    supplier_reference = fields.get("supplier_reference", "").strip()
+    notes = fields.get("notes", "").strip()
+    with_vat = fields["with_vat"]
+
+    for index, line, values in checked:
+        if values["unit_cost"] != line.unit_cost and inventory_selectors.batch_valued_outside(
+            organization, batch_id=line.batch_id, source=line
+        ):
+            errors[line_error_key(index, "unit_cost")] = _(
+                "Des kilos de ce lot ont déjà été vendus, perdus ou corrigés : son prix ne se change plus."
+            )
+        delta = values["accepted_quantity"] - line.accepted_quantity
+        if delta < 0:
+            on_hand = inventory_selectors.quantity_on_hand(organization, batch_id=line.batch_id)
+            if on_hand + delta < 0:
+                errors[line_error_key(index, "accepted_quantity")] = _(
+                    "Il est déjà sorti %(left)s kg de ce lot : la quantité acceptée ne descend pas sous ce poids."
+                ) % {"left": line.accepted_quantity - on_hand}
+    if with_vat != receipt.with_vat and any(
+        inventory_selectors.batch_valued_outside(organization, batch_id=line.batch_id, source=line)
+        for _index, line, _values in checked
+    ):
+        errors["with_vat"] = _(
+            "Des kilos de ce lot ont déjà été vendus, perdus ou corrigés : la TVA ne se change plus."
+        )
+    if errors:
+        raise ValidationError(errors)
+
+    receipt.supplier_reference = supplier_reference
+    receipt.notes = notes
+    receipt.with_vat = with_vat
+    occurred_at = timezone.now()
+    correction_reason = _("Correction du bon %(number)s : %(reason)s") % {"number": receipt.number, "reason": reason}
+    for index, line, values in checked:
+        inventory.correct_batch(
+            batch=line.batch,
+            unit_cost=values["unit_cost"],
+            use_by=values["use_by"],
+            bought_with_vat=with_vat,
+            receipt_reference=supplier_reference or receipt.number,
+        )
+        delta = values["accepted_quantity"] - line.accepted_quantity
+        if delta:
+            try:
+                inventory.post_movement(
+                    organization=organization,
+                    actor=actor,
+                    kind=MovementKind.ADJUSTMENT,
+                    batch=line.batch,
+                    quantity=abs(delta),
+                    from_location=receipt.location if delta < 0 else None,
+                    to_location=receipt.location if delta > 0 else None,
+                    reason=correction_reason,
+                    source=line,
+                    occurred_at=occurred_at,
+                )
+            except ValidationError as error:
+                raise ValidationError({line_error_key(index, "accepted_quantity"): error.messages[0]}) from None
+        line.invoiced_quantity = values["invoiced_quantity"]
+        line.accepted_quantity = values["accepted_quantity"]
+        line.unit_cost = values["unit_cost"]
+        line.save(update_fields=["invoiced_quantity", "accepted_quantity", "unit_cost"])
+
+    receipt.revision += 1
+    receipt.save(update_fields=["supplier_reference", "notes", "with_vat", "revision", "updated_at"])
+    after = receipt_snapshot(receipt)
+    if after == before:
+        raise ValidationError({"lines": _("Rien n'a changé : modifiez au moins une valeur.")})
+    GoodsReceiptRevision.objects.create(
+        organization=organization,
+        receipt=receipt,
+        number=receipt.revision,
+        created_by=actor,
+        reason=reason,
+        before=before,
+        after=after,
+    )
+    order = receipt.purchase_order
+    if order is not None:
+        refresh_order_status(order)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="receipt.edited",
+        target=receipt,
+        before=before,
+        after=after,
     )
     return receipt
 
