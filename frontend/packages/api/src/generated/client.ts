@@ -83,6 +83,7 @@ import type {
   DayOverviewDetail,
   DayOverviewDriver,
   DayOverviewRow,
+  DayReturnToStock,
   DayRoute,
   Deliver,
   Deposit,
@@ -96,6 +97,7 @@ import type {
   EmailWrite,
   Employee,
   EmployeeWrite,
+  EstimateInvoiceParams,
   ExpenseCategory,
   ExpenseCategoryWrite,
   ExpenseDetail,
@@ -151,6 +153,7 @@ import type {
   InvoiceChoices,
   InvoiceCreate,
   InvoiceDetail,
+  InvoiceEstimate,
   Justification,
   LastCost,
   ListAccountTransfersParams,
@@ -6135,17 +6138,33 @@ export const getReturnDayOverviewToStockUrl = (dayId: number,) => {
 }
 
 /**
- * Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
- * or not the driver sent the day; only on the truck's latest day.
+ * Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+ * manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+ * driver sent the day; only on the truck's latest day.
  */
-export const returnDayOverviewToStock = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+export const returnDayOverviewToStock = async (dayId: number,
+    dayReturnToStock?: DayReturnToStock, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
 
-  return apiFetch<DayOverviewDetail>(getReturnDayOverviewToStockUrl(dayId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayOverviewDetail>(getReturnDayOverviewToStockUrl(dayId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayReturnToStock)
   }
 );}
 
@@ -6170,9 +6189,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnDayOverviewToStock>>, ReturnDayOverviewToStockMutationVariables> = (props) => {
-          const {dayId} = props ?? {};
+          const {dayId,data} = props ?? {};
 
-          return  returnDayOverviewToStock(dayId,requestOptions)
+          return  returnDayOverviewToStock(dayId,data,requestOptions)
         }
 
 
@@ -6183,9 +6202,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ReturnDayOverviewToStockMutationResult = NonNullable<Awaited<ReturnType<typeof returnDayOverviewToStock>>>
-
+    export type ReturnDayOverviewToStockMutationBody = DayReturnToStock | undefined
     export type ReturnDayOverviewToStockMutationError = unknown
-    export type ReturnDayOverviewToStockMutationVariables = {dayId: number}
+    export type ReturnDayOverviewToStockMutationVariables = {dayId: number;data?: DayReturnToStock}
 
     export const useReturnDayOverviewToStock = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -10771,6 +10790,112 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRecordWithholdingCertificateMutationOptions(options), queryClient);
     }
+
+export const getEstimateInvoiceUrl = (params: EstimateInvoiceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/invoices/estimate?${stringifiedParams}` : `/api/v1/invoices/estimate`
+}
+
+/**
+ * What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+ * stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256).
+ */
+export const estimateInvoice = async (params: EstimateInvoiceParams, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceEstimate> => {
+
+  return apiFetch<InvoiceEstimate>(getEstimateInvoiceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEstimateInvoiceQueryKey = (params?: EstimateInvoiceParams,) => {
+    return [
+    `/api/v1/invoices/estimate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getEstimateInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEstimateInvoiceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof estimateInvoice>>> = ({ signal }) => estimateInvoice(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type EstimateInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof estimateInvoice>>>
+export type EstimateInvoiceQueryError = unknown
+
+
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof estimateInvoice>>,
+          TError,
+          Awaited<ReturnType<typeof estimateInvoice>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof estimateInvoice>>,
+          TError,
+          Awaited<ReturnType<typeof estimateInvoice>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getEstimateInvoiceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListLocationsUrl = (params?: ListLocationsParams,) => {
   const normalizedParams = new URLSearchParams();

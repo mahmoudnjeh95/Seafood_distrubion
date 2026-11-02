@@ -16,6 +16,8 @@ export type OpenItem = {
   ageDays: number;
   isOverdue: boolean;
   outstanding: string;
+  /** A BL on no invoice: what its invoice would add to the goods (VAT, stamp, less withholding), D-256. */
+  estimatedExtra: string;
 };
 
 /** The customer's open sales gathered by invoice, the one due first first. */
@@ -27,6 +29,7 @@ export function openItems(openSales: CustomerBalance["open_sales"]): OpenItem[] 
     if (item) {
       item.sales.push(sale.number);
       item.outstanding = sum([item.outstanding, sale.outstanding]);
+      item.estimatedExtra = sum([item.estimatedExtra, sale.estimated_extra]);
       if (sale.due_on < item.dueOn) item.dueOn = sale.due_on;
       item.ageDays = Math.max(item.ageDays, sale.age_days);
       item.isOverdue ||= sale.is_overdue;
@@ -43,6 +46,7 @@ export function openItems(openSales: CustomerBalance["open_sales"]): OpenItem[] 
       ageDays: sale.age_days,
       isOverdue: sale.is_overdue,
       outstanding: sale.outstanding,
+      estimatedExtra: sale.estimated_extra,
     });
   }
   return [...items.values()]

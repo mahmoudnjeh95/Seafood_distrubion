@@ -2032,6 +2032,7 @@ export const getCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegExp('^
 export const getCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCustomerBalanceResponseOpenSalesItemEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCustomerBalanceResponseWriteOffsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -2074,7 +2075,8 @@ export const GetCustomerBalanceResponse = zod.object({
   "on_spot": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
   "allocated": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
   "written_off": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemWrittenOffRegExp),
-  "outstanding": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
+  "outstanding": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemOutstandingRegExp),
+  "estimated_extra": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemEstimatedExtraRegExp)
 }).describe('A confirmed sale with something left to collect.')),
   "history": zod.array(zod.object({
   "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
@@ -2241,6 +2243,7 @@ export const writeOffCustomerBalanceResponseOpenSalesItemOnSpotRegExp = new RegE
 export const writeOffCustomerBalanceResponseOpenSalesItemAllocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffCustomerBalanceResponseOpenSalesItemWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffCustomerBalanceResponseOpenSalesItemEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffCustomerBalanceResponseHistoryItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffCustomerBalanceResponseHistoryItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffCustomerBalanceResponseWriteOffsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -2283,7 +2286,8 @@ export const WriteOffCustomerBalanceResponse = zod.object({
   "on_spot": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOnSpotRegExp),
   "allocated": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemAllocatedRegExp),
   "written_off": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemWrittenOffRegExp),
-  "outstanding": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp)
+  "outstanding": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemOutstandingRegExp),
+  "estimated_extra": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemEstimatedExtraRegExp)
 }).describe('A confirmed sale with something left to collect.')),
   "history": zod.array(zod.object({
   "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
@@ -3764,7 +3768,11 @@ export const GetDayOverviewResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -3967,7 +3975,11 @@ export const DecideDayOverviewExpenseResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -4160,16 +4172,25 @@ export const ValidateDayOverviewPurchaseResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
 /**
- * Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
- * or not the driver sent the day; only on the truck's latest day.
+ * Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+ * manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+ * driver sent the day; only on the truck's latest day.
  */
 export const ReturnDayOverviewToStockParams = zod.object({
   "day_id": zod.int()
+})
+
+export const ReturnDayOverviewToStockBody = zod.object({
+  "to_location_id": zod.int().nullish()
 })
 
 export const returnDayOverviewToStockResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -4352,7 +4373,11 @@ export const ReturnDayOverviewToStockResponse = zod.object({
   "collected": zod.int(),
   "from_suppliers": zod.int()
 }).describe('One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what\nthe day\'s purchases brought from suppliers.')),
-  "review_blockers": zod.array(zod.string())
+  "review_blockers": zod.array(zod.string()),
+  "cold_rooms": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('An active cold room the office can give the truck\'s stock back to (D-258).'))
 }).describe('One driver\'s day for the office, running or sent: its money, its sales and how many deliveries are done.')
 
 
@@ -6486,6 +6511,7 @@ export const ListInvoicesQueryParams = zod.object({
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "payment_state": zod.enum(['unpaid', 'partial', 'paid']).optional().describe('* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
   "sale": zod.int().min(1).optional(),
   "search": zod.string().max(listInvoicesQuerySearchMax).default(listInvoicesQuerySearchDefault),
   "status": zod.enum(['draft', 'issued', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
@@ -6503,6 +6529,8 @@ export const listInvoicesResponseResultsItemWithholdingAmountRegExp = new RegExp
 export const listInvoicesResponseResultsItemNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listInvoicesResponseResultsItemCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listInvoicesResponseResultsItemRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listInvoicesResponseResultsItemPaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listInvoicesResponseResultsItemExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListInvoicesResponse = zod.object({
@@ -6551,6 +6579,9 @@ export const ListInvoicesResponse = zod.object({
   "net_to_pay": zod.stringFormat('decimal', listInvoicesResponseResultsItemNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', listInvoicesResponseResultsItemCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', listInvoicesResponseResultsItemRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', listInvoicesResponseResultsItemPaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', listInvoicesResponseResultsItemExtraOverGoodsRegExp),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "issued_by": zod.string(),
@@ -6604,6 +6635,8 @@ export const createInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0
 export const createInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponsePaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponseExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const createInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6682,6 +6715,9 @@ export const CreateInvoiceResponse = zod.object({
   "net_to_pay": zod.stringFormat('decimal', createInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', createInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', createInvoiceResponseRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', createInvoiceResponsePaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', createInvoiceResponseExtraOverGoodsRegExp),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "issued_by": zod.string(),
@@ -6818,6 +6854,8 @@ export const getInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11
 export const getInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponsePaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponseExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -6896,6 +6934,9 @@ export const GetInvoiceResponse = zod.object({
   "net_to_pay": zod.stringFormat('decimal', getInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', getInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', getInvoiceResponseRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', getInvoiceResponsePaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', getInvoiceResponseExtraOverGoodsRegExp),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "issued_by": zod.string(),
@@ -7051,6 +7092,8 @@ export const updateInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0
 export const updateInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponsePaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponseExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7129,6 +7172,9 @@ export const UpdateInvoiceResponse = zod.object({
   "net_to_pay": zod.stringFormat('decimal', updateInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', updateInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', updateInvoiceResponseRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', updateInvoiceResponsePaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', updateInvoiceResponseExtraOverGoodsRegExp),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "issued_by": zod.string(),
@@ -7355,6 +7401,8 @@ export const issueInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,
 export const issueInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponsePaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponseExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const issueInvoiceResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7433,6 +7481,9 @@ export const IssueInvoiceResponse = zod.object({
   "net_to_pay": zod.stringFormat('decimal', issueInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', issueInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', issueInvoiceResponseRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', issueInvoiceResponsePaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', issueInvoiceResponseExtraOverGoodsRegExp),
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "issued_by": zod.string(),
@@ -7603,6 +7654,37 @@ export const RecordWithholdingCertificateResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }).describe('The withholding certificate of an invoice (P2-T06, D-063).')
+
+
+/**
+ * What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+ * stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256).
+ */
+
+
+
+export const EstimateInvoiceQueryParams = zod.object({
+  "sales": zod.string().min(1)
+})
+
+export const estimateInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const estimateInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const estimateInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const estimateInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const estimateInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const estimateInvoiceResponseExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const EstimateInvoiceResponse = zod.object({
+  "total_excl_tax": zod.stringFormat('decimal', estimateInvoiceResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', estimateInvoiceResponseVatTotalRegExp),
+  "vat_by_rate": zod.array(zod.array(zod.string())),
+  "fiscal_stamp": zod.stringFormat('decimal', estimateInvoiceResponseFiscalStampRegExp),
+  "withholding_amount": zod.stringFormat('decimal', estimateInvoiceResponseWithholdingAmountRegExp),
+  "net_to_pay": zod.stringFormat('decimal', estimateInvoiceResponseNetToPayRegExp),
+  "extra": zod.stringFormat('decimal', estimateInvoiceResponseExtraRegExp),
+  "extra_by_sale": zod.record(zod.string(), zod.string())
+}).describe('The invoice some BL would make, not saved (D-256).')
 
 
 /**

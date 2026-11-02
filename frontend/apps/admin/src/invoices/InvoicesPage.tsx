@@ -1,4 +1,9 @@
-import { type InvoiceStatusEnum, useListCreditNotes, useListInvoices } from "@frutti/api";
+import {
+  type InvoiceStatusEnum,
+  type ListInvoicesPaymentState,
+  useListCreditNotes,
+  useListInvoices,
+} from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
@@ -80,11 +85,18 @@ export function InvoicesPage() {
   const [tab, setTab] = useState<Tab>("invoices");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<InvoiceStatusEnum | "">("");
+  const [paymentState, setPaymentState] = useState<ListInvoicesPaymentState | "">("");
   const [offset, setOffset] = useState(0);
   const query = useDebounced(search.trim());
 
   const invoices = useListInvoices(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    {
+      limit: PAGE_SIZE,
+      offset,
+      ...(status ? { status } : {}),
+      ...(paymentState ? { payment_state: paymentState } : {}),
+      ...(query ? { search: query } : {}),
+    },
     { query: { placeholderData: keepPreviousData, enabled: tab === "invoices" } },
   );
   const creditNotes = useListCreditNotes(
@@ -92,7 +104,7 @@ export function InvoicesPage() {
     { query: { placeholderData: keepPreviousData, enabled: tab === "creditNotes" } },
   );
   const current = tab === "invoices" ? invoices : creditNotes;
-  const filtering = query !== "" || (tab === "invoices" && status !== "");
+  const filtering = query !== "" || (tab === "invoices" && (status !== "" || paymentState !== ""));
 
   let body: ReactNode;
   if (current.isPending) body = <p className="text-ink-2">{t("common.loading")}</p>;
@@ -165,6 +177,11 @@ export function InvoicesPage() {
                     )}
                   >
                     {invoice.status === "issued" ? formatMoney(invoice.remaining_to_pay) : "—"}
+                    {invoice.payment_state === "partial" && (
+                      <Pill className="ms-2" tone="warn">
+                        {t("admin.invoices.paymentStates.partial")}
+                      </Pill>
+                    )}
                   </Td>
                 </tr>
               ))}
@@ -274,6 +291,23 @@ export function InvoicesPage() {
             ]}
             onChange={(value) => {
               setStatus(value);
+              setOffset(0);
+            }}
+          />
+        )}
+        {tab === "invoices" && (
+          <Segmented
+            label={t("admin.invoices.paymentFilter")}
+            value={paymentState}
+            options={[
+              { value: "" as const, label: t("admin.invoices.allPayments") },
+              ...(["unpaid", "partial", "paid"] as const).map((value) => ({
+                value,
+                label: t(`admin.invoices.paymentStates.${value}`),
+              })),
+            ]}
+            onChange={(value) => {
+              setPaymentState(value);
               setOffset(0);
             }}
           />

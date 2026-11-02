@@ -30,7 +30,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
-import { subtract, sum } from "../lib/decimal";
+import { subtract, sum, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { asTyped, compare, spread } from "../purchasing/allocation";
 import { FormPanel } from "../treasury/FormPanel";
@@ -361,6 +361,11 @@ export function CustomerPaymentFormPage() {
                         <span className="font-semibold">{item.number}</span>
                         {item.kind === "invoice" && (
                           <div className="text-[0.8rem] text-ink-2">{item.sales.join(", ")}</div>
+                        )}
+                        {item.kind === "sale" && toThousandths(item.estimatedExtra) !== 0n && (
+                          <div className="text-[0.8rem] font-normal text-ink-2">
+                            {t("admin.treasury.form.estimatedExtra", { amount: formatMoney(item.estimatedExtra) })}
+                          </div>
                         )}
                       </Td>
                       <Td className="num whitespace-nowrap max-[720px]:hidden">{formatDate(item.day)}</Td>

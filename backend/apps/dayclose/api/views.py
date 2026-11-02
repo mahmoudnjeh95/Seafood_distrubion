@@ -30,6 +30,7 @@ from .serializers import (
     DayOverviewDriverSerializer,
     DayOverviewFilterSerializer,
     DayOverviewRowSerializer,
+    DayReturnToStockSerializer,
     DayRouteSerializer,
     JustificationSerializer,
     MyDayRowSerializer,
@@ -278,12 +279,23 @@ class DayOverviewPurchaseValidateView(DayOverviewActionView):
 
 
 class DayOverviewReturnToStockView(DayOverviewActionView):
-    @extend_schema(operation_id="returnDayOverviewToStock", request=None, responses=DayOverviewDetailSerializer)
+    @extend_schema(
+        operation_id="returnDayOverviewToStock",
+        request=DayReturnToStockSerializer,
+        responses=DayOverviewDetailSerializer,
+    )
     def post(self, request: Request, day_id: int) -> Response:
-        """Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
-        or not the driver sent the day; only on the truck's latest day."""
+        """Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+        manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+        driver sent the day; only on the truck's latest day."""
+        serializer = DayReturnToStockSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         day = self.day(day_id)
-        services.return_truck_to_stock(driver_day=day, actor=self.membership.user)
+        services.return_truck_to_stock(
+            driver_day=day,
+            actor=self.membership.user,
+            to_location_id=serializer.validated_data["to_location_id"],
+        )
         return self.answer_day(day)
 
 
