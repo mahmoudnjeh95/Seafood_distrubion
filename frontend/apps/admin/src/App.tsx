@@ -116,7 +116,6 @@ function useNav(): AdminNavGroup[] {
         { to: "/devis", label: t("admin.nav.quotes"), icon: "quote" },
         { to: "/ventes", label: t("admin.nav.sales"), icon: "receipt" },
         { to: "/factures", label: t("admin.nav.invoices"), icon: "receipt" },
-        { to: "/reglements", label: t("admin.nav.payments"), icon: "cash" },
         { to: "/clients", label: t("admin.nav.customers"), icon: "users" },
         { to: "/prix", label: t("admin.nav.prices"), icon: "badge" },
       ],
@@ -131,7 +130,6 @@ function useNav(): AdminNavGroup[] {
         { to: "/stock/transferts", label: t("admin.nav.transfers"), icon: "truck" },
         { to: "/produits", label: t("admin.nav.products"), icon: "snow" },
         { to: "/achats", label: t("admin.nav.purchases"), icon: "cart" },
-        { to: "/achats/reglements", label: t("admin.nav.supplierSettlements"), icon: "cash" },
         { to: "/fournisseurs", label: t("admin.nav.suppliers"), icon: "anchor" },
       ],
     },
@@ -143,8 +141,8 @@ function useNav(): AdminNavGroup[] {
         { to: "/salaires", label: t("admin.nav.payroll"), icon: "badge" },
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
-        { to: "/tresorerie/portefeuille", label: t("admin.nav.portfolio"), icon: "receipt" },
-        { to: "/tresorerie/banques", label: t("admin.nav.banks"), icon: "wallet" },
+        // One entry for the whole treasury (règlements, portefeuille, banques): its ribbon links the screens (P9-T08).
+        { to: "/reglements", label: t("admin.nav.treasury"), icon: "wallet" },
       ],
     },
     {
