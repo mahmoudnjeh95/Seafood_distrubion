@@ -593,6 +593,16 @@ class CountFilterSerializer(serializers.Serializer[Any]):
     location = serializers.IntegerField(required=False, min_value=1)
 
 
+class StockAdjustmentWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    batch = serializers.IntegerField(min_value=1)
+    # "add" puts kilos into the place, "remove" takes them out of it.
+    direction = serializers.ChoiceField(choices=["add", "remove"])
+    # A weight as a string ("1.500"), checked by the service.
+    quantity = serializers.CharField(allow_blank=True)
+    reason = serializers.CharField(allow_blank=True, max_length=200)
+
+
 # ---- Stock screens (P1-T11) ----
 
 

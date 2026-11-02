@@ -148,6 +148,8 @@ class DayFundRowSerializer(serializers.Serializer[Any]):
     can_buy = serializers.BooleanField(read_only=True)
     fund = DayFundSerializer(read_only=True, allow_null=True)
     started = serializers.BooleanField(read_only=True)
+    # The driver sent the closing: the day is over and even the purchase money is locked.
+    ended = serializers.BooleanField(read_only=True)
 
 
 class DayFundWriteSerializer(serializers.Serializer[Any]):
@@ -158,10 +160,6 @@ class DayFundWriteSerializer(serializers.Serializer[Any]):
     purchase_float = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=0, required=False, default=Decimal("0.000")
     )
-
-
-class PurchaseFloatSerializer(serializers.Serializer[Any]):
-    purchase_float = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
 
 
 MAX_PINGS_PER_BATCH = 200

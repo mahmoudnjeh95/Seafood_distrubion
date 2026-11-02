@@ -1,7 +1,9 @@
 import {
+  advancePartnerCapital,
   cancelPartnership,
   createPartnership,
   type LotPartnershipDetail,
+  type PaymentMethodEnum,
   updatePartnership,
   useListSuppliers,
 } from "@frutti/api";
@@ -25,6 +27,8 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 
+import { CostSelect } from "../expenses/CostSelect";
+import { PAYMENT_METHODS } from "../expenses/shared";
 import { fieldErrors } from "../lib/errors";
 import { refreshLotResult, typed } from "./shared";
 
@@ -233,6 +237,116 @@ export function CancelPartnershipDialog({
         <Button onClick={onDone}>{t("admin.partnerships.cancelDialog.back")}</Button>
         <Button type="submit" form={formId} variant="danger" disabled={cancel.isPending}>
           {t("admin.partnerships.cancelDialog.confirm")}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+/** Today as YYYY-MM-DD, in the local time zone (the value of a date input). */
+const todayIso = () => new Date().toLocaleDateString("en-CA");
+
+/** An advance paid to the partner from the capital they put in this lot. The settlement pays what is left. */
+export function AdvanceDialog({ partnership, onDone }: { partnership: LotPartnershipDetail; onDone: () => void }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const formId = useId();
+  const [amount, setAmount] = useState("");
+  const [paidOn, setPaidOn] = useState(todayIso);
+  const [method, setMethod] = useState<PaymentMethodEnum>("cash");
+  const [reference, setReference] = useState("");
+  const [note, setNote] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const advance = useMutation({
+    mutationFn: (value: string) =>
+      advancePartnerCapital(partnership.id, {
+        amount: value,
+        method,
+        reference: reference.trim(),
+        paid_on: paidOn,
+        note: note.trim(),
+      }),
+    onSuccess: async () => {
+      toast.success(t("admin.partnerships.advanceDialog.done"));
+      await refreshLotResult(queryClient);
+      onDone();
+    },
+    onError: (failure) => {
+      const fromServer = fieldErrors(failure);
+      setErrors(
+        Object.keys(fromServer).length > 0 ? fromServer : { detail: t("admin.partnerships.advanceDialog.error") },
+      );
+    },
+  });
+
+  return (
+    <DialogContent className="w-[min(480px,calc(100vw-2rem))]">
+      <DialogTitle>{t("admin.partnerships.advanceDialog.title")}</DialogTitle>
+      <DialogDescription>{t("admin.partnerships.advanceDialog.description")}</DialogDescription>
+      <p className="font-semibold">
+        {t("admin.partnerships.advanceDialog.available", { amount: formatMoney(partnership.capital) })}
+      </p>
+      <form
+        id={formId}
+        noValidate
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const value = parseDecimalInput(amount.trim(), 3);
+          if (value === null || Number(value) <= 0) {
+            setErrors({ amount: t("admin.partnerships.advanceDialog.invalidAmount") });
+            return;
+          }
+          setErrors({});
+          advance.mutate(value);
+        }}
+      >
+        <Field label={t("admin.partnerships.advanceDialog.amount")} htmlFor={`${formId}-amount`} error={errors.amount}>
+          <MoneyInput
+            id={`${formId}-amount`}
+            inputMode="decimal"
+            className="num"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3 max-[720px]:grid-cols-1">
+          <Field label={t("admin.partnerships.advanceDialog.date")} htmlFor={`${formId}-date`} error={errors.paid_on}>
+            <Input
+              id={`${formId}-date`}
+              type="date"
+              value={paidOn}
+              onChange={(event) => setPaidOn(event.target.value)}
+            />
+          </Field>
+          <CostSelect
+            id={`${formId}-method`}
+            label={t("admin.partnerships.advanceDialog.method")}
+            value={method}
+            onChange={(value) => setMethod(value as PaymentMethodEnum)}
+            options={PAYMENT_METHODS.map((value) => ({ value, label: t(`admin.expenses.methods.${value}`) }))}
+            placeholder={t("admin.partnerships.advanceDialog.choose")}
+            error={errors.method}
+          />
+        </div>
+        <Field label={t("admin.partnerships.advanceDialog.reference")} htmlFor={`${formId}-reference`}>
+          <Input
+            id={`${formId}-reference`}
+            value={reference}
+            onChange={(event) => setReference(event.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+        <Field label={t("admin.partnerships.advanceDialog.note")} htmlFor={`${formId}-note`} error={errors.note}>
+          <Input id={`${formId}-note`} value={note} onChange={(event) => setNote(event.target.value)} />
+        </Field>
+      </form>
+      <Detail message={errors.detail} />
+      <DialogFooter>
+        <Button onClick={onDone}>{t("admin.partnerships.advanceDialog.back")}</Button>
+        <Button type="submit" form={formId} disabled={advance.isPending}>
+          {t("admin.partnerships.advanceDialog.confirm")}
         </Button>
       </DialogFooter>
     </DialogContent>

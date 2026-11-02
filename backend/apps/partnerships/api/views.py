@@ -21,6 +21,7 @@ from apps.partnerships import selectors, services
 from apps.partnerships.models import LotPartnership
 
 from .serializers import (
+    LotPartnershipAdvanceSerializer,
     LotPartnershipCancelSerializer,
     LotPartnershipDetailSerializer,
     LotPartnershipFilterSerializer,
@@ -148,4 +149,20 @@ class LotPartnershipCancelView(PartnershipView):
         services.cancel_partnership(
             partnership=partnership, actor=self.membership.user, reason=serializer.validated_data["reason"]
         )
+        return self.answer(partnership_id)
+
+
+class LotPartnershipAdvanceView(PartnershipView):
+    @extend_schema(
+        operation_id="advancePartnerCapital",
+        request=LotPartnershipAdvanceSerializer,
+        responses=LotPartnershipDetailSerializer,
+    )
+    def post(self, request: Request, partnership_id: int) -> Response:
+        """Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+        still in; the settlement pays the rest."""
+        partnership = self.partnership(partnership_id)
+        serializer = LotPartnershipAdvanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.advance_capital(partnership=partnership, actor=self.membership.user, **serializer.validated_data)
         return self.answer(partnership_id)

@@ -374,7 +374,8 @@ def set_day_fund(
     purchase_float: Decimal = Decimal("0.000"),
 ) -> DayFund:
     """The office sets the cash it hands a driver for a day (D-203). It changes freely until the driver accepts it
-    (which starts the day); after that the day's figures are the ones accepted."""
+    (which starts the day). Once started, the accepted cash stays as it is and only the money for purchases changes,
+    and only the office changes it (D-248); a day whose closing is sent keeps its figures."""
     errors: dict[str, str] = {}
     if opening_cash < 0:
         errors["opening_cash"] = _("Le fonds de caisse ne peut pas être négatif.")
@@ -387,11 +388,16 @@ def set_day_fund(
     fund, _created = DayFund.objects.select_for_update().get_or_create(
         organization=organization, driver=driver, date=date
     )
-    if (
-        fund.accepted_at is not None
-        or DriverDay.objects.filter(organization=organization, driver=driver, date=date).exists()
-    ):
-        raise ValidationError({"opening_cash": _("Le chauffeur a déjà commencé sa journée : le fonds ne change plus.")})
+    day = DriverDay.objects.select_for_update().filter(organization=organization, driver=driver, date=date).first()
+    if day is not None:
+        if opening_cash != day.opening_cash:
+            raise ValidationError(
+                {"opening_cash": _("Le chauffeur a déjà accepté son fonds de caisse : il ne change plus.")}
+            )
+        if day.ended_at is not None and purchase_float != day.purchase_float:
+            raise ValidationError(
+                {"purchase_float": _("Sa journée est clôturée : l'argent pour les achats ne change plus.")}
+            )
     before = {"opening_cash": str(fund.opening_cash), "purchase_float": str(fund.purchase_float)}
     fund.opening_cash = opening_cash
     fund.purchase_float = purchase_float
@@ -405,6 +411,19 @@ def set_day_fund(
         before=before,
         after={"opening_cash": str(opening_cash), "purchase_float": str(purchase_float), "date": str(date)},
     )
+    if day is not None and day.purchase_float != purchase_float:
+        # The running day takes the new money at once; the phone shows it and cannot change it (D-248).
+        day_before = str(day.purchase_float)
+        day.purchase_float = purchase_float
+        day.save(update_fields=["purchase_float", "updated_at"])
+        audit.record(
+            organization=organization,
+            actor=actor,
+            action="driver_day.purchase_float_set",
+            target=day,
+            before={"purchase_float": day_before},
+            after={"purchase_float": str(purchase_float)},
+        )
     return fund
 
 
@@ -440,36 +459,39 @@ def accept_day_fund(*, organization: Organization, actor: User, truck: Truck, da
     return day
 
 
-@transaction.atomic
-def set_purchase_float(*, driver_day: DriverDay, actor: User, purchase_float: Decimal) -> DriverDay:
-    """The money the office gave the driver for purchases at the port that day (D-158): typed again when the office
-    gives more. Refused once the closing is sent: the day's figures are kept as sent."""
-    if purchase_float < 0:
-        raise ValidationError({"purchase_float": _("L'argent pour les achats ne peut pas être négatif.")})
-    driver_day = DriverDay.objects.select_for_update().get(pk=driver_day.pk)
-    if driver_day.ended_at is not None:
-        raise ValidationError({"purchase_float": _("Votre journée est clôturée : elle ne change plus.")})
-    before = {"purchase_float": str(driver_day.purchase_float)}
-    driver_day.purchase_float = purchase_float
-    driver_day.save(update_fields=["purchase_float", "updated_at"])
-    audit.record(
-        organization=driver_day.organization,
-        actor=actor,
-        action="driver_day.purchase_float_set",
-        target=driver_day,
-        before=before,
-        after={"purchase_float": str(purchase_float)},
-    )
-    return driver_day
-
-
 def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
     """The driver sent the day's closing: the day is over and its records stop here (D-134). Called inside the
-    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end."""
+    closing's transaction, on a locked row; ending a day already ended (sent again) keeps its end. The office's
+    cash for that driver and day is reset to zero (D-242): the day keeps the amounts it started with."""
     if driver_day.ended_at is None:
         driver_day.ended_at = ended_at
         driver_day.save(update_fields=["ended_at", "updated_at"])
+        _reset_day_fund(driver_day)
     return driver_day
+
+
+def _reset_day_fund(driver_day: DriverDay) -> None:
+    """Set the driver's "Fonds de caisse" and "Argent pour les achats" of that day back to zero (D-242). The fund
+    row stays, with its acceptance, so the office still sees the day was started."""
+    fund = (
+        DayFund.objects.select_for_update()
+        .filter(organization=driver_day.organization, driver=driver_day.driver, date=driver_day.date)
+        .first()
+    )
+    if fund is None or (fund.opening_cash == 0 and fund.purchase_float == 0):
+        return
+    before = {"opening_cash": str(fund.opening_cash), "purchase_float": str(fund.purchase_float)}
+    fund.opening_cash = Decimal("0.000")
+    fund.purchase_float = Decimal("0.000")
+    fund.save(update_fields=["opening_cash", "purchase_float", "updated_at"])
+    audit.record(
+        organization=driver_day.organization,
+        actor=None,
+        action="day_fund.reset",
+        target=fund,
+        before=before,
+        after={"opening_cash": "0.000", "purchase_float": "0.000", "date": str(driver_day.date)},
+    )
 
 
 def reopen_driver_day(*, driver_day: DriverDay) -> DriverDay:

@@ -92,7 +92,7 @@ Rubrique **Inventaires** : comptez le stock réel ; les écarts deviennent des c
 3. Quand le client répond : **Accepté par le client** ou **Refusé par le client** (avec un motif facultatif).
    Un devis sans réponse devient « Expiré ».
 
-### Le bon de livraison (BL), menu « Ventes & factures »
+### Le bon de livraison (BL), menu « Bons de livraison »
 
 1. Depuis un devis accepté : **Convertir en vente**, puis **Créer et confirmer**.
    Ou directement : **Nouvelle vente** (client, « Depuis » = chambre froide ou camion, produits, paiement sur place).
