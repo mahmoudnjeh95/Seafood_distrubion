@@ -16,12 +16,14 @@ import {
   Td,
   Th,
   toast,
+  TotalsRow,
   useServerTable,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
+import { totalOf } from "../lib/totals";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { canSell, DELIVERY_TONES, SALE_STATUSES, STATUS_TONES } from "./shared";
@@ -280,6 +282,24 @@ export function SalesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={(canWrite && uninvoiced ? 1 : 0) + 3}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((s) => s.status !== "cancelled"),
+                    (s) => s.total_excl_tax,
+                  ),
+                },
+                {
+                  value: totalOf(
+                    list.filter((s) => s.status === "confirmed"),
+                    (s) => s.amount_due,
+                  ),
+                  phoneHidden: true,
+                },
+              ]}
+            />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

@@ -3831,3 +3831,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The receipt is laid out as text rows (`truck/src/printing/receipt.ts`), then turned into ESC/POS bytes (`escpos.ts`, code page 858 for the French accents; setting to drop accents). In French, whatever the app language (Q13). Works offline: it uses only the sale or purchase already on the phone.
 - Buttons: "Imprimer le reçu" on the sale receipt screen and on each purchase in "Mes achats". Customer or supplier copy, then a "Copie bureau" with a signature line (provisional: on by default, switchable).
 - Connection is Web Bluetooth (BLE). **Limit found 2026-11-02:** the owner's printer did not appear in an iPhone BLE scanner, so it is probably classic Bluetooth (SPP). Then Chrome cannot reach it either, and both Android and iPhone need the Capacitor wrapper (or a different, BLE or MFi printer). The spike P3-T10 stays open until a real print works.
+## D-272 "Total de la page" row, set in the display settings (2026-11-02)
+
+- Money tables end with a "Total de la page" row: the sum of what the page shows, exact to the millime (`totalOf`).
+  Cancelled, voided, refused or rejected documents and unissued amounts are left out of the sum.
+- On for: customer and supplier payments, invoices, credit notes, sales, quotes, supplier invoices, expenses, field
+  purchases, employees and the two journals.
+- Whether the row shows is a display choice kept in the browser (`frutti.showTotals`), edited in Paramètres and in
+  Mon profil under "Affichage des listes", with the default rows per page. It is per person and device, not per company.
+- Not done, by choice: CSV export of the sorted view (the server exports already cover the main lists), hiding
+  columns, filters in the URL. They add screens and state for little gain at this stage.

@@ -15,6 +15,7 @@ import {
   Table,
   Td,
   Th,
+  TotalsRow,
   useServerTable,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { totalOf } from "../lib/totals";
 import { canWriteQuotes, QUOTE_STATUSES, STATUS_TONES } from "./shared";
 
 /** "Devis": every quote, newest first, with its status as the customer sees it today. */
@@ -163,6 +165,7 @@ export function QuotesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow span={4} cells={[{ value: totalOf(list, (q) => q.total_excl_tax) }]} />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>

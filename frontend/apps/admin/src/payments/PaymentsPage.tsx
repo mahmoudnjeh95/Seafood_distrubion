@@ -30,12 +30,14 @@ import {
   Td,
   Th,
   toast,
+  TotalsRow,
   useServerTable,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useOutletContext } from "react-router";
 
+import { totalOf } from "../lib/totals";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { useDebounced } from "../lib/useDebounced";
@@ -326,6 +328,29 @@ export function PaymentsPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={5}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((p) => !p.is_voided),
+                    (p) => p.amount,
+                  ),
+                },
+                {
+                  value: totalOf(
+                    list.filter((p) => !p.is_voided),
+                    (p) => p.remaining,
+                  ),
+                },
+                {
+                  value: totalOf(
+                    list.filter((p) => !p.is_voided),
+                    (p) => p.unallocated,
+                  ),
+                },
+              ]}
+            />
           </Table>
           {page && <Pager {...table.pager(page.count)} />}
         </Card>
