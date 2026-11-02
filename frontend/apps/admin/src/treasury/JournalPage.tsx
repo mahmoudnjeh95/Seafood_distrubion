@@ -21,6 +21,7 @@ import {
   Td,
   TotalsRow,
   useTableView,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -48,7 +49,7 @@ export function JournalPage({ kind }: { kind: Kind }) {
   const [chosen, setChosen] = useState(urlParams.get("compte") ?? "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const query = useDebounced(search.trim());
   const account = choices.find((one) => String(one.id) === chosen) ?? choices[0];
 

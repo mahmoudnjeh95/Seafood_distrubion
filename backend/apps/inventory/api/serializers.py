@@ -591,6 +591,7 @@ class CountedSerializer(serializers.Serializer[Any]):
 class CountFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=CountStatus.choices, required=False)
     location = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
 
 
 class StockAdjustmentWriteSerializer(serializers.Serializer[Any]):

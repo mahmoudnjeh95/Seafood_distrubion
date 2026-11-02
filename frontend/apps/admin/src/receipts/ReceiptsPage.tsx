@@ -15,6 +15,7 @@ import {
   Td,
   Th,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -30,7 +31,7 @@ export function ReceiptsPage() {
   const navigate = useNavigate();
   const canRecord = canRecordReceipts(session);
   const differencesId = useId();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const table = useServerTable();
   const query = useDebounced(search.trim());

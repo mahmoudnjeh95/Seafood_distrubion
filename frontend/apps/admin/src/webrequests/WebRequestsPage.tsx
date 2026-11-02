@@ -13,9 +13,11 @@ import {
   Td,
   Th,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+
 import { Link, useNavigate } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
@@ -28,7 +30,7 @@ type Filter = (typeof FILTERS)[number];
 export function WebRequestsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("new");
   const table = useServerTable();
   const query = useDebounced(search.trim());

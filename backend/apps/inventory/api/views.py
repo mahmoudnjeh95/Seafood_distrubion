@@ -724,6 +724,7 @@ class CountListView(CountView, ListAPIView[StockCount]):
             self.organization,
             status=filters.validated_data.get("status"),
             location_id=filters.validated_data.get("location"),
+            search=filters.validated_data["search"],
         )
 
     @extend_schema(operation_id="listCounts", parameters=[CountFilterSerializer])

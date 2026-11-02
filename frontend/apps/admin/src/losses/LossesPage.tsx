@@ -23,6 +23,7 @@ import {
   Th,
   toast,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -95,7 +96,7 @@ export function LossesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordStockChecks(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [statusFilter, setStatusFilter] = useState<LossStatusEnum | "">("");
   const table = useServerTable();
   const [editThreshold, setEditThreshold] = useState(false);

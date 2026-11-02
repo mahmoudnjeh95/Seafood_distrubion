@@ -20,6 +20,7 @@ import {
   Table,
   Td,
   useTableView,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -37,7 +38,7 @@ export function CustomersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canEdit = canEditCustomers(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<Status>("active");
   const [kind, setKind] = useState(ALL_KINDS);
   const [creating, setCreating] = useState(false);

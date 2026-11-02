@@ -39,6 +39,7 @@ import {
   toast,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -204,7 +205,7 @@ export function ExpensesPage() {
   // The month closing's cost lines link here with a category and a date range pre-set (D-122); without a
   // link the list opens on this month.
   const [searchParams] = useSearchParams();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatusEnum | "">("");
   const [category, setCategory] = useState(searchParams.get("category") ?? ALL);
   const [period, setPeriod] = useState<Period>(() =>

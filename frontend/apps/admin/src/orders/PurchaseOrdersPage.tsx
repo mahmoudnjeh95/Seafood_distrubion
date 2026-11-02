@@ -16,9 +16,11 @@ import {
   Td,
   Th,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { sum } from "../lib/decimal";
@@ -35,7 +37,7 @@ export function PurchaseOrdersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordReceipts(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("pending");
   const table = useServerTable();
   const query = useDebounced(search.trim());

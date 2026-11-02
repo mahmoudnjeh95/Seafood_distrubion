@@ -17,9 +17,11 @@ import {
   Th,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { PurchasingTabs } from "../purchasing/PurchasingTabs";
@@ -37,7 +39,7 @@ export function FieldPurchasesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordReceipts(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("submitted");
   const table = useServerTable();
   const query = useDebounced(search.trim());

@@ -25,6 +25,7 @@ export { getShowTotals, setShowTotals, useShowTotals } from "./lib/display-prefs
 export { PAGE_SIZES, rememberedPageSize, rememberPageSize } from "./lib/use-table-view";
 export { SortTh, Table, Td, Th } from "./components/table";
 export { useServerTable } from "./lib/use-server-table";
+export { useUrlState } from "./lib/use-url-state";
 export { type SortValue, type TableSort, useTableView } from "./lib/use-table-view";
 export { Toaster } from "./components/toast";
 export { ICON_NAMES, type IconName, ILLUSTRATION_NAMES, type IllustrationName } from "./icon-names";

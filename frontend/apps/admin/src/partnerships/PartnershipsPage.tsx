@@ -1,8 +1,23 @@
+import { useState } from "react";
 import { type ListPartnershipsStatus, useListLotFigures, useListPartnerships } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Card, cn, EmptyState, Input, PageHeader, Pager, Pill, SortTh, Table, Td, Th, useTableView } from "@frutti/ui";
-import { useState } from "react";
+import {
+  Card,
+  cn,
+  EmptyState,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useTableView,
+  useUrlState,
+} from "@frutti/ui";
+
 import { Link, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
@@ -17,7 +32,7 @@ export function PartnershipsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const [filter, setFilter] = useState<Filter>("live");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const debounced = useDebounced(search.trim(), 300);
   const allowed = canReadResults(session);
   const partnerships = useListPartnerships(
