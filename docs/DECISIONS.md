@@ -3492,6 +3492,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
 
 **D-242 · Sending the closing resets that driver's "Fonds de caisse" and "Argent pour les achats" to zero (owner request, 2026-11-02)** · provisional · 2026-11-02
+- Changed by D-259: the reset happens when the office approves the day, not when the driver sends it. The rest stands.
 - Sending the closing ends the day (D-134). At that moment the office's `DayFund` for that driver and date is set to 0
   for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`, so the office still sees the day
   was started. Only that driver's row is touched.
@@ -3643,7 +3644,18 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+- D-256 built (2026-11-02, P9-T10, first slice): estimate (`estimate_invoice`, `GET /invoices/estimate`), `estimated_extra` on
+  open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
+  per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).
 
+**D-259 · The driver's "Fonds de caisse" and "Argent pour les achats" go back to zero when the office approves the day (owner answer, 2026-11-02; changes D-242)** · provisional · 2026-11-02
+- `dayclose.approve_day_closing` calls `fleet.services.reset_day_fund`, which sets the office's `DayFund` for that driver
+  and date to 0 for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`. Only that driver's row
+  is touched.
+- Sending the closing no longer touches the fund: until the office approves, the phone and the office list keep the amounts.
+- Unchanged: the day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing. A new load that
+  reopens an approved day (D-134) does not bring the amounts back.
+- Provisional: the owner's answer came relayed by the PM session. The owner can move it back to sending if needed.
 **D-260 · A change of the purchase money during the day waits for the driver's approval on the phone (owner answer, 2026-11-02; changes D-248)** · accepted (provisional parts marked) · 2026-11-02
 - The office changes the money for purchases of a running day in "Camions du jour › Fonds de caisse" as before. It becomes a
   proposal (`fleet.PurchaseFloatChange`, pending) and does not change the amount in force. The office list shows
@@ -3701,6 +3713,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Shared pieces in `@frutti/ui`: `useTableView` (sort and page rows already in the browser), `SortTh`, `Pager`.
 - First user: Journal des banques / des caisses. Lists the server already pages (`PagedList`) still need an
   `ordering` parameter before they can sort the whole list; sorting only the visible page would mislead. Follow-up.
+
+
 **D-264 · A cheque or traite taken at a sale, paid for an expense or given to a partner is an effet, followed like a règlement's (Phase 9, P9-T09g; owner answer)** · accepted · 2026-11-02
 - Before, these were counted at the main bank account on the day. Now a cheque taken at a sale is an effet received
   from the customer (in the portfolio, then cashed or unpaid); a cheque or traite for an approved expense, or given to a

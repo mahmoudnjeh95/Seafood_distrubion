@@ -29,4 +29,6 @@ export interface OpenSale {
   readonly written_off: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly outstanding: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly estimated_extra: string;
 }

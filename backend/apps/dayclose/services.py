@@ -291,6 +291,8 @@ def approve_day_closing(
             "office_purchase_difference": str(closing.office_purchase_difference),
         },
     )
+    # The driver's starting cash for the day goes back to zero once the office has approved it (D-259).
+    fleet_services.reset_day_fund(driver_day=closing.driver_day)
     # The cash the office counted goes from the driver's cash to the Caisse (D-262). A new load that opens the day
     # again leaves it there; the next approval moves what is counted then.
     treasury_services.hand_over_driver_cash(

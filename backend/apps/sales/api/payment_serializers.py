@@ -310,6 +310,9 @@ class OpenSaleSerializer(serializers.Serializer[Any]):
     # What a balance write-off gave up on this sale (D-252).
     written_off = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # A BL on no invoice yet: what its invoice would add to the goods (VAT, stamp, less withholding), if invoiced alone
+    # (D-256). Zero once invoiced.
+    estimated_extra = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
 class HistoryEntrySerializer(serializers.Serializer[Any]):

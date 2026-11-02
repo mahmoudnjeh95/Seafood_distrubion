@@ -39,6 +39,8 @@ from .serializers import (
     InvoiceChoicesSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
+    InvoiceEstimateFilterSerializer,
+    InvoiceEstimateSerializer,
     InvoiceFilterSerializer,
     InvoiceSerializer,
     NotDeliveredSerializer,
@@ -628,6 +630,7 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
             date_from=filters.validated_data.get("date_from"),
             date_to=filters.validated_data.get("date_to"),
             search=filters.validated_data["search"],
+            payment_state=filters.validated_data.get("payment_state"),
         )
 
     @extend_schema(operation_id="listInvoices", parameters=[InvoiceFilterSerializer])
@@ -659,6 +662,40 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
             sales=sales, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
         )
         return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
+
+
+class InvoiceEstimateView(OfficeView):
+    @extend_schema(
+        operation_id="estimateInvoice",
+        parameters=[InvoiceEstimateFilterSerializer],
+        responses=InvoiceEstimateSerializer,
+    )
+    def get(self, request: Request) -> Response:
+        """What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+        stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256)."""
+        filters = InvoiceEstimateFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        try:
+            sales = [selectors.sale_of(self.organization, pk) for pk in filters.validated_data["sales"]]
+        except Sale.DoesNotExist:
+            raise ValidationError({"sales": _("Vente inconnue.")}) from None
+        if len({sale.customer_id for sale in sales}) > 1:
+            raise ValidationError({"sales": _("Une facture ne regroupe que les bons de livraison d'un même client.")})
+        estimate = services.estimate_invoice(organization=self.organization, sales=sales)
+        return Response(
+            InvoiceEstimateSerializer(
+                {
+                    "total_excl_tax": estimate.total_excl_tax,
+                    "vat_total": estimate.vat_total,
+                    "vat_by_rate": [[str(rate), str(amount)] for rate, amount in estimate.vat_by_rate],
+                    "fiscal_stamp": estimate.fiscal_stamp,
+                    "withholding_amount": estimate.withholding_amount,
+                    "net_to_pay": estimate.net_to_pay,
+                    "extra": estimate.extra,
+                    "extra_by_sale": {str(pk): str(extra) for pk, extra in estimate.extra_by_sale.items()},
+                }
+            ).data
+        )
 
 
 class InvoiceDetailView(InvoiceView):
