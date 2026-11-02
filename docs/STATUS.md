@@ -21,9 +21,10 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
   ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
   the rest. The money is a treasury movement the day it is paid (as settlements, D-240).
 
-- **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
-  (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
-  links them. Routes and pages unchanged; nothing else renamed.
+- **2026-11-02, D-241 (merged, PR #276):** the side menu's Banques became **Trésorier** (opens Encaissement);
+  Règlements clients, Règlements fournisseurs and Portefeuille left the menu, the treasury ribbon links them.
+- **D-261 (branch `treasury-highlight`, awaits CI):** Trésorier stays lit on every treasury ribbon screen (nav items
+  can own more paths, `owns`).
 
 - **2026-11-02, D-248 (branch `driver-purchase-money`, PR #279, awaits CI):** the purchase money ("argent d'achat") is set by
   the office only; the driver approves it when starting the day and cannot change it on the phone (`PUT /my-day/purchase-float`

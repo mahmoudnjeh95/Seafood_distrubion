@@ -142,7 +142,13 @@ function useNav(): AdminNavGroup[] {
         { to: "/partenariats", label: t("admin.nav.profitSharing"), icon: "percent" },
         { to: "/cloture", label: t("admin.nav.closing"), icon: "calcheck" },
         // One entry for the whole treasury (règlements, portefeuille, banques): its ribbon links the screens (P9-T08).
-        { to: "/reglements", label: t("admin.nav.treasury"), icon: "wallet" },
+        // It stays lit on every ribbon screen, including the supplier ones under Achats (D-261).
+        {
+          to: "/reglements",
+          label: t("admin.nav.treasury"),
+          icon: "wallet",
+          owns: ["/tresorerie", "/achats/paiements", "/achats/reglements"],
+        },
       ],
     },
     {
