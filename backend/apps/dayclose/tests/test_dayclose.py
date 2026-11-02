@@ -257,6 +257,7 @@ def test_approving_the_day_resets_the_cash_the_office_set_for_that_driver_to_zer
     )
     assert counted.status_code == 200
     approved = day["office"].post(reverse("day-closing-approve", args=[closing["id"]]), {}, format="json")
+    assert approved.status_code == 200, approved.content
     assert approved.json()["status"] == "approved"
     fund = day["api"].get(reverse("my-day-fund")).json()
     assert (fund["opening_cash"], fund["purchase_float"]) == ("0.000", "0.000")
