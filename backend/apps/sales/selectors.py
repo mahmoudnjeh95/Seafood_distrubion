@@ -423,11 +423,13 @@ def invoices_of(
     date_from: dt.date | None = None,
     date_to: dt.date | None = None,
     search: str = "",
+    payment_state: str | None = None,
 ) -> QuerySet[Invoice]:
     """Invoices, drafts first then the newest issued, each with its sale, customer, lines, VAT per rate and
     credit notes, and `credited_total` (what its credit notes gave back, net). Days are the issue dates, both
     included (a draft has none and is left out by a day filter); `search` matches the number, the sale's
-    number and the customer's name or reference."""
+    number and the customer's name or reference. `payment_state` ("unpaid", "partial", "paid") keeps the issued
+    invoices by what their BL still owe (D-256)."""
     credit_lines = CreditNoteLine.objects.select_related("invoice_line").order_by("id")
     credit_notes = (
         CreditNote.objects.select_related("created_by")
@@ -456,9 +458,29 @@ def invoices_of(
                 Value(Decimal("0.000")),
                 output_field=DecimalField(max_digits=14, decimal_places=3),
             ),
+            # What its BL still owe: the part of the net to pay not yet paid (D-256).
+            amount_left=Coalesce(
+                Subquery(
+                    InvoiceSale.objects.filter(invoice=OuterRef("pk"))
+                    .values("invoice")
+                    .annotate(total=Sum("sale__amount_due"))
+                    .values("total")
+                ),
+                Value(Decimal("0.000")),
+                output_field=DecimalField(max_digits=14, decimal_places=3),
+            ),
         )
         .order_by(F("issued_on").desc(nulls_first=True), "-id")
     )
+    if payment_state:
+        invoices = invoices.filter(status=InvoiceStatus.ISSUED)
+        owed = F("net_to_pay") - F("credited_total")
+        if payment_state == "paid":
+            invoices = invoices.filter(amount_left__lte=0)
+        elif payment_state == "partial":
+            invoices = invoices.filter(amount_left__gt=0, amount_left__lt=owed)
+        elif payment_state == "unpaid":
+            invoices = invoices.filter(amount_left__gt=0, amount_left__gte=owed)
     if status:
         invoices = invoices.filter(status=status)
     if customer_id is not None:

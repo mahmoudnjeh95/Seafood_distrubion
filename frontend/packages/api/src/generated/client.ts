@@ -96,6 +96,7 @@ import type {
   EmailWrite,
   Employee,
   EmployeeWrite,
+  EstimateInvoiceParams,
   ExpenseCategory,
   ExpenseCategoryWrite,
   ExpenseDetail,
@@ -151,6 +152,7 @@ import type {
   InvoiceChoices,
   InvoiceCreate,
   InvoiceDetail,
+  InvoiceEstimate,
   Justification,
   LastCost,
   ListAccountTransfersParams,
@@ -10768,6 +10770,112 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRecordWithholdingCertificateMutationOptions(options), queryClient);
     }
+
+export const getEstimateInvoiceUrl = (params: EstimateInvoiceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/invoices/estimate?${stringifiedParams}` : `/api/v1/invoices/estimate`
+}
+
+/**
+ * What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+ * stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256).
+ */
+export const estimateInvoice = async (params: EstimateInvoiceParams, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceEstimate> => {
+
+  return apiFetch<InvoiceEstimate>(getEstimateInvoiceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEstimateInvoiceQueryKey = (params?: EstimateInvoiceParams,) => {
+    return [
+    `/api/v1/invoices/estimate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getEstimateInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEstimateInvoiceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof estimateInvoice>>> = ({ signal }) => estimateInvoice(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type EstimateInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof estimateInvoice>>>
+export type EstimateInvoiceQueryError = unknown
+
+
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof estimateInvoice>>,
+          TError,
+          Awaited<ReturnType<typeof estimateInvoice>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof estimateInvoice>>,
+          TError,
+          Awaited<ReturnType<typeof estimateInvoice>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getEstimateInvoiceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListLocationsUrl = (params?: ListLocationsParams,) => {
   const normalizedParams = new URLSearchParams();

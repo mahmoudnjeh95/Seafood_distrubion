@@ -3314,6 +3314,19 @@ paths:
         schema:
           type: integer
       - in: query
+        name: payment_state
+        schema:
+          enum:
+          - unpaid
+          - partial
+          - paid
+          type: string
+          minLength: 1
+        description: |-
+          * `unpaid` - unpaid
+          * `partial` - partial
+          * `paid` - paid
+      - in: query
         name: sale
         schema:
           type: integer
@@ -3548,6 +3561,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WithholdingCertificate'
+          description: ''
+  /api/v1/invoices/estimate:
+    get:
+      operationId: estimateInvoice
+      description: |-
+        What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+        stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256).
+      parameters:
+      - in: query
+        name: sales
+        schema:
+          type: string
+          minLength: 1
+        required: true
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceEstimate'
           description: ''
   /api/v1/locations:
     get:
@@ -18666,6 +18703,20 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payment_state:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStateEnum'
+          readOnly: true
+        paid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra_over_goods:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         created_by:
           type: string
           readOnly: true
@@ -18704,6 +18755,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - extra_over_goods
       - fees
       - fiscal_stamp
       - id
@@ -18713,6 +18765,8 @@ components:
       - line_count
       - net_to_pay
       - number
+      - paid_total
+      - payment_state
       - prices_include_vat
       - remaining_to_pay
       - sale
@@ -18959,6 +19013,20 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payment_state:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStateEnum'
+          readOnly: true
+        paid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra_over_goods:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         created_by:
           type: string
           readOnly: true
@@ -19060,6 +19128,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - extra_over_goods
       - fees
       - fiscal_stamp
       - fiscal_stamp_overridden
@@ -19072,6 +19141,8 @@ components:
       - net_to_pay
       - notes
       - number
+      - paid_total
+      - payment_state
       - prices_include_vat
       - remaining_to_pay
       - sale
@@ -19091,6 +19162,61 @@ components:
       - withholding_applied
       - withholding_rate
       - withholding_rate_overridden
+    InvoiceEstimate:
+      type: object
+      description: The invoice some BL would make, not saved (D-256).
+      properties:
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_by_rate:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_to_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra_by_sale:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+      required:
+      - extra
+      - extra_by_sale
+      - fiscal_stamp
+      - net_to_pay
+      - total_excl_tax
+      - vat_by_rate
+      - vat_total
+      - withholding_amount
     InvoiceLine:
       type: object
       properties:
@@ -21985,11 +22111,17 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        estimated_extra:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - age_days
       - allocated
       - document_date
       - due_on
+      - estimated_extra
       - invoice_id
       - invoice_number
       - is_overdue
@@ -23560,6 +23692,18 @@ components:
       - number
       - paid_on
       - reference
+    PaymentStateEnum:
+      enum:
+      - none
+      - unpaid
+      - partial
+      - paid
+      type: string
+      description: |-
+        * `none` - none
+        * `unpaid` - unpaid
+        * `partial` - partial
+        * `paid` - paid
     PaymentTermsEnum:
       enum:
       - cash

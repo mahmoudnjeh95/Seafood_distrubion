@@ -184,13 +184,15 @@ bordereau de versement, the états des factures); the flow and the rules stay ou
 - Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
 
 ### P9-T10 · BL paid before its invoice: the VAT and timbre gap (D-256) · M
-- [ ] Backend: simulate the invoice of one or several BL without saving (same engine, D-202/D-246 VAT rule), expose the
-      estimate (VAT per rate, timbre once) on the BL and in the règlement allocation lines.
-- [ ] Invoice "payée" only when allocated = net to pay; "Payée en partie" state and the gap (goods, VAT, timbre).
-- [ ] Collect the gap in one règlement by BL share; give it up through the D-252 clearing, owner only, with a reason.
-- [ ] Office: "Reste estimé" and "Régler TTC" on the Nouveau règlement lines; gap dialog on the invoice; "Écart de facturation".
-- [ ] Ventes filter "BL payé, facture non soldée" and a line on the customer statement. Tests: BL with VAT, BL without VAT
-      (timbre only), mixed rates, several BL, one overpaid and one unpaid.
+- [x] Backend: `services.estimate_invoice` (no-save simulation, same engine and VAT rule as `create_invoice`), `GET /invoices/estimate?sales=1,2`
+      (VAT per rate, stamp once, `extra` shared per BL), `estimated_extra` on the customer balance's open BL.
+- [x] Invoice `payment_state` (unpaid / partial / paid / none), `paid_total`, `extra_over_goods`; list filter `payment_state`.
+- [x] Office: "Reste estimé à l'émission" under a BL on Nouveau règlement; "Payée en partie" with the gap and a link to a
+      new règlement on the invoice's page; a payment filter and a pill on the invoice list. Tests: `test_invoice_gap.py`.
+- [ ] "Régler TTC" box: needs a règlement allowed above a BL's goods before its invoice exists (server cap today).
+- [ ] Give the gap up for one invoice (owner only, reason, recorded): D-252 clears a whole customer balance, so this needs
+      a per-invoice write-off.
+- [ ] A line on the customer statement ("BL payé, facture non soldée") and the estimate in the BL's own screen.
 
 ## Defaults chosen without the owner (provisional, D-197)
 

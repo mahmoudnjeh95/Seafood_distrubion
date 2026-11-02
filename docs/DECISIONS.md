@@ -3667,3 +3667,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   cheque or traite is an effet (D-264).
 - The reset of the fund at the office's approval (D-259) is another change and does not touch this.
 - The app is still in testing with no real data: no backfill.
+
+- D-256 built (2026-11-02, P9-T10, first slice): estimate (`estimate_invoice`, `GET /invoices/estimate`), `estimated_extra` on
+  open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
+  per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).

@@ -1639,6 +1639,16 @@ export const fr = {
         netToPay: "Net à payer",
         credited: "Avoirs",
         remaining: "Reste à payer",
+        paid: "Déjà réglé",
+      },
+      paymentFilter: "Règlement",
+      allPayments: "Tous",
+      paymentStates: { unpaid: "Non payée", partial: "Payée en partie", paid: "Payée" },
+      // D-256: a BL paid at its goods, then invoiced with VAT and stamp.
+      gap: {
+        title: "Payée en partie : il reste {{amount}} DT à encaisser.",
+        extra: "Dont {{amount}} DT de TVA et de timbre que le règlement du BL ne couvrait pas.",
+        collect: "Encaisser le reste (nouveau règlement)",
       },
       detail: {
         print: "Imprimer",
@@ -3062,6 +3072,8 @@ export const fr = {
           "Indiquez ce que le règlement solde sur chaque facture (répartie sur ses BL) ou BL non facturé. Ce qui n'est pas affecté reste en crédit du client.",
         chooseCustomerFirst: "Choisissez d'abord le client.",
         nothingOpen: "Rien à régler : tout le règlement restera en crédit.",
+        // D-256: a BL on no invoice yet; its invoice will add VAT and stamp to the goods.
+        estimatedExtra: "Reste estimé à l'émission de la facture : {{amount}} DT (TVA, timbre)",
         document: "Facture / BL",
         day: "Date",
         due: "Échéance",

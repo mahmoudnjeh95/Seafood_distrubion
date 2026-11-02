@@ -11,6 +11,7 @@ import type { InvoiceLine } from './invoiceLine';
 import type { InvoiceStatusEnum } from './invoiceStatusEnum';
 import type { InvoiceVatLine } from './invoiceVatLine';
 import type { Party } from './party';
+import type { PaymentStateEnum } from './paymentStateEnum';
 import type { QuoteCustomer } from './quoteCustomer';
 import type { SaleRef } from './saleRef';
 
@@ -53,6 +54,11 @@ export interface InvoiceDetail {
   readonly credited_total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly remaining_to_pay: string;
+  readonly payment_state: PaymentStateEnum;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly paid_total: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly extra_over_goods: string;
   readonly created_by: string;
   readonly created_at: string;
   readonly issued_by: string;
