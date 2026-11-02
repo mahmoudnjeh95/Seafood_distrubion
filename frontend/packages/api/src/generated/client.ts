@@ -178,6 +178,7 @@ import type {
   ListLossesParams,
   ListLotFiguresParams,
   ListLotWorkDaysParams,
+  ListMovementsOfParams,
   ListMovementsParams,
   ListMyCustomersParams,
   ListMyPurchaseCostsParams,
@@ -214,6 +215,7 @@ import type {
   LossWrite,
   LotCosts,
   LotFigure,
+  LotPartnershipAdvance,
   LotPartnershipCancel,
   LotPartnershipDetail,
   LotPartnershipWrite,
@@ -229,6 +231,7 @@ import type {
   MonthResult,
   MonthRow,
   MonthView,
+  MovementOf,
   MyBoxDay,
   MyBoxPickupWrite,
   MyCustomerWrite,
@@ -305,7 +308,6 @@ import type {
   ProductPrice,
   ProductStockDetail,
   ProfilePhotoUpload,
-  PurchaseFloat,
   QuoteConvert,
   QuoteDetail,
   QuoteRefuse,
@@ -347,6 +349,7 @@ import type {
   SiteRequestReceived,
   SiteSettings,
   SlowReport,
+  StockAdjustmentWrite,
   StockCheckHealth,
   StockLocation,
   StockLocationCreate,
@@ -4855,7 +4858,8 @@ export const getListDayFundsUrl = (params?: ListDayFundsParams,) => {
 }
 
 /**
- * Every active driver with the cash set for them on a day (today by default) and whether they started.
+ * Every active driver with the cash set for them on a day (today by default), whether they started and whether
+ * their closing is sent.
  */
 export const listDayFunds = async (params?: ListDayFundsParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayFundRow[]> => {
 
@@ -4953,7 +4957,8 @@ export const getSetDayFundUrl = () => {
 }
 
 /**
- * Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it.
+ * Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+ * the money for purchases changes, and only here (D-248).
  */
 export const setDayFund = async (dayFundWrite: DayFundWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayFund> => {
 
@@ -15685,92 +15690,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordMyLocationsMutationOptions(options), queryClient);
     }
 
-export const getSetMyPurchaseFloatUrl = () => {
-
-
-
-
-  return `/api/v1/my-day/purchase-float`
-}
-
-/**
- * The money the office gave for purchases at the port today, typed again when it gives more (D-158).
- * 404 before the day is started; refused once its closing is sent.
- */
-export const setMyPurchaseFloat = async (purchaseFloat: PurchaseFloat, options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<DriverDay>(getSetMyPurchaseFloatUrl(),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(purchaseFloat)
-  }
-);}
-
-
-
-
-
-export const getSetMyPurchaseFloatMutationKey = () => ['setMyPurchaseFloat'] as const;
-
-export const getSetMyPurchaseFloatMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext> => {
-
-const mutationKey = getSetMyPurchaseFloatMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMyPurchaseFloat>>, SetMyPurchaseFloatMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  setMyPurchaseFloat(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type SetMyPurchaseFloatMutationResult = NonNullable<Awaited<ReturnType<typeof setMyPurchaseFloat>>>
-    export type SetMyPurchaseFloatMutationBody = PurchaseFloat
-    export type SetMyPurchaseFloatMutationError = unknown
-    export type SetMyPurchaseFloatMutationVariables = {data: PurchaseFloat}
-
-    export const useSetMyPurchaseFloat = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof setMyPurchaseFloat>>,
-        TError,
-        SetMyPurchaseFloatMutationVariables,
-        TContext
-      > => {
-      return useMutation(getSetMyPurchaseFloatMutationOptions(options), queryClient);
-    }
-
 export const getListMyDaysUrl = () => {
 
 
@@ -18702,6 +18621,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdatePartnershipMutationOptions(options), queryClient);
+    }
+
+export const getAdvancePartnerCapitalUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/v1/partnerships/${partnershipId}/advances`
+}
+
+/**
+ * Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+ * still in; the settlement pays the rest.
+ */
+export const advancePartnerCapital = async (partnershipId: number,
+    lotPartnershipAdvance: LotPartnershipAdvance, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotPartnershipDetail>(getAdvancePartnerCapitalUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lotPartnershipAdvance)
+  }
+);}
+
+
+
+
+
+export const getAdvancePartnerCapitalMutationKey = () => ['advancePartnerCapital'] as const;
+
+export const getAdvancePartnerCapitalMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext> => {
+
+const mutationKey = getAdvancePartnerCapitalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof advancePartnerCapital>>, AdvancePartnerCapitalMutationVariables> = (props) => {
+          const {partnershipId,data} = props ?? {};
+
+          return  advancePartnerCapital(partnershipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdvancePartnerCapitalMutationResult = NonNullable<Awaited<ReturnType<typeof advancePartnerCapital>>>
+    export type AdvancePartnerCapitalMutationBody = LotPartnershipAdvance
+    export type AdvancePartnerCapitalMutationError = unknown
+    export type AdvancePartnerCapitalMutationVariables = {partnershipId: number;data: LotPartnershipAdvance}
+
+    export const useAdvancePartnerCapital = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof advancePartnerCapital>>,
+        TError,
+        AdvancePartnerCapitalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdvancePartnerCapitalMutationOptions(options), queryClient);
     }
 
 export const getCancelPartnershipUrl = (partnershipId: number,) => {
@@ -27299,6 +27305,92 @@ export function useListProductBatches<TData = Awaited<ReturnType<typeof listProd
 
 
 
+export const getAdjustStockUrl = () => {
+
+
+
+
+  return `/api/v1/stock/adjustments`
+}
+
+/**
+ * Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+ * kilos keep the lot's cost. The answer is the product's stock again, with its new average price.
+ */
+export const adjustStock = async (stockAdjustmentWrite: StockAdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ProductStockDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ProductStockDetail>(getAdjustStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockAdjustmentWrite)
+  }
+);}
+
+
+
+
+
+export const getAdjustStockMutationKey = () => ['adjustStock'] as const;
+
+export const getAdjustStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext> => {
+
+const mutationKey = getAdjustStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustStock>>, AdjustStockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  adjustStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustStockMutationResult = NonNullable<Awaited<ReturnType<typeof adjustStock>>>
+    export type AdjustStockMutationBody = StockAdjustmentWrite
+    export type AdjustStockMutationError = unknown
+    export type AdjustStockMutationVariables = {data: StockAdjustmentWrite}
+
+    export const useAdjustStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof adjustStock>>,
+        TError,
+        AdjustStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdjustStockMutationOptions(options), queryClient);
+    }
+
 export const getListMovementsUrl = (params?: ListMovementsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -32573,6 +32665,112 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getWithdrawInstrumentsMutationOptions(options), queryClient);
     }
+
+export const getListMovementsOfUrl = (params: ListMovementsOfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/movements-of?${stringifiedParams}` : `/api/v1/treasury/movements-of`
+}
+
+/**
+ * The treasury movements written by the given records of one source, each with the account it went through
+ * (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+ */
+export const listMovementsOf = async (params: ListMovementsOfParams, options?: Parameters<typeof apiFetch>[1]): Promise<MovementOf[]> => {
+
+  return apiFetch<MovementOf[]>(getListMovementsOfUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMovementsOfQueryKey = (params?: ListMovementsOfParams,) => {
+    return [
+    `/api/v1/treasury/movements-of`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMovementsOfQueryOptions = <TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMovementsOfQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMovementsOf>>> = ({ signal }) => listMovementsOf(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMovementsOfQueryResult = NonNullable<Awaited<ReturnType<typeof listMovementsOf>>>
+export type ListMovementsOfQueryError = unknown
+
+
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovementsOf>>,
+          TError,
+          Awaited<ReturnType<typeof listMovementsOf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovementsOf>>,
+          TError,
+          Awaited<ReturnType<typeof listMovementsOf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMovementsOfQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListPartyDocumentsUrl = () => {
 

@@ -4,7 +4,13 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.partnerships import selectors
-from apps.partnerships.models import CapitalEntry, CapitalEntryKind, LotPartnership, PartnershipStatus
+from apps.partnerships.models import (
+    CapitalEntry,
+    CapitalEntryKind,
+    LotPartnership,
+    PartnershipStatus,
+    SettlementPaymentMethod,
+)
 
 
 def person_name(user: Any) -> str:
@@ -34,8 +40,19 @@ class CapitalEntrySerializer(serializers.ModelSerializer[CapitalEntry]):
 
     class Meta:
         model = CapitalEntry
-        # `amount` is signed: + money put in, − money taken out (a loss share, a return).
-        fields = ("id", "kind", "amount", "entry_date", "note", "lot_result_id", "created_at", "created_by_name")
+        # `amount` is signed: + money put in, − money taken out (a loss share, a return, an advance).
+        fields = (
+            "id",
+            "kind",
+            "amount",
+            "entry_date",
+            "note",
+            "method",
+            "reference",
+            "lot_result_id",
+            "created_at",
+            "created_by_name",
+        )
         read_only_fields = fields
 
     def get_created_by_name(self, entry: CapitalEntry) -> str:
@@ -126,3 +143,12 @@ class LotPartnershipUpdateSerializer(serializers.Serializer[Any]):
 
 class LotPartnershipCancelSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(max_length=300, allow_blank=True)
+
+
+class LotPartnershipAdvanceSerializer(serializers.Serializer[Any]):
+    # The amount in DT as a string ("500.000"), checked by the service.
+    amount = serializers.CharField(allow_blank=True)
+    method = serializers.ChoiceField(choices=SettlementPaymentMethod.choices)
+    reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    paid_on = serializers.DateField(required=False)
+    note = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")

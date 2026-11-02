@@ -1552,3 +1552,55 @@ def cancel_count(*, count: StockCount, actor: User | None) -> StockCount:
     count.save(update_fields=["status", "updated_at"])
     audit.record(organization=count.organization, actor=actor, action="count.cancelled", target=count)
     return count
+
+
+@transaction.atomic
+def adjust_stock(
+    *,
+    organization: Organization,
+    actor: User | None,
+    location: StockLocation,
+    batch: Batch,
+    add: bool,
+    quantity: Number,
+    reason: str,
+) -> StockMovement:
+    """Put kilos of one lot into a place, or take them out, by hand: an `adjustment` movement, reason required.
+
+    The kilos keep the lot's cost. Nothing stores the average purchase price, so it is worked out again from
+    the stock on hand as soon as this is saved. The usual checks apply: an archived place, a lot of another
+    organization, or more kilos taken out than the place holds.
+    """
+    try:
+        movement = post_movement(
+            organization=organization,
+            actor=actor,
+            kind=MovementKind.ADJUSTMENT,
+            batch=batch,
+            quantity=quantity,
+            from_location=None if add else location,
+            to_location=location if add else None,
+            reason=reason,
+        )
+    except ValidationError as error:
+        fields = getattr(error, "message_dict", {"quantity": error.messages})
+        raise ValidationError(
+            {
+                ("location" if field in ("from_location", "to_location") else field): messages
+                for field, messages in fields.items()
+            }
+        ) from None
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="stock.adjusted",
+        target=movement,
+        after={
+            "location": location.name,
+            "batch": batch.number,
+            "direction": "add" if add else "remove",
+            "quantity": str(movement.quantity),
+            "reason": movement.reason,
+        },
+    )
+    return movement

@@ -3458,31 +3458,64 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
 
-**D-241 · The office checks a driver's day before approving it: expenses, purchases, the truck's stock and boxes (owner list 2026-11-02, items 1 to 4)** · provisional · 2026-11-02
-- **Where:** the day's check sits in the closing window ("Clôtures à vérifier") and in "Suivi des chauffeurs", as the
-  component `DayReview`. It reads `GET /day-overview/<id>` (new `owns_truck`, `stock`, `boxes`, `review_blockers`).
-- **Expenses (item 1):** each driver expense of the day is approved or refused from there
-  (`POST /day-overview/<id>/expenses/<expense>/decide`, a refusal needs its reason). Only the day's own expenses (typed by
-  its driver, dated in its window).
-- **Purchases (item 3):** a purchase made on the day is counted on the truck as bought ("Acheté, à valider" kilos in the
-  stock table). The office validates it with one button (`POST …/purchases/<purchase>/validate`, the same validation as
-  the purchase page: its kilos enter the truck's stock). A purchase missing its supplier, product or place is refused
-  with the reason; the office completes it on the purchase page.
-- **Stock and boxes back to the cold room (items 2 and 4):** one button, "Remettre le camion en stock", posts a return
-  transfer of everything the truck holds (kilos and boxes) to the first active cold room, validated at once
-  (`POST …/return-to-stock`). It works whether or not the driver sent the day. Provisional: the cold room is the first
-  active one by id (no choice on the button yet).
-- **Only the truck's latest day owns its stock:** `fleet.latest_day_on_truck`. On an earlier day the stock and boxes are
-  not shown and cannot be returned (they belong to a later day), and they do not block its approval.
-- **Approval is refused** while the day still has an expense to approve or refuse, a purchase to validate or refuse, or
-  (on the truck's latest day) kilos or boxes in the truck. The reason shows on the closing (`review_blockers`).
-- **A sent day moved by the office's decision is corrected, not re-sent:** refusing an expense or validating/refusing a
-  purchase that changes the figures calls the existing correction (D-220) with the reason, so the revision shows who and
-  why. A return changes no figure of the day (it happens after the send), so it creates no revision.
-- Also: a transfer may carry only boxes (no product line), needed for the truck that gives back its boxes alone.
-- Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier);
-  choosing the cold room for the return; the owner may prefer approval to ask for a reason instead of blocking.
-- Migration: none. Tests: `dayclose/tests/test_day_review.py`.
+**D-251 · Each payment, sale and expense shows the account its money went through, linked to that account's journal (Phase 9, P9-T09c)** · accepted · 2026-11-02
+- The payment, sale, expense and partner-payout screens show "Où est passé l'argent": one line per treasury movement the
+  record wrote, with the account (Caisse, bank account or a driver's cash) and the day, linked to that account's journal.
+  The journal opens on that account (`?compte=`).
+- The account is read from the ledger (the movements of the record), not stored on the payment line: a line does not
+  say which account it went through, the movement does.
+- Provisional: the driver's cash has no journal page yet, so it is shown without a link.
+**D-241 · One "Trésorier" entry in the side menu; the règlement and portfolio entries go into the treasury ribbon (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The side menu no longer lists Règlements clients, Règlements fournisseurs, Portefeuille or Banques. A single **Trésorier** entry (Finance group, where Banques was) opens the treasury at its first screen, Encaissement (`/reglements`); the treasury ribbon links every other screen (Décaissement, Portefeuille, Banque, Bordereau, Ordre de paiement, …).
+
+- Only the menu entries move: the routes and pages stay, and the ribbon and the links in the pages still reach them. The Banks page keeps its name, "Banques", since it lists the banks; the ribbon button stays "Banque".
+
+- Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
+
+**D-242 · Sending the closing resets that driver's "Fonds de caisse" and "Argent pour les achats" to zero (owner request, 2026-11-02)** · provisional · 2026-11-02
+- Sending the closing ends the day (D-134). At that moment the office's `DayFund` for that driver and date is set to 0
+  for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`, so the office still sees the day
+  was started. Only that driver's row is touched.
+- The day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing are not changed: the closing
+  keeps the start the driver had.
+- A new load that reopens the sent day (D-134) does not bring the amounts back; the day runs on its own figures.
+- Provisional: "day ends" is read as the closing being sent. If the owner means the office's approval, which comes
+  later, the reset moves to `approve_day_closing`. The owner's peer PM confirmed this reading on 2026-11-02 (take the
+  recommended option); the provisional status stays so the owner can move it.
+**D-247 · Stock adjustment by hand: add or remove kilos of a lot; the average price is worked out again (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- An office adjustment is an `adjustment` movement (the existing kind, reason required) posted by `services.adjust_stock`:
+  `POST /api/v1/stock/adjustments` (`adjustStock`) with a place, a lot, `add` or `remove`, kilos and the reason. Owners and
+  managers only; the answer is the product's stock with its new average price. Screen: "Ajuster le stock" on the product
+  page (`/stock/produits/:id`).
+- The kilos added keep the lot's cost. The average purchase price is not stored: it is weighted by the kilos on hand, so it
+  is worked out again from the ledger as soon as the adjustment is saved (no step to run). A removal is refused past what
+  the place holds, like any movement.
+- Provisional: the lots offered are those still on hand (a sold-out lot cannot be topped up: a receipt does that); no new
+  cost is typed on an addition (the lot's cost is used, a different cost is a receipt); no owner approval step (unlike a
+  loss above the threshold, D-045); the monthly closing counts an adjustment as spoilage, like a count correction.
+
+
+**D-243 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
+- A `CapitalEntryKind.ADVANCE` entry (−) on the partner's capital ledger, with the means of payment and a reference (`method`, `reference`, the entry's date = the day paid). `services.advance_capital`, `POST /partnerships/{id}/advances` (`advancePartnerCapital`). Owner only, like every partnership write.
+- Up to the capital still in: an advance never takes the capital below zero (D-031). Allowed while the lot is open or closed; refused once settled or cancelled.
+- The settlement pays what is left: its `capital_returned` is the capital balance, already net of the advances, so the total paid is unchanged. The partner's period flows count an advance as capital returned.
+- A capital correction (`update_partnership`) cannot take the capital below what was already advanced.
+- Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
+- The money leaves our accounts the day it is paid, as a settlement payment does (D-240): a treasury movement out of the account its means goes to, kind `partner_settlement`, labelled "Avance". Provisional: the kind is shared with the settlements.
+
+**D-248 · The purchase money is set by the office only; the driver approves it when starting the day (owner request, 2026-11-02)** · accepted · 2026-11-02
+- The money for purchases at the port (`DriverDay.purchase_float`) is typed by the office in "Camions du jour › Fonds de caisse"
+  (`PUT /day-funds`). The driver approves it with the cash when starting the day (D-203, `POST /my-day`), then cannot change it.
+- Removed: the driver's `PUT /my-day/purchase-float` (D-158's "typed again while the day runs"). The phone shows the amount
+  with "Seul le bureau peut le modifier." and no edit control.
+- The office may still change the purchase money of a running day, with `PUT /day-funds`: the day takes it at once, and the
+  audit log keeps `driver_day.purchase_float_set`. The accepted opening cash stays locked once the day started.
+- Once the driver's closing is sent, the purchase money is locked for the office too (the day is kept as sent, D-134).
+  The fund list reports `ended` for each row so the office screen locks the field.
+- Provisional: the driver does not approve a change the office makes during the day (the owner may want a re-approval
+  step instead). A driver who disagrees calls the office, as for the cash (D-203).
 
 **D-249 · The office checks a driver's day before approving it: expenses, purchases, the truck's stock and boxes (owner list 2026-11-02, items 1 to 4)** · provisional · 2026-11-02
 - **Where:** the day's check sits in the closing window ("Clôtures à vérifier") and in "Suivi des chauffeurs", as the
