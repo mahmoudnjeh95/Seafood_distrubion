@@ -1,13 +1,17 @@
 # Project status
 
-_Last updated: 2026-11-02 (side menu: one Trésorier entry, D-241; advance to a partner, D-243; next free decision D-244)_
+_Last updated: 2026-11-02 (D-242 driver's fund reset, PR open; advance to a partner D-243, PR #281; next free decision D-244)_
 
 ## Where we are
 
+- **D-242 (2026-11-02, PR open, provisional):** sending a driver's closing resets that driver's "Fonds de caisse" and
+  "Argent pour les achats" for the day to 0 (`fleet.services.end_driver_day`). The day's own figures stay. Check on staging:
+  Camions du jour › Fonds de caisse after a closing is sent shows 0 for that driver.
 - **Owner request 2026-11-02, D-243 (branch `partner-capital-advance`, awaits CI):** in a lot's "Partenariat" section the
   owner can give the partner an advance from the capital they put in ("Donner une avance"): `ADVANCE` entry on the capital
   ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
   the rest. The money is a treasury movement the day it is paid (as settlements, D-240).
+
 - **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
   (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
   links them. Routes and pages unchanged; nothing else renamed.

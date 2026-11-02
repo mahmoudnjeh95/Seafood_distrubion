@@ -3466,6 +3466,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 
 - Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
 
+**D-242 · Sending the closing resets that driver's "Fonds de caisse" and "Argent pour les achats" to zero (owner request, 2026-11-02)** · provisional · 2026-11-02
+- Sending the closing ends the day (D-134). At that moment the office's `DayFund` for that driver and date is set to 0
+  for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`, so the office still sees the day
+  was started. Only that driver's row is touched.
+- The day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing are not changed: the closing
+  keeps the start the driver had.
+- A new load that reopens the sent day (D-134) does not bring the amounts back; the day runs on its own figures.
+- Provisional: "day ends" is read as the closing being sent. If the owner means the office's approval, which comes
+  later, the reset moves to `approve_day_closing`. The owner's peer PM confirmed this reading on 2026-11-02 (take the
+  recommended option); the provisional status stays so the owner can move it.
+
 **D-243 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
 - The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
 - A `CapitalEntryKind.ADVANCE` entry (−) on the partner's capital ledger, with the means of payment and a reference (`method`, `reference`, the entry's date = the day paid). `services.advance_capital`, `POST /partnerships/{id}/advances` (`advancePartnerCapital`). Owner only, like every partnership write.
