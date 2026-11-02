@@ -380,6 +380,15 @@ export function SaleDetailPage() {
             </TotalRow>
             <TotalRow label={t("admin.sales.detail.paid")}>{formatMoney(data.amount_paid)}</TotalRow>
             <TotalRow label={t("admin.sales.detail.due")}>{formatMoney(data.amount_due)}</TotalRow>
+            {data.status === "confirmed" && Number(data.amount_due) > 0 && (
+              // The money comes in through the treasury: the règlement form opens on this customer.
+              <Link
+                to={`/reglements/nouveau?client=${data.customer.id}`}
+                className="text-end text-[0.85rem] font-semibold text-sea hover:underline"
+              >
+                {t("admin.sales.detail.settle")}
+              </Link>
+            )}
             {data.cost_total !== null && data.margin !== null && (
               <>
                 <TotalRow label={t("admin.sales.detail.costTotal")}>{formatMoney(data.cost_total)}</TotalRow>

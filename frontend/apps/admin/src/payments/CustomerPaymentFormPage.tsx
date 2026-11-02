@@ -206,7 +206,7 @@ export function CustomerPaymentFormPage() {
                   setAllocations({});
                 }}
                 options={(customers.data ?? [])
-                  .filter((one) => !one.is_walk_in && (one.is_active || String(one.id) === customer))
+                  .filter((one) => one.is_active || String(one.id) === customer)
                   .map((one) => {
                     const label = `${one.name} · ${one.reference}`;
                     return {
