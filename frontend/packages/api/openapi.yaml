@@ -3225,7 +3225,8 @@ paths:
       description: |-
         Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
-        `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+        `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-241), and
+        every typed value is flagged and audited. Errors:
         `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
       tags:
       - invoices
@@ -18155,7 +18156,7 @@ components:
       properties:
         apply_vat:
           type: boolean
-          default: true
+          nullable: true
         lines:
           type: array
           items:
@@ -18189,7 +18190,7 @@ components:
       properties:
         apply_vat:
           type: boolean
-          default: true
+          nullable: true
         lines:
           type: array
           items:

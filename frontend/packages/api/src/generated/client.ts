@@ -9846,7 +9846,8 @@ export const getCreateInvoiceUrl = () => {
 /**
  * Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
  * once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
- * `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+ * `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-241), and
+ * every typed value is flagged and audited. Errors:
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
 export const createInvoice = async (invoiceCreate?: InvoiceCreate, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {

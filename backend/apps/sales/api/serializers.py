@@ -1045,8 +1045,8 @@ class InvoiceVatAmountSerializer(serializers.Serializer[Any]):
 class InvoiceChoicesSerializer(serializers.Serializer[Any]):
     """What may change on a draft invoice. Every empty value takes the finance settings (D-056)."""
 
-    # False: an invoice without VAT.
-    apply_vat = serializers.BooleanField(required=False, default=True)
+    # False: an invoice without VAT; empty: with VAT only when a BL holds goods bought with VAT (D-241).
+    apply_vat = serializers.BooleanField(required=False, allow_null=True, default=None)
     # One per line, in the order of the lines; empty list: every line takes its proposed rate.
     lines = InvoiceLineChoiceSerializer(many=True, required=False, default=list)
     # Typed VAT amounts per rate; errors come back on `vat_amounts.<rate>`.

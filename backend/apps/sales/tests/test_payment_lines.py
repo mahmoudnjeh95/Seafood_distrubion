@@ -156,7 +156,7 @@ def test_an_invoice_is_settled_by_its_amount_spread_over_its_bls(
 ):
     first = make_sale(organization, actor, customer, counter, crevette, "5")
     second = make_sale(organization, actor, customer, counter, crevette, "2")
-    invoice = services.create_invoice(sales=[first, second], actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sales=[first, second], actor=actor, issue=True)
     owed = sum(
         (row.outstanding for row in receivables.sale_receivables(organization, customer_id=customer.pk)), D("0.000")
     )
@@ -186,7 +186,7 @@ def test_an_invoice_is_settled_by_its_amount_spread_over_its_bls(
 
 def test_an_invoice_cannot_take_more_than_it_owes(organization, actor, customer, counter, crevette):
     sale = make_sale(organization, actor, customer, counter, crevette, "5")
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
     with pytest.raises(ValidationError) as refused:
         pay(
             organization,

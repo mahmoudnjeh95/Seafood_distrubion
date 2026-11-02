@@ -159,7 +159,7 @@ def test_settings_refuse_the_past_and_wrong_values_field_by_field(organization, 
 
 
 def test_a_draft_takes_the_sale_lines_and_the_settings(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
     assert invoice.status == InvoiceStatus.DRAFT
     assert invoice.number == ""
@@ -185,6 +185,7 @@ def test_a_draft_takes_the_sale_lines_and_the_settings(sale, actor):
 def test_an_exempt_product_has_its_own_rate(organization, actor, customer, counter, crevette):
     sardine = product(organization, "Sardine", "SA-010", "6.000", vat_rate=D("0.00"))
     invoice = services.create_invoice(
+        apply_vat=True,
         sale=confirmed_sale(
             organization,
             actor,
@@ -203,7 +204,7 @@ def test_an_exempt_product_has_its_own_rate(organization, actor, customer, count
 def test_prices_including_vat_come_from_the_settings(organization, actor, sale):
     services.save_finance_settings(organization=organization, actor=actor, prices_include_vat=True)
 
-    invoice = services.create_invoice(sale=sale, actor=actor)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
     assert invoice.prices_include_vat is True
     # 455.000 / 1.19 = 382.352...
@@ -231,11 +232,25 @@ def test_goods_bought_with_vat_are_never_invoiced_without_it(sale, actor):
         services.issue_invoice(invoice=draft, actor=actor)
 
     assert "TVA" in refused.value.message_dict["apply_vat"][0]
-    assert services.issue_invoice(invoice=services.update_invoice(invoice=draft, actor=actor), actor=actor).number
+    assert services.issue_invoice(
+        invoice=services.update_invoice(invoice=draft, actor=actor, apply_vat=True), actor=actor
+    ).number
+
+
+def test_vat_is_not_checked_by_default_for_goods_not_bought_with_vat(sale, actor):
+    assert services.create_invoice(sale=sale, actor=actor).apply_vat is False
+
+
+def test_vat_is_checked_by_default_for_goods_bought_with_vat(sale, actor):
+    Batch.objects.filter(pk__in=SaleLineBatch.objects.filter(line__sale=sale).values("batch")).update(
+        bought_with_vat=True
+    )
+
+    assert services.create_invoice(sale=sale, actor=actor).apply_vat is True
 
 
 def test_typed_values_are_flagged_and_audited(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
     services.update_invoice(
         invoice=invoice,
         actor=actor,
@@ -268,7 +283,9 @@ def test_typed_values_are_flagged_and_audited(sale, actor):
 
 
 def test_typing_the_settings_value_is_not_an_override(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, vat_rates=["19", "19"], fiscal_stamp="1.000")
+    invoice = services.create_invoice(
+        apply_vat=True, sale=sale, actor=actor, vat_rates=["19", "19"], fiscal_stamp="1.000"
+    )
 
     assert not invoice.fiscal_stamp_overridden
     assert not invoice.lines.filter(vat_rate_overridden=True).exists()
@@ -277,6 +294,7 @@ def test_typing_the_settings_value_is_not_an_override(sale, actor):
 def test_wrong_typed_values_come_back_on_their_field(sale, actor):
     with pytest.raises(ValidationError) as refused:
         services.create_invoice(
+            apply_vat=True,
             sale=sale,
             actor=actor,
             vat_rates=["120", "x"],
@@ -296,13 +314,13 @@ def test_wrong_typed_values_come_back_on_their_field(sale, actor):
 
 def test_a_typed_vat_amount_above_its_lines_is_refused(sale, actor):
     with pytest.raises(ValidationError) as refused:
-        services.create_invoice(sale=sale, actor=actor, vat_amounts={"19": "999.000"})
+        services.create_invoice(apply_vat=True, sale=sale, actor=actor, vat_amounts={"19": "999.000"})
 
     assert "vat_amounts.19.00" in refused.value.message_dict
 
 
 def test_withholding_with_a_zero_rate_shows_nothing(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, withholding_applied=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, withholding_applied=True)
 
     assert invoice.withholding_rate == D("0.00")
     assert invoice.withholding_amount == D("0.000")
@@ -320,7 +338,7 @@ def test_only_a_confirmed_sale_with_a_named_customer_is_invoiced_once(
         lines=[{"product": crevette, "quantity": "1"}],
     )
     with pytest.raises(ValidationError, match="confirmée"):
-        services.create_invoice(sale=draft, actor=actor)
+        services.create_invoice(apply_vat=True, sale=draft, actor=actor)
 
     walk_in_sale = services.create_sale(
         organization=organization,
@@ -332,20 +350,20 @@ def test_only_a_confirmed_sale_with_a_named_customer_is_invoiced_once(
         confirm=True,
     )
     with pytest.raises(ValidationError) as refused:
-        services.create_invoice(sale=walk_in_sale, actor=actor)
+        services.create_invoice(apply_vat=True, sale=walk_in_sale, actor=actor)
     assert "customer" in refused.value.message_dict
 
-    services.create_invoice(sale=sale, actor=actor)
+    services.create_invoice(apply_vat=True, sale=sale, actor=actor)
     with pytest.raises(ValidationError, match="déjà sa facture"):
-        services.create_invoice(sale=sale, actor=actor)
+        services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
 
 def test_a_draft_can_be_deleted(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
     services.delete_invoice(invoice=invoice, actor=actor)
 
     assert not Invoice.objects.exists()
-    assert services.create_invoice(sale=sale, actor=actor).status == InvoiceStatus.DRAFT
+    assert services.create_invoice(apply_vat=True, sale=sale, actor=actor).status == InvoiceStatus.DRAFT
 
 
 # ---- issuing ----
@@ -355,7 +373,7 @@ def test_issuing_numbers_freezes_and_copies(organization, actor, customer, sale)
     services.save_finance_settings(
         organization=organization, actor=actor, legal_name="Frutti Del Mare SARL", tax_id="0000000A/A/M/000"
     )
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
 
     assert invoice.status == InvoiceStatus.ISSUED
     assert invoice.number == f"FA-{YEAR}-0001"
@@ -384,7 +402,7 @@ def test_issuing_numbers_freezes_and_copies(organization, actor, customer, sale)
 
 
 def test_an_issued_invoice_never_changes(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
 
     with pytest.raises(ValidationError, match="avoir"):
         services.update_invoice(invoice=invoice, actor=actor, apply_vat=False)
@@ -395,7 +413,7 @@ def test_an_issued_invoice_never_changes(sale, actor):
 
 
 def test_issuing_takes_the_settings_in_force_then_but_keeps_what_was_typed(organization, actor, sale):
-    invoice = services.create_invoice(sale=sale, actor=actor, fiscal_stamp="0.500")
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, fiscal_stamp="0.500")
     services.save_finance_settings(organization=organization, actor=actor, vat_rate="7", fiscal_stamp="2.000")
 
     invoice = services.issue_invoice(invoice=invoice, actor=actor)
@@ -409,8 +427,8 @@ def test_numbers_follow_each_other_and_a_failed_issue_uses_none(
     organization, actor, customer, counter, crevette, sale, monkeypatch
 ):
     other = confirmed_sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "2"}])
-    first = services.create_invoice(sale=sale, actor=actor)
-    second = services.create_invoice(sale=other, actor=actor)
+    first = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
+    second = services.create_invoice(apply_vat=True, sale=other, actor=actor)
 
     def broken(invoice):
         raise RuntimeError("printer on fire")
@@ -434,7 +452,7 @@ def test_each_organization_has_its_own_series(actor, counter):
     other_customer = CustomerFactory.create(organization=other_org)
     other_sale = confirmed_sale(other_org, actor, other_customer, other_location, [{"product": item, "quantity": "1"}])
 
-    assert services.create_invoice(sale=other_sale, actor=actor, issue=True).number == f"FA-{YEAR}-0001"
+    assert services.create_invoice(apply_vat=True, sale=other_sale, actor=actor, issue=True).number == f"FA-{YEAR}-0001"
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
@@ -445,6 +463,7 @@ def test_invoices_issued_at_once_never_share_a_number_nor_skip_one():
     item = product(organization, "Crevette Royale", "CR-001", "42.000")
     drafts = [
         services.create_invoice(
+            apply_vat=True,
             sale=confirmed_sale(organization, None, customer, location, [{"product": item, "quantity": "1"}]),
             actor=None,
         )
@@ -475,7 +494,7 @@ def test_invoices_issued_at_once_never_share_a_number_nor_skip_one():
 
 
 def test_a_full_credit_note_cancels_the_invoice(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
 
     note = services.create_credit_note(
         invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Erreur de client"
@@ -491,7 +510,7 @@ def test_a_full_credit_note_cancels_the_invoice(sale, actor):
     sale.refresh_from_db()
     assert sale.tax_amount is None
     # The sale may be invoiced again, with the next number.
-    again = services.create_invoice(sale=sale, actor=actor, issue=True)
+    again = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
     assert again.number == f"FA-{YEAR}-0002"
     with pytest.raises(ValidationError, match="déjà annulée"):
         services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Encore")
@@ -499,7 +518,7 @@ def test_a_full_credit_note_cancels_the_invoice(sale, actor):
 
 def test_fees_add_to_the_total_outside_vat_and_withholding(organization, sale, actor):
     services.save_finance_settings(organization=organization, actor=actor, withholding_rate="1.5")
-    invoice = services.create_invoice(sale=sale, actor=actor, fees="12.500", withholding_applied=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, fees="12.500", withholding_applied=True)
 
     assert invoice.fees == D("12.500")
     assert invoice.vat_total == D("86.450")  # no VAT on the fees
@@ -515,7 +534,7 @@ def test_fees_add_to_the_total_outside_vat_and_withholding(organization, sale, a
 
 
 def test_saving_a_draft_without_fees_removes_them(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, fees="5")
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, fees="5")
 
     invoice = services.update_invoice(invoice=invoice, actor=actor)
 
@@ -524,7 +543,7 @@ def test_saving_a_draft_without_fees_removes_them(sale, actor):
 
 
 def test_a_full_credit_note_gives_the_fees_back_a_partial_one_does_not(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, fees="10", issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, fees="10", issue=True)
     crevette_line = invoice.lines.order_by("id").first()
 
     partial = services.create_credit_note(
@@ -542,7 +561,7 @@ def test_a_full_credit_note_gives_the_fees_back_a_partial_one_does_not(sale, act
 
 
 def test_a_partial_credit_note_by_kilos_and_by_amount(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
     crevette_line, dorade_line = list(invoice.lines.order_by("id"))
 
     note = services.create_credit_note(
@@ -583,7 +602,7 @@ def test_a_partial_credit_note_by_kilos_and_by_amount(sale, actor):
 
 
 def test_a_credit_note_never_gives_back_more_than_the_line(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
     line = invoice.lines.order_by("id").first()
 
     with pytest.raises(ValidationError) as refused:
@@ -608,7 +627,7 @@ def test_a_credit_note_never_gives_back_more_than_the_line(sale, actor):
 
 
 def test_a_credit_note_needs_an_issued_invoice_and_a_reason(sale, actor):
-    draft = services.create_invoice(sale=sale, actor=actor)
+    draft = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
     with pytest.raises(ValidationError, match="brouillon"):
         services.create_credit_note(invoice=draft, actor=actor, kind=CreditNoteKind.FULL, reason="x")
 
@@ -620,7 +639,7 @@ def test_a_credit_note_needs_an_issued_invoice_and_a_reason(sale, actor):
 
 def test_withholding_is_given_back_in_proportion(organization, actor, sale):
     services.save_finance_settings(organization=organization, actor=actor, withholding_rate="1.5")
-    invoice = services.create_invoice(sale=sale, actor=actor, withholding_applied=True, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, withholding_applied=True, issue=True)
     assert invoice.withholding_amount == D("8.122")  # (455 + 86.450) × 1.5 % = 8.12175
 
     line = invoice.lines.order_by("id").first()
@@ -641,7 +660,7 @@ def test_withholding_is_given_back_in_proportion(organization, actor, sale):
 
 
 def test_an_invoiced_sale_is_cancelled_only_after_a_credit_note(sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
 
     with pytest.raises(ValidationError, match="avoir"):
         services.cancel_sale(sale=sale, actor=actor, reason="Erreur")
@@ -651,7 +670,7 @@ def test_an_invoiced_sale_is_cancelled_only_after_a_credit_note(sale, actor):
 
 
 def test_cancelling_a_sale_throws_its_draft_invoice_away(sale, actor):
-    services.create_invoice(sale=sale, actor=actor)
+    services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
     services.cancel_sale(sale=sale, actor=actor, reason="Erreur")
 
@@ -660,7 +679,7 @@ def test_cancelling_a_sale_throws_its_draft_invoice_away(sale, actor):
 
 
 def test_lists_and_live_invoice(organization, sale, actor):
-    invoice = services.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
     services.create_credit_note(
         invoice=invoice,
         actor=actor,
@@ -689,7 +708,7 @@ def test_one_invoice_bills_several_delivery_notes_of_the_same_customer(
 ):
     other = second_sale(organization, actor, customer, counter, crevette)
 
-    invoice = services.create_invoice(sales=[other, sale], actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sales=[other, sale], actor=actor, issue=True)
 
     # 455.000 + 2 × 42.000 = 539.000 without VAT, one stamp for the whole invoice.
     assert [row.number for row in invoice.sales.order_by("sold_at", "id")] == [sale.number, other.number]
@@ -706,10 +725,10 @@ def test_one_invoice_bills_several_delivery_notes_of_the_same_customer(
 
 def test_a_delivery_note_is_on_one_live_invoice_only(organization, actor, customer, counter, crevette, sale):
     other = second_sale(organization, actor, customer, counter, crevette)
-    services.create_invoice(sale=sale, actor=actor)
+    services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
     with pytest.raises(ValidationError, match="déjà sa facture"):
-        services.create_invoice(sales=[other, sale], actor=actor)
+        services.create_invoice(apply_vat=True, sales=[other, sale], actor=actor)
 
     assert Invoice.objects.count() == 1
 
@@ -719,14 +738,14 @@ def test_an_invoice_does_not_mix_customers(organization, actor, customer, counte
     other = confirmed_sale(organization, actor, stranger, counter, [{"product": crevette, "quantity": "1"}])
 
     with pytest.raises(ValidationError, match="même client"):
-        services.create_invoice(sales=[sale, other], actor=actor)
+        services.create_invoice(apply_vat=True, sales=[sale, other], actor=actor)
 
 
 def test_a_full_credit_note_frees_every_delivery_note_of_the_invoice(
     organization, actor, customer, counter, crevette, sale
 ):
     other = second_sale(organization, actor, customer, counter, crevette)
-    invoice = services.create_invoice(sales=[sale, other], actor=actor, issue=True)
+    invoice = services.create_invoice(apply_vat=True, sales=[sale, other], actor=actor, issue=True)
 
     services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Erreur")
 
@@ -735,13 +754,13 @@ def test_a_full_credit_note_frees_every_delivery_note_of_the_invoice(
     assert (sale.tax_amount, other.tax_amount) == (None, None)
     # Credited in full: the cancelled invoice and its credit note cancel each other, as for a single BL.
     assert (sale.amount_due, other.amount_due) == (D("0.000"), D("0.000"))
-    again = services.create_invoice(sales=[sale, other], actor=actor)
+    again = services.create_invoice(apply_vat=True, sales=[sale, other], actor=actor)
     assert again.status == InvoiceStatus.DRAFT
 
 
 def test_the_delivery_notes_still_to_invoice_are_listed(organization, actor, customer, counter, crevette, sale):
     other = second_sale(organization, actor, customer, counter, crevette)
-    services.create_invoice(sale=sale, actor=actor)
+    services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
     open_ones = selectors.sales_of(organization, uninvoiced=True)
 
