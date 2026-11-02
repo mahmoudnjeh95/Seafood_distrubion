@@ -1,9 +1,16 @@
 # Project status
 
-_Last updated: 2026-11-02 (office day check, D-241 on branch `day-office-checks`, awaits CI; next free decision D-242)_
+_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, awaits CI)_
 
 ## Where we are
 
+- **D-242 (2026-11-02, PR open, provisional):** sending a driver's closing resets that driver's "Fonds de caisse" and
+  "Argent pour les achats" for the day to 0 (`fleet.services.end_driver_day`). The day's own figures stay. Check on staging:
+  Camions du jour › Fonds de caisse after a closing is sent shows 0 for that driver.
+
+- **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
+  (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
+  links them. Routes and pages unchanged; nothing else renamed.
 - **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
   day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
   on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227
@@ -31,7 +38,7 @@ _Last updated: 2026-11-02 (office day check, D-241 on branch `day-office-checks`
 
 ## Next step
 
-0. **D-241 (`day-office-checks`):** PR, wait for green CI, merge. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
+0. **D-249 (`day-office-checks`):** PR #278, wait for green CI, merge. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
 1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
    opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
