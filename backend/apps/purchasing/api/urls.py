@@ -43,6 +43,11 @@ urlpatterns = [
         "supplier-payments/<int:payment_id>/void", views.SupplierPaymentVoidView.as_view(), name="supplier-payment-void"
     ),
     path("supplier-balances/<int:supplier_id>", views.SupplierBalanceView.as_view(), name="supplier-balance"),
+    path(
+        "supplier-balances/<int:supplier_id>/write-off",
+        views.SupplierBalanceWriteOffView.as_view(),
+        name="supplier-balance-write-off",
+    ),
     path("field-purchases", views.FieldPurchaseListView.as_view(), name="field-purchase-list"),
     path("field-purchases/<int:purchase_id>", views.FieldPurchaseDetailView.as_view(), name="field-purchase-detail"),
     path("my-field-purchases", driver_views.MyFieldPurchasesView.as_view(), name="my-field-purchases"),

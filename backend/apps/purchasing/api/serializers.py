@@ -673,14 +673,22 @@ class PaymentVoidSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
 
 
+class BalanceWriteOffSerializer(serializers.Serializer[Any]):
+    # The balance as shown on screen, typed again: the write-off is refused when it moved (D-252).
+    expected_amount = serializers.CharField(max_length=30)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
+
+
 class SupplierBalanceSerializer(serializers.Serializer[Any]):
     """The trade balance with one supplier. A partner's capital and profit share are other balances (D-040)."""
 
     supplier_id = serializers.IntegerField(read_only=True)
     invoiced = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     paid = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
-    # Posted invoices − payments: what is owed; negative when the supplier holds an advance.
+    # Posted invoices − payments − what was written off: what is owed; negative when the supplier holds an advance.
     balance = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # What the balance write-offs gave up (D-252): a gain on this supplier, not paid.
+    written_off = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     unallocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     overdue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)

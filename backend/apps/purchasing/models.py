@@ -399,6 +399,51 @@ class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
         return f"{self.payment} → {self.invoice}"
 
 
+class SupplierBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
+    """The rest of what we owe a supplier given up (D-252): the supplier takes less than its balance and we clear
+    the balance to zero. A gain on that supplier, kept as it is: never edited, never deleted.
+
+    Its amount is spread over the supplier's open invoices, oldest due date first (`SupplierWriteOffAllocation`), so
+    each invoice reads as settled by it. Lowers the supplier balance like a payment does.
+    """
+
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="balance_write_offs")
+    written_on = models.DateField()
+    amount = MoneyField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-written_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_write_off_amount_positive")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.supplier} · {self.amount}"
+
+
+class SupplierWriteOffAllocation(OrganizationScopedModel, TimeStampedModel):
+    """The part of a supplier balance write-off that settles one invoice. Written once with its write-off."""
+
+    write_off = models.ForeignKey(SupplierBalanceWriteOff, on_delete=models.PROTECT, related_name="allocations")
+    invoice = models.ForeignKey(SupplierInvoice, on_delete=models.PROTECT, related_name="write_off_allocations")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0), name="supplier_write_off_allocation_amount_positive"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} → {self.invoice}"
+
+
 class PlanLineStatus(models.TextChoices):
     OPEN = "open", _("Planifiée")
     PAID = "paid", _("Payée")
