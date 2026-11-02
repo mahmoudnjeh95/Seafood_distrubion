@@ -546,8 +546,8 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp = MoneyField(default=Decimal("1.000"))
     # True: the sale prices already contain VAT, the invoice takes it out. False: VAT comes on top.
     prices_include_vat = models.BooleanField(default=False)
-    # Percent, 2 decimals: the withholding tax (retenue à la source) some customers apply; 0 = never shown.
-    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    # Percent, 2 decimals: the withholding tax (retenue à la source) on invoices of 1 000 DT and more; 0 = never shown.
+    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("1.00"))
     # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.
     credit_policy = models.CharField(max_length=20, choices=CreditPolicy.choices, default=CreditPolicy.BLOCK)
     # Who issues the invoices, as printed on them (article 18 of the VAT code).
