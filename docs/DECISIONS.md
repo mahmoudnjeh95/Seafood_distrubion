@@ -3819,6 +3819,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   use `useTableView`. The document tree keeps its order; only the flat view sorts.
 - The rows-per-page choice (25/50/100/200) is remembered in the browser for all lists (`frutti.pageSize`).
 
+## D-276 Excel file of the filtered and sorted list (2026-11-02)
+
+- Lists: sales, invoices, supplier invoices, expenses (new `…/export` endpoints, reusing the list view's filters via
+  `ListExport`), and the two payment lists (already had a file, now sorted too). `?ordering=` is honoured, up to
+  5000 rows, with a totals line. Cancelled, voided, rejected and draft amounts are left out of the totals.
+- The journals already export their statement. The file is read-only (GET only).
 **D-275 · A bank account's IBAN: the 24-character Tunisian one, checked, and the 15-character form (Phase 9, P9-T09j; owner answer)** · accepted · 2026-11-02
 - Replaces the provisional note of D-236. The IBAN of a bank account is accepted in two forms: the real Tunisian IBAN
   (`TN`, two check digits, the 20 digits of the RIB: 24 characters), whose check digits are verified (ISO 7064 mod 97), and
@@ -3836,6 +3842,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A port purchase paid in cash by a driver and validated by the office is recorded as confirmed (no screen to confirm on).
 - Not covered: a payment made through another door (a receipt paid at once, a payment plan line) is refused without a way
   to confirm on its own screen; the règlement forms are the way to record a large cash payment.
+**D-278 · Driver receipts printed on a small thermal printer, first step: Android over Bluetooth LE (P3-T10)** · accepted (provisional parts marked) · 2026-11-02
+- Owner bought a Digipos DPP-58 (the data sheet says 58 mm paper, 203 dpi). **Paper width is a phone setting**: 32 (default, 58 mm), 42 or 48 characters per line, with a test page that prints a ruler.
+- The receipt is laid out as text rows (`truck/src/printing/receipt.ts`), then turned into ESC/POS bytes (`escpos.ts`, code page 858 for the French accents; setting to drop accents). In French, whatever the app language (Q13). Works offline: it uses only the sale or purchase already on the phone.
+- Buttons: "Imprimer le reçu" on the sale receipt screen and on each purchase in "Mes achats". Customer or supplier copy, then a "Copie bureau" with a signature line (provisional: on by default, switchable).
+- Connection is Web Bluetooth (BLE). **Limit found 2026-11-02:** the owner's printer did not appear in an iPhone BLE scanner, so it is probably classic Bluetooth (SPP). Then Chrome cannot reach it either, and both Android and iPhone need the Capacitor wrapper (or a different, BLE or MFi printer). The spike P3-T10 stays open until a real print works.
 ## D-272 "Total de la page" row, set in the display settings (2026-11-02)
 
 - Money tables end with a "Total de la page" row: the sum of what the page shows, exact to the millime (`totalOf`).

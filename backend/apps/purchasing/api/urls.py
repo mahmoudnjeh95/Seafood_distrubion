@@ -31,6 +31,7 @@ urlpatterns = [
         name="supplier-effet-reject",
     ),
     path("supplier-payments/totals", views.SupplierPaymentTotalsView.as_view(), name="supplier-payment-totals"),
+    path("supplier-invoices/export", views.SupplierInvoiceExportView.as_view(), name="supplier-invoice-export"),
     path("supplier-payments/export", views.SupplierPaymentExportView.as_view(), name="supplier-payment-export"),
     path(
         "supplier-payments/<int:payment_id>", views.SupplierPaymentDetailView.as_view(), name="supplier-payment-detail"

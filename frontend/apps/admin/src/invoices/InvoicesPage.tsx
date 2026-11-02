@@ -1,4 +1,5 @@
 import {
+  getExportInvoicesUrl,
   type InvoiceStatusEnum,
   type ListInvoicesPaymentState,
   useListCreditNotes,
@@ -30,6 +31,7 @@ import { Link, useNavigate, useOutletContext } from "react-router";
 import { useDebounced } from "../lib/useDebounced";
 import { totalOf } from "../lib/totals";
 import { canInvoice, INVOICE_STATUSES, isZero, STATUS_TONES } from "./shared";
+import { ExportButton } from "../lib/ExportButton";
 
 type Tab = "invoices" | "creditNotes";
 
@@ -76,13 +78,13 @@ export function InvoicesPage() {
   const table = useServerTable();
   const query = useDebounced(search.trim());
 
+  const invoiceFilters = {
+    ...(status ? { status } : {}),
+    ...(paymentState ? { payment_state: paymentState } : {}),
+    ...(query ? { search: query } : {}),
+  };
   const invoices = useListInvoices(
-    {
-      ...table.params,
-      ...(status ? { status } : {}),
-      ...(paymentState ? { payment_state: paymentState } : {}),
-      ...(query ? { search: query } : {}),
-    },
+    { ...table.params, ...invoiceFilters },
     { query: { placeholderData: keepPreviousData, enabled: tab === "invoices" } },
   );
   const creditNotes = useListCreditNotes(
@@ -273,6 +275,7 @@ export function InvoicesPage() {
             {t("admin.financeSettings.title")}
           </Button>
         )}
+        {tab === "invoices" && <ExportButton href={getExportInvoicesUrl({ ...table.ordering, ...invoiceFilters })} />}
       </PageHeader>
       <p className="text-ink-2">{t("admin.invoices.intro")}</p>
 

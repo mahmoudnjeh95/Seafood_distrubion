@@ -15,6 +15,7 @@ export const fr = {
     table: {
       range: "{{from}}–{{to}} sur {{count}}",
       perPage: "Lignes par page",
+      export: "Exporter vers Excel",
       pageTotal: "Total de la page",
       previous: "Précédent",
       next: "Suivant",
@@ -5350,6 +5351,19 @@ export const fr = {
       stock: "Mon stock",
       sale: "Vente",
       closing: "Clôture",
+    },
+    print: {
+      button: "Imprimer le reçu",
+      printing: "Impression…",
+      done: "Reçu imprimé",
+      failed: "Impression impossible : {{why}}",
+      unsupported: "Ce téléphone ne peut pas imprimer en Bluetooth depuis l'application. Utilisez « Envoyer le reçu ».",
+      settings: "Réglages de l'imprimante",
+      paper: "Largeur du papier",
+      officeCopy: "Imprimer aussi la copie bureau",
+      accents: "Accents français (à désactiver si le texte est illisible)",
+      test: "Impression d'essai",
+      change: "Changer d'imprimante",
     },
     sale: {
       needTruck: "Choisissez d'abord votre camion dans « Ma journée ».",

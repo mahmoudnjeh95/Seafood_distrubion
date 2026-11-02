@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import asdict
 from decimal import Decimal
 from typing import Any
@@ -7,7 +8,7 @@ from django.db.models import QuerySet
 from django.http import FileResponse, Http404, HttpResponse
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
@@ -16,7 +17,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
-from apps.core.api.pagination import PagedList
+from apps.core.api.exports import ORDERING_HELP, ListExport
+from apps.core.api.pagination import PagedList, ordered
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
@@ -690,12 +692,18 @@ class SupplierPaymentTotalsView(PurchasingView):
 class SupplierPaymentExportView(PurchasingView):
     @extend_schema(
         operation_id="exportSupplierPayments",
-        parameters=[SupplierPaymentFilterSerializer],
+        parameters=[SupplierPaymentFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
         responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
     )
     def get(self, request: Request) -> HttpResponse:
         """The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked)."""
-        payments = list(_filtered_payments(self.organization, request)[:5000])
+        payments = list(
+            ordered(
+                _filtered_payments(self.organization, request),
+                request.query_params.get("ordering", ""),
+                SupplierPaymentListView.ordering_columns,
+            )[:5000]
+        )
         rows = [
             [
                 payment.number,
@@ -1058,3 +1066,59 @@ class FieldPurchasePaperView(FieldPurchaseView):
         # A new photo gets a new random file name, and the API answers its address again.
         response["Cache-Control"] = "private, max-age=3600"
         return response
+
+
+class SupplierInvoiceExportView(ListExport, SupplierInvoiceListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "factures-fournisseurs"
+    export_title = _("Factures fournisseurs")
+
+    @extend_schema(
+        operation_id="exportSupplierInvoices",
+        parameters=[SupplierInvoiceFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The supplier invoices of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        zero = Decimal("0.000")
+        headers = [
+            _("N°"),
+            _("Date"),
+            _("Échéance"),
+            _("Fournisseur"),
+            _("Réf. fournisseur"),
+            _("État"),
+            _("Total"),
+            _("Payé"),
+            _("Reste"),
+        ]
+        rows = [
+            [
+                invoice.number,
+                invoice.invoice_date,
+                invoice.due_date,
+                invoice.supplier.name,
+                invoice.supplier_reference,
+                invoice.get_status_display(),
+                invoice.total,
+                invoice.paid_amount,
+                invoice.outstanding,
+            ]
+            for invoice in items
+        ]
+        posted = [invoice for invoice in items if invoice.status != "draft"]
+        totals = [
+            _("Total"),
+            "",
+            "",
+            "",
+            "",
+            "",
+            sum((invoice.total for invoice in posted), zero),
+            sum((invoice.paid_amount for invoice in posted), zero),
+            sum((invoice.outstanding for invoice in posted), zero),
+        ]
+        return headers, rows, totals

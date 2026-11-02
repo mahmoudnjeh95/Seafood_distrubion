@@ -1,4 +1,5 @@
 import {
+  getExportExpensesUrl,
   type ExpenseCategory,
   type ExpenseStatusEnum,
   createExpenseCategory,
@@ -50,6 +51,7 @@ import { useDebounced } from "../lib/useDebounced";
 import { ExpensesTabs } from "./ExpensesTabs";
 import { asMonth, asPeriod, openingPeriod, type Period, periodDates } from "./period";
 import { canManageCategories, canWriteExpenses, EXPENSE_STATUSES, EXPENSE_TONES, refreshExpenses } from "./shared";
+import { ExportButton } from "../lib/ExportButton";
 
 const ALL = "all";
 
@@ -268,6 +270,7 @@ export function ExpensesPage() {
             {t("admin.expenses.add")}
           </Button>
         )}
+        <ExportButton href={getExportExpensesUrl({ ...table.ordering, ...filters })} />
       </PageHeader>
       <ExpensesTabs />
 
