@@ -61,6 +61,7 @@ def test_a_confirmed_cash_line_is_recorded_on_the_payment_and_in_the_audit(organ
 
     assert payment.cash_limit_confirmed is True
     entry = AuditLog.objects.get(action="customer_payment.recorded", target_id=str(payment.pk))
+    assert entry.after is not None
     assert entry.after["cash_limit_confirmed"] is True
 
 
