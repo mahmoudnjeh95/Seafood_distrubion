@@ -24,6 +24,7 @@ import { PricesAsOf } from "./PriceNotice";
 import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { ProductPhoto } from "./ProductPhoto";
 import { recentCustomerIds, rememberCustomer } from "./recentCustomers";
+import { PrintButton } from "./printing/PrintButton";
 import { StickyAction } from "./StickyAction";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
@@ -402,6 +403,7 @@ function CustomerButton({
 
 function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
   const { t } = useTranslation();
+  const session = useSession();
   const text = [
     `${sale.number} · ${sale.customer.name}`,
     ...sale.lines.map(
@@ -447,6 +449,25 @@ function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
           {t("truck.sale.share")}
         </Button>
       ) : null}
+      <PrintButton
+        receipt={{
+          kind: "sale",
+          company: session.data?.organization.name ?? "",
+          number: sale.number,
+          date: sale.sold_at,
+          partyName: sale.customer.name,
+          by: session.data?.user.first_name,
+          lines: sale.lines.map((line) => ({
+            name: line.product.name,
+            quantity: line.quantity,
+            unitPrice: line.unit_price,
+            amount: line.amount,
+          })),
+          total: sale.total,
+          paid: sale.amount_paid,
+          rest: sale.amount_due,
+        }}
+      />
       <Button size="lg" variant="primary" className="py-4 text-lg" onClick={onNew}>
         {t("truck.sale.newSale")}
       </Button>
