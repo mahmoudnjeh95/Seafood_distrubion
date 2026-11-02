@@ -357,6 +357,9 @@ class CustomerBalanceAnswer(OfficeView):
         today = timezone.localdate()
         balance = receivables.customer_balance(self.organization, customer.pk, today=today)
         history = receivables.customer_history(self.organization, customer.pk)
+        extras = services.estimated_extras(
+            self.organization, [row.sale_id for row in balance.open_sales if row.invoice_id is None]
+        )
         data = {
             **_balance_row(customer, balance),
             "open_total": balance.open_total,
@@ -377,6 +380,7 @@ class CustomerBalanceAnswer(OfficeView):
                     "allocated": row.allocated,
                     "written_off": row.written_off,
                     "outstanding": row.outstanding,
+                    "estimated_extra": extras.get(row.sale_id, Decimal("0.000")),
                 }
                 for row in balance.open_sales
             ],

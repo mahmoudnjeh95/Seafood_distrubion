@@ -27,6 +27,7 @@ urlpatterns = [
     # P2-T05 · finance settings, invoices, credit notes
     path("finance-settings", views.FinanceSettingsView.as_view(), name="finance-settings"),
     path("invoices", views.InvoiceListView.as_view(), name="invoice-list"),
+    path("invoices/estimate", views.InvoiceEstimateView.as_view(), name="invoice-estimate"),
     path("invoices/<int:invoice_id>", views.InvoiceDetailView.as_view(), name="invoice-detail"),
     path("invoices/<int:invoice_id>/issue", views.InvoiceIssueView.as_view(), name="invoice-issue"),
     path("invoices/<int:invoice_id>/credit-notes", views.InvoiceCreditNoteView.as_view(), name="invoice-credit-notes"),
