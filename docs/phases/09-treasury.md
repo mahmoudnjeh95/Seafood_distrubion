@@ -183,6 +183,15 @@ bordereau de versement, the états des factures); the flow and the rules stay ou
       (statements with running balance, Excel link) on the ribbon, over the P9-T05 accounts API (D-233).
 - Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
 
+### P9-T10 · BL paid before its invoice: the VAT and timbre gap (D-256) · M
+- [ ] Backend: simulate the invoice of one or several BL without saving (same engine, D-202/D-246 VAT rule), expose the
+      estimate (VAT per rate, timbre once) on the BL and in the règlement allocation lines.
+- [ ] Invoice "payée" only when allocated = net to pay; "Payée en partie" state and the gap (goods, VAT, timbre).
+- [ ] Collect the gap in one règlement by BL share; give it up through the D-252 clearing, owner only, with a reason.
+- [ ] Office: "Reste estimé" and "Régler TTC" on the Nouveau règlement lines; gap dialog on the invoice; "Écart de facturation".
+- [ ] Ventes filter "BL payé, facture non soldée" and a line on the customer statement. Tests: BL with VAT, BL without VAT
+      (timbre only), mixed rates, several BL, one overpaid and one unpaid.
+
 ## Defaults chosen without the owner (provisional, D-197)
 
 - Banks: the list of Tunisian banks is editable in Paramètres › Banques.
