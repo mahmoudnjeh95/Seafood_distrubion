@@ -18,6 +18,12 @@ function fromMillimes(value: bigint): string {
   return `${negative ? "-" : ""}${digits.slice(0, -3)}.${digits.slice(-3)}`;
 }
 
+/** What is left to pay: total minus paid, never below zero ("130.000", "100" → "30.000"). */
+export function amountLeft(total: string, paid: string): string {
+  const rest = millimes(total) - millimes(paid);
+  return fromMillimes(rest > 0n ? rest : 0n);
+}
+
 /** kg × price per kg, rounded half up to the millime; null until both are readable and the weight is above zero. */
 export function lineAmount(kilos: string, price: string): string | null {
   const weight = parseDecimalInput(kilos.trim(), 3);

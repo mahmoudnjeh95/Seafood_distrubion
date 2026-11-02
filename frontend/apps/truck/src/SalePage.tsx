@@ -21,10 +21,12 @@ import { NewCustomerForm } from "./NewCustomerForm";
 import { useOnline } from "./offline";
 import { truckIsEmpty, useTruckStock } from "./myStock";
 import { PricesAsOf } from "./PriceNotice";
+import { amountLeft } from "./purchase";
 import { enqueue, madeAtOf, pendingKilos, type QueuedSale, useQueue } from "./queue";
 import { ProductPhoto } from "./ProductPhoto";
 import { recentCustomerIds, rememberCustomer } from "./recentCustomers";
 import { PrintButton } from "./printing/PrintButton";
+import { PROVISIONAL, PROVISIONAL_NOTE } from "./printing/receipt";
 import { StickyAction } from "./StickyAction";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
@@ -477,6 +479,7 @@ function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
 
 function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void }) {
   const { t } = useTranslation();
+  const session = useSession();
   return (
     <div className="space-y-4">
       <Card className="space-y-3">
@@ -503,6 +506,21 @@ function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void })
           <span>{formatMoney(sale.estimate.paid)}</span>
         </p>
       </Card>
+      <PrintButton
+        receipt={{
+          kind: "sale",
+          company: session.data?.organization.name ?? "",
+          number: PROVISIONAL,
+          date: madeAtOf(sale),
+          partyName: sale.label,
+          by: session.data?.user.first_name,
+          lines: sale.estimate.lines.map((line) => ({ name: line.name, quantity: line.kilos, amount: line.amount })),
+          total: sale.estimate.total,
+          paid: sale.estimate.paid,
+          rest: amountLeft(sale.estimate.total, sale.estimate.paid),
+          note: PROVISIONAL_NOTE,
+        }}
+      />
       <Button size="lg" variant="primary" className="py-4 text-lg" onClick={onNew}>
         {t("truck.sale.newSale")}
       </Button>

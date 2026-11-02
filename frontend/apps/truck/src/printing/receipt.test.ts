@@ -16,6 +16,18 @@ const SALE: ReceiptData = {
 };
 
 describe("receipt layout", () => {
+  test("a line without a unit price prints the kilos only", () => {
+    const rows = layoutReceipt(
+      { ...SALE, number: "Provisoire", lines: [{ name: "Loup", quantity: "2.5", amount: "75" }] },
+      "party",
+      32,
+    );
+    const text = previewText(rows, 32);
+    expect(text).toContain("2,500 kg");
+    expect(text).not.toContain(" x ");
+    expect(text).toContain("Provisoire");
+  });
+
   test("amounts keep three decimals and group thousands", () => {
     expect(amount("1250")).toBe("1 250,000");
     expect(amount("0.5")).toBe("0,500");
