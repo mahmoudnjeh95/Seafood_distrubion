@@ -3698,6 +3698,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
   per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).
 
+
+**D-264 · A cheque or traite taken at a sale, paid for an expense or given to a partner is an effet, followed like a règlement's (Phase 9, P9-T09g; owner answer)** · accepted · 2026-11-02
+- Before, these were counted at the main bank account on the day. Now a cheque taken at a sale is an effet received
+  from the customer (in the portfolio, then cashed or unpaid); a cheque or traite for an approved expense, or given to a
+  partner at a settlement, is an effet issued (debited, or rejected). Money moves only when the bank does.
+- Written without its bank and due day (the screens that record them do not ask): the office completes them in the
+  Portefeuille, as for a port purchase. The sale's cheque number is its payment reference.
+- The app is in testing with no real data: no backfill; the history functions skip these methods.
 **D-261 · Trésorier stays lit on every treasury screen (Phase 9, P9-T08)** · accepted · 2026-11-02
 
 - The owner's answer on D-241: the side menu's Trésorier is highlighted on every treasury ribbon screen (Encaissement, Décaissement, Banque, Agences, Caisses, Portefeuille, Bordereau, Ordre de paiement, the journals and états), not only on `/reglements`.
