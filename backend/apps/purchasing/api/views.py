@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from decimal import Decimal
 from typing import Any
 
@@ -21,6 +22,7 @@ from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.purchasing import selectors, services
 from apps.purchasing.models import (
     FieldPurchase,
@@ -779,7 +781,11 @@ class SupplierBalanceAnswer(PurchasingView):
             supplier = partners.supplier_of(self.organization, supplier_id)
         except ObjectDoesNotExist:
             raise Http404 from None
-        return Response(SupplierBalanceSerializer(selectors.supplier_balance(self.organization, supplier.pk)).data)
+        balance = selectors.supplier_balance(self.organization, supplier.pk)
+        lots = partnerships.open_write_off_lots(
+            self.organization, selectors.supplier_lots(self.organization, supplier_id=supplier.pk)
+        )
+        return Response(SupplierBalanceSerializer({**asdict(balance), "write_off_lots": lots}).data)
 
 
 class SupplierBalanceView(SupplierBalanceAnswer):
@@ -810,6 +816,7 @@ class SupplierBalanceWriteOffView(SupplierBalanceAnswer):
             actor=self.membership.user,
             expected=serializer.validated_data["expected_amount"],
             reason=serializer.validated_data["reason"],
+            lot_shares=serializer.validated_data.get("lot_shares", []),
         )
         return self.answer(supplier_id)
 

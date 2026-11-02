@@ -3754,3 +3754,21 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   charges) is shown and allowed when matching by hand.
 - Provisional: no automatic matching, no "unmatched" report yet, and a movement is offered for the same account only
   (a transfer between our accounts shows on both).
+**D-257 · A balance cleared to zero is charged to the lots the owner picks, so it changes their result and the partner's share** · accepted · 2026-11-02
+
+- Owner's answer on D-252: when a customer's or supplier's balance is cleared to zero, the amount given up changes the
+  profit per lot and the partner shares. The owner picks the lots and the amount on each, by hand, every time.
+- The write-off dialog gets a step between the reason and the typed amount: "Sur quels lots ?". The lots offered are the
+  ones the customer bought from (confirmed sales), or the ones the supplier sold us, newest first, less the lots whose
+  partnership is settled. The amounts must add up to the balance cleared, each lot once and above zero.
+- A customer's loss is a cost of kind `customer_write_off` on each lot picked (`CustomerWriteOffLotShare`); a
+  supplier's gain is a negative cost of kind `supplier_write_off` (`SupplierWriteOffLotShare`). They show last in the
+  lot result's costs, with the party and the reason. They are kept out of the month's partner cost participation by
+  category, which is not about balances.
+- An open lot's result counts it at once. A closed lot takes it as a late change, carried to the partner's next
+  settlement like any late cost (D-066), never by editing the frozen result. A settled lot is not offered: its
+  sharing is final.
+- When every lot of that customer or supplier is settled, or there is none, no lot is asked for and the amount stays
+  on the account only, as before.
+- Server-side: the shares are checked in `partnerships.services.checked_write_off_lot_shares`, inside the write-off's
+  transaction; the API refuses a share on a lot that was not offered.

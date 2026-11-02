@@ -3,6 +3,7 @@
 import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any
 
 from django.db.models import Count, Q, QuerySet, Sum
 
@@ -58,6 +59,22 @@ def partnerships_of(
             | Q(partner__reference__icontains=search)
         )
     return partnerships
+
+
+def settled_batch_ids(organization: Organization, *, batch_ids: list[int]) -> set[int]:
+    """The lots among `batch_ids` whose partnership is settled: their sharing is final (D-257 refuses them)."""
+    return set(
+        LotPartnership.objects.for_organization(organization)
+        .filter(batch_id__in=batch_ids, status=PartnershipStatus.SETTLED)
+        .values_list("batch_id", flat=True)
+    )
+
+
+def open_write_off_lots(organization: Organization, lots: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """`lots` less those whose partnership is settled: the lots a balance write-off can still be charged to
+    (D-257). A settled lot's sharing is final."""
+    settled = settled_batch_ids(organization, batch_ids=[lot["batch_id"] for lot in lots])
+    return [lot for lot in lots if lot["batch_id"] not in settled]
 
 
 def partnership_of(organization: Organization, partnership_id: int) -> LotPartnership:

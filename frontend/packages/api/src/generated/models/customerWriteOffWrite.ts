@@ -4,10 +4,12 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { WriteOffLotShareWrite } from './writeOffLotShareWrite';
 
 export interface CustomerWriteOffWrite {
   /** @maxLength 30 */
   expected_amount: string;
   /** @maxLength 255 */
   reason: string;
+  lot_shares?: WriteOffLotShareWrite[];
 }

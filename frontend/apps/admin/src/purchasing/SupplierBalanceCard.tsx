@@ -137,6 +137,7 @@ export function SupplierBalanceCard({
             kind="supplier"
             party={supplierName}
             owed={data.balance}
+            lots={data.write_off_lots}
             onWrite={(body) => writeOffSupplierBalance(supplierId, body)}
             onDone={() => {
               setClearing(false);

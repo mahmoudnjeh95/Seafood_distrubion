@@ -51,6 +51,7 @@ from .models import (
     SupplierPaymentLine,
     SupplierPaymentPlanLine,
     SupplierWriteOffAllocation,
+    SupplierWriteOffLotShare,
 )
 from .models import PaymentMethod as PaymentMethod  # re-exported for apps that record payments (the demo)
 
@@ -1359,12 +1360,21 @@ def _invoice_status_from_payments(invoice: SupplierInvoice) -> str:
 
 @transaction.atomic
 def write_off_supplier_balance(
-    *, supplier: "Supplier", actor: User | None, expected: Number, reason: str
+    *,
+    supplier: "Supplier",
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
 ) -> SupplierBalanceWriteOff:
     """Clear what we owe a supplier to zero, the rest given up as a gain on them (D-252): the supplier takes less
     than its balance. `expected` must be the balance shown now, typed again by the office, so a balance that moved
     since the screen was read is refused. The amount is spread over the open invoices, oldest due date first, and
-    kept as it was written: never edited or deleted."""
+    kept as it was written: never edited or deleted.
+
+    The gain is also credited to the lots the owner picks by hand (`lot_shares`: `{"batch", "amount"}` adding up
+    to the balance, D-257), so it raises those lots' net result and their partner shares it. A lot already settled
+    with its partner is refused; a closed lot takes it as a late adjustment on the partner's next settlement."""
     organization = supplier.organization
     list(
         SupplierInvoice.objects.select_for_update(of=("self",))
@@ -1389,6 +1399,12 @@ def write_off_supplier_balance(
     reason = reason.strip()[:255]
     if not reason:
         raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    shares = partnerships.checked_write_off_lot_shares(
+        organization,
+        total=balance,
+        shares=list(lot_shares or []),
+        candidates=selectors.supplier_lots(organization, supplier_id=supplier.pk),
+    )
     write_off = SupplierBalanceWriteOff.objects.create(
         organization=organization,
         supplier=supplier,
@@ -1413,12 +1429,21 @@ def write_off_supplier_balance(
         invoice.status = _invoice_status_from_payments(invoice)
         invoice.save(update_fields=["status", "updated_at"])
         left -= part
+    for batch_id, amount in shares:
+        SupplierWriteOffLotShare.objects.create(
+            organization=organization, write_off=write_off, batch_id=batch_id, amount=amount
+        )
     audit.record(
         organization=organization,
         actor=actor,
         action="supplier.balance_written_off",
         target=write_off,
-        after={"supplier": supplier.name, "amount": str(balance), "reason": reason},
+        after={
+            "supplier": supplier.name,
+            "amount": str(balance),
+            "reason": reason,
+            "lots": {str(batch_id): str(amount) for batch_id, amount in shares},
+        },
     )
     return write_off
 

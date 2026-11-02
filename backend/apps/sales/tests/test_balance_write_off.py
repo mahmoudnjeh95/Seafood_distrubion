@@ -1,5 +1,6 @@
 """Clearing a customer's balance to zero (D-252): the customer paid less than they owed, the rest is given up as a
-loss on them. The amount is typed again, the sales it settles read as settled, and the balance counts it."""
+loss on them. The amount is typed again, the sales it settles read as settled, and the balance counts it. The loss is
+charged to the lots the owner picks (D-257), so it lowers their net result."""
 
 import datetime as dt
 from decimal import Decimal
@@ -9,14 +10,16 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
+from apps.closing import selectors as closing
 from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
 from apps.inventory import services as stock
-from apps.inventory.models import MovementKind
+from apps.inventory.models import Batch, MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
-from apps.partners.tests.factories import CustomerFactory
+from apps.partners.tests.factories import CustomerFactory, SupplierFactory
+from apps.partnerships.models import LotPartnership, PartnershipStatus
 from apps.sales import receivables, services
-from apps.sales.models import CustomerBalanceWriteOff, CustomerWriteOffAllocation
+from apps.sales.models import CustomerBalanceWriteOff, CustomerWriteOffAllocation, CustomerWriteOffLotShare
 
 pytestmark = pytest.mark.django_db
 
@@ -90,6 +93,11 @@ def balance(organization, customer):
     return receivables.customer_balance(organization, customer.pk)
 
 
+def on_the_lot(amount):
+    """The whole loss charged to the one lot the customer bought from."""
+    return [{"batch": Batch.objects.get().pk, "amount": amount}]
+
+
 # ---- the case of use: 210 DT owed, 200 DT paid, the 10 DT left are given up ----
 
 
@@ -99,7 +107,11 @@ def test_the_rest_is_given_up_and_the_balance_reads_zero(organization, actor, cu
     assert balance(organization, customer).balance == D("10.000")
 
     write_off = services.write_off_customer_balance(
-        customer=customer, actor=actor, expected="10.000", reason="Le client a payé 200 sur 210"
+        customer=customer,
+        actor=actor,
+        expected="10.000",
+        reason="Le client a payé 200 sur 210",
+        lot_shares=on_the_lot("10.000"),
     )
 
     assert (write_off.amount, write_off.reason) == (D("10.000"), "Le client a payé 200 sur 210")
@@ -115,7 +127,9 @@ def test_the_rest_is_given_up_and_the_balance_reads_zero(organization, actor, cu
 def test_the_history_shows_the_loss_and_ends_on_zero(organization, actor, customer, counter, stocked):
     make_sale(organization, actor, customer, counter, stocked, "5")
     pay(organization, actor, customer, "200.000")
-    services.write_off_customer_balance(customer=customer, actor=actor, expected="10.000", reason="Reste perdu")
+    services.write_off_customer_balance(
+        customer=customer, actor=actor, expected="10.000", reason="Reste perdu", lot_shares=on_the_lot("10.000")
+    )
 
     history = receivables.customer_history(organization, customer.pk)
     loss = history[-1]
@@ -125,7 +139,9 @@ def test_the_history_shows_the_loss_and_ends_on_zero(organization, actor, custom
 def test_a_sale_made_after_the_write_off_owes_again(organization, actor, customer, counter, stocked):
     make_sale(organization, actor, customer, counter, stocked, "5")
     pay(organization, actor, customer, "200.000")
-    services.write_off_customer_balance(customer=customer, actor=actor, expected="10.000", reason="Reste perdu")
+    services.write_off_customer_balance(
+        customer=customer, actor=actor, expected="10.000", reason="Reste perdu", lot_shares=on_the_lot("10.000")
+    )
 
     make_sale(organization, actor, customer, counter, stocked, "1")  # 42.000
 
@@ -169,9 +185,93 @@ def test_the_oldest_sales_are_settled_first(organization, actor, customer, count
     second = make_sale(organization, actor, customer, counter, stocked, "2")  # 84.000
     pay(organization, actor, customer, "280.000")  # settles the first, 70 of the second left
 
-    services.write_off_customer_balance(customer=customer, actor=actor, expected="14.000", reason="Reste")
+    services.write_off_customer_balance(
+        customer=customer, actor=actor, expected="14.000", reason="Reste", lot_shares=on_the_lot("14.000")
+    )
 
     rows = {row.sale_id: row for row in receivables.sale_receivables(organization, customer_id=customer.pk)}
     assert (rows[first.pk].outstanding, rows[first.pk].written_off) == (D("0.000"), D("0.000"))
     assert (rows[second.pk].outstanding, rows[second.pk].written_off) == (D("0.000"), D("14.000"))
+    assert balance(organization, customer).balance == D("0.000")
+
+
+# ---- the loss charged to the lots picked by hand (D-257) ----
+
+
+def test_the_loss_lowers_the_net_result_of_the_lot_picked(organization, actor, customer, counter, stocked):
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+    lot = Batch.objects.get()
+    before = closing.live_result(organization, batch_id=lot.pk).net_result
+
+    services.write_off_customer_balance(
+        customer=customer, actor=actor, expected="10.000", reason="Reste perdu", lot_shares=on_the_lot("10.000")
+    )
+
+    share = CustomerWriteOffLotShare.objects.get()
+    assert (share.batch_id, share.amount) == (lot.pk, D("10.000"))
+    after = closing.live_result(organization, batch_id=lot.pk)
+    assert after.net_result == before - D("10.000")
+    group = next(group for group in after.cost_groups if group.kind == "customer_write_off")
+    assert (group.total, group.lines[0].title, group.lines[0].description) == (
+        D("10.000"),
+        "Restaurant Le Corail",
+        "Reste perdu",
+    )
+
+
+def test_a_lot_must_be_picked_and_the_lots_must_add_up(organization, actor, customer, counter, stocked):
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+
+    choices: list[list[dict[str, object]]] = [[], on_the_lot("9.000"), on_the_lot("10.000") * 2, on_the_lot("0.000")]
+    for shares in choices:
+        with pytest.raises(ValidationError) as refused:
+            services.write_off_customer_balance(
+                customer=customer, actor=actor, expected="10.000", reason="Reste", lot_shares=shares
+            )
+        assert set(refused.value.message_dict) == {"lot_shares"}
+    assert not CustomerBalanceWriteOff.objects.exists()
+
+
+def test_a_lot_the_customer_did_not_buy_from_is_refused(organization, actor, customer, counter, stocked, crevette):
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+    other = BatchFactory.create(organization=organization, product=crevette)
+
+    with pytest.raises(ValidationError) as refused:
+        services.write_off_customer_balance(
+            customer=customer,
+            actor=actor,
+            expected="10.000",
+            reason="Reste",
+            lot_shares=[{"batch": other.pk, "amount": "10.000"}],
+        )
+    assert set(refused.value.message_dict) == {"lot_shares"}
+
+
+def test_a_lot_settled_with_its_partner_is_not_offered(organization, actor, customer, counter, stocked):
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+    lot = Batch.objects.get()
+    LotPartnership.objects.create(
+        organization=organization,
+        batch=lot,
+        partner=SupplierFactory.create(organization=organization),
+        owner_capital=D("100.000"),
+        partner_capital=D("100.000"),
+        profit_rate=D("50.00"),
+        loss_rate=D("50.00"),
+        status=PartnershipStatus.SETTLED,
+    )
+
+    with pytest.raises(ValidationError) as refused:
+        services.write_off_customer_balance(
+            customer=customer, actor=actor, expected="10.000", reason="Reste", lot_shares=on_the_lot("10.000")
+        )
+    assert set(refused.value.message_dict) == {"lot_shares"}
+
+    # Its only lot settled, the loss stays on the customer alone.
+    services.write_off_customer_balance(customer=customer, actor=actor, expected="10.000", reason="Reste")
+    assert not CustomerWriteOffLotShare.objects.exists()
     assert balance(organization, customer).balance == D("0.000")
