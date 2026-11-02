@@ -22,7 +22,6 @@ from .serializers import (
     DriverDaySerializer,
     LocationPingBatchSerializer,
     LocationPingSavedSerializer,
-    PurchaseFloatSerializer,
     TruckAssignmentFilterSerializer,
     TruckAssignmentSerializer,
     TruckAssignmentWriteSerializer,
@@ -306,7 +305,8 @@ class DayFundListView(APIView):
         responses=DayFundRowSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
-        """Every active driver with the cash set for them on a day (today by default) and whether they started."""
+        """Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         filters = TruckAssignmentFilterSerializer(data=request.query_params)
@@ -316,7 +316,8 @@ class DayFundListView(APIView):
 
     @extend_schema(operation_id="setDayFund", request=DayFundWriteSerializer, responses=DayFundSerializer)
     def put(self, request: Request) -> Response:
-        """Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it."""
+        """Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         serializer = DayFundWriteSerializer(data=request.data)
@@ -336,26 +337,6 @@ class DayFundListView(APIView):
             purchase_float=data["purchase_float"],
         )
         return Response(DayFundSerializer(fund).data)
-
-
-class MyPurchaseFloatView(APIView):
-    permission_classes = (IsDriver,)
-
-    @extend_schema(operation_id="setMyPurchaseFloat", request=PurchaseFloatSerializer, responses=DriverDaySerializer)
-    def put(self, request: Request) -> Response:
-        """The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent."""
-        membership = membership_of(request)
-        assert membership is not None  # guaranteed by the permission class
-        day = selectors.driver_day_of(membership)
-        if day is None:
-            raise Http404
-        serializer = PurchaseFloatSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        day = services.set_purchase_float(
-            driver_day=day, actor=membership.user, purchase_float=serializer.validated_data["purchase_float"]
-        )
-        return Response(DriverDaySerializer(day).data)
 
 
 class MyLocationsView(APIView):
