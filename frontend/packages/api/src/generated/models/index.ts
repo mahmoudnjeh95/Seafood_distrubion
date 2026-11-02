@@ -681,6 +681,8 @@ export * from './siteSettings';
 export * from './slowLot';
 export * from './slowReport';
 export * from './statusTotal';
+export * from './stockAdjustmentWrite';
+export * from './stockAdjustmentWriteDirectionEnum';
 export * from './stockCheckHealth';
 export * from './stockLocation';
 export * from './stockLocationCreate';
