@@ -5,7 +5,7 @@ import { Button, Card, Dialog, Pill, Table, Td, Th } from "@frutti/ui";
 import { type ReactNode, useState } from "react";
 
 import { PdfButton } from "../lib/PdfButton";
-import { CancelPartnershipDialog, PartnershipDialog } from "./PartnershipDialogs";
+import { AdvanceDialog, CancelPartnershipDialog, PartnershipDialog } from "./PartnershipDialogs";
 import { canWriteResults, formatRate, STATUS_TONE } from "./shared";
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -31,7 +31,7 @@ export function PartnershipSection({
   session: Session;
 }) {
   const { t } = useTranslation();
-  const [dialog, setDialog] = useState<"create" | "edit" | "cancel" | null>(null);
+  const [dialog, setDialog] = useState<"create" | "edit" | "cancel" | "advance" | null>(null);
   const listed = useListPartnerships({ batch: batch.id });
   const summary = listed.data?.results[0];
   const detail = useGetPartnership(summary?.id ?? 0, { query: { enabled: summary !== undefined } });
@@ -39,6 +39,11 @@ export function PartnershipSection({
   const canWrite = canWriteResults(session);
   // Terms change until the lot is closed, even after sales (D-163).
   const editable = partnership !== undefined && partnership.status === "open";
+  // An advance comes out of the capital still in, while the lot is open or closed (not yet settled).
+  const advanceable =
+    partnership !== undefined &&
+    (partnership.status === "open" || partnership.status === "closed") &&
+    Number(partnership.capital) > 0;
 
   return (
     <section aria-labelledby="lot-partnership" className="flex flex-col gap-2">
@@ -51,6 +56,9 @@ export function PartnershipSection({
         )}
         {canWrite && listed.data && !summary && (
           <Button onClick={() => setDialog("create")}>{t("admin.partnerships.section.add")}</Button>
+        )}
+        {canWrite && advanceable && (
+          <Button onClick={() => setDialog("advance")}>{t("admin.partnerships.section.advance")}</Button>
         )}
         {canWrite && editable && (
           <>
@@ -137,6 +145,9 @@ export function PartnershipSection({
         )}
         {dialog === "cancel" && partnership && (
           <CancelPartnershipDialog partnership={partnership} onDone={() => setDialog(null)} />
+        )}
+        {dialog === "advance" && partnership && (
+          <AdvanceDialog partnership={partnership} onDone={() => setDialog(null)} />
         )}
       </Dialog>
     </section>

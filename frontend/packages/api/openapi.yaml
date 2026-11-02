@@ -1552,8 +1552,9 @@ paths:
   /api/v1/day-funds:
     get:
       operationId: listDayFunds
-      description: Every active driver with the cash set for them on a day (today
-        by default) and whether they started.
+      description: |-
+        Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent.
       parameters:
       - in: query
         name: date
@@ -1575,8 +1576,9 @@ paths:
           description: ''
     put:
       operationId: setDayFund
-      description: Set the cash handed to a driver for a day (D-203); it changes until
-        the driver accepts it.
+      description: |-
+        Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248).
       tags:
       - day-funds
       requestBody:
@@ -4924,35 +4926,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
           description: ''
-  /api/v1/my-day/purchase-float:
-    put:
-      operationId: setMyPurchaseFloat
-      description: |-
-        The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent.
-      tags:
-      - my-day
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DriverDay'
-          description: ''
   /api/v1/my-days:
     get:
       operationId: listMyDays
@@ -5753,6 +5726,41 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedLotPartnershipUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
+  /api/v1/partnerships/{partnership_id}/advances:
+    post:
+      operationId: advancePartnerCapital
+      description: |-
+        Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+        still in; the settlement pays the rest.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -10505,6 +10513,40 @@ paths:
                 items:
                   $ref: '#/components/schemas/Instrument'
           description: ''
+  /api/v1/treasury/movements-of:
+    get:
+      operationId: listMovementsOf
+      description: |-
+        The treasury movements written by the given records of one source, each with the account it went through
+        (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+      parameters:
+      - in: query
+        name: from_source
+        schema:
+          type: string
+          maxLength: 40
+          minLength: 1
+        required: true
+      - in: query
+        name: source_ids
+        schema:
+          type: string
+          maxLength: 2000
+          minLength: 1
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovementOf'
+          description: ''
   /api/v1/treasury/party-documents:
     get:
       operationId: listPartyDocuments
@@ -11890,6 +11932,13 @@ components:
         note:
           type: string
           readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
         lot_result_id:
           type: integer
           readOnly: true
@@ -11909,7 +11958,9 @@ components:
       - id
       - kind
       - lot_result_id
+      - method
       - note
+      - reference
     CapitalEntryKindEnum:
       enum:
       - contribution
@@ -11917,6 +11968,7 @@ components:
       - loss_deduction
       - loss_reversal
       - return
+      - advance
       type: string
       description: |-
         * `contribution` - Apport
@@ -11924,6 +11976,7 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+        * `advance` - Avance sur capital
     CashCount:
       type: object
       properties:
@@ -14361,9 +14414,13 @@ components:
         started:
           type: boolean
           readOnly: true
+        ended:
+          type: boolean
+          readOnly: true
       required:
       - can_buy
       - driver
+      - ended
       - fund
       - started
     DayFundWrite:
@@ -19643,6 +19700,27 @@ components:
       - profit_rate
       - status
       - terms_pending
+    LotPartnershipAdvance:
+      type: object
+      properties:
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        paid_on:
+          type: string
+          format: date
+        note:
+          type: string
+          default: ''
+          maxLength: 300
+      required:
+      - amount
+      - method
     LotPartnershipCancel:
       type: object
       properties:
@@ -20591,6 +20669,39 @@ components:
         * `salary` - Salaire
         * `partner_settlement` - Règlement associé
         * `field_purchase` - Achat au port
+    MovementOf:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        source_id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+      required:
+      - account
+      - amount
+      - day
+      - id
+      - kind
+      - source_id
     MovementRow:
       type: object
       properties:
@@ -23754,15 +23865,6 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
-    PurchaseFloat:
-      type: object
-      properties:
-        purchase_float:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-      required:
-      - purchase_float
     PurchaseOrderStatusEnum:
       enum:
       - open

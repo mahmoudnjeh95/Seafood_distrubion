@@ -257,6 +257,10 @@ def update_partnership(
     partnership.save()
     difference = partnership.partner_capital - old_capital
     if difference:
+        if selectors.capital_balance(partnership) + difference < 0:
+            raise ValidationError(
+                {"partner_capital": _("Le capital ne peut pas passer sous ce qui a déjà été avancé au partenaire.")}
+            )
         _post_entry(
             partnership,
             actor=actor,
@@ -272,6 +276,78 @@ def update_partnership(
         after=_snapshot(partnership),
     )
     return partnership
+
+
+@transaction.atomic
+def advance_capital(
+    *,
+    partnership: LotPartnership,
+    actor: User | None,
+    amount: Number,
+    method: str,
+    reference: str = "",
+    paid_on: dt.date | None = None,
+    note: str = "",
+) -> CapitalEntry:
+    """Pay the partner part of their capital in this lot before the settlement: an advance, taken from the
+    capital they put in (`advance` entry, −). Only up to the capital still in, so it never goes negative
+    (D-031); the settlement later pays what is left. Allowed while the lot is open or closed."""
+    partnership = _locked(partnership)
+    organization = partnership.organization
+    if partnership.status not in (PartnershipStatus.OPEN, PartnershipStatus.CLOSED):
+        raise ValidationError(_("Une avance ne se donne que sur un partenariat en cours ou clôturé."))
+    try:
+        value = checked_amount(amount)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"amount": str(error)}) from None
+    if value <= 0:
+        raise ValidationError({"amount": _("Une avance doit être supérieure à zéro.")})
+    if method not in SettlementPaymentMethod.values:
+        raise ValidationError({"method": _("Mode de paiement inconnu.")})
+    capital = selectors.capital_balance(partnership)
+    if value > capital:
+        raise ValidationError(
+            {
+                "amount": _("L'avance (%(amount)s DT) dépasse le capital encore dans le lot (%(capital)s DT).")
+                % {"amount": display_money(value), "capital": display_money(capital)}
+            }
+        )
+    entry = CapitalEntry.objects.create(
+        organization=organization,
+        partnership=partnership,
+        kind=CapitalEntryKind.ADVANCE,
+        amount=-value,
+        entry_date=paid_on or timezone.localdate(),
+        note=(note.strip() or _("Avance sur capital"))[:300],
+        method=method,
+        reference=reference.strip()[:50],
+        created_by=actor,
+    )
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, method, None),
+        day=entry.entry_date,
+        amount=-value,
+        kind="partner_settlement",
+        label=f"Avance · {partnership.partner.name} · {partnership.batch.number}",
+        reference=entry.reference or partnership.batch.number,
+        source=ADVANCE_SOURCE,
+        source_id=entry.pk,
+        actor=actor,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="partnership.advanced",
+        target=partnership,
+        after={
+            "amount": str(value),
+            "method": method,
+            "reference": entry.reference,
+            "capital_left": str(capital - value),
+        },
+    )
+    return entry
 
 
 @transaction.atomic
@@ -564,6 +640,7 @@ def settle_partnership(
 
 # The money paid to a partner leaves our accounts the day it was paid, by the method it was paid with (P9-T05b, D-240).
 SETTLEMENT_PAYMENT_SOURCE = "partnerships.settlement_payment"
+ADVANCE_SOURCE = "partnerships.capital_advance"
 
 
 def _post_settlement_money(payment: SettlementPayment, *, settlement: PartnerSettlement, actor: User | None) -> None:

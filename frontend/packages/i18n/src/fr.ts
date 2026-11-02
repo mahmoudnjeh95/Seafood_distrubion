@@ -1115,7 +1115,7 @@ export const fr = {
       title: "Fonds de caisse du jour",
       date: "Jour du fonds de caisse",
       intro:
-        "Saisissez l'argent remis à chaque chauffeur pour sa journée. Le chauffeur l'accepte sur son téléphone, ce qui démarre sa journée ; ensuite il ne change plus.",
+        "Saisissez l'argent remis à chaque chauffeur pour sa journée. Le chauffeur l'accepte sur son téléphone, ce qui démarre sa journée ; ensuite le fonds de caisse ne change plus. Seul le bureau modifie l'argent pour les achats, jusqu'à la clôture.",
       noDrivers: "Aucun chauffeur actif.",
       driver: "Chauffeur",
       cash: "Fonds de caisse (DT)",
@@ -2773,6 +2773,9 @@ export const fr = {
           unpaid: "Impayé",
           return: "Restituer",
         },
+      },
+      trace: {
+        title: "Où est passé l'argent",
       },
       accounts: {
         bank: {
@@ -4638,6 +4641,7 @@ export const fr = {
         fixed: "Le lot est clôturé : les conditions ne changent plus.",
         edit: "Modifier",
         cancel: "Annuler le partenariat",
+        advance: "Donner une avance",
         ledger: "Compte capital du partenaire",
         ledgerHint: "Séparé de ce qui est dû au fournisseur pour ses marchandises et de sa part de bénéfice.",
         entryKinds: {
@@ -4646,6 +4650,7 @@ export const fr = {
           loss_deduction: "Part de perte déduite",
           loss_reversal: "Annulation de la déduction",
           return: "Remboursement",
+          advance: "Avance sur capital",
         },
         entryColumns: { date: "Date", kind: "Mouvement", note: "Note", amount: "Montant" },
       },
@@ -4678,6 +4683,24 @@ export const fr = {
         back: "Retour",
         done: "Partenariat annulé.",
         error: "Le partenariat n'a pas pu être annulé.",
+      },
+      advanceDialog: {
+        title: "Avance sur le capital du partenaire",
+        description:
+          "Un paiement au partenaire pris sur le capital qu'il a apporté dans ce lot. Le règlement du lot paiera ce qui reste.",
+        available: "Capital encore dans le lot : {{amount}}",
+        amount: "Montant (DT)",
+        date: "Date",
+        method: "Mode de paiement",
+        choose: "Choisir",
+        reference: "Référence",
+        note: "Note",
+        invalidAmount: "Indiquez un montant en DT, au millime près.",
+        required: "Champ obligatoire.",
+        confirm: "Donner l'avance",
+        back: "Retour",
+        done: "Avance enregistrée.",
+        error: "L'avance n'a pas pu être enregistrée.",
       },
     },
     // P6-T05 / P6-T06 · monthly closing (D-073, D-074)
@@ -5207,10 +5230,7 @@ export const fr = {
       float: "Argent pour les achats (DT)",
       floatHint: "L'argent que le bureau vous donne pour acheter, à part de la caisse des ventes.",
       floatIs: "Argent pour les achats : {{amount}}",
-      floatChange: "Changer",
-      floatSave: "Enregistrer",
-      floatSaved: "Argent pour les achats enregistré.",
-      floatFailed: "L'argent pour les achats n'a pas pu être enregistré.",
+      floatOfficeOnly: "Seul le bureau peut le modifier.",
       closingTitle: "Achats au port",
       closingCount_one: "{{count}} achat, total {{amount}}",
       closingCount_other: "{{count}} achats, total {{amount}}",

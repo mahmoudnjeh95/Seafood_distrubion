@@ -21,7 +21,11 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
   const [cash, setCash] = useState(row.fund ? row.fund.opening_cash : "");
   const [float, setFloat] = useState(row.fund ? row.fund.purchase_float : "0");
   const [error, setError] = useState("");
-  const locked = row.started || row.fund?.accepted_at != null;
+  // The accepted cash is locked once the day started; the purchase money stays the office's to change until the
+  // driver's closing is sent (D-248). Nothing is editable after that.
+  const cashLocked = row.started || row.fund?.accepted_at != null;
+  const floatLocked = row.ended;
+  const locked = cashLocked && floatLocked;
   const cashValue = parseDecimalInput(cash.trim(), 3);
   const floatValue = row.can_buy ? parseDecimalInput(float.trim() || "0", 3) : "0";
   const save = useMutation({
@@ -29,8 +33,8 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
       setDayFund({
         driver: row.driver.id,
         date,
-        opening_cash: cashValue ?? "0",
-        purchase_float: floatValue ?? "0",
+        opening_cash: cashLocked ? (row.fund?.opening_cash ?? "0") : (cashValue ?? "0"),
+        purchase_float: floatLocked ? (row.fund?.purchase_float ?? "0") : (floatValue ?? "0"),
       }),
     onSuccess: async () => {
       setError("");
@@ -47,7 +51,7 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
     <tr>
       <Td className="font-semibold">{name}</Td>
       <Td>
-        {locked || !canEdit ? (
+        {cashLocked || !canEdit ? (
           <span className="num">{row.fund ? formatMoney(row.fund.opening_cash) : "—"}</span>
         ) : (
           <MoneyInput
@@ -62,7 +66,7 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
       <Td>
         {!row.can_buy ? (
           <span className="text-ink-2">—</span>
-        ) : locked || !canEdit ? (
+        ) : floatLocked || !canEdit ? (
           <span className="num">{row.fund ? formatMoney(row.fund.purchase_float) : "—"}</span>
         ) : (
           <MoneyInput
@@ -103,7 +107,8 @@ function FundRow({ row, date, canEdit }: { row: DayFundRow; date: string; canEdi
 
 /**
  * "Fonds de caisse du jour" (D-203): the office types the cash it hands each driver (and the money for the port);
- * the driver accepts it on the phone, which starts the day. A row no longer changes once accepted.
+ * the driver accepts it on the phone, which starts the day. The accepted cash no longer changes; the purchase money
+ * stays the office's to change until the driver's closing is sent (D-248).
  */
 export function DayFundsPanel({ canEdit }: { canEdit: boolean }) {
   const { t } = useTranslation();

@@ -11,6 +11,7 @@ import { PdfButton } from "../lib/PdfButton";
 import { statusTone } from "../payments/listFilters";
 import { EffetHistory, VoidReasonDialog } from "../payments/ListParts";
 import { canRecordReceipts } from "../receipts/shared";
+import { TreasuryTrace } from "../treasury/TreasuryTrace";
 import { AllocateDialog } from "./AllocateDialog";
 import { compare } from "./allocation";
 import { refreshPurchasing } from "./shared";
@@ -58,6 +59,7 @@ export function SupplierPaymentDetailPage() {
           )
         )}
       </PageHeader>
+      <TreasuryTrace source="purchasing.payment_line" ids={payment.lines.map((line) => line.id)} />
 
       {payment.is_voided && (
         <p role="status" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.9rem] text-bad">
