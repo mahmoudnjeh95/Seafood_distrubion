@@ -116,7 +116,10 @@ function DayCard({ row, onOpen }: { row: DayOverviewRow; onOpen: () => void }) {
                 : t("admin.dayClosings.sales", { count: row.sales_count })
             }
           />
-          <Stat label={t("admin.dayOverview.cashLabel")} value={formatMoney(row.expected_cash)} />
+          <Stat
+            label={t(row.phase === "approved" ? "admin.dayOverview.cashReceivedLabel" : "admin.dayOverview.cashLabel")}
+            value={formatMoney(row.expected_cash)}
+          />
           <Stat label={t("admin.dayOverview.expensesLabel")} value={formatMoney(row.expenses_total)} />
           {row.purchases_count > 0 && (
             <Stat

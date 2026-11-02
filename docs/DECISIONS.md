@@ -3458,7 +3458,25 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
 
-**D-241 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
+**D-241 · One "Trésorier" entry in the side menu; the règlement and portfolio entries go into the treasury ribbon (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The side menu no longer lists Règlements clients, Règlements fournisseurs, Portefeuille or Banques. A single **Trésorier** entry (Finance group, where Banques was) opens the treasury at its first screen, Encaissement (`/reglements`); the treasury ribbon links every other screen (Décaissement, Portefeuille, Banque, Bordereau, Ordre de paiement, …).
+
+- Only the menu entries move: the routes and pages stay, and the ribbon and the links in the pages still reach them. The Banks page keeps its name, "Banques", since it lists the banks; the ribbon button stays "Banque".
+
+- Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
+
+**D-242 · Sending the closing resets that driver's "Fonds de caisse" and "Argent pour les achats" to zero (owner request, 2026-11-02)** · provisional · 2026-11-02
+- Sending the closing ends the day (D-134). At that moment the office's `DayFund` for that driver and date is set to 0
+  for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`, so the office still sees the day
+  was started. Only that driver's row is touched.
+- The day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing are not changed: the closing
+  keeps the start the driver had.
+- A new load that reopens the sent day (D-134) does not bring the amounts back; the day runs on its own figures.
+- Provisional: "day ends" is read as the closing being sent. If the owner means the office's approval, which comes
+  later, the reset moves to `approve_day_closing`. The owner's peer PM confirmed this reading on 2026-11-02 (take the
+  recommended option); the provisional status stays so the owner can move it.
+**D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
 - A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
   product the box starts unchecked. Before, every invoice started with VAT.
 - The default is decided by the server (`apply_vat` left empty on `POST /invoices`; the same rule when a draft is changed
