@@ -22,7 +22,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Tableau de bord",
     "Rapports",
     "Devis",
-    "Ventes & factures",
+    "Bons de livraison",
     "Factures",
     "Règlements clients",
     "Clients",

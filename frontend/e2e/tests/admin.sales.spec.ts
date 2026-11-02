@@ -16,7 +16,7 @@ async function choose(page: Page, scope: Page | Locator, label: string, option: 
 
 test("the demo sales are listed with what is still owed", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Ventes & factures" }).click();
+  await page.getByRole("link", { name: "Bons de livraison" }).click();
   await expect(page.getByRole("heading", { name: "Ventes", level: 1 })).toBeVisible();
 
   await page.getByRole("searchbox").fill("Corail");
