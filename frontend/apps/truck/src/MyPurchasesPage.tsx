@@ -5,6 +5,7 @@ import { Button, Card, EmptyState, Pill } from "@frutti/ui";
 import { Link } from "react-router";
 
 import { useOnline } from "./offline";
+import { PrintButton } from "./printing/PrintButton";
 import { useQueue } from "./queue";
 
 const TONE = { submitted: "warn", validated: "good", refused: "bad" } as const;
@@ -75,6 +76,25 @@ export function MyPurchasesPage() {
             {purchase.office_note ? (
               <p className="font-semibold">{t("truck.purchase.officeNote", { note: purchase.office_note })}</p>
             ) : null}
+            <PrintButton
+              receipt={{
+                kind: "purchase",
+                company: session.data?.organization.name ?? "",
+                number: purchase.number,
+                date: purchase.created_at,
+                partyName: purchase.supplier?.name ?? purchase.proposed_supplier,
+                by: session.data?.user.first_name,
+                lines: purchase.lines.map((line) => ({
+                  name: line.product?.name ?? line.proposed_product,
+                  quantity: line.received_quantity ?? line.declared_quantity,
+                  unitPrice: line.unit_cost,
+                  amount: line.amount,
+                })),
+                total: purchase.total,
+                paid: purchase.paid,
+                rest: purchase.rest,
+              }}
+            />
             {purchase.status === "submitted" && canBuy ? (
               <Button asChild disabled={!online}>
                 <Link to={`/achats/${purchase.id}`}>{t("truck.purchase.edit")}</Link>
