@@ -9,13 +9,11 @@ import {
   useListMyStock,
   useListMyTruckChoices,
   useOpenMyDay,
-  useSetMyPurchaseFloat,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
-import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, ConfirmButton, EmptyState, Field, Icon, MoneyInput, type IconName, toast } from "@frutti/ui";
+import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
+import { Button, Card, cn, ConfirmButton, EmptyState, Icon, type IconName, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { Link } from "react-router";
 
 import { formatBoxCount } from "./boxes";
@@ -98,58 +96,14 @@ function BoxDayCard({ day }: { day: MyBoxDay }) {
   );
 }
 
-/** The money the office gave for purchases at the port, kept apart from the sales cash (D-158): shown while the
- * day runs, typed again when the office gives more. */
+/** The money the office gave for purchases at the port, kept apart from the sales cash (D-158). Read only on the
+ * phone: the driver approved it when starting the day, and only the office changes it (D-248). */
 function PurchaseFloat({ amount }: { amount: string }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState("");
-  const save = useSetMyPurchaseFloat({
-    mutation: {
-      onSuccess: () => {
-        setEditing(false);
-        toast.success(t("truck.purchase.floatSaved"));
-        void queryClient.invalidateQueries();
-      },
-      onError: () => toast.error(t("truck.purchase.floatFailed")),
-    },
-  });
-  const parsed = parseDecimalInput(value.trim(), 3);
-  if (!editing) {
-    return (
-      <p className="flex items-center justify-between gap-3 text-ink-2">
-        <span>{t("truck.purchase.floatIs", { amount: formatMoney(amount) })}</span>
-        <Button
-          onClick={() => {
-            setValue(amount.replace(".", ","));
-            setEditing(true);
-          }}
-        >
-          {t("truck.purchase.floatChange")}
-        </Button>
-      </p>
-    );
-  }
   return (
-    <div className="space-y-2">
-      <Field label={t("truck.purchase.float")} htmlFor="purchase-float-change">
-        <MoneyInput
-          id="purchase-float-change"
-          inputMode="decimal"
-          className="text-xl"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-        />
-      </Field>
-      <ConfirmButton
-        variant="primary"
-        disabled={parsed === null || parsed.startsWith("-") || save.isPending}
-        rows={[[t("truck.purchase.float"), formatMoney(parsed ?? "0")]]}
-        onConfirm={() => parsed !== null && save.mutate({ data: { purchase_float: parsed } })}
-      >
-        {t("truck.purchase.floatSave")}
-      </ConfirmButton>
+    <div className="space-y-1">
+      <p className="text-ink-2">{t("truck.purchase.floatIs", { amount: formatMoney(amount) })}</p>
+      <p className="text-sm text-ink-2">{t("truck.purchase.floatOfficeOnly")}</p>
     </div>
   );
 }

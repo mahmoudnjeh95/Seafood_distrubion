@@ -104,7 +104,7 @@ Rubrique **Inventaires** : comptez le stock réel ; les écarts deviennent des c
 
 1. Dans **Ventes**, filtrez sur **À facturer**, cochez un ou plusieurs BL **du même client**, puis **Facturer la sélection**.
    Ou, sur un BL : **Facturer**.
-2. Vérifiez la TVA, le timbre fiscal et la retenue à la source ; **Enregistrer et recalculer** si vous changez quelque chose.
+2. Vérifiez la TVA, le timbre fiscal et la retenue à la source (prélevée seule sur les factures dont le total TTC atteint 1 000 DT) ; **Enregistrer et recalculer** si vous changez quelque chose.
 3. **Émettre la facture**, puis **Émettre**. La facture émise est figée.
 4. Pour corriger une facture émise : **Faire un avoir** (total ou partiel). Les kilos rendus peuvent être remis en stock ou passés en perte.
 5. Les règles de TVA et de timbre se règlent dans **Réglages de la facture** (Factures, « Paramètres financiers »).
@@ -173,7 +173,7 @@ Réservé au propriétaire (qui modifie) et au comptable (qui lit). Onglets : **
 4. **Approuver** (ou **Tout approuver**) : la paie devient la charge du mois et ne change plus.
 5. **Payer** : date, montant, mode de paiement, référence. Un paiement peut solder une paie, une partie. Chaque paiement sort de la trésorerie le jour où il est fait : la Caisse pour les espèces, la banque pour le reste. La paie et le paiement affichent « Débité de la trésorerie ».
 6. Correction après approbation : **Ajuster** (montant positif ou négatif, avec le motif).
-7. **Prime** : ajoute un montant positif à ce qui est dû pour le mois, avec son motif. Pas de paiement séparé : la prime se paie avec le salaire.
+7. **Prime** : ajoute un montant positif à ce qui est dû pour le mois, avec son motif, et la paie tout de suite : choisissez le mode de paiement (espèces, chèque, virement, autre) et la date. Elle sort de la trésorerie ce jour-là, comme un salaire payé.
 8. **Avance sur salaire** : dans **Payer**, choisissez « Avance sur salaire ». L'avance se déduit du salaire du mois. Si elle dépasse ce qui reste dû, cochez la confirmation (sinon elle est refusée).
 7. Sur la page d'un employé, **Jours sur lot** note les jours passés sur un lot : un jour coûte le salaire mensuel / 26.
 

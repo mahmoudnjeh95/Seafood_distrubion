@@ -305,12 +305,12 @@ import type {
   PriceBoard,
   PriceList,
   PriceListWrite,
+  PrimeWrite,
   Product,
   ProductCreate,
   ProductPrice,
   ProductStockDetail,
   ProfilePhotoUpload,
-  PurchaseFloat,
   QuoteConvert,
   QuoteDetail,
   QuoteRefuse,
@@ -4864,7 +4864,8 @@ export const getListDayFundsUrl = (params?: ListDayFundsParams,) => {
 }
 
 /**
- * Every active driver with the cash set for them on a day (today by default) and whether they started.
+ * Every active driver with the cash set for them on a day (today by default), whether they started and whether
+ * their closing is sent.
  */
 export const listDayFunds = async (params?: ListDayFundsParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayFundRow[]> => {
 
@@ -4962,7 +4963,8 @@ export const getSetDayFundUrl = () => {
 }
 
 /**
- * Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it.
+ * Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+ * the money for purchases changes, and only here (D-248).
  */
 export const setDayFund = async (dayFundWrite: DayFundWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayFund> => {
 
@@ -15459,92 +15461,6 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordMyLocationsMutationOptions(options), queryClient);
     }
 
-export const getSetMyPurchaseFloatUrl = () => {
-
-
-
-
-  return `/api/v1/my-day/purchase-float`
-}
-
-/**
- * The money the office gave for purchases at the port today, typed again when it gives more (D-158).
- * 404 before the day is started; refused once its closing is sent.
- */
-export const setMyPurchaseFloat = async (purchaseFloat: PurchaseFloat, options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<DriverDay>(getSetMyPurchaseFloatUrl(),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(purchaseFloat)
-  }
-);}
-
-
-
-
-
-export const getSetMyPurchaseFloatMutationKey = () => ['setMyPurchaseFloat'] as const;
-
-export const getSetMyPurchaseFloatMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext> => {
-
-const mutationKey = getSetMyPurchaseFloatMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMyPurchaseFloat>>, SetMyPurchaseFloatMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  setMyPurchaseFloat(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type SetMyPurchaseFloatMutationResult = NonNullable<Awaited<ReturnType<typeof setMyPurchaseFloat>>>
-    export type SetMyPurchaseFloatMutationBody = PurchaseFloat
-    export type SetMyPurchaseFloatMutationError = unknown
-    export type SetMyPurchaseFloatMutationVariables = {data: PurchaseFloat}
-
-    export const useSetMyPurchaseFloat = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof setMyPurchaseFloat>>,
-        TError,
-        SetMyPurchaseFloatMutationVariables,
-        TContext
-      > => {
-      return useMutation(getSetMyPurchaseFloatMutationOptions(options), queryClient);
-    }
-
 export const getListMyDaysUrl = () => {
 
 
@@ -25514,11 +25430,11 @@ export const getAddSalaryPrimeUrl = (recordId: number,) => {
 }
 
 /**
- * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
- * with no separate payment (D-234).
+ * Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+ * It is due on top of the salary and its payment leaves the treasury on the day paid.
  */
 export const addSalaryPrime = async (recordId: number,
-    adjustmentWrite: AdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
+    primeWrite: PrimeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -25539,7 +25455,7 @@ return apiFetch<SalaryAdjustment>(getAddSalaryPrimeUrl(recordId),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(adjustmentWrite)
+    body: JSON.stringify(primeWrite)
   }
 );}
 
@@ -25577,9 +25493,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AddSalaryPrimeMutationResult = NonNullable<Awaited<ReturnType<typeof addSalaryPrime>>>
-    export type AddSalaryPrimeMutationBody = AdjustmentWrite
+    export type AddSalaryPrimeMutationBody = PrimeWrite
     export type AddSalaryPrimeMutationError = unknown
-    export type AddSalaryPrimeMutationVariables = {recordId: number;data: AdjustmentWrite}
+    export type AddSalaryPrimeMutationVariables = {recordId: number;data: PrimeWrite}
 
     export const useAddSalaryPrime = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSalaryPrime>>, TError,AddSalaryPrimeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

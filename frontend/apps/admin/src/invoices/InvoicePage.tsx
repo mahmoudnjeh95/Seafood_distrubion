@@ -93,7 +93,6 @@ type DraftValues = {
   amounts: Record<string, string>;
   stamp: string;
   fees: string;
-  withholdingApplied: boolean;
   withholdingRate: string;
   notes: string;
 };
@@ -107,7 +106,6 @@ function draftOf(invoice: InvoiceDetail): DraftValues {
     ),
     stamp: invoice.fiscal_stamp_overridden ? toInput(invoice.fiscal_stamp) : "",
     fees: isZero(invoice.fees) ? "" : toInput(invoice.fees),
-    withholdingApplied: invoice.withholding_applied,
     withholdingRate: invoice.withholding_rate_overridden ? toInput(invoice.withholding_rate) : "",
     notes: invoice.notes,
   };
@@ -161,7 +159,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
       : [];
     const stamp = values.stamp.trim() === "" ? null : money(values.stamp, "fiscal_stamp");
     const fees = values.fees.trim() === "" ? null : money(values.fees, "fees");
-    const withholdingRate = values.withholdingApplied ? percent(values.withholdingRate, "withholding_rate") : null;
+    const withholdingRate = percent(values.withholdingRate, "withholding_rate");
     return {
       found,
       payload: {
@@ -170,7 +168,6 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         vat_amounts: vatAmounts,
         fiscal_stamp: stamp,
         fees,
-        withholding_applied: values.withholdingApplied,
         withholding_rate: withholdingRate,
         notes: values.notes.trim(),
         issue_now: issueNow,
@@ -324,31 +321,22 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         </Field>
 
         <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2.5 font-semibold">
-            <input
-              type="checkbox"
-              className="size-4 accent-sea"
-              checked={values.withholdingApplied}
-              onChange={(event) => set({ withholdingApplied: event.target.checked })}
+          <span className="font-semibold">{t("admin.invoices.form.withholding")}</span>
+          <p className="text-[0.78rem] text-ink-2">{t("admin.invoices.form.withholdingRule")}</p>
+          <Field
+            label={t("admin.invoices.form.withholdingRate")}
+            htmlFor={`${formId}-withholding`}
+            error={errors.withholding_rate}
+          >
+            <Input
+              id={`${formId}-withholding`}
+              inputMode="decimal"
+              value={values.withholdingRate}
+              placeholder={toInput(invoice.settings_withholding_rate ?? invoice.withholding_rate)}
+              onChange={(event) => set({ withholdingRate: event.target.value })}
+              aria-invalid={errors.withholding_rate ? true : undefined}
             />
-            {t("admin.invoices.form.withholding")}
-          </label>
-          {values.withholdingApplied && (
-            <Field
-              label={t("admin.invoices.form.withholdingRate")}
-              htmlFor={`${formId}-withholding`}
-              error={errors.withholding_rate}
-            >
-              <Input
-                id={`${formId}-withholding`}
-                inputMode="decimal"
-                value={values.withholdingRate}
-                placeholder={toInput(invoice.settings_withholding_rate ?? invoice.withholding_rate)}
-                onChange={(event) => set({ withholdingRate: event.target.value })}
-                aria-invalid={errors.withholding_rate ? true : undefined}
-              />
-            </Field>
-          )}
+          </Field>
         </div>
 
         <Field label={t("admin.invoices.form.notes")} htmlFor={`${formId}-notes`}>

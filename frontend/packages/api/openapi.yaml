@@ -1552,8 +1552,9 @@ paths:
   /api/v1/day-funds:
     get:
       operationId: listDayFunds
-      description: Every active driver with the cash set for them on a day (today
-        by default) and whether they started.
+      description: |-
+        Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent.
       parameters:
       - in: query
         name: date
@@ -1575,8 +1576,9 @@ paths:
           description: ''
     put:
       operationId: setDayFund
-      description: Set the cash handed to a driver for a day (D-203); it changes until
-        the driver accepts it.
+      description: |-
+        Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248).
       tags:
       - day-funds
       requestBody:
@@ -4923,35 +4925,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
           description: ''
-  /api/v1/my-day/purchase-float:
-    put:
-      operationId: setMyPurchaseFloat
-      description: |-
-        The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent.
-      tags:
-      - my-day
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DriverDay'
-          description: ''
   /api/v1/my-days:
     get:
       operationId: listMyDays
@@ -7891,8 +7864,8 @@ paths:
     post:
       operationId: addSalaryPrime
       description: |-
-        Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
-        with no separate payment (D-234).
+        Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+        It is due on top of the salary and its payment leaves the treasury on the day paid.
       parameters:
       - in: path
         name: record_id
@@ -7905,13 +7878,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
         required: true
       security:
       - cookieAuth: []
@@ -14613,9 +14586,13 @@ components:
         started:
           type: boolean
           readOnly: true
+        ended:
+          type: boolean
+          readOnly: true
       required:
       - can_buy
       - driver
+      - ended
       - fund
       - started
     DayFundWrite:
@@ -18452,9 +18429,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -18486,9 +18460,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -23673,6 +23644,24 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PrimeWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+        method:
+          $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        paid_on:
+          type: string
+          format: date
+      required:
+      - amount
+      - method
+      - paid_on
+      - reason
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -24083,15 +24072,6 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
-    PurchaseFloat:
-      type: object
-      properties:
-        purchase_float:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
-      required:
-      - purchase_float
     PurchaseOrderStatusEnum:
       enum:
       - open
@@ -25979,10 +25959,12 @@ components:
       enum:
       - salary
       - advance
+      - prime
       type: string
       description: |-
         * `salary` - Salaire
         * `advance` - Avance sur salaire
+        * `prime` - Prime
     SalaryPaymentMethodEnum:
       enum:
       - cash

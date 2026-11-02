@@ -157,6 +157,8 @@ class SalaryPaymentKind(models.TextChoices):
     SALARY = "salary", _("Salaire")
     # An advance on the month's salary: allocated to that month's record in full (D-234, provisional kind code).
     ADVANCE = "advance", _("Avance sur salaire")
+    # The payment of a prime (D-244): allocated to the salary the prime was added to, in full, like an advance.
+    PRIME = "prime", _("Prime")
 
 
 # The treasury movement a salary payment writes (D-234): `source` and `source_id` of the movement.

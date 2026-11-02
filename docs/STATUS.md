@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); advance D-243, PR #281; next free decision D-248)_
+_Last updated: 2026-11-02 (prime payment PR #282, D-244; next free decision after the open PRs)_
 
 ## Where we are
 
+- **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
+  date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
+  treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).
 - **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
   removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
   The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
@@ -18,6 +21,11 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
 - **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
   (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
   links them. Routes and pages unchanged; nothing else renamed.
+
+- **2026-11-02, D-248 (branch `driver-purchase-money`, PR #279, awaits CI):** the purchase money ("argent d'achat") is set by
+  the office only; the driver approves it when starting the day and cannot change it on the phone (`PUT /my-day/purchase-float`
+  removed). Check on staging: Camions du jour › Fonds de caisse, change the purchase money of a started day, then the phone
+  shows it read only.
 - **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
   day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
   on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227
@@ -53,6 +61,8 @@ _Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR op
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
 3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
+   Withholding rule D-250 (PR #277, awaits CI): retenue à la source on invoices of 1 000 DT TTC and more, none below;
+   check on staging with a rate set in Paramètres financiers.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
