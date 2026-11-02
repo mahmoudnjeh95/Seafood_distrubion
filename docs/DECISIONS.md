@@ -3438,3 +3438,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The approved expenses from before the ledger are written by `backfill_treasury` (once; safe to run again).
 - Provisional: a cheque or a traite paid as an expense is counted at the main bank account on approval, not when the
   bank debits it, until the office decides how expense cheques are followed.
+
+**D-239 · The money paid at the sale is a treasury movement the day of the sale (Phase 9, P9-T05b)** · accepted · 2026-11-02
+- When a sale is confirmed, the amount paid at it goes in: the driver's cash when the delivering user is a driver and
+  paid in cash, else the Caisse for cash, else the main bank account for a transfer or a card. Written once, dated the
+  sale's day; a sale with nothing paid moves no money.
+- A sale cancelled later keeps its money: what was paid becomes the customer's credit (the P2-T06 hook), so nothing is
+  reversed. The customer's credit itself is not a movement yet.
+- The sales confirmed before the ledger are written by `backfill_treasury`.
+- Provisional: a cheque paid at the sale is counted at the main bank account on the sale's day; it is not followed as
+  an effet until the office decides how cheques given at the door are tracked.
