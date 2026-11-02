@@ -31,15 +31,6 @@ export function PartnershipsPage() {
   const figures = useListLotFigures({ batch_ids: batchIds }, { query: { enabled: allowed && batchIds !== "" } });
   const figureOf = (batchId: number) => figures.data?.find((figure) => figure.batch_id === batchId);
 
-  if (!allowed) {
-    return (
-      <>
-        <PageHeader eyebrow={t("admin.partnerships.eyebrow")} title={t("admin.partnerships.title")} />
-        <EmptyState illustration="mix" title={t("admin.lotResult.restricted")} />
-      </>
-    );
-  }
-
   const view = useTableView(rows, {
     lot: (row) => row.batch.number,
     product: (row) => row.batch.product_name,
@@ -48,6 +39,15 @@ export function PartnershipsPage() {
     status: (row) => row.status,
   });
   const sorting = { sort: view.sort, onSort: view.toggleSort };
+
+  if (!allowed) {
+    return (
+      <>
+        <PageHeader eyebrow={t("admin.partnerships.eyebrow")} title={t("admin.partnerships.title")} />
+        <EmptyState illustration="mix" title={t("admin.lotResult.restricted")} />
+      </>
+    );
+  }
 
   return (
     <>
