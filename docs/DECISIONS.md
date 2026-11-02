@@ -3627,3 +3627,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+
+**D-261 · Trésorier stays lit on every treasury screen (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The owner's answer on D-241: the side menu's Trésorier is highlighted on every treasury ribbon screen (Encaissement, Décaissement, Banque, Agences, Caisses, Portefeuille, Bordereau, Ordre de paiement, the journals and états), not only on `/reglements`.
+
+- The menu entry can own more paths: an optional `owns` list on a nav item (`AdminShell`). The active entry is the longest path the page is under, its own or an owned one, so the Trésorier entry owns `/tresorerie`, `/achats/paiements` and `/achats/reglements`, and `Achats` no longer lights up on the supplier payment screens.
