@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-251)_
+_Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-264)_
 
 ## Where we are
 
@@ -76,7 +76,7 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 
 ## Open owner decisions
 
-- D-234 (provisional): whether primes are subject to CNSS (accountant); an advance above the month's due needs a confirmation.
+- D-234 (provisional): an advance above the month's due needs a confirmation. Primes are not subject to CNSS (owner, D-263).
 - Q29 (D-197, provisional): invoice paid when the effet is received or when cashed; the company's bank accounts; bank
   charges of an impayé; endorsing customer traites to suppliers.
 - Backups off-site and the private key (D-139); boxes opening balances (D-135); driver day cash handover (D-134);

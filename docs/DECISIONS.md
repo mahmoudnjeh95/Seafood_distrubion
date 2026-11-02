@@ -3407,8 +3407,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Expense side unchanged:** the month's expense is still the approved salary (gross, employer CNSS, adjustments). An
   advance is a payment against that salary, not an extra expense.
 - **Provisional:** (1) an advance paid in cash goes to the Caisse; (2) a prime needs no separate payment; (3) an advance
-  above the month's due needs the confirmation flag; (4) a prime does not recompute the CNSS, as an adjustment does
-  (D-228): the accountant to confirm whether primes are subject to CNSS; (5) the code `advance` (not `avance`) is a
+  above the month's due needs the confirmation flag; (4) primes are not subject to CNSS (owner, D-263): a prime
+  and an adjustment change neither the employer nor the employee contribution; (5) the code `advance` (not `avance`) is a
   naming choice.
 - **Built with:** migration `hr.0006_salary_payment_kinds_and_primes` (`kind` on payments and adjustments); API
   `POST salary-records/<id>/primes` (`addSalaryPrime`), `kind` and `confirm_overpay` on `POST salary-payments`, and
@@ -3569,8 +3569,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Treasury screens** refresh with the payroll screens after a prime or a salary payment.
 - **Provisional:** (1) a prime paid by cheque or traite is counted at the main bank account on its day, not followed as
   an effet (as for salary cheques); (2) primes added before this change have no payment and stay out of the treasury:
-  the office pays them through a salary payment, or the owner decides how to record them; (3) the prime does not change
-  the CNSS (D-234, the accountant to confirm).
+  the office pays them through a salary payment, or the owner decides how to record them.
+- Not subject to CNSS: the owner's answer of 2026-11-02 (D-263).
 
 **D-250 · The withholding is taken on every invoice of 1 000 DT and more, and on none below (owner rule, 2026-11-02)** · provisional · 2026-11-02
 - The server decides: an invoice whose **total TTC** (HT + VAT + stamp + fees) reaches 1 000,000 DT carries the
@@ -3635,3 +3635,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+
+**D-263 · Primes are not subject to CNSS (owner answer, 2026-11-02)** · accepted · 2026-11-02
+- The owner answered the open question of D-234: a prime is not subject to CNSS, neither the employer's contribution
+  nor the employee's withholding.
+- The code already does this, so nothing changes in it: the contributions are computed on the gross salary at
+  generation and on a draft's edit (base, bonus, overtime). A `SalaryAdjustment`, prime or not, is added to what is due
+  and to the month's expense, and never recomputes `employer_cnss` or `employee_cnss`.
+- No payslip exists yet, so nothing shows a CNSS line for a prime. The CNSS declaration, when built, takes the gross
+  salary only.
+- Older primes need nothing: the app is still in testing with no real data (owner).
