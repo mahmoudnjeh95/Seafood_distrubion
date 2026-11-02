@@ -29,7 +29,16 @@ from apps.purchasing import selectors as purchasing
 from apps.sales import selectors as sales
 
 from .. import selectors, services, statements
-from ..models import AccountTransfer, Bank, BankStatementLine, CashCount, Deposit, Instrument, TreasuryAccount
+from ..models import (
+    AccountTransfer,
+    Bank,
+    BankStatementLine,
+    CashCount,
+    Deposit,
+    Instrument,
+    TreasuryAccount,
+    TreasuryMovement,
+)
 from .serializers import (
     AccountFilterSerializer,
     AccountStatementSerializer,
@@ -47,6 +56,9 @@ from .serializers import (
     InstrumentFilterSerializer,
     InstrumentSerializer,
     InstrumentTotalsSerializer,
+    MatchCandidateFilterSerializer,
+    MatchCandidateSerializer,
+    MatchWriteSerializer,
     MovementOfFilterSerializer,
     MovementOfSerializer,
     PartyDocumentsSerializer,
@@ -686,3 +698,49 @@ class DueAlertsView(OfficeView):
         15 days before, until the bank debits it). At most 200."""
         rows = selectors.due_alerts(self.organization, today=timezone.localdate())[: selectors.DUE_ALERTS_LIMIT]
         return Response(InstrumentSerializer(rows, many=True).data)
+
+
+class StatementLineCandidatesView(OfficeView):
+    @extend_schema(
+        operation_id="listMatchCandidates",
+        parameters=[MatchCandidateFilterSerializer],
+        responses=MatchCandidateSerializer(many=True),
+    )
+    def get(self, request: Request, line_id: int) -> Response:
+        """The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+        suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+        a month. Nearest day first."""
+        line = _statement_line(self.organization, line_id)
+        filters = MatchCandidateFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        rows = selectors.match_candidates(line, by_hand=filters.validated_data["by_hand"])
+        return Response(
+            MatchCandidateSerializer([{"movement": move, "suggested": flag} for move, flag in rows], many=True).data
+        )
+
+
+class StatementLineMatchView(OfficeView):
+    @extend_schema(
+        operation_id="matchStatementLine", request=MatchWriteSerializer, responses=BankStatementLineSerializer
+    )
+    def post(self, request: Request, line_id: int) -> Response:
+        """The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+        The same account; neither already matched. It changes no balance."""
+        line = _statement_line(self.organization, line_id)
+        serializer = MatchWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            movement = TreasuryMovement.objects.get(
+                organization=self.organization, pk=serializer.validated_data["movement"]
+            )
+        except ObjectDoesNotExist:
+            raise ValidationError({"movement": _("Mouvement inconnu.")}) from None
+        statements.match_line(line=line, movement=movement, actor=self.membership.user)
+        return Response(BankStatementLineSerializer(_statement_line(self.organization, line_id)).data)
+
+    @extend_schema(operation_id="unmatchStatementLine", responses=BankStatementLineSerializer)
+    def delete(self, request: Request, line_id: int) -> Response:
+        """Undo a match (owner or manager): the line and the movement are free again."""
+        line = _statement_line(self.organization, line_id)
+        statements.unmatch_line(line=line, actor=self.membership.user)
+        return Response(BankStatementLineSerializer(_statement_line(self.organization, line_id)).data)

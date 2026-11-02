@@ -46,4 +46,14 @@ urlpatterns = [
         views.StatementLineDetailView.as_view(),
         name="treasury-statement-line-detail",
     ),
+    path(
+        "treasury/statement-lines/<int:line_id>/candidates",
+        views.StatementLineCandidatesView.as_view(),
+        name="treasury-statement-line-candidates",
+    ),
+    path(
+        "treasury/statement-lines/<int:line_id>/match",
+        views.StatementLineMatchView.as_view(),
+        name="treasury-statement-line-match",
+    ),
 ]

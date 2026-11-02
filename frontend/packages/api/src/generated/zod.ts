@@ -20455,6 +20455,7 @@ export const ListStatementLinesQueryParams = zod.object({
 export const listStatementLinesResponseResultsItemDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listStatementLinesResponseResultsItemCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listStatementLinesResponseResultsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listStatementLinesResponseResultsItemMovementOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListStatementLinesResponse = zod.object({
@@ -20477,7 +20478,15 @@ export const ListStatementLinesResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string()
-}),zod.null()])
+}),zod.null()]),
+  "movement": zod.union([zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listStatementLinesResponseResultsItemMovementOneAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "label": zod.string(),
+  "reference": zod.string()
+}).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),zod.null()])
 }))
 })
 
@@ -21407,6 +21416,7 @@ export const SetStatementLinePartyBody = zod.object({
 export const setStatementLinePartyResponseDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const setStatementLinePartyResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const setStatementLinePartyResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setStatementLinePartyResponseMovementOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const SetStatementLinePartyResponse = zod.object({
@@ -21425,7 +21435,15 @@ export const SetStatementLinePartyResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string()
-}),zod.null()])
+}),zod.null()]),
+  "movement": zod.union([zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', setStatementLinePartyResponseMovementOneAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "label": zod.string(),
+  "reference": zod.string()
+}).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),zod.null()])
 })
 
 
@@ -21437,6 +21455,97 @@ export const DeleteStatementLineParams = zod.object({
 })
 
 export const DeleteStatementLineResponse = zod.void()
+
+
+/**
+ * The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+ * suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+ * a month. Nearest day first.
+ */
+export const ListMatchCandidatesParams = zod.object({
+  "line_id": zod.int()
+})
+
+export const listMatchCandidatesQueryByHandDefault = false;
+
+export const ListMatchCandidatesQueryParams = zod.object({
+  "by_hand": zod.boolean().default(listMatchCandidatesQueryByHandDefault)
+})
+
+export const listMatchCandidatesResponseMovementOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMatchCandidatesResponseItem = zod.object({
+  "movement": zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listMatchCandidatesResponseMovementOneAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "label": zod.string(),
+  "reference": zod.string()
+}).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),
+  "suggested": zod.boolean()
+})
+export const ListMatchCandidatesResponse = zod.array(ListMatchCandidatesResponseItem)
+
+
+/**
+ * The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+ * The same account; neither already matched. It changes no balance.
+ */
+export const MatchStatementLineParams = zod.object({
+  "line_id": zod.int()
+})
+
+
+
+
+export const MatchStatementLineBody = zod.object({
+  "movement": zod.int().min(1)
+})
+
+export const matchStatementLineResponseDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const matchStatementLineResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const matchStatementLineResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const matchStatementLineResponseMovementOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const MatchStatementLineResponse = zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "label": zod.string(),
+  "debit": zod.stringFormat('decimal', matchStatementLineResponseDebitRegExp),
+  "credit": zod.stringFormat('decimal', matchStatementLineResponseCreditRegExp),
+  "balance": zod.stringFormat('decimal', matchStatementLineResponseBalanceRegExp).nullable(),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "movement": zod.union([zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', matchStatementLineResponseMovementOneAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "label": zod.string(),
+  "reference": zod.string()
+}).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),zod.null()])
+})
+
+
+/**
+ * Undo a match (owner or manager): the line and the movement are free again.
+ */
+export const UnmatchStatementLineParams = zod.object({
+  "line_id": zod.int()
+})
+
+export const UnmatchStatementLineResponse = zod.void()
 
 
 /**
