@@ -3,7 +3,7 @@ import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import { Card, CardTitle } from "@frutti/ui";
 import { Link } from "react-router";
 
-/** Where the money of a record went (P9-T09c, D-242): each treasury movement it wrote, with the account it went
+/** Where the money of a record went (P9-T09c, D-251): each treasury movement it wrote, with the account it went
  * through, linked to that account's journal. Shows nothing when the record moved no money. */
 export function TreasuryTrace({ source, ids }: { source: string; ids: readonly number[] }) {
   const { t } = useTranslation();

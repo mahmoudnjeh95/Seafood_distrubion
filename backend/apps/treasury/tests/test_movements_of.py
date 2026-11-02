@@ -1,4 +1,4 @@
-"""Where the money of a record went (P9-T09c, D-242): the movements one source wrote for the given records, each with
+"""Where the money of a record went (P9-T09c, D-251): the movements one source wrote for the given records, each with
 the account it went through."""
 
 import datetime as dt

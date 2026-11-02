@@ -3458,7 +3458,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
 
-**D-242 · Each payment, sale and expense shows the account its money went through, linked to that account's journal (Phase 9, P9-T09c)** · accepted · 2026-11-02
+**D-251 · Each payment, sale and expense shows the account its money went through, linked to that account's journal (Phase 9, P9-T09c)** · accepted · 2026-11-02
 - The payment, sale, expense and partner-payout screens show "Où est passé l'argent": one line per treasury movement the
   record wrote, with the account (Caisse, bank account or a driver's cash) and the day, linked to that account's journal.
   The journal opens on that account (`?compte=`).
