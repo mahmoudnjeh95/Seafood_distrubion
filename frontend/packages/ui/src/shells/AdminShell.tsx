@@ -12,7 +12,14 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export interface AdminNavGroup {
   label: string;
-  items: { to: string; label: string; icon: IconName; badge?: string }[];
+  items: {
+    to: string;
+    label: string;
+    icon: IconName;
+    badge?: string;
+    /** Other paths this entry owns (its screens beyond `to`), so it stays lit on them (D-261). */
+    owns?: string[];
+  }[];
 }
 
 interface Props {
@@ -68,13 +75,15 @@ export function AdminShell({ nav, user, logoUrl, actions, onLogout, children }: 
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const [leaving, setLeaving] = useState(false);
-  // The menu entry that owns this page: the longest entry the path is under, so "Règlements fournisseurs"
-  // (/achats/reglements) lights up alone and not "Achats" (/achats) too.
+  // The menu entry that owns this page: the longest path the page is under (the entry's own or one it owns), so
+  // "Trésorier" (/achats/paiements, owned) lights up alone and not "Achats" (/achats) too.
   const path = pathname.replace(/\/+$/, "") || "/";
   const activeTo = nav
-    .flatMap((group) => group.items.map((item) => item.to))
-    .filter((to) => (to === "/" ? path === "/" : path === to || path.startsWith(`${to}/`)))
-    .sort((a, b) => b.length - a.length)[0];
+    .flatMap((group) =>
+      group.items.flatMap((item) => [item.to, ...(item.owns ?? [])].map((owned) => ({ owned, to: item.to }))),
+    )
+    .filter(({ owned }) => (owned === "/" ? path === "/" : path === owned || path.startsWith(`${owned}/`)))
+    .sort((a, b) => b.owned.length - a.owned.length)[0]?.to;
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 print:hidden flex flex-wrap items-center gap-4 border-b border-line bg-surface/90 px-5 py-3 backdrop-blur-md max-sm:gap-2.5 max-sm:px-4 max-sm:py-2.5">
