@@ -30,7 +30,9 @@ test("the demo sales are listed with what is still owed", async ({ page }) => {
   await expect(page.getByRole("list", { name: "Lots" }).first()).toContainText(/Lot L-\d+/);
 });
 
-test("a counter sale to the walk-in customer is weighed, paid and confirmed at once", async ({ page }) => {
+test("a counter sale to the walk-in customer is weighed and confirmed at once, its payment left to the treasurer", async ({
+  page,
+}) => {
   test.slow();
   await page.goto("/ventes");
   await page.getByRole("button", { name: "Vente comptoir" }).click();
@@ -50,19 +52,19 @@ test("a counter sale to the walk-in customer is weighed, paid and confirmed at o
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
 
-  await page.getByRole("group", { name: "Payé par" }).getByRole("button", { name: "Carte bancaire" }).click();
-  await page.getByRole("button", { name: /Encaisser 21,000\sDT/ }).click();
+  await page.getByRole("button", { name: /Enregistrer la vente \(21,000\sDT\)/ }).click();
 
-  await expect(page.getByRole("status")).toContainText(/Vente BL-\d{4}-\d+ encaissée/);
+  await expect(page.getByRole("status")).toContainText(/Vente BL-\d{4}-\d+ enregistrée/);
   // A new basket is ready for the next customer.
   await expect(line.getByRole("combobox", { name: "Produit" })).toHaveValue("");
-  await expect(page.getByRole("button", { name: /Encaisser 0,000\sDT/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Enregistrer la vente \(0,000\sDT\)/ })).toBeDisabled();
   await page.getByRole("link", { name: "Voir la vente" }).click();
 
   await expect(page.getByText("Confirmée", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Client de passage" })).toBeVisible();
-  await expect(page.getByText(/Carte bancaire · 21,000\sDT/)).toBeVisible();
-  await expect(page.getByRole("region", { name: /^Vente BL-/ })).toContainText(/Reste dû\s*0,000\sDT/);
+  // Nothing was paid at the counter: the money is the treasurer's, so the sale still owes all of it.
+  await expect(page.getByRole("region", { name: /^Vente BL-/ })).toContainText(/Reste dû\s*21,000\sDT/);
+  await expect(page.getByRole("link", { name: "Encaisser au trésorier" })).toBeVisible();
 });
 
 test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a reason", async ({ page }) => {
@@ -165,8 +167,6 @@ test("a sale asking more than the cold room holds is refused under its line", as
   const line = page.getByRole("row", { name: "Ligne 1", exact: true });
   await choose(page, line, "Produit", "Poulpe · PO-006");
   await line.getByLabel("Poids (kg)").fill("5000");
-  await page.getByLabel("Payé en entier").check();
-  await choose(page, page, "Mode de paiement", "Espèces");
 
   await page.getByRole("button", { name: "Enregistrer et confirmer" }).click();
 
