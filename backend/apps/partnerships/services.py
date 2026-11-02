@@ -641,9 +641,28 @@ def settle_partnership(
 # The money paid to a partner leaves our accounts the day it was paid, by the method it was paid with (P9-T05b, D-240).
 SETTLEMENT_PAYMENT_SOURCE = "partnerships.settlement_payment"
 ADVANCE_SOURCE = "partnerships.capital_advance"
+_EFFET_METHODS = (SettlementPaymentMethod.CHEQUE, SettlementPaymentMethod.BILL)
 
 
 def _post_settlement_money(payment: SettlementPayment, *, settlement: PartnerSettlement, actor: User | None) -> None:
+    if payment.method in _EFFET_METHODS:
+        # A cheque or a traite given to the partner is an effet issued (D-264): the money leaves when the bank debits
+        # it, and the office completes its bank and day in the Portefeuille.
+        treasury.register_instrument(
+            organization=payment.organization,
+            actor=actor,
+            direction="issued",
+            kind=payment.method,
+            number=payment.reference or settlement.partnership.batch.number,
+            bank=None,
+            amount=payment.amount,
+            issued_on=payment.paid_on,
+            due_on=None,
+            supplier=settlement.partnership.partner,
+            source_number=settlement.partnership.batch.number,
+            partial=True,
+        )
+        return
     treasury.post_movement(
         organization=payment.organization,
         account=treasury.line_account(payment.organization, payment.method, None),
@@ -664,4 +683,5 @@ def post_treasury_history(*, organization: Organization) -> None:
         "organization", "settlement__partnership__partner", "settlement__partnership__batch"
     )
     for payment in payments:
-        _post_settlement_money(payment, settlement=payment.settlement, actor=None)
+        if payment.method not in _EFFET_METHODS:  # an effet is written once, when the settlement is recorded
+            _post_settlement_money(payment, settlement=payment.settlement, actor=None)

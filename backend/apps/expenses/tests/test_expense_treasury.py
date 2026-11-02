@@ -7,7 +7,7 @@ import pytest
 from django.utils import timezone
 
 from apps.expenses import services
-from apps.treasury.models import AccountKind, TreasuryAccount, TreasuryMovement
+from apps.treasury.models import AccountKind, Instrument, TreasuryAccount, TreasuryMovement
 
 pytestmark = pytest.mark.django_db
 
@@ -68,3 +68,18 @@ def test_the_history_writes_approved_expenses_once(organization, actor, fuel):
     services.post_treasury_history(organization=organization)
 
     assert TreasuryMovement.objects.filter(source="expenses.expense", source_id=expense.pk).count() == 1
+
+
+def test_a_cheque_expense_is_an_effet_issued_and_moves_no_money_until_the_bank_debits_it(organization, actor, fuel):
+    expense = spend(organization, actor, fuel, Decimal("90.000"), payment_method="cheque")
+
+    services.approve_expense(expense=expense, actor=actor)
+
+    effet = Instrument.objects.get(organization=organization, source_number=expense.number)
+    assert (effet.direction, effet.kind, effet.status, effet.amount) == (
+        "issued",
+        "cheque",
+        "issued",
+        Decimal("90.000"),
+    )
+    assert not TreasuryMovement.objects.filter(source="expenses.expense", source_id=expense.pk).exists()
