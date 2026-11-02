@@ -3825,3 +3825,20 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   `ListExport`), and the two payment lists (already had a file, now sorted too). `?ordering=` is honoured, up to
   5000 rows, with a totals line. Cancelled, voided, rejected and draft amounts are left out of the totals.
 - The journals already export their statement. The file is read-only (GET only).
+**D-275 · A bank account's IBAN: the 24-character Tunisian one, checked, and the 15-character form (Phase 9, P9-T09j; owner answer)** · accepted · 2026-11-02
+- Replaces the provisional note of D-236. The IBAN of a bank account is accepted in two forms: the real Tunisian IBAN
+  (`TN`, two check digits, the 20 digits of the RIB: 24 characters), whose check digits are verified (ISO 7064 mod 97), and
+  the 15-character form the office's spec shows, which has no check to verify.
+- A Tunisian IBAN with wrong check digits is refused with a clear message. Spaces are dropped; each IBAN still belongs to
+  one account of the organization.
+
+## D-272 "Total de la page" row, set in the display settings (2026-11-02)
+
+- Money tables end with a "Total de la page" row: the sum of what the page shows, exact to the millime (`totalOf`).
+  Cancelled, voided, refused or rejected documents and unissued amounts are left out of the sum.
+- On for: customer and supplier payments, invoices, credit notes, sales, quotes, supplier invoices, expenses, field
+  purchases, employees and the two journals.
+- Whether the row shows is a display choice kept in the browser (`frutti.showTotals`), edited in Paramètres and in
+  Mon profil under "Affichage des listes", with the default rows per page. It is per person and device, not per company.
+- Not done, by choice: CSV export of the sorted view (the server exports already cover the main lists), hiding
+  columns, filters in the URL. They add screens and state for little gain at this stage.

@@ -16,6 +16,7 @@ export const fr = {
       range: "{{from}}–{{to}} sur {{count}}",
       perPage: "Lignes par page",
       export: "Exporter vers Excel",
+      pageTotal: "Total de la page",
       previous: "Précédent",
       next: "Suivant",
     },
@@ -131,6 +132,10 @@ export const fr = {
       numberingHint:
         "Le préfixe des clients, fournisseurs, produits et documents : chacun reçoit son numéro tout seul.",
       numberingOpen: "Modifier les préfixes",
+      display: "Affichage des listes",
+      displayHint: "Ces choix sont gardés sur cet appareil, pour votre compte.",
+      showTotals: "Afficher la ligne « Total de la page » sous les tableaux",
+      defaultPageSize: "Lignes par page",
     },
     // Numérotation (D-223): the prefix of each kind of number, set on Paramètres
     numbering: {

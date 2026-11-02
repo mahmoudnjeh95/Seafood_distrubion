@@ -43,6 +43,23 @@ if TYPE_CHECKING:
 # four characters, four digits, three digits); spaces are dropped before the check.
 SWIFT_RE = re.compile(r"[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?")
 IBAN_RE = re.compile(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{4}[0-9]{3}")
+# The real Tunisian IBAN (D-275): "TN" and two check digits, then the 20 digits of the RIB (24 characters).
+TUNISIAN_IBAN_RE = re.compile(r"TN[0-9]{22}")
+
+
+def iban_error(iban: str) -> str:
+    """What is wrong with an IBAN (spaces already dropped); empty when fine. The 24-character Tunisian IBAN has its
+    check digits verified (ISO 7064 mod 97); the 15-character form of the office's spec has none to verify."""
+    if TUNISIAN_IBAN_RE.fullmatch(iban):
+        moved = iban[4:] + iban[:4]
+        number = int("".join(str(int(char, 36)) for char in moved))
+        if number % 97 != 1:
+            return _("La clé de cet IBAN est fausse : vérifiez les chiffres.")
+        return ""
+    if IBAN_RE.fullmatch(iban):
+        return ""
+    return _("L'IBAN tunisien compte 24 caractères (TN et 22 chiffres) ; l'ancienne forme en compte 15.")
+
 
 # The Tunisian banks every organization starts with (code, name). Kept again in migration 0001 as data.
 DEFAULT_BANKS = (
@@ -909,10 +926,8 @@ def _checked_account(
             errors["rib"] = _("Le RIB compte %(count)s chiffres.") % {"count": RIB_DIGITS}
         elif rib and _taken(TreasuryAccount.objects.filter(organization=organization, rib=rib), account):
             errors["rib"] = _("Ce RIB appartient déjà à un autre compte.")
-        if iban and not IBAN_RE.fullmatch(iban):
-            errors["iban"] = _(
-                "L'IBAN compte deux lettres, deux chiffres, quatre caractères, quatre et trois chiffres."
-            )
+        if iban and iban_error(iban):
+            errors["iban"] = iban_error(iban)
         elif iban and _taken(TreasuryAccount.objects.filter(organization=organization, iban=iban), account):
             errors["iban"] = _("Cet IBAN appartient déjà à un autre compte.")
     else:
