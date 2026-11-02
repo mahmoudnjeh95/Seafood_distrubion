@@ -323,6 +323,18 @@ def advance_capital(
         reference=reference.strip()[:50],
         created_by=actor,
     )
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, method, None),
+        day=entry.entry_date,
+        amount=-value,
+        kind="partner_settlement",
+        label=f"Avance · {partnership.partner.name} · {partnership.batch.number}",
+        reference=entry.reference or partnership.batch.number,
+        source=ADVANCE_SOURCE,
+        source_id=entry.pk,
+        actor=actor,
+    )
     audit.record(
         organization=organization,
         actor=actor,
@@ -628,6 +640,7 @@ def settle_partnership(
 
 # The money paid to a partner leaves our accounts the day it was paid, by the method it was paid with (P9-T05b, D-240).
 SETTLEMENT_PAYMENT_SOURCE = "partnerships.settlement_payment"
+ADVANCE_SOURCE = "partnerships.capital_advance"
 
 
 def _post_settlement_money(payment: SettlementPayment, *, settlement: PartnerSettlement, actor: User | None) -> None:
