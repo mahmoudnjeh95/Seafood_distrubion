@@ -314,6 +314,7 @@ import type {
   ProductPrice,
   ProductStockDetail,
   ProfilePhotoUpload,
+  PurchaseFloatChange,
   QuoteConvert,
   QuoteDetail,
   QuoteRefuse,
@@ -15785,6 +15786,177 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordMyLocationsMutationOptions(options), queryClient);
+    }
+
+export const getGetMyPurchaseChangeUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/purchase-change`
+}
+
+/**
+ * The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+ * 404: nothing waits.
+ */
+export const getMyPurchaseChange = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PurchaseFloatChange> => {
+
+  return apiFetch<PurchaseFloatChange>(getGetMyPurchaseChangeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPurchaseChangeQueryKey = () => {
+    return [
+    `/api/v1/my-day/purchase-change`
+    ] as const;
+    }
+
+
+export const getGetMyPurchaseChangeQueryOptions = <TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPurchaseChangeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPurchaseChange>>> = ({ signal }) => getMyPurchaseChange({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyPurchaseChangeQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPurchaseChange>>>
+export type GetMyPurchaseChangeQueryError = unknown
+
+
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyPurchaseChange>>,
+          TError,
+          Awaited<ReturnType<typeof getMyPurchaseChange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyPurchaseChange>>,
+          TError,
+          Awaited<ReturnType<typeof getMyPurchaseChange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyPurchaseChangeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveMyPurchaseChangeUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/purchase-change/approve`
+}
+
+/**
+ * The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+ * once. 404 before the day is started.
+ */
+export const approveMyPurchaseChange = async ( options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+
+  return apiFetch<DriverDay>(getApproveMyPurchaseChangeUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveMyPurchaseChangeMutationKey = () => ['approveMyPurchaseChange'] as const;
+
+export const getApproveMyPurchaseChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMyPurchaseChange>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveMyPurchaseChange>>, TError,void, TContext> => {
+
+const mutationKey = getApproveMyPurchaseChangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveMyPurchaseChange>>, void> = () => {
+
+
+          return  approveMyPurchaseChange(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveMyPurchaseChangeMutationResult = NonNullable<Awaited<ReturnType<typeof approveMyPurchaseChange>>>
+
+    export type ApproveMyPurchaseChangeMutationError = unknown
+
+
+    export const useApproveMyPurchaseChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMyPurchaseChange>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveMyPurchaseChange>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getApproveMyPurchaseChangeMutationOptions(options), queryClient);
     }
 
 export const getListMyDaysUrl = () => {
