@@ -1,8 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-02 (side menu: one Trésorier entry, D-241; next free decision D-242)_
+_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; next free decision D-243)_
 
 ## Where we are
+
+- **D-242 (2026-11-02, PR open, provisional):** sending a driver's closing resets that driver's "Fonds de caisse" and
+  "Argent pour les achats" for the day to 0 (`fleet.services.end_driver_day`). The day's own figures stay. Check on staging:
+  Camions du jour › Fonds de caisse after a closing is sent shows 0 for that driver.
 
 - **2026-11-02, D-241 (branch `treasury-menu`, PR #276, awaits CI):** the side menu's Banques becomes **Trésorier**
   (opens Encaissement); Règlements clients, Règlements fournisseurs and Portefeuille leave the menu, the treasury ribbon
