@@ -1580,6 +1580,7 @@ export const ExportCustomerPaymentsQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
   "method": zod.enum(['cash', 'cheque', 'bill', 'transfer', 'card', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `bill` - Traite\n* `transfer` - Virement\n* `card` - Carte bancaire\n* `mixed` - Plusieurs moyens'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(exportCustomerPaymentsQuerySearchMax).default(exportCustomerPaymentsQuerySearchDefault),
   "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated')
 })
@@ -5552,6 +5553,31 @@ export const RejectExpenseResponse = zod.object({
 
 
 /**
+ * The expenses of the same filters and sort as the list, every row, as an Excel file.
+ */
+
+
+export const exportExpensesQuerySearchDefault = ``;
+export const exportExpensesQuerySearchMax = 100;
+
+
+
+
+export const ExportExpensesQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "category": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
+  "search": zod.string().max(exportExpensesQuerySearchMax).default(exportExpensesQuerySearchDefault),
+  "status": zod.enum(['draft', 'pending', 'approved', 'rejected']).optional().describe('* `draft` - Brouillon\n* `pending` - À approuver\n* `approved` - Approuvée\n* `rejected` - Refusée'),
+  "truck": zod.int().min(1).optional()
+})
+
+export const ExportExpensesResponse = zod.unknown()
+
+
+/**
  * How many expenses the same filters as `listExpenses` keep, and their totals: approved, and still
  * waiting (drafts and sent for approval).
  */
@@ -7972,6 +7998,30 @@ export const EstimateInvoiceResponse = zod.object({
   "extra": zod.stringFormat('decimal', estimateInvoiceResponseExtraRegExp),
   "extra_by_sale": zod.record(zod.string(), zod.string())
 }).describe('The invoice some BL would make, not saved (D-256).')
+
+
+/**
+ * The invoices of the same filters and sort as the list, every row, as an Excel file.
+ */
+
+
+export const exportInvoicesQuerySearchDefault = ``;
+export const exportInvoicesQuerySearchMax = 100;
+
+
+
+export const ExportInvoicesQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
+  "payment_state": zod.enum(['unpaid', 'partial', 'paid']).optional().describe('* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "sale": zod.int().min(1).optional(),
+  "search": zod.string().max(exportInvoicesQuerySearchMax).default(exportInvoicesQuerySearchDefault),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+})
+
+export const ExportInvoicesResponse = zod.unknown()
 
 
 /**
@@ -17739,6 +17789,31 @@ export const ConfirmSaleResponse = zod.object({
 
 
 /**
+ * The sales of the same filters and sort as the list, every row, as an Excel file.
+ */
+
+
+export const exportSalesQuerySearchDefault = ``;
+export const exportSalesQuerySearchMax = 100;
+
+export const exportSalesQueryUninvoicedDefault = false;
+
+export const ExportSalesQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "delivery_status": zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).optional().describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),
+  "location": zod.int().min(1).optional(),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
+  "search": zod.string().max(exportSalesQuerySearchMax).default(exportSalesQuerySearchDefault),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "uninvoiced": zod.boolean().default(exportSalesQueryUninvoicedDefault)
+})
+
+export const ExportSalesResponse = zod.unknown()
+
+
+/**
  * Every active product of the application, in the site's order, with its photo, its day's price and what
  * the site shows of it. A product the office never changed is shown, without a web price.
  */
@@ -18900,6 +18975,27 @@ export const PostSupplierInvoiceResponse = zod.object({
 
 
 /**
+ * The supplier invoices of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportSupplierInvoicesQueryOverdueDefault = false;
+export const exportSupplierInvoicesQuerySearchDefault = ``;
+export const exportSupplierInvoicesQuerySearchMax = 100;
+
+
+
+
+export const ExportSupplierInvoicesQueryParams = zod.object({
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
+  "overdue": zod.boolean().default(exportSupplierInvoicesQueryOverdueDefault),
+  "search": zod.string().max(exportSupplierInvoicesQuerySearchMax).default(exportSupplierInvoicesQuerySearchDefault),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid', 'open']).optional().describe('* `draft` - draft\n* `posted` - posted\n* `partly_paid` - partly_paid\n* `paid` - paid\n* `open` - open'),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const ExportSupplierInvoicesResponse = zod.unknown()
+
+
+/**
  * Payments to suppliers, newest first, paginated (voided ones too), with their means, the invoices each
  * one settled and the part not allocated yet. Filter by supplier, days paid, means (`mixed`: several),
  * state (`active`, `voided`, `unallocated`) or `search` (number, cheque or transfer reference, supplier).
@@ -19368,6 +19464,7 @@ export const ExportSupplierPaymentsQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(exportSupplierPaymentsQuerySearchMax).default(exportSupplierPaymentsQuerySearchDefault),
   "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
   "supplier": zod.int().min(1).optional(),

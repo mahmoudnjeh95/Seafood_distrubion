@@ -3818,3 +3818,10 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Lists loaded whole (customers, suppliers, employees, labourers, recurring costs, partnerships, flat document list)
   use `useTableView`. The document tree keeps its order; only the flat view sorts.
 - The rows-per-page choice (25/50/100/200) is remembered in the browser for all lists (`frutti.pageSize`).
+
+## D-276 Excel file of the filtered and sorted list (2026-11-02)
+
+- Lists: sales, invoices, supplier invoices, expenses (new `…/export` endpoints, reusing the list view's filters via
+  `ListExport`), and the two payment lists (already had a file, now sorted too). `?ordering=` is honoured, up to
+  5000 rows, with a totals line. Cancelled, voided, rejected and draft amounts are left out of the totals.
+- The journals already export their statement. The file is read-only (GET only).

@@ -16,7 +16,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
@@ -24,7 +24,8 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.core.api.pagination import PagedList
+from apps.core.api.exports import ORDERING_HELP
+from apps.core.api.pagination import PagedList, ordered
 from apps.core.models import Role
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.partners import selectors as partners
@@ -210,12 +211,18 @@ class CustomerPaymentTotalsView(OfficeView):
 class CustomerPaymentExportView(OfficeView):
     @extend_schema(
         operation_id="exportCustomerPayments",
-        parameters=[CustomerPaymentFilterSerializer],
+        parameters=[CustomerPaymentFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
         responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
     )
     def get(self, request: Request) -> HttpResponse:
         """The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked)."""
-        payments = list(_filtered_payments(self.organization, request)[:5000])
+        payments = list(
+            ordered(
+                _filtered_payments(self.organization, request),
+                request.query_params.get("ordering", ""),
+                CustomerPaymentListView.ordering_columns,
+            )[:5000]
+        )
         zero = Decimal("0.000")
 
         def allocated(payment: CustomerPayment) -> Decimal:

@@ -136,7 +136,7 @@ export function SupplierPaymentsPage() {
         totals={totals.data}
         methodLabel={methodLabel}
         restLabel={t("admin.treasury.list.advances")}
-        exportUrl={getExportSupplierPaymentsUrl(shared)}
+        exportUrl={getExportSupplierPaymentsUrl({ ...table.ordering, ...shared })}
       />
 
       {payments.isPending ? (

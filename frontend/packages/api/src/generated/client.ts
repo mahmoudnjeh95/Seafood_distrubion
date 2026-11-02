@@ -108,11 +108,15 @@ import type {
   ExportAccountStatementParams,
   ExportCashFlowReportParams,
   ExportCustomerPaymentsParams,
+  ExportExpensesParams,
+  ExportInvoicesParams,
   ExportLossesReportParams,
   ExportMonthResultReportParams,
   ExportPartnerReportParams,
+  ExportSalesParams,
   ExportSalesReportParams,
   ExportSlowMovingReportParams,
+  ExportSupplierInvoicesParams,
   ExportSupplierPaymentsParams,
   FieldPurchase,
   FieldPurchaseCreate,
@@ -8796,6 +8800,111 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRejectExpenseMutationOptions(options), queryClient);
     }
 
+export const getExportExpensesUrl = (params?: ExportExpensesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/expenses/export?${stringifiedParams}` : `/api/v1/expenses/export`
+}
+
+/**
+ * The expenses of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportExpenses = async (params?: ExportExpensesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportExpensesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportExpensesQueryKey = (params?: ExportExpensesParams,) => {
+    return [
+    `/api/v1/expenses/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportExpensesQueryOptions = <TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportExpensesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportExpenses>>> = ({ signal }) => exportExpenses(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportExpensesQueryResult = NonNullable<Awaited<ReturnType<typeof exportExpenses>>>
+export type ExportExpensesQueryError = unknown
+
+
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params: undefined |  ExportExpensesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof exportExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof exportExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportExpensesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetExpenseTotalsUrl = (params?: GetExpenseTotalsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -10977,6 +11086,111 @@ export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInv
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getEstimateInvoiceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportInvoicesUrl = (params?: ExportInvoicesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/invoices/export?${stringifiedParams}` : `/api/v1/invoices/export`
+}
+
+/**
+ * The invoices of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportInvoices = async (params?: ExportInvoicesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportInvoicesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportInvoicesQueryKey = (params?: ExportInvoicesParams,) => {
+    return [
+    `/api/v1/invoices/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportInvoicesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportInvoices>>> = ({ signal }) => exportInvoices(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof exportInvoices>>>
+export type ExportInvoicesQueryError = unknown
+
+
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params: undefined |  ExportInvoicesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportInvoicesQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -27233,6 +27447,111 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getConfirmSaleMutationOptions(options), queryClient);
     }
 
+export const getExportSalesUrl = (params?: ExportSalesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/sales/export?${stringifiedParams}` : `/api/v1/sales/export`
+}
+
+/**
+ * The sales of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportSales = async (params?: ExportSalesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportSalesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSalesQueryKey = (params?: ExportSalesParams,) => {
+    return [
+    `/api/v1/sales/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportSalesQueryOptions = <TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSalesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSales>>> = ({ signal }) => exportSales(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportSalesQueryResult = NonNullable<Awaited<ReturnType<typeof exportSales>>>
+export type ExportSalesQueryError = unknown
+
+
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params: undefined |  ExportSalesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSales>>,
+          TError,
+          Awaited<ReturnType<typeof exportSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSales>>,
+          TError,
+          Awaited<ReturnType<typeof exportSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportSalesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListSiteProductsUrl = () => {
 
 
@@ -29434,6 +29753,111 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getPostSupplierInvoiceMutationOptions(options), queryClient);
     }
+
+export const getExportSupplierInvoicesUrl = (params?: ExportSupplierInvoicesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/supplier-invoices/export?${stringifiedParams}` : `/api/v1/supplier-invoices/export`
+}
+
+/**
+ * The supplier invoices of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportSupplierInvoices = async (params?: ExportSupplierInvoicesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportSupplierInvoicesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSupplierInvoicesQueryKey = (params?: ExportSupplierInvoicesParams,) => {
+    return [
+    `/api/v1/supplier-invoices/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportSupplierInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSupplierInvoicesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSupplierInvoices>>> = ({ signal }) => exportSupplierInvoices(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportSupplierInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof exportSupplierInvoices>>>
+export type ExportSupplierInvoicesQueryError = unknown
+
+
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params: undefined |  ExportSupplierInvoicesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSupplierInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportSupplierInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSupplierInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportSupplierInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportSupplierInvoicesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSupplierPaymentsUrl = (params?: ListSupplierPaymentsParams,) => {
   const normalizedParams = new URLSearchParams();

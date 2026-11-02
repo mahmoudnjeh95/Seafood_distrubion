@@ -1,10 +1,20 @@
 """Pagination for lists that keep growing (batches, movements, invoices). Short lists are not paginated."""
 
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from django.db.models import QuerySet
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
+
+
+def ordered(queryset: Any, ordering: str, columns: Mapping[str, Sequence[str]]) -> Any:
+    """`queryset` sorted by `?ordering=key` / `-key` when `key` is one of the view's `columns`; else unchanged."""
+    key = ordering.removeprefix("-")
+    if not isinstance(queryset, QuerySet) or key not in columns:
+        return queryset
+    sign = "-" if ordering.startswith("-") else ""
+    return queryset.order_by(*(f"{sign}{lookup}" for lookup in columns[key]), "-pk")
 
 
 class PagedList(LimitOffsetPagination):
@@ -20,11 +30,7 @@ class PagedList(LimitOffsetPagination):
 
     def paginate_queryset(self, queryset: Any, request: Request, view: Any = None) -> list[Any] | None:
         columns: dict[str, tuple[str, ...]] = getattr(view, "ordering_columns", {})
-        raw = request.query_params.get("ordering", "")
-        key = raw.removeprefix("-")
-        if isinstance(queryset, QuerySet) and key in columns:
-            descending = raw.startswith("-")
-            queryset = queryset.order_by(*(f"-{lookup}" if descending else lookup for lookup in columns[key]), "-pk")
+        queryset = ordered(queryset, request.query_params.get("ordering", ""), columns)
         return super().paginate_queryset(queryset, request, view)
 
     def get_schema_operation_parameters(self, view: Any) -> list[dict[str, Any]]:

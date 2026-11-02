@@ -2,6 +2,7 @@ import { type ListSupplierInvoicesStatus, useGetSupplier, useListSupplierInvoice
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import {
+  getExportSupplierInvoicesUrl,
   Button,
   Card,
   cn,
@@ -25,6 +26,7 @@ import { useDebounced } from "../lib/useDebounced";
 import { canRecordReceipts } from "../receipts/shared";
 import { PurchasingTabs } from "./PurchasingTabs";
 import { idFrom, STATUS_TONE } from "./shared";
+import { ExportButton } from "../lib/ExportButton";
 
 const FILTERS = ["open", "draft", "paid", "all"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -46,14 +48,14 @@ export function SupplierInvoicesPage() {
   const query = useDebounced(search.trim());
 
   const status: ListSupplierInvoicesStatus | undefined = filter === "all" ? undefined : filter;
+  const filters = {
+    overdue: onlyOverdue,
+    ...(status ? { status } : {}),
+    ...(query ? { search: query } : {}),
+    ...(supplierId ? { supplier: supplierId } : {}),
+  };
   const invoices = useListSupplierInvoices(
-    {
-      ...table.params,
-      overdue: onlyOverdue,
-      ...(status ? { status } : {}),
-      ...(query ? { search: query } : {}),
-      ...(supplierId ? { supplier: supplierId } : {}),
-    },
+    { ...table.params, ...filters },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = invoices.data;
@@ -72,6 +74,7 @@ export function SupplierInvoicesPage() {
             {t("admin.supplierInvoices.add")}
           </Button>
         )}
+        <ExportButton href={getExportSupplierInvoicesUrl({ ...table.ordering, ...filters })} />
       </PageHeader>
 
       <PurchasingTabs />

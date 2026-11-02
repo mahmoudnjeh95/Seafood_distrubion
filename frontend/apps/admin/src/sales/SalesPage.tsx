@@ -2,6 +2,7 @@ import { createInvoice, type DeliveryStatusEnum, type SaleStatusEnum, useListSal
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, useTranslation } from "@frutti/i18n";
 import {
+  getExportSalesUrl,
   Button,
   Card,
   cn,
@@ -25,6 +26,7 @@ import { Link, useNavigate, useOutletContext } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { canSell, DELIVERY_TONES, SALE_STATUSES, STATUS_TONES } from "./shared";
+import { ExportButton } from "../lib/ExportButton";
 
 // The BL of the truck loads by where their delivery stands (D-178).
 const DELIVERY_FILTERS: DeliveryStatusEnum[] = ["to_deliver", "partial", "delivered", "cancelled"];
@@ -47,16 +49,13 @@ export function SalesPage() {
   const query = useDebounced(search.trim());
   const queryClient = useQueryClient();
 
-  const sales = useListSales(
-    {
-      ...table.params,
-      ...(status ? { status } : {}),
-      ...(delivery ? { delivery_status: delivery } : {}),
-      ...(query ? { search: query } : {}),
-      ...(uninvoiced ? { uninvoiced: true } : {}),
-    },
-    { query: { placeholderData: keepPreviousData } },
-  );
+  const filters = {
+    ...(status ? { status } : {}),
+    ...(delivery ? { delivery_status: delivery } : {}),
+    ...(query ? { search: query } : {}),
+    ...(uninvoiced ? { uninvoiced: true } : {}),
+  };
+  const sales = useListSales({ ...table.params, ...filters }, { query: { placeholderData: keepPreviousData } });
   const page = sales.data;
   const list = page?.results ?? [];
   const filtering = query !== "" || status !== "" || delivery !== "" || uninvoiced;
@@ -111,6 +110,7 @@ export function SalesPage() {
             </Button>
           </>
         )}
+        <ExportButton href={getExportSalesUrl({ ...table.ordering, ...filters })} />
       </PageHeader>
 
       {!canWrite && <p className="text-ink-2">{t("admin.sales.readOnly")}</p>}
