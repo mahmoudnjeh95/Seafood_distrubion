@@ -3706,3 +3706,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The owner's answer on D-241: the side menu's Trésorier is highlighted on every treasury ribbon screen (Encaissement, Décaissement, Banque, Agences, Caisses, Portefeuille, Bordereau, Ordre de paiement, the journals and états), not only on `/reglements`.
 
 - The menu entry can own more paths: an optional `owns` list on a nav item (`AdminShell`). The active entry is the longest path the page is under, its own or an owned one, so the Trésorier entry owns `/tresorerie`, `/achats/paiements` and `/achats/reglements`, and `Achats` no longer lights up on the supplier payment screens.
+
+**D-258 · The office chooses the cold room that takes the truck's stock back (owner request, 2026-11-02; updates D-249)** · accepted · 2026-11-02
+- The owner's answer to D-249's provisional points: the approval stays blocked while the truck holds stock or boxes, and
+  the return no longer goes to the first active cold room by itself. "Remettre le camion en stock" asks for the cold
+  room each time, among the active ones; with one active room it is preselected.
+- `POST /day-overview/<id>/return-to-stock` takes `to_location_id` (optional body). Without it the server refuses when
+  there are several active cold rooms ("Choisissez la chambre froide qui reçoit le stock."), and takes the only one when
+  there is one; an id that is not an active cold room is refused. The day's detail lists `cold_rooms` (`id`, `name`).
+- The review's button shows a "Chambre froide qui reçoit le stock" choice, and a message when there is no active cold room.
+- Test: `dayclose/tests/test_day_review.py` (two cold rooms: refused without a choice, the kilos go to the room named).
+- No migration.
