@@ -5,6 +5,7 @@ import { Card, CardTitle, EmptyState, PageHeader, Pill } from "@frutti/ui";
 import { Link, useOutletContext } from "react-router";
 
 import { monthLabel } from "../hr/shared";
+import { DueAlertsCard } from "../treasury/DueAlertsCard";
 
 function Kpi({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "good" | "bad" }) {
   // formatMoney ends with the currency after a no-break space: show it smaller next to the figure.
@@ -120,6 +121,8 @@ export function DashboardPage() {
           />
         </div>
       </section>
+
+      <DueAlertsCard />
 
       <Card className="p-4">
         <CardTitle>{t("admin.dashboard.alerts.title")}</CardTitle>
