@@ -532,7 +532,7 @@ def test_a_counter_sale_without_customer_is_the_walk_in_customer_and_its_money_c
     receive(organization, crevette, counter, "10")
     lines = [{"product": crevette, "quantity": "1"}]
 
-    # The office types no payment at the counter (D-240): the sale is confirmed unpaid, the treasurer takes the money.
+    # The office types no payment at the counter (D-245): the sale is confirmed unpaid, the treasurer takes the money.
     unpaid = sale(organization, actor, None, counter, lines, confirm=True)
     paid = sale(
         organization,

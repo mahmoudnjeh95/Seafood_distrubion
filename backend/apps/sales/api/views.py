@@ -235,7 +235,7 @@ class SalesPermission(HasRole):
 
 def _payment(data: dict[str, Any], *, driver: bool) -> services.PaymentFields | None:
     """What a driver's phone says was paid on the spot (D-133). The office types no payment: its money comes in
-    through a règlement of the treasury (D-240), so a payment typed there is refused, and `None` leaves the sale
+    through a règlement of the treasury (D-245), so a payment typed there is refused, and `None` leaves the sale
     unpaid (or keeps what a draft already says, see `services.update_sale`)."""
     if not driver:
         if data["paid_in_full"] or data["amount_paid"] not in (None, "") or data["payment_method"]:
@@ -407,7 +407,8 @@ class SaleListView(SaleView, ListAPIView[Sale]):
     def post(self, request: Request) -> Response:
         """Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
         and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
-        The office types no payment: it comes in through a règlement (D-240); a driver's phone says what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
+        The office types no payment: the money comes in through a règlement of the treasurer. A driver's phone says
+        what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
         Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
         day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
         day's price, also when it was kept without connection and sent later. Within 5 minutes of the

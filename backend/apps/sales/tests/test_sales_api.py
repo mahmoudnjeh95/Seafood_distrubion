@@ -159,7 +159,7 @@ def test_a_counter_sale_without_customer_goes_to_the_walk_in_customer(api, organ
         confirm_now=True,
     )
 
-    # The office's counter sale is left unpaid: the treasurer takes the money in Règlements clients (D-240).
+    # The office's counter sale is left unpaid: the treasurer takes the money in Règlements clients (D-245).
     assert unpaid.status_code == 201
     assert unpaid.json()["customer"]["is_walk_in"] is True
     assert (unpaid.json()["amount_paid"], unpaid.json()["amount_due"]) == ("0.000", "42.000")

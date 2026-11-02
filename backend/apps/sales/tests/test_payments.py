@@ -202,7 +202,7 @@ def test_payment_input_is_checked(organization, actor, customer):
 
 def test_a_counter_sale_to_the_walk_in_customer_is_settled_by_a_payment(organization, actor, counter, stocked):
     walk_in = partners.ensure_walk_in_customer(organization=organization, actor=actor)
-    # The office types no payment at the counter (D-240): the sale is left to the treasurer.
+    # The office types no payment at the counter (D-245): the sale is left to the treasurer.
     sale = make_sale(organization, actor, walk_in, counter, stocked, "1")
     assert (sale.amount_paid, sale.amount_due) == (D("0.000"), D("42.000"))
 

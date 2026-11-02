@@ -677,7 +677,7 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
 
 
 def _kept_payment(sale: Sale) -> PaymentFields:
-    """What a draft already says it was paid (a driver's phone recorded it). The office types no payment (D-240),
+    """What a draft already says it was paid (a driver's phone recorded it). The office types no payment (D-245),
     so when it changes the lines, the draft keeps this."""
     return {
         "amount_paid": str(sale.amount_paid),
@@ -1356,7 +1356,7 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     draft until the owner or a manager confirms it (`approve_credit`, granted by the view only to them);
     `warn` lets it through and logs it. The customer row is locked so two sellers cannot both pass. The
     walk-in customer pays everything on the spot when a driver sold it (D-047); a counter sale at the office
-    is paid through a règlement of the treasury instead (D-240), so the walk-in customer has no limit to check.
+    is paid through a règlement of the treasury instead (D-245), so the walk-in customer has no limit to check.
     """
     due = sale.total - sale.amount_paid
     if sale.customer.is_walk_in:
@@ -3061,7 +3061,7 @@ def record_customer_payment(
     `allocations` None takes the customer's oldest open sales first; a list names the sales and amounts
     (empty keeps everything as credit). What is not allocated stays the customer's credit: their balance
     already counts the whole payment, and `allocate_customer_payment` can settle sales with it later. The walk-in
-    customer's counter sales are paid the same way (D-240). Numbered RG-0001... in the same transaction.
+    customer's counter sales are paid the same way (D-245). Numbered RG-0001... in the same transaction.
     """
     if client_uuid is not None:
         existing = CustomerPayment.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
