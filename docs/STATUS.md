@@ -1,9 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-02 (primes not subject to CNSS, D-263, docs only; office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-264)_
+_Last updated: 2026-11-02 (D-268: a receipt makes no supplier invoice, PR awaits CI; next free decision D-269)_
 
 ## Where we are
 
+- **D-268 (owner request 2026-11-02, branch `receipt-no-auto-invoice`, PR awaits CI):** the office receipt form no longer makes a supplier invoice ("Dû dès la réception" removed, D-159 superseded for it). The BR detail page has "Créer la facture" with the BR preselected. Money given at the reception is an advance the invoice takes. Check on staging: a new BR shows "Pas encore facturée" with the link; the link opens the invoice form with the BR ticked.
 - **P9-T10 (D-256, branch `bl-invoice-gap`, awaits CI):** a BL paid at its goods and invoiced later no longer looks silently
   paid. Estimate of the invoice (`GET /invoices/estimate`, `estimated_extra` on open BL), invoice `payment_state` /
   `paid_total` / `extra_over_goods`, filter and pill on Factures, gap banner with a link to a new règlement. Not done:

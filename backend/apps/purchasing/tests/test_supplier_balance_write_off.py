@@ -55,17 +55,25 @@ def product(organization):
 
 
 def owe(organization, supplier, room, product, amount: str, received_on: dt.date):
-    """A delivery of 1 kg at `amount` DT, invoiced at once and owed."""
-    return services.receive_and_invoice(
+    """A delivery of 1 kg at `amount` DT, its invoice posted at once and owed (D-268: receipt, then invoice)."""
+    receipt = services.receive_goods(
         organization=organization,
         actor=None,
         supplier=supplier,
         location=room,
         received_on=received_on,
         lines=[{"product": product, "invoiced_quantity": "1", "accepted_quantity": "1", "unit_cost": amount}],
-        terms="days",
-        due_days=30,
     )
+    services.create_invoice(
+        organization=organization,
+        actor=None,
+        supplier=supplier,
+        receipts=[receipt],
+        invoice_date=received_on,
+        due_date=services.due_date_of(received_on, "days", 30),
+        post=True,
+    )
+    return receipt
 
 
 def on_the_lot(amount):

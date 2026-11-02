@@ -123,7 +123,15 @@ export function ReceiptDetailPage() {
                 {data.invoice.number}
               </Link>
             ) : (
-              t("admin.receipts.detail.notInvoiced")
+              <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                {t("admin.receipts.detail.notInvoiced")}
+                <Link
+                  to={`/achats/factures/nouvelle?fournisseur=${data.supplier.id}&reception=${data.id}`}
+                  className="font-semibold text-sea hover:underline"
+                >
+                  {t("admin.receipts.detail.createInvoice")}
+                </Link>
+              </span>
             )}
           </Detail>
           {data.notes && (

@@ -22117,8 +22117,9 @@ export const getCreateReceiptUrl = () => {
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
  * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
- * against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
- * `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
+ * against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+ * invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+ * kept as advances the invoice takes (D-268).
  */
 export const createReceipt = async (receiptWrite: ReceiptWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
 
