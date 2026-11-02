@@ -15,6 +15,7 @@ from apps.catalog.tests.factories import ProductFactory
 from apps.core.models import AuditLog, Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.fleet import services as fleet
+from apps.fleet.models import PurchaseFloatChange
 from apps.inventory.tests.factories import StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.purchasing import services
@@ -312,20 +313,28 @@ def test_the_closing_shows_the_purchase_money_and_the_office_counts_it_apart(set
     assert late.status_code == 403
 
 
-def test_the_purchase_money_is_changed_by_the_office_only_while_the_day_runs(setup):
-    # The driver cannot type it any more (D-248): there is no route for it on the phone.
+def test_the_office_changes_the_purchase_money_of_a_running_day_only_once_the_driver_approves(setup):
+    # The driver cannot type it (D-248): there is no route for it on the phone.
     refused = setup["api"].put("/api/v1/my-day/purchase-float", {"purchase_float": "1500"}, format="json")
     assert refused.status_code == 404
     today = timezone.localdate().isoformat()
     driver_id = setup["driver"].user_id
-    changed = setup["owner"].put(
+    proposed = setup["owner"].put(
         reverse("day-fund-list"),
         {"driver": driver_id, "date": today, "opening_cash": "50", "purchase_float": "1500"},
         format="json",
     )
-    assert changed.status_code == 200, changed.json()
-    assert changed.json()["purchase_float"] == "1500.000"
-    assert summary(setup)["expected_purchase_cash"] == "1500.000"
+    assert proposed.status_code == 200, proposed.json()
+    # Until the driver approves, the amount in force stays: 1 000 DT is what they can spend (D-260).
+    assert proposed.json()["purchase_float"] == "1000.000"
+    assert summary(setup)["expected_purchase_cash"] == "1000.000"
+    waiting = setup["api"].get(reverse("my-purchase-change"))
+    assert waiting.status_code == 200
+    assert waiting.json()["amount"] == "1500.000"
+    assert waiting.json()["previous_amount"] == "1000.000"
+    rows = setup["owner"].get(reverse("day-fund-list"), {"date": today}).json()
+    row = next(item for item in rows if item["driver"]["id"] == driver_id)
+    assert row["pending_purchase_float"] == "1500.000"
     # The cash the driver accepted does not change once the day runs.
     cash_changed = setup["owner"].put(
         reverse("day-fund-list"),
@@ -333,13 +342,39 @@ def test_the_purchase_money_is_changed_by_the_office_only_while_the_day_runs(set
         format="json",
     )
     assert cash_changed.status_code == 400
-    setup["api"].post(reverse("my-day-closing"), {}, format="json")
-    after = setup["owner"].put(
+    # The driver agrees on the phone: the new money takes effect, and the record keeps who agreed and when.
+    approved = setup["api"].post(reverse("my-purchase-change-approve"), format="json")
+    assert approved.status_code == 200, approved.json()
+    assert approved.json()["purchase_float"] == "1500.000"
+    assert summary(setup)["expected_purchase_cash"] == "1500.000"
+    change = PurchaseFloatChange.objects.get(driver_day__driver_id=driver_id)
+    assert change.status == PurchaseFloatChange.Status.APPROVED
+    assert change.decided_by_id == driver_id
+    assert setup["api"].get(reverse("my-purchase-change")).status_code == 404
+    assert setup["api"].post(reverse("my-purchase-change-approve"), format="json").status_code == 400
+
+
+def test_a_proposal_the_driver_did_not_approve_before_the_closing_expires(setup):
+    today = timezone.localdate().isoformat()
+    driver_id = setup["driver"].user_id
+    proposed = setup["owner"].put(
+        reverse("day-fund-list"),
+        {"driver": driver_id, "date": today, "opening_cash": "50", "purchase_float": "1500"},
+        format="json",
+    )
+    assert proposed.status_code == 200, proposed.json()
+    closed = setup["api"].post(reverse("my-day-closing"), {}, format="json")
+    assert closed.status_code == 201
+    change = PurchaseFloatChange.objects.get(driver_day__driver_id=driver_id)
+    assert change.status == PurchaseFloatChange.Status.EXPIRED
+    assert change.decided_by_id is None
+    # Once the closing is sent, the money for purchases of that day does not change any more.
+    late = setup["owner"].put(
         reverse("day-fund-list"),
         {"driver": driver_id, "date": today, "opening_cash": "50", "purchase_float": "2000"},
         format="json",
     )
-    assert after.status_code == 400
+    assert late.status_code == 400
 
 
 def test_a_day_with_purchase_money_left_is_approved_only_once_that_money_is_counted(setup):

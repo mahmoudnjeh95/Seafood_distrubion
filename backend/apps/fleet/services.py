@@ -17,7 +17,7 @@ from apps.core.models import Membership, Organization, Role, User
 from apps.inventory import services as inventory
 from apps.inventory.services import LocationKind
 
-from .models import DayFund, DriverDay, LocationPing, Truck, TruckAssignment, TruckCondition
+from .models import DayFund, DriverDay, LocationPing, PurchaseFloatChange, Truck, TruckAssignment, TruckCondition
 
 
 class _Unchanged:
@@ -374,8 +374,8 @@ def set_day_fund(
     purchase_float: Decimal = Decimal("0.000"),
 ) -> DayFund:
     """The office sets the cash it hands a driver for a day (D-203). It changes freely until the driver accepts it
-    (which starts the day). Once started, the accepted cash stays as it is and only the money for purchases changes,
-    and only the office changes it (D-248); a day whose closing is sent keeps its figures."""
+    (which starts the day). Once started, the accepted cash stays as it is, and a new money for purchases is a
+    proposal the driver approves on the phone (D-248, D-260): the amount in force stays until then."""
     errors: dict[str, str] = {}
     if opening_cash < 0:
         errors["opening_cash"] = _("Le fonds de caisse ne peut pas être négatif.")
@@ -394,10 +394,9 @@ def set_day_fund(
             raise ValidationError(
                 {"opening_cash": _("Le chauffeur a déjà accepté son fonds de caisse : il ne change plus.")}
             )
-        if day.ended_at is not None and purchase_float != day.purchase_float:
-            raise ValidationError(
-                {"purchase_float": _("Sa journée est clôturée : l'argent pour les achats ne change plus.")}
-            )
+        # The money for purchases of a running day is a proposal the driver approves (D-260).
+        propose_purchase_float(driver_day=day, actor=actor, amount=purchase_float)
+        return fund
     before = {"opening_cash": str(fund.opening_cash), "purchase_float": str(fund.purchase_float)}
     fund.opening_cash = opening_cash
     fund.purchase_float = purchase_float
@@ -411,20 +410,96 @@ def set_day_fund(
         before=before,
         after={"opening_cash": str(opening_cash), "purchase_float": str(purchase_float), "date": str(date)},
     )
-    if day is not None and day.purchase_float != purchase_float:
-        # The running day takes the new money at once; the phone shows it and cannot change it (D-248).
-        day_before = str(day.purchase_float)
-        day.purchase_float = purchase_float
-        day.save(update_fields=["purchase_float", "updated_at"])
-        audit.record(
-            organization=organization,
-            actor=actor,
-            action="driver_day.purchase_float_set",
-            target=day,
-            before={"purchase_float": day_before},
-            after={"purchase_float": str(purchase_float)},
-        )
     return fund
+
+
+@transaction.atomic
+def propose_purchase_float(*, driver_day: DriverDay, actor: User, amount: Decimal) -> PurchaseFloatChange | None:
+    """The office proposes a new money for purchases on a running day (D-260). Nothing changes for the driver until
+    they approve it on the phone: the amount in force (what they can spend) stays. A new proposal replaces the
+    pending one, which is kept as replaced. Proposing the amount in force again withdraws the pending proposal.
+    Refused once the closing is sent, unless the amount is the one already in force."""
+    if amount < 0:
+        raise ValidationError({"purchase_float": _("L'argent pour les achats ne peut pas être négatif.")})
+    day = DriverDay.objects.select_for_update().get(pk=driver_day.pk)
+    if day.ended_at is not None:
+        if amount != day.purchase_float:
+            raise ValidationError(
+                {"purchase_float": _("Sa journée est clôturée : l'argent pour les achats ne change plus.")}
+            )
+        return None
+    pending = _pending_purchase_float_change(day)
+    if pending is not None:
+        if pending.amount == amount:
+            return pending
+        pending.status = PurchaseFloatChange.Status.REPLACED
+        pending.decided_at = timezone.now()
+        pending.save(update_fields=["status", "decided_at", "updated_at"])
+    if amount == day.purchase_float:
+        audit.record(
+            organization=day.organization,
+            actor=actor,
+            action="driver_day.purchase_float_withdrawn",
+            target=day,
+            after={"purchase_float": str(amount)},
+        )
+        return None
+    change = PurchaseFloatChange.objects.create(
+        organization=day.organization,
+        driver_day=day,
+        previous_amount=day.purchase_float,
+        amount=amount,
+        proposed_by=actor,
+    )
+    audit.record(
+        organization=day.organization,
+        actor=actor,
+        action="driver_day.purchase_float_proposed",
+        target=day,
+        before={"purchase_float": str(day.purchase_float)},
+        after={"purchase_float": str(amount)},
+    )
+    return change
+
+
+@transaction.atomic
+def approve_purchase_float(*, driver_day: DriverDay, actor: User) -> DriverDay:
+    """The driver agrees on the phone to the money for purchases the office proposed (D-260). It takes effect at once;
+    the record keeps who agreed and when. Refused when nothing is waiting or the closing is sent."""
+    day = DriverDay.objects.select_for_update().get(pk=driver_day.pk)
+    if day.ended_at is not None:
+        raise ValidationError({"purchase_float": _("Votre journée est clôturée : elle ne change plus.")})
+    change = _pending_purchase_float_change(day)
+    if change is None:
+        raise ValidationError({"purchase_float": _("Aucun nouveau montant à accepter.")})
+    before = str(day.purchase_float)
+    day.purchase_float = change.amount
+    day.save(update_fields=["purchase_float", "updated_at"])
+    change.status = PurchaseFloatChange.Status.APPROVED
+    change.decided_by = actor
+    change.decided_at = timezone.now()
+    change.save(update_fields=["status", "decided_by", "decided_at", "updated_at"])
+    DayFund.objects.filter(organization=day.organization, driver=day.driver, date=day.date).update(
+        purchase_float=change.amount, updated_at=timezone.now()
+    )
+    audit.record(
+        organization=day.organization,
+        actor=actor,
+        action="driver_day.purchase_float_approved",
+        target=day,
+        before={"purchase_float": before},
+        after={"purchase_float": str(change.amount)},
+    )
+    return day
+
+
+def _pending_purchase_float_change(day: DriverDay) -> PurchaseFloatChange | None:
+    """The proposal of the money for purchases waiting for the driver's approval, if any (D-260)."""
+    return (
+        PurchaseFloatChange.objects.select_for_update()
+        .filter(driver_day=day, status=PurchaseFloatChange.Status.PENDING)
+        .first()
+    )
 
 
 @transaction.atomic
@@ -466,6 +541,12 @@ def end_driver_day(*, driver_day: DriverDay, ended_at: datetime) -> DriverDay:
     if driver_day.ended_at is None:
         driver_day.ended_at = ended_at
         driver_day.save(update_fields=["ended_at", "updated_at"])
+        # A proposal the driver did not approve before the closing is kept as expired (D-260).
+        pending = _pending_purchase_float_change(driver_day)
+        if pending is not None:
+            pending.status = PurchaseFloatChange.Status.EXPIRED
+            pending.decided_at = ended_at
+            pending.save(update_fields=["status", "decided_at", "updated_at"])
         _reset_day_fund(driver_day)
     return driver_day
 

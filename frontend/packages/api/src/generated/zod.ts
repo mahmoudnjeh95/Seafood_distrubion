@@ -3187,6 +3187,7 @@ export const ListDayFundsQueryParams = zod.object({
 
 export const listDayFundsResponseFundOneOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listDayFundsResponseFundOnePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listDayFundsResponsePendingPurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListDayFundsResponseItem = zod.object({
@@ -3202,7 +3203,9 @@ export const ListDayFundsResponseItem = zod.object({
   "accepted_at": zod.iso.datetime({"offset":true}).nullable()
 }).describe('The cash the office set for a driver\'s day (D-203).'),zod.null()]),
   "started": zod.boolean(),
-  "ended": zod.boolean()
+  "ended": zod.boolean(),
+  "pending_purchase_float": zod.stringFormat('decimal', listDayFundsResponsePendingPurchaseFloatRegExp).nullable(),
+  "pending_proposed_at": zod.iso.datetime({"offset":true}).nullable()
 }).describe('One driver on the office\'s "Fonds de caisse" list of a day.')
 export const ListDayFundsResponse = zod.array(ListDayFundsResponseItem)
 
@@ -10454,6 +10457,39 @@ export const RecordMyLocationsBody = zod.object({
 
 export const RecordMyLocationsResponse = zod.object({
   "saved": zod.int()
+})
+
+
+/**
+ * The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+ * 404: nothing waits.
+ */
+export const getMyPurchaseChangeResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getMyPurchaseChangeResponsePreviousAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetMyPurchaseChangeResponse = zod.object({
+  "amount": zod.stringFormat('decimal', getMyPurchaseChangeResponseAmountRegExp),
+  "previous_amount": zod.stringFormat('decimal', getMyPurchaseChangeResponsePreviousAmountRegExp),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The money for purchases the office proposed on the phone\'s day, waiting for the driver\'s approval (D-260).')
+
+
+/**
+ * The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+ * once. 404 before the day is started.
+ */
+export const approveMyPurchaseChangeResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const approveMyPurchaseChangeResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ApproveMyPurchaseChangeResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', approveMyPurchaseChangeResponseOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', approveMyPurchaseChangeResponsePurchaseFloatRegExp),
+  "ended_at": zod.iso.datetime({"offset":true}).nullable()
 })
 
 

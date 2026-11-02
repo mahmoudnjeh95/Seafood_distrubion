@@ -1,9 +1,11 @@
 import {
   type MyBoxDay,
   useAssignTruck,
+  useApproveMyPurchaseChange,
   useGetMyBoxDay,
   useGetMyDay,
   useGetMyDayFund,
+  useGetMyPurchaseChange,
   useGetMyTruckDay,
   useListMyDays,
   useListMyStock,
@@ -96,14 +98,47 @@ function BoxDayCard({ day }: { day: MyBoxDay }) {
   );
 }
 
-/** The money the office gave for purchases at the port, kept apart from the sales cash (D-158). Read only on the
- * phone: the driver approved it when starting the day, and only the office changes it (D-248). */
+/** The money the office gave for purchases at the port, kept apart from the sales cash (D-158). The amount in force
+ * is what the driver can spend. A new amount the office proposes waits for the driver's approval on the phone; the
+ * driver cannot edit it (D-248, D-260). */
 function PurchaseFloat({ amount }: { amount: string }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const change = useGetMyPurchaseChange({ query: { refetchInterval: 60_000, retry: false } });
+  const approve = useApproveMyPurchaseChange({
+    mutation: {
+      onSuccess: () => {
+        toast.success(t("truck.purchase.changeSaved"));
+        void queryClient.invalidateQueries();
+      },
+      onError: () => toast.error(t("truck.purchase.changeFailed")),
+    },
+  });
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <p className="text-ink-2">{t("truck.purchase.floatIs", { amount: formatMoney(amount) })}</p>
-      <p className="text-sm text-ink-2">{t("truck.purchase.floatOfficeOnly")}</p>
+      {change.data ? (
+        <Card className="space-y-2 border-2 border-warn">
+          <p className="font-semibold">
+            {t("truck.purchase.changeProposed", {
+              amount: formatMoney(change.data.amount),
+              previous: formatMoney(change.data.previous_amount),
+            })}
+          </p>
+          <p className="text-sm text-ink-2">{t("truck.purchase.changeHint")}</p>
+          <ConfirmButton
+            variant="primary"
+            disabled={approve.isPending}
+            title={t("truck.purchase.changeConfirm")}
+            rows={[[t("truck.purchase.float"), formatMoney(change.data.amount)]]}
+            onConfirm={() => approve.mutate()}
+          >
+            {t("truck.purchase.changeAccept")}
+          </ConfirmButton>
+        </Card>
+      ) : (
+        <p className="text-sm text-ink-2">{t("truck.purchase.floatOfficeOnly")}</p>
+      )}
     </div>
   );
 }

@@ -3539,12 +3539,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (`PUT /day-funds`). The driver approves it with the cash when starting the day (D-203, `POST /my-day`), then cannot change it.
 - Removed: the driver's `PUT /my-day/purchase-float` (D-158's "typed again while the day runs"). The phone shows the amount
   with "Seul le bureau peut le modifier." and no edit control.
-- The office may still change the purchase money of a running day, with `PUT /day-funds`: the day takes it at once, and the
-  audit log keeps `driver_day.purchase_float_set`. The accepted opening cash stays locked once the day started.
+- The office changes the purchase money of a running day with `PUT /day-funds`. **Changed by D-260:** the change is a
+  proposal the driver approves on the phone; it no longer takes effect at once. The accepted opening cash stays locked.
 - Once the driver's closing is sent, the purchase money is locked for the office too (the day is kept as sent, D-134).
   The fund list reports `ended` for each row so the office screen locks the field.
-- Provisional: the driver does not approve a change the office makes during the day (the owner may want a re-approval
-  step instead). A driver who disagrees calls the office, as for the cash (D-203).
+- Provisional, superseded by D-260: the driver did not approve a change of the office during the day. D-260 now requires it.
 
 **D-244 · A prime is paid when it is added, and its payment is a treasury movement (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
 - **Why:** a prime (D-234) raised what is due but was never paid by itself, so the treasurer's journal did not show it.
@@ -3627,3 +3626,24 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+
+**D-260 · A change of the purchase money during the day waits for the driver's approval on the phone (owner answer, 2026-11-02; changes D-248)** · accepted (provisional parts marked) · 2026-11-02
+- The office changes the money for purchases of a running day in "Camions du jour › Fonds de caisse" as before. It becomes a
+  proposal (`fleet.PurchaseFloatChange`, pending) and does not change the amount in force. The office list shows
+  "En attente du chauffeur : X".
+- The driver sees the proposal on the phone's day, with the amount in force and the new amount, and approves it with
+  "J'accepte ce montant" (`POST /my-day/purchase-change/approve`). Only approval; the driver cannot edit the amount
+  (no PUT, no field). A driver who disagrees calls the office, as before (D-203).
+- **The record:** the proposal keeps the amount before and the amount proposed, who proposed it, and, once approved, who
+  agreed and when (`decided_by`, `decided_at`), with its status: pending, approved, replaced, or expired. The audit log keeps
+  `driver_day.purchase_float_proposed`, `…_withdrawn` and `…_approved`.
+- A new proposal replaces the pending one, which stays as "replaced". Proposing the amount in force again withdraws the
+  pending proposal. One pending proposal per day (database constraint).
+- **What the driver can spend until they approve (recommended, provisional):** the amount in force. A raised amount cannot
+  be spent until approved, and a lowered amount does not apply until approved either, so the driver is never cut off in the
+  middle of the day without agreeing. Purchases and the cash split (D-158, D-182) use the amount in force only.
+- Sending the closing before the driver approves expires the proposal ("Non approuvé avant la clôture"); the day keeps the
+  amount in force, as sent (D-134). After the closing, the office cannot change the money for purchases of that day.
+- Approval changes the amount in force and the day's fund figure at once. The phone refreshes the proposal every minute,
+  and only on the day screen; the purchase notice on every screen (D-158) is for validated purchases only.
+  Provisional: the owner may want a notice on every screen, or a refusal button.
