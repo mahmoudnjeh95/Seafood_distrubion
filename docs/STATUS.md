@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-01 (all open PRs merged and on staging; next free decision D-237)_
+_Last updated: 2026-11-02 (office day check, D-241 on branch `day-office-checks`, awaits CI; next free decision D-242)_
 
 ## Where we are
 
@@ -31,6 +31,7 @@ _Last updated: 2026-11-01 (all open PRs merged and on staging; next free decisio
 
 ## Next step
 
+0. **D-241 (`day-office-checks`):** PR, wait for green CI, merge. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
 1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
    opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
