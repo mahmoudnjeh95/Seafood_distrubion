@@ -3655,6 +3655,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   salary only.
 - Older primes need nothing: the app is still in testing with no real data (owner).
 
+**D-262 · The driver's cash is in the ledger: the fund out of the Caisse, the counted cash back at approval, the port purchases from it (Phase 9, P9-T09f; owner answer)** · accepted · 2026-11-02
+- The cash the office gives a driver for a day (the fund and the money for buying at the port) leaves the Caisse for that
+  driver's cash when the day starts. When the office changes the money for purchases on a running day, only the
+  difference moves.
+- At the office's approval of the day, the cash it counted (the driver's cash and what is left of the purchase money)
+  goes from the driver's cash to the Caisse, dated the approval day. A new load that opens the day again leaves it in
+  the Caisse (D-134); the next approval moves what is counted then. A gap stays on the driver's cash until it is settled.
+- Cash paid at the port leaves the driver's cash the day of the purchase, written when the office validates the
+  purchase in the day's check, not when the driver enters it. A transfer or a card goes to the bank account; a
+  cheque or traite is an effet (D-264).
+- The reset of the fund at the office's approval (D-259) is another change and does not touch this.
+- The app is still in testing with no real data: no backfill.
+
 **D-258 · The office chooses the cold room that takes the truck's stock back (owner request, 2026-11-02; updates D-249)** · accepted · 2026-11-02
 - The owner's answer to D-249's provisional points: the approval stays blocked while the truck holds stock or boxes, and
   the return no longer goes to the first active cold room by itself. "Remettre le camion en stock" asks for the cold
