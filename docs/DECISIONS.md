@@ -3819,6 +3819,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   use `useTableView`. The document tree keeps its order; only the flat view sorts.
 - The rows-per-page choice (25/50/100/200) is remembered in the browser for all lists (`frutti.pageSize`).
 
+**D-275 · A bank account's IBAN: the 24-character Tunisian one, checked, and the 15-character form (Phase 9, P9-T09j; owner answer)** · accepted · 2026-11-02
+- Replaces the provisional note of D-236. The IBAN of a bank account is accepted in two forms: the real Tunisian IBAN
+  (`TN`, two check digits, the 20 digits of the RIB: 24 characters), whose check digits are verified (ISO 7064 mod 97), and
+  the 15-character form the office's spec shows, which has no check to verify.
+- A Tunisian IBAN with wrong check digits is refused with a clear message. Spaces are dropped; each IBAN still belongs to
+  one account of the organization.
+
 ## D-272 "Total de la page" row, set in the display settings (2026-11-02)
 
 - Money tables end with a "Total de la page" row: the sum of what the page shows, exact to the millime (`totalOf`).

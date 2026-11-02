@@ -121,3 +121,27 @@ def test_a_bank_account_has_no_caisse_type(organization, bank):
     account = bank_account(organization, bank, "Compte sans type", cash_type=CashType.SECONDARY)
     assert account.cash_type == ""
     assert TreasuryAccount.objects.get(pk=account.pk).cash_type == ""
+
+
+def tunisian_iban(rib="08006000000000000000"):
+    """A real-shaped Tunisian IBAN: TN, two check digits (98 - the RIB with TN00 moved behind it, mod 97), the RIB."""
+    check = 98 - int(rib + "292300") % 97
+    return f"TN{check:02d}{rib}"
+
+
+def test_a_24_character_tunisian_iban_is_accepted_when_its_check_digits_are_right(organization, bank):
+    iban = tunisian_iban()
+
+    account = bank_account(organization, bank, "Compte TN", iban=" ".join([iban[i : i + 4] for i in range(0, 24, 4)]))
+
+    assert account.iban == iban
+
+
+def test_a_tunisian_iban_with_wrong_check_digits_is_refused(organization, bank):
+    iban = tunisian_iban()
+    wrong = iban[:2] + ("00" if iban[2:4] != "00" else "01") + iban[4:]
+
+    with pytest.raises(ValidationError) as refused:
+        bank_account(organization, bank, "Compte faux", iban=wrong)
+
+    assert "iban" in refused.value.message_dict
