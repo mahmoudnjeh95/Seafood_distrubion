@@ -488,6 +488,12 @@ paths:
         schema:
           type: string
       - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
         name: status
         schema:
           enum:

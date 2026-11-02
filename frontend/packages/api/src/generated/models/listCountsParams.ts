@@ -24,6 +24,10 @@ offset?: number;
  */
 ordering?: string;
 /**
+ * @maxLength 100
+ */
+search?: string;
+/**
  * * `counting` - En cours
  * * `approved` - Validé
  * * `cancelled` - Annulé

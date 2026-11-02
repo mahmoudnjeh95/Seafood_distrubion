@@ -16,6 +16,7 @@ import {
   Td,
   TotalsRow,
   useTableView,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -38,7 +39,7 @@ export function EmployeesPage() {
 function Employees({ canEdit }: { canEdit: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<Status>("active");
   const [creating, setCreating] = useState(false);
   const query = useDebounced(search.trim());

@@ -499,6 +499,9 @@ export const UpdateColdRoomWeightResponse = zod.array(UpdateColdRoomWeightRespon
  * Stock counts, newest first, paginated, each with its sheet. Filter by status or location.
  */
 
+export const listCountsQuerySearchDefault = ``;
+export const listCountsQuerySearchMax = 100;
+
 
 
 export const ListCountsQueryParams = zod.object({
@@ -506,6 +509,7 @@ export const ListCountsQueryParams = zod.object({
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
   "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
+  "search": zod.string().max(listCountsQuerySearchMax).default(listCountsQuerySearchDefault),
   "status": zod.enum(['counting', 'approved', 'cancelled']).optional().describe('* `counting` - En cours\n* `approved` - Validé\n* `cancelled` - Annulé')
 })
 

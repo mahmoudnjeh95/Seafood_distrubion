@@ -3847,3 +3847,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   Mon profil under "Affichage des listes", with the default rows per page. It is per person and device, not per company.
 - Not done, by choice: CSV export of the sorted view (the server exports already cover the main lists), hiding
   columns, filters in the URL. They add screens and state for little gain at this stage.
+
+## D-277 Sort, page and search kept in the address (2026-11-02)
+
+- On every server-paged list the sort (`?tri=-date`), the page (`?page=3`) and the search (`?q=`) live in the URL
+  (`useServerTable`, `useUrlState`): a refresh keeps the view and the link can be shared. Rows per page stay a
+  per-device choice. Status chips and date filters are not in the URL yet.
+- Several address changes in one event are composed (`changeParams`), because React Router drops the first one.
+- Inventaires got a search (number, place); the box history and the movements already filter by place and product.

@@ -3928,6 +3928,8 @@ export const fr = {
     counts: {
       title: "Inventaires",
       add: "Nouvel inventaire",
+      search: "Rechercher un numéro ou un lieu",
+      noMatch: "Aucun inventaire ne correspond à la recherche.",
       count_one: "{{count}} inventaire",
       count_other: "{{count}} inventaires",
       empty: "Aucun inventaire pour l'instant",

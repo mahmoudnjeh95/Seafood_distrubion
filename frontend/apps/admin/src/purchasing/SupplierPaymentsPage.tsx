@@ -24,9 +24,10 @@ import {
   Th,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useState } from "react";
+
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
@@ -53,7 +54,7 @@ export function SupplierPaymentsPage() {
   // `?fournisseur=3` (from the supplier page) shows one supplier's payments.
   const supplierId = idFrom(params.get("fournisseur"));
   const supplier = useGetSupplier(supplierId ?? 0, { query: { enabled: supplierId !== null } });
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filters, setFilters] = useState<ListFilters<SupplierPaymentMethodEnum>>(NO_FILTERS);
   const table = useServerTable();
   const [allocating, setAllocating] = useState<SupplierPayment | null>(null);

@@ -24,6 +24,7 @@ import {
   toast,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -46,7 +47,7 @@ export function SalesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canWrite = canSell(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<SaleStatusEnum | "">("");
   const [delivery, setDelivery] = useState<DeliveryStatusEnum | "">("");
   const table = useServerTable();

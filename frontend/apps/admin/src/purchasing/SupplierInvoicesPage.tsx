@@ -22,6 +22,7 @@ import {
   Th,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -47,7 +48,7 @@ export function SupplierInvoicesPage() {
   // `?fournisseur=3` (from the supplier page) shows one supplier's invoices.
   const supplierId = idFrom(params.get("fournisseur"));
   const supplier = useGetSupplier(supplierId ?? 0, { query: { enabled: supplierId !== null } });
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("all");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const table = useServerTable();

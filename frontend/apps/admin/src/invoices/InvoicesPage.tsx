@@ -23,9 +23,10 @@ import {
   Th,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
@@ -72,7 +73,7 @@ export function InvoicesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("invoices");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<InvoiceStatusEnum | "">("");
   const [paymentState, setPaymentState] = useState<ListInvoicesPaymentState | "">("");
   const table = useServerTable();

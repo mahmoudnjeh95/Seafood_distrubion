@@ -32,6 +32,7 @@ import {
   toast,
   TotalsRow,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -196,7 +197,7 @@ export function PaymentsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const canWrite = canCollect(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const table = useServerTable();
   const [voiding, setVoiding] = useState<CustomerPayment | null>(null);
   const [filters, setFilters] = useState<ListFilters<CustomerPaymentMethodEnum>>(NO_FILTERS);

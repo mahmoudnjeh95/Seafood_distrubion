@@ -16,9 +16,10 @@ import {
   Td,
   Th,
   useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useState } from "react";
+
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
@@ -31,7 +32,7 @@ export function TransfersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordTransfers(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [kind, setKind] = useState<TransferKindEnum | "">("");
   const table = useServerTable();
   const query = useDebounced(search.trim());

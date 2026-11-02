@@ -14,6 +14,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -31,7 +32,7 @@ export function ProductsPage() {
   const session = useOutletContext<Session>();
   // The server refuses changes from other roles; this only avoids showing buttons that would fail.
   const canEdit = session.role === "owner" || session.role === "manager";
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [status, setStatus] = useState<Status>("active");
   // "new", the id of the product being edited, or null when the dialog is closed.

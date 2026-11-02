@@ -782,9 +782,10 @@ COUNT_SHEET_ORDER = ("product__name", "batch__received_on", "id")
 
 
 def counts_of(
-    organization: Organization, *, status: str | None = None, location_id: int | None = None
+    organization: Organization, *, status: str | None = None, location_id: int | None = None, search: str = ""
 ) -> QuerySet[StockCount]:
-    """Stock counts newest first, with their location and lines (batch and product)."""
+    """Stock counts newest first, with their location and lines (batch and product). `search` matches the
+    number and the place."""
     lines = StockCountLine.objects.select_related("batch", "product").order_by(*COUNT_SHEET_ORDER)
     counts = (
         StockCount.objects.for_organization(organization)
@@ -796,6 +797,8 @@ def counts_of(
         counts = counts.filter(status=status)
     if location_id is not None:
         counts = counts.filter(location_id=location_id)
+    if search := search.strip():
+        counts = counts.filter(Q(number__icontains=search) | Q(location__name__icontains=search))
     return counts
 
 
