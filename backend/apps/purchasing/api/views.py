@@ -811,7 +811,7 @@ class SupplierBalanceWriteOffView(SupplierBalanceAnswer):
             expected=serializer.validated_data["expected_amount"],
             reason=serializer.validated_data["reason"],
         )
-        return super().get(request, supplier_id)
+        return self.answer(supplier_id)
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
