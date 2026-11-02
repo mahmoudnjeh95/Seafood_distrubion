@@ -6997,8 +6997,9 @@ paths:
       description: |-
         Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
-        `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
+        against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+        invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+        kept as advances the invoice takes (D-268).
       tags:
       - receipts
       requestBody:
@@ -25886,18 +25887,6 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
-        invoice_now:
-          type: boolean
-          default: false
-        terms:
-          allOf:
-          - $ref: '#/components/schemas/PaymentTermsEnum'
-          default: days
-        due_days:
-          type: integer
-          maximum: 365
-          minimum: 0
-          default: 30
         payments:
           type: array
           items:

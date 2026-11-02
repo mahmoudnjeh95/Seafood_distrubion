@@ -232,11 +232,7 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     lines = ReceiptLineWriteSerializer(many=True, allow_empty=True)
     # Returnable boxes that came with the delivery, per box type ("small", "big"): a count, never kg (D-122).
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
-    # Owed at once (D-159): a posted supplier invoice for this receipt, due by the deal made for the delivery.
-    invoice_now = serializers.BooleanField(required=False, default=False)
-    terms = serializers.ChoiceField(choices=PaymentTerms.choices, required=False, default=PaymentTerms.DAYS)
-    due_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=30)
-    # Given now (D-192): only with `invoice_now`; recorded and allocated to the invoice of this receipt.
+    # Given now (D-192): kept as an advance that the supplier's invoice made from this receipt takes (D-268).
     payments = FieldPurchasePaymentWriteSerializer(many=True, required=False, default=list)
 
 

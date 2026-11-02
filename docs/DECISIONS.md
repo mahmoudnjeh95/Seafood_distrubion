@@ -2381,6 +2381,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   the office has not decided; joined only if none once decided. The office sees it on the check page
   (`/field-purchases/<id>/paper`, read by an `<img>`, kept out of the API contract).
 
+- Superseded for the office receipt form by D-268 (2026-11-02): a receipt is no longer invoiced at once, so "Dû dès la réception" and its deal fields are gone; the invoice is made from the receipt. The driver's port purchase (D-176) keeps its own deal.
 **D-160 · A truck load is split by client: one draft BL per client, with its own delivery address (P2-T13)** · accepted · 2026-10-16
 Asked by the owner: for a transfer from the cold room to a truck, the client is known from the start, so a BL is printed
 for each client with what they will buy, the small/big boxes are tracked, and the delivery address starts from the
@@ -3781,3 +3782,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Revisions:** `GoodsReceiptRevision` keeps the number of the change, who, when, a required reason, and the snapshot before and after. A change must name the revision it changes (`GoodsReceipt.revision`), so two people never overwrite each other. The detail page shows "Modifier" and the history of changes; each change is also audited (`receipt.edited`).
 - The purchase order's status follows a changed accepted weight, as it does for a receipt.
 - Endpoint: `POST /api/v1/receipts/{id}/revise` (`reviseReceipt`).
+**D-268 · A receipt makes no supplier invoice; the office makes it from the receipt (owner request 2026-11-02)** · provisional · 2026-11-02
+- The office receipt form has no "Dû dès la réception" box and no deal fields (terms, days). Saving a BR makes the
+  receipt only: its batches, stock and boxes. The supplier's invoice (FF) is made afterwards from the BR through the
+  existing invoice flow; the BR detail page links "Créer la facture" to it, with that BR preselected
+  (`/achats/factures/nouvelle?fournisseur=…&reception=…`).
+- What is given at the reception (D-192) is still allowed. It is recorded as a supplier payment not yet allocated to
+  an invoice, an advance; the invoice made from the BR takes it (`apply_advances`, on by default in the invoice form).
+  More than the receipt's value is refused (D-181).
+- Replaces D-159 for the office receipt form. The driver's port purchase (D-176) is unchanged. Existing invoices are
+  left alone.
+- Provisional: the deal (terms and days) is set on the invoice, not on the receipt.

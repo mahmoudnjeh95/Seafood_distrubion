@@ -2210,6 +2210,7 @@ export const fr = {
         noPurchaseOrder: "Sans commande d'achat",
         invoice: "Facture fournisseur",
         notInvoiced: "Pas encore facturée",
+        createInvoice: "Créer la facture",
         notes: "Notes",
         none: "—",
         lines: "Produits reçus",
@@ -2272,16 +2273,7 @@ export const fr = {
       },
       form: {
         title: "Nouvelle réception",
-        // Owed at once, by the deal made for this delivery (D-159).
-        invoiceNow: "Dû dès la réception",
-        invoiceNowHint:
-          "Une facture fournisseur validée est enregistrée avec la réception : la dette commence aujourd'hui, avec l'échéance de l'accord. Le n° du papier du fournisseur sert à la retrouver.",
-        invoiceLaterHint: "La réception attend la facture du fournisseur : rien n'est dû avant de la saisir.",
-        terms: "Accord de paiement",
-        dueDays: "Nombre de jours",
-        dueDaysError: "Indiquez un nombre de jours entre 1 et 365 (0 possible en fin de mois).",
-        dueOn: "Échéance : {{date}}",
-        // Given now with the delivery (D-192).
+        // Given now with the delivery (D-192): an advance the invoice made from it takes (D-268).
         payments: "Paiement à la réception",
         givenNow: "Qu'avez-vous donné maintenant ?",
         owedTotal: "Total",
