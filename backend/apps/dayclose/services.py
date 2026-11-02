@@ -434,7 +434,7 @@ def return_truck_to_stock(*, driver_day: "DriverDay", actor: User) -> "Transfer"
         raise ValidationError(_("Aucune chambre froide active pour recevoir le stock."))
     today = timezone.localdate()
     truck_location = driver_day.truck.location
-    lines = [
+    lines: list[inventory_services.TransferLineFields] = [
         {"product": catalog.product_of(organization, row["product_id"]), "quantity": row["quantity"]}
         for row in inventory.location_stock(organization, location_id=truck_location.pk)
     ]

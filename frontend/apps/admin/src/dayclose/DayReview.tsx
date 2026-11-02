@@ -18,6 +18,17 @@ const EXPENSE_TONES: Record<string, "warn" | "good" | "bad"> = {
   approved: "good",
   rejected: "bad",
 };
+// Typed keys, so the texts are checked: the API sends these as plain strings.
+const EXPENSE_STATUS_KEYS = {
+  draft: "admin.dayReview.expenses.statuses.draft",
+  pending: "admin.dayReview.expenses.statuses.pending",
+  approved: "admin.dayReview.expenses.statuses.approved",
+  rejected: "admin.dayReview.expenses.statuses.rejected",
+} as const;
+const BOX_TYPE_KEYS = {
+  small: "admin.dayReview.boxes.types.small",
+  big: "admin.dayReview.boxes.types.big",
+} as const;
 const PURCHASE_TONES: Record<string, "warn" | "good" | "bad"> = {
   submitted: "warn",
   validated: "good",
@@ -123,7 +134,7 @@ export function DayReview({ dayId, canDecide }: { dayId: number; canDecide: bool
                     <Td>{t(`${K}.expenses.paidWith.${paidWith}`)}</Td>
                     <Td>
                       <Pill tone={EXPENSE_TONES[expense.status] ?? "warn"}>
-                        {t(`${K}.expenses.statuses.${expense.status}`)}
+                        {t(EXPENSE_STATUS_KEYS[expense.status as keyof typeof EXPENSE_STATUS_KEYS])}
                       </Pill>
                       {expense.rejection_reason !== "" && (
                         <span className="ms-2 text-[0.85rem] text-ink-2">{expense.rejection_reason}</span>
@@ -278,7 +289,7 @@ export function DayReview({ dayId, canDecide }: { dayId: number; canDecide: bool
               <tbody>
                 {data.boxes.map((row) => (
                   <tr key={row.box_type}>
-                    <Td>{t(`${K}.boxes.types.${row.box_type}`)}</Td>
+                    <Td>{t(BOX_TYPE_KEYS[row.box_type as keyof typeof BOX_TYPE_KEYS])}</Td>
                     <Td className="num text-end">{row.on_truck}</Td>
                     <Td className="num text-end">{row.left_at_clients}</Td>
                     <Td className="num text-end">{row.collected}</Td>
