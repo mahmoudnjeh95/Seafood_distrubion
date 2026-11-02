@@ -177,3 +177,8 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
 - [x] A changed accepted weight is an `adjustment` movement on the lot; the original movement is kept; refused below what already left.
 - [x] Cost and VAT change only while nothing valued has left the lot; each change kept as a revision and audited; history on the page.
 - [ ] Check on staging: correct a receipt's weight and cost, then the lot's stock and the purchase price on Prix du jour move.
+
+### P1-T17 · A goods receipt's correction is not spoilage · S (added 2026-11-02, D-270)
+- [x] A receipt correction is the `receipt_correction` movement kind: the lot result counts it in kg received, the monthly closing in purchases; never spoilage.
+- [x] Hand-made stock adjustments (D-247) still count as spoilage.
+- [ ] Check on staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.

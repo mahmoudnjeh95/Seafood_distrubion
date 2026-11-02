@@ -109,18 +109,11 @@ VALUED_KINDS = (
 )
 
 
-def batch_valued_outside(organization: Organization, *, batch_id: int, source: Any) -> bool:
-    """Whether a lot has moved in a way that carries its value (a sale, a loss, a return, a count or an
-    adjustment), leaving out the weight corrections posted from `source`, the receipt line itself (D-269)."""
+def batch_valued_outside(organization: Organization, *, batch_id: int) -> bool:
+    """Whether a lot has moved in a way that carries its value (a sale, a loss, a return, a count or a hand
+    adjustment). A goods receipt's correction does not count: it corrects what was received (D-270)."""
     return (
-        StockMovement.objects.for_organization(organization)
-        .filter(batch_id=batch_id, kind__in=VALUED_KINDS)
-        .exclude(
-            kind=MovementKind.ADJUSTMENT,
-            source_type=ContentType.objects.get_for_model(source),
-            source_id=source.pk,
-        )
-        .exists()
+        StockMovement.objects.for_organization(organization).filter(batch_id=batch_id, kind__in=VALUED_KINDS).exists()
     )
 
 

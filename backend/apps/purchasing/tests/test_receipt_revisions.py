@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.catalog.tests.factories import ProductFactory
+from apps.closing import selectors as closing
 from apps.core.models import AuditLog, Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.inventory import selectors as inventory
@@ -146,7 +147,7 @@ def test_a_change_updates_the_receipt_and_its_lot_and_keeps_a_revision(
 
     # The receipt's own movement is kept as it was; the change is a correction on top of it.
     receipt_movement = StockMovement.objects.get(kind=MovementKind.RECEIPT, batch_id=line.batch_id)
-    correction = StockMovement.objects.get(kind=MovementKind.ADJUSTMENT, batch_id=line.batch_id)
+    correction = StockMovement.objects.get(kind=MovementKind.RECEIPT_CORRECTION, batch_id=line.batch_id)
     assert (receipt_movement.quantity, correction.quantity, correction.from_location) == (
         Decimal("60.000"),
         Decimal("2.000"),
@@ -296,7 +297,7 @@ def test_a_higher_accepted_weight_adds_stock_where_the_receipt_landed(organizati
     revise(receipt, lines=[{**current_lines(receipt)[0], "accepted_quantity": "65"}])
 
     assert on_hand(organization, receipt) == Decimal("65.000")
-    correction = StockMovement.objects.get(kind=MovementKind.ADJUSTMENT)
+    correction = StockMovement.objects.get(kind=MovementKind.RECEIPT_CORRECTION)
     assert (correction.quantity, correction.to_location, correction.from_location) == (
         Decimal("5.000"),
         cold_room,
@@ -462,3 +463,40 @@ def test_another_organization_cannot_see_or_change_the_receipt(organization, act
 
     assert response.status_code == 404
     assert GoodsReceipt.objects.get(pk=receipt.pk).revision == 0
+
+
+# ---- the lot result (D-270) ----
+
+
+def test_a_receipt_corrected_from_100_to_90_kg_is_90_received_and_no_spoilage(
+    organization, actor, supplier, cold_room, dorade
+):
+    receipt = receive(organization, actor, supplier, cold_room, dorade, accepted="100", invoiced="100")
+    batch = receipt.lines.get().batch
+    revise(receipt, lines=[{**current_lines(receipt)[0], "accepted_quantity": "90"}])
+
+    snapshot = closing.lot_snapshot(organization, batch_id=batch.pk)
+    result = closing.live_result(organization, batch_id=batch.pk)
+
+    assert snapshot.received_quantity == Decimal("90.000")
+    assert snapshot.stock_rows == ()
+    assert result.spoilage == Decimal("0.000")
+    assert result.purchase_cost == Decimal("90.000") * Decimal("20.250")
+
+
+def test_a_hand_made_adjustment_is_still_spoilage(organization, actor, supplier, cold_room, dorade):
+    receipt = receive(organization, actor, supplier, cold_room, dorade, accepted="100", invoiced="100")
+    batch = receipt.lines.get().batch
+    stock.adjust_stock(
+        organization=organization,
+        actor=actor,
+        location=cold_room,
+        batch=batch,
+        add=False,
+        quantity="5",
+        reason="Erreur de pesée",
+    )
+
+    result = closing.live_result(organization, batch_id=batch.pk)
+
+    assert result.spoilage == Decimal("101.250")

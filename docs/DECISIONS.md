@@ -3793,3 +3793,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Replaces D-159 for the office receipt form. The driver's port purchase (D-176) is unchanged. Existing invoices are
   left alone.
 - Provisional: the deal (terms and days) is set on the invoice, not on the receipt.
+
+**D-270 · A goods receipt's correction is not spoilage: its own movement kind `receipt_correction` (owner's PM decision, 2026-11-02, follow-up to D-269)** · accepted · 2026-11-02
+- A change of an accepted weight on a receipt (D-269) posts a `receipt_correction` movement, instead of an `adjustment`. It is a correction of what was received, so the lot result counts it in the kg received (signed: in +, out −), and the monthly closing counts it in purchases. It never counts as spoilage or written-off kilos.
+- Lot result: 100 kg corrected to 90 kg shows 90 kg received, no spoilage, and a purchase cost on 90 kg.
+- Monthly closing: the purchases include receipt corrections; the roll-forward shows them on their own line ("Corrections de réceptions"). Spoilage is unchanged.
+- Hand-made stock adjustments (D-247) keep the `adjustment` kind: they still count as spoilage and still lock the cost and VAT of a lot.
+- A receipt correction does not lock the lot's cost or VAT (the cost lock only watches sales, losses, returns, counts and hand adjustments).
+- Migration `inventory.0013_receipt_correction_kind` (choices only; no data changes). The ledger stays append-only: corrections already posted before this change (since D-269 was deployed) keep the `adjustment` kind and so still count as spoilage. They can be identified by their source (the receipt line). Reclassifying them would mean rewriting movements, which the ledger does not allow; the owner decides whether to leave them or record a separate correction.

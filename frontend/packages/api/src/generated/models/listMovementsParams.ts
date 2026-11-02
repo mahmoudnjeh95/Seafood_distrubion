@@ -15,6 +15,7 @@ date_from?: string;
 date_to?: string;
 /**
  * * `receipt` - Réception
+ * * `receipt_correction` - Correction de réception
  * * `transfer` - Transfert
  * * `sale` - Vente
  * * `customer_return` - Retour client

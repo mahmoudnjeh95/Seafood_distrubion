@@ -415,7 +415,8 @@ def revise_receipt(
     its lines' invoiced and accepted weight, cost per kg and use-by date. Every line is sent, by its id.
 
     Refused while an invoice carries the receipt (a draft one is deleted first), when `revision` is not its current
-    one, and without a reason. A changed accepted weight posts an adjustment on the lot, from the receipt's place,
+    one, and without a reason. A changed accepted weight posts a receipt correction on the lot, from the receipt's
+    place,
     and the original movement stays as it was; it is refused when it would take the lot below what already left it.
     A changed cost or VAT flag is refused once something valued has left the lot (a sale, a loss, a return, a count).
     Each change is kept as a revision with its before and after, and audited. Problems come back together.
@@ -443,7 +444,7 @@ def revise_receipt(
 
     for index, line, values in checked:
         if values["unit_cost"] != line.unit_cost and inventory_selectors.batch_valued_outside(
-            organization, batch_id=line.batch_id, source=line
+            organization, batch_id=line.batch_id
         ):
             errors[line_error_key(index, "unit_cost")] = _(
                 "Des kilos de ce lot ont déjà été vendus, perdus ou corrigés : son prix ne se change plus."
@@ -456,7 +457,7 @@ def revise_receipt(
                     "Il est déjà sorti %(left)s kg de ce lot : la quantité acceptée ne descend pas sous ce poids."
                 ) % {"left": line.accepted_quantity - on_hand}
     if with_vat != receipt.with_vat and any(
-        inventory_selectors.batch_valued_outside(organization, batch_id=line.batch_id, source=line)
+        inventory_selectors.batch_valued_outside(organization, batch_id=line.batch_id)
         for _index, line, _values in checked
     ):
         errors["with_vat"] = _(
@@ -484,7 +485,7 @@ def revise_receipt(
                 inventory.post_movement(
                     organization=organization,
                     actor=actor,
-                    kind=MovementKind.ADJUSTMENT,
+                    kind=MovementKind.RECEIPT_CORRECTION,
                     batch=line.batch,
                     quantity=abs(delta),
                     from_location=receipt.location if delta < 0 else None,
