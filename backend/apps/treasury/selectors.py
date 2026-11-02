@@ -277,3 +277,13 @@ def movement_of_source(organization: Organization, *, source: str, source_id: in
 # The choices of an account and a movement, for other apps' serializers.
 ACCOUNT_KIND_CHOICES = AccountKind.choices
 MOVEMENT_KIND_CHOICES = MovementKind.choices
+
+
+def movements_of(organization: Organization, *, source: str, source_ids: list[int]) -> QuerySet[TreasuryMovement]:
+    """The movements the given records of one source wrote (a règlement's lines, a sale, an expense...), in day order:
+    each one shows the account it went through. Reversals (`role` "void") come too, so a voided money shows both."""
+    return (
+        TreasuryMovement.objects.filter(organization=organization, source=source, source_id__in=source_ids)
+        .select_related("account")
+        .order_by("day", "id")
+    )

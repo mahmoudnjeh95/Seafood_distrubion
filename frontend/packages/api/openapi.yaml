@@ -10539,6 +10539,40 @@ paths:
                 items:
                   $ref: '#/components/schemas/Instrument'
           description: ''
+  /api/v1/treasury/movements-of:
+    get:
+      operationId: listMovementsOf
+      description: |-
+        The treasury movements written by the given records of one source, each with the account it went through
+        (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+      parameters:
+      - in: query
+        name: from_source
+        schema:
+          type: string
+          maxLength: 40
+          minLength: 1
+        required: true
+      - in: query
+        name: source_ids
+        schema:
+          type: string
+          maxLength: 2000
+          minLength: 1
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovementOf'
+          description: ''
   /api/v1/treasury/party-documents:
     get:
       operationId: listPartyDocuments
@@ -20657,6 +20691,39 @@ components:
         * `salary` - Salaire
         * `partner_settlement` - Règlement associé
         * `field_purchase` - Achat au port
+    MovementOf:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        source_id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+      required:
+      - account
+      - amount
+      - day
+      - id
+      - kind
+      - source_id
     MovementRow:
       type: object
       properties:

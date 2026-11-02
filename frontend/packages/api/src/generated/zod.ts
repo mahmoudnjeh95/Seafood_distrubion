@@ -20278,6 +20278,39 @@ export const WithdrawInstrumentsResponse = zod.array(WithdrawInstrumentsResponse
 
 
 /**
+ * The treasury movements written by the given records of one source, each with the account it went through
+ * (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+ */
+export const listMovementsOfQueryFromSourceMax = 40;
+
+export const listMovementsOfQuerySourceIdsMax = 2000;
+
+
+
+export const ListMovementsOfQueryParams = zod.object({
+  "from_source": zod.string().min(1).max(listMovementsOfQueryFromSourceMax),
+  "source_ids": zod.string().min(1).max(listMovementsOfQuerySourceIdsMax)
+})
+
+export const listMovementsOfResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMovementsOfResponseItem = zod.object({
+  "id": zod.int(),
+  "source_id": zod.int(),
+  "day": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', listMovementsOfResponseAmountRegExp),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "account": zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
+  "name": zod.string()
+})
+})
+export const ListMovementsOfResponse = zod.array(ListMovementsOfResponseItem)
+
+
+/**
  * What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
  * confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
  * drafts) with their total. A party with no such document is not listed.
