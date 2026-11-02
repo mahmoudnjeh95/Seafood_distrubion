@@ -83,6 +83,7 @@ import type {
   DayOverviewDetail,
   DayOverviewDriver,
   DayOverviewRow,
+  DayReturnToStock,
   DayRoute,
   Deliver,
   Deposit,
@@ -6132,17 +6133,33 @@ export const getReturnDayOverviewToStockUrl = (dayId: number,) => {
 }
 
 /**
- * Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
- * or not the driver sent the day; only on the truck's latest day.
+ * Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+ * manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+ * driver sent the day; only on the truck's latest day.
  */
-export const returnDayOverviewToStock = async (dayId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+export const returnDayOverviewToStock = async (dayId: number,
+    dayReturnToStock?: DayReturnToStock, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
 
-  return apiFetch<DayOverviewDetail>(getReturnDayOverviewToStockUrl(dayId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayOverviewDetail>(getReturnDayOverviewToStockUrl(dayId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayReturnToStock)
   }
 );}
 
@@ -6167,9 +6184,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnDayOverviewToStock>>, ReturnDayOverviewToStockMutationVariables> = (props) => {
-          const {dayId} = props ?? {};
+          const {dayId,data} = props ?? {};
 
-          return  returnDayOverviewToStock(dayId,requestOptions)
+          return  returnDayOverviewToStock(dayId,data,requestOptions)
         }
 
 
@@ -6180,9 +6197,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ReturnDayOverviewToStockMutationResult = NonNullable<Awaited<ReturnType<typeof returnDayOverviewToStock>>>
-
+    export type ReturnDayOverviewToStockMutationBody = DayReturnToStock | undefined
     export type ReturnDayOverviewToStockMutationError = unknown
-    export type ReturnDayOverviewToStockMutationVariables = {dayId: number}
+    export type ReturnDayOverviewToStockMutationVariables = {dayId: number;data?: DayReturnToStock}
 
     export const useReturnDayOverviewToStock = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

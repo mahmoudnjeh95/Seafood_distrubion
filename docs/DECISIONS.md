@@ -3588,8 +3588,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   with the reason; the office completes it on the purchase page.
 - **Stock and boxes back to the cold room (items 2 and 4):** one button, "Remettre le camion en stock", posts a return
   transfer of everything the truck holds (kilos and boxes) to the first active cold room, validated at once
-  (`POST …/return-to-stock`). It works whether or not the driver sent the day. Provisional: the cold room is the first
-  active one by id (no choice on the button yet).
+  (`POST …/return-to-stock`). It works whether or not the driver sent the day. **Superseded by D-258:** the office
+  chooses the cold room; the first-active-room default applied only until then.
 - **Only the truck's latest day owns its stock:** `fleet.latest_day_on_truck`. On an earlier day the stock and boxes are
   not shown and cannot be returned (they belong to a later day), and they do not block its approval.
 - **Approval is refused** while the day still has an expense to approve or refuse, a purchase to validate or refuse, or
@@ -3598,8 +3598,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   purchase that changes the figures calls the existing correction (D-220) with the reason, so the revision shows who and
   why. A return changes no figure of the day (it happens after the send), so it creates no revision.
 - Also: a transfer may carry only boxes (no product line), needed for the truck that gives back its boxes alone.
-- Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier);
-  choosing the cold room for the return; the owner may prefer approval to ask for a reason instead of blocking.
+- Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier).
+  The owner kept the blocking approval (D-258 note).
 - Migration: none. Tests: `dayclose/tests/test_day_review.py`.
 **D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
 - A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
@@ -3627,3 +3627,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
 - **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
 - Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+
+**D-258 · The office chooses the cold room that takes the truck's stock back (owner request, 2026-11-02; updates D-249)** · accepted · 2026-11-02
+- The owner's answer to D-249's provisional points: the approval stays blocked while the truck holds stock or boxes, and
+  the return no longer goes to the first active cold room by itself. "Remettre le camion en stock" asks for the cold
+  room each time, among the active ones; with one active room it is preselected.
+- `POST /day-overview/<id>/return-to-stock` takes `to_location_id` (optional body). Without it the server refuses when
+  there are several active cold rooms ("Choisissez la chambre froide qui reçoit le stock."), and takes the only one when
+  there is one; an id that is not an active cold room is refused. The day's detail lists `cold_rooms` (`id`, `name`).
+- The review's button shows a "Chambre froide qui reçoit le stock" choice, and a message when there is no active cold room.
+- Test: `dayclose/tests/test_day_review.py` (two cold rooms: refused without a choice, the kilos go to the room named).
+- No migration.

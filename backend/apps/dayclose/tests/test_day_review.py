@@ -10,6 +10,7 @@ from django.urls import reverse
 from apps.expenses import services as expenses
 from apps.expenses.models import ExpenseCategory
 from apps.inventory import selectors as inventory_selectors
+from apps.inventory.tests.factories import StockLocationFactory
 
 from . import test_dayclose
 
@@ -89,3 +90,32 @@ def test_a_refused_expense_is_taken_off_the_sent_day_as_a_correction(day):
     assert corrected["summary"]["expenses_total"] == "0.000"
     assert len(corrected["revisions"]) == 1
     assert corrected["changed_since_sent"] is False
+
+
+def test_the_office_chooses_the_cold_room_that_takes_the_truck_back(day):
+    other = StockLocationFactory.create(organization=day["organization"], name="Chambre froide 2")
+    sell(day, "5", "100.000")
+    assert day["api"].post(reverse("my-day-closing"), {}, format="json").status_code == 201
+    closing = closing_of_day(day)
+    rooms = day_detail(day, closing["driver_day_id"])["cold_rooms"]
+    assert sorted(room["name"] for room in rooms) == ["Chambre froide 1", "Chambre froide 2"]
+
+    # Two active cold rooms: the office names the one that takes the stock.
+    refused = day["office"].post(
+        reverse("day-overview-return-to-stock", args=[closing["driver_day_id"]]), {}, format="json"
+    )
+    assert refused.status_code == 400
+    assert "to_location_id" in refused.json()
+
+    returned = day["office"].post(
+        reverse("day-overview-return-to-stock", args=[closing["driver_day_id"]]),
+        {"to_location_id": other.pk},
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    # The 7 kg left on the truck went to the room the office named, not to the first one.
+    stock = inventory_selectors.location_stock(day["organization"], location_id=other.pk)
+    assert [row["quantity"] for row in stock] == [Decimal("7.000")]
+    first = inventory_selectors.location_stock(day["organization"], location_id=day["room"].pk)
+    assert [row["quantity"] for row in first] == [Decimal("8.000")]

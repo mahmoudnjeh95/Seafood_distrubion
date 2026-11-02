@@ -1981,8 +1981,9 @@ paths:
     post:
       operationId: returnDayOverviewToStock
       description: |-
-        Give back what the truck still holds, kilos and boxes, to the cold room (owner or manager). Works whether
-        or not the driver sent the day; only on the truck's latest day.
+        Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+        manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+        driver sent the day; only on the truck's latest day.
       parameters:
       - in: path
         name: day_id
@@ -1991,6 +1992,17 @@ paths:
         required: true
       tags:
       - day-overview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayReturnToStock'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayReturnToStock'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayReturnToStock'
       security:
       - cookieAuth: []
       responses:
@@ -14799,6 +14811,20 @@ components:
         note:
           type: string
           default: ''
+    DayColdRoom:
+      type: object
+      description: An active cold room the office can give the truck's stock back
+        to (D-258).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
     DayExpenseDecision:
       type: object
       properties:
@@ -15254,11 +15280,17 @@ components:
           items:
             type: string
           readOnly: true
+        cold_rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayColdRoom'
+          readOnly: true
       required:
       - boxes
       - cash_received
       - closing
       - closing_id
+      - cold_rooms
       - date
       - deliveries
       - deliveries_done
@@ -15783,6 +15815,12 @@ components:
       - reviewed_by_name
       - status
       - submitted_at
+    DayReturnToStock:
+      type: object
+      properties:
+        to_location_id:
+          type: integer
+          nullable: true
     DayRoute:
       type: object
       description: The GPS route of one driver's day, in time order; `last` is where
