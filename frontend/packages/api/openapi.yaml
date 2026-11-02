@@ -1004,6 +1004,11 @@ paths:
           * `card` - Carte bancaire
           * `mixed` - Plusieurs moyens
       - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
         name: search
         schema:
           type: string
@@ -2901,6 +2906,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExpenseDetail'
           description: ''
+  /api/v1/expenses/export:
+    get:
+      operationId: exportExpenses
+      description: The expenses of the same filters and sort as the list, every row,
+        as an Excel file.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: category
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending
+          - approved
+          - rejected
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `pending` - À approuver
+          * `approved` - Approuvée
+          * `rejected` - Refusée
+      - in: query
+        name: truck
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/expenses/totals:
     get:
       operationId: getExpenseTotals
@@ -3675,6 +3749,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvoiceEstimate'
+          description: ''
+  /api/v1/invoices/export:
+    get:
+      operationId: exportInvoices
+      description: The invoices of the same filters and sort as the list, every row,
+        as an Excel file.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: payment_state
+        schema:
+          enum:
+          - unpaid
+          - partial
+          - paid
+          type: string
+          minLength: 1
+        description: |-
+          * `unpaid` - unpaid
+          * `partial` - partial
+          * `paid` - paid
+      - in: query
+        name: sale
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - issued
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `issued` - Émise
+          * `cancelled` - Annulée par avoir
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/locations:
     get:
@@ -8608,6 +8757,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/sales/export:
+    get:
+      operationId: exportSales
+      description: The sales of the same filters and sort as the list, every row,
+        as an Excel file.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: delivery_status
+        schema:
+          enum:
+          - to_deliver
+          - delivered
+          - partial
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `to_deliver` - À livrer
+          * `delivered` - Livré
+          * `partial` - Livré en partie
+          * `cancelled` - Non livré
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - confirmed
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `confirmed` - Confirmée
+          * `cancelled` - Annulée
+      - in: query
+        name: uninvoiced
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/site-products:
     get:
       operationId: listSiteProducts
@@ -9312,6 +9543,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierInvoice'
           description: ''
+  /api/v1/supplier-invoices/export:
+    get:
+      operationId: exportSupplierInvoices
+      description: The supplier invoices of the same filters and sort as the list,
+        every row, as an Excel file.
+      parameters:
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: overdue
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - posted
+          - partly_paid
+          - paid
+          - open
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - draft
+          * `posted` - posted
+          * `partly_paid` - partly_paid
+          * `paid` - paid
+          * `open` - open
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - supplier-invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/supplier-payments:
     get:
       operationId: listSupplierPayments
@@ -9565,6 +9852,11 @@ paths:
           * `bill` - Traite
           * `other` - Autre
           * `mixed` - Plusieurs moyens
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
       - in: query
         name: search
         schema:

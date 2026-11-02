@@ -13,6 +13,7 @@ urlpatterns = [
     path("my-expense-categories", views.MyRoadCategoriesView.as_view(), name="my-expense-categories"),
     path("my-expenses", views.MyRoadExpensesView.as_view(), name="my-expenses"),
     path("expenses", views.ExpenseListView.as_view(), name="expense-list"),
+    path("expenses/export", views.ExpenseExportView.as_view(), name="expense-export"),
     path("expenses/totals", views.ExpenseTotalsView.as_view(), name="expense-totals"),
     path("expenses/<int:expense_id>", views.ExpenseDetailView.as_view(), name="expense-detail"),
     path("expenses/<int:expense_id>/approve", views.ExpenseApproveView.as_view(), name="expense-approve"),

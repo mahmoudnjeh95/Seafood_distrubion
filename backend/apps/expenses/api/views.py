@@ -1,12 +1,15 @@
+from collections.abc import Sequence
+from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
@@ -15,10 +18,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api.exports import ORDERING_HELP, ListExport
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.xlsx import XLSX_TYPE
 from apps.dayclose import selectors as dayclose
 from apps.expenses import selectors, services
 from apps.expenses.models import DayLabourEntry, DayLabourer, Expense, ExpenseCategory, ExpensePaymentMethod
@@ -522,3 +527,46 @@ class MyRoadExpensesView(APIView):
             paid_by_driver=data["paid_with"] == "pocket",
         )
         return Response(RoadExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)
+
+
+class ExpenseExportView(ListExport, ExpenseListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "depenses"
+    export_title = _("Dépenses")
+
+    @extend_schema(
+        operation_id="exportExpenses",
+        parameters=[ExpenseFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The expenses of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        headers = [
+            _("N°"),
+            _("Date"),
+            _("Catégorie"),
+            _("Description"),
+            _("Bénéficiaire"),
+            _("Paiement"),
+            _("État"),
+            _("Montant"),
+        ]
+        rows = [
+            [
+                expense.number,
+                expense.spent_on,
+                expense.category.name,
+                expense.description,
+                expense.payee,
+                expense.get_payment_method_display(),
+                expense.get_status_display(),
+                expense.amount,
+            ]
+            for expense in items
+        ]
+        counted = [expense for expense in items if expense.status != "rejected"]
+        totals = [_("Total"), "", "", "", "", "", "", sum((expense.amount for expense in counted), Decimal("0.000"))]
+        return headers, rows, totals

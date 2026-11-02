@@ -15,6 +15,7 @@ export const fr = {
     table: {
       range: "{{from}}–{{to}} sur {{count}}",
       perPage: "Lignes par page",
+      export: "Exporter vers Excel",
       pageTotal: "Total de la page",
       previous: "Précédent",
       next: "Suivant",

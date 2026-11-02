@@ -42,6 +42,8 @@ urlpatterns = [
         name="customer-effet-unpaid",
     ),
     path("customer-payments/totals", payment_views.CustomerPaymentTotalsView.as_view(), name="customer-payment-totals"),
+    path("sales/export", views.SaleExportView.as_view(), name="sale-export"),
+    path("invoices/export", views.InvoiceExportView.as_view(), name="invoice-export"),
     path("customer-payments/export", payment_views.CustomerPaymentExportView.as_view(), name="customer-payment-export"),
     path(
         "customer-payments/<int:payment_id>",

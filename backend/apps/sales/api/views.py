@@ -1,13 +1,15 @@
 import datetime as dt
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
@@ -17,10 +19,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
+from apps.core.api.exports import ORDERING_HELP, ListExport
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import HasRole, IsDriver, IsOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.xlsx import XLSX_TYPE
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
@@ -952,3 +956,87 @@ class MyDeliveryNotDeliveredView(MyDeliveryView):
                 sale=sale, actor=membership.user, note=data["note"], delivery_uuid=data["client_uuid"]
             )
         return self.answer(membership, sale_id)
+
+
+class SaleExportView(ListExport, SaleListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "ventes"
+    export_title = _("Ventes")
+
+    @extend_schema(
+        operation_id="exportSales",
+        parameters=[SaleFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The sales of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        zero = Decimal("0.000")
+        headers = [_("N°"), _("Date"), _("Client"), _("État"), _("Total HT"), _("Reste dû")]
+        rows = [
+            [
+                sale.number,
+                timezone.localtime(sale.sold_at).date(),
+                sale.customer.name,
+                sale.get_status_display(),
+                sale.total_excl_tax,
+                sale.amount_due if sale.status == SaleStatus.CONFIRMED else zero,
+            ]
+            for sale in items
+        ]
+        live = [sale for sale in items if sale.status != SaleStatus.CANCELLED]
+        totals = [
+            _("Total"),
+            "",
+            "",
+            "",
+            sum((sale.total_excl_tax for sale in live), zero),
+            sum((sale.amount_due for sale in items if sale.status == SaleStatus.CONFIRMED), zero),
+        ]
+        return headers, rows, totals
+
+
+class InvoiceExportView(ListExport, InvoiceListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "factures"
+    export_title = _("Factures")
+
+    @extend_schema(
+        operation_id="exportInvoices",
+        parameters=[InvoiceFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The invoices of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        zero = Decimal("0.000")
+        headers = [_("N°"), _("Date"), _("Échéance"), _("Client"), _("État"), _("Total HT"), _("TVA"), _("Total TTC")]
+        rows = [
+            [
+                invoice.number,
+                invoice.issued_on,
+                invoice.due_on,
+                invoice.customer_name,
+                invoice.get_status_display(),
+                invoice.total_excl_tax,
+                invoice.vat_total,
+                invoice.total_incl_tax,
+            ]
+            for invoice in items
+        ]
+        live = [invoice for invoice in items if invoice.status != InvoiceStatus.CANCELLED]
+        totals = [
+            _("Total"),
+            "",
+            "",
+            "",
+            "",
+            sum((invoice.total_excl_tax for invoice in live), zero),
+            sum((invoice.vat_total for invoice in live), zero),
+            sum((invoice.total_incl_tax for invoice in live), zero),
+        ]
+        return headers, rows, totals

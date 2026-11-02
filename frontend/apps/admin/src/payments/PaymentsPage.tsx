@@ -253,7 +253,7 @@ export function PaymentsPage() {
         totals={totals.data}
         methodLabel={methodLabel}
         restLabel={t("admin.treasury.form.credit")}
-        exportUrl={getExportCustomerPaymentsUrl(shared)}
+        exportUrl={getExportCustomerPaymentsUrl({ ...table.ordering, ...shared })}
       />
       {payments.isPending ? (
         <p className="text-ink-2">{t("common.loading")}</p>

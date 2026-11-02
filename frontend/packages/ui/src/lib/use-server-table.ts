@@ -9,12 +9,11 @@ export function useServerTable(initialSize = 50) {
   const [sort, setSort] = useState<TableSort>(null);
   const [pageSize, setPageSize] = useState(() => rememberedPageSize(initialSize));
   const [page, setPage] = useState(1);
+  const ordering = sort ? { ordering: sort.direction === "desc" ? `-${sort.key}` : sort.key } : {};
   return {
-    params: {
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
-      ...(sort ? { ordering: sort.direction === "desc" ? `-${sort.key}` : sort.key } : {}),
-    },
+    params: { limit: pageSize, offset: (page - 1) * pageSize, ...ordering },
+    /** The sort alone, for the Excel file of the whole list. */
+    ordering,
     sorting: {
       sort,
       onSort: (key: string) => {
