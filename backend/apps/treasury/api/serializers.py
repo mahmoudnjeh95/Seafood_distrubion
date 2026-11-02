@@ -374,3 +374,19 @@ class CashCountWriteSerializer(serializers.Serializer[Any]):
     counted = serializers.CharField(allow_blank=True, max_length=30)
     # Needed when the count differs from what the movements say.
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+
+
+class MovementOfFilterSerializer(serializers.Serializer[Any]):
+    # Where the money was written from: "sales.payment_line", "sales.sale", "expenses.expense"...
+    source = serializers.CharField(max_length=40)
+    # The records' ids, comma separated (at most 200).
+    source_ids = serializers.CharField(max_length=2000)
+
+
+class MovementOfSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    source_id = serializers.IntegerField(read_only=True)
+    day = serializers.DateField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    kind = serializers.ChoiceField(choices=MovementKind.choices, read_only=True)
+    account = AccountRefSerializer(read_only=True)

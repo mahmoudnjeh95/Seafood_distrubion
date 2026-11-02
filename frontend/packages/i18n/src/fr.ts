@@ -2777,6 +2777,9 @@ export const fr = {
           return: "Restituer",
         },
       },
+      trace: {
+        title: "Où est passé l'argent",
+      },
       accounts: {
         bank: {
           title: "Agence bancaire",

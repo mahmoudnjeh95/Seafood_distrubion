@@ -44,6 +44,8 @@ from .serializers import (
     InstrumentFilterSerializer,
     InstrumentSerializer,
     InstrumentTotalsSerializer,
+    MovementOfFilterSerializer,
+    MovementOfSerializer,
     PartyDocumentsSerializer,
     StatementFilterSerializer,
     TransferFilterSerializer,
@@ -555,3 +557,25 @@ class CashCountListView(OfficeView, ListAPIView[CashCount]):
             reason=data["reason"],
         )
         return Response(CashCountSerializer(count).data, status=status.HTTP_201_CREATED)
+
+
+class MovementsOfView(OfficeView):
+    @extend_schema(
+        operation_id="listMovementsOf",
+        parameters=[MovementOfFilterSerializer],
+        responses=MovementOfSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The treasury movements written by the given records of one source, each with the account it went through
+        (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money."""
+        filters = MovementOfFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        raw = filters.validated_data["source_ids"].split(",")
+        try:
+            ids = [int(value) for value in raw if value.strip()]
+        except ValueError:
+            raise ValidationError({"source_ids": _("Des numéros de pièce sont attendus.")}) from None
+        if len(ids) > 200:
+            raise ValidationError({"source_ids": _("200 pièces au plus.")})
+        movements = selectors.movements_of(self.organization, source=filters.validated_data["source"], source_ids=ids)
+        return Response(MovementOfSerializer(movements, many=True).data)
