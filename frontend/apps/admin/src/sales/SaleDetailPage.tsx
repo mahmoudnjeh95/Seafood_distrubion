@@ -380,6 +380,11 @@ export function SaleDetailPage() {
             </TotalRow>
             <TotalRow label={t("admin.sales.detail.paid")}>{formatMoney(data.amount_paid)}</TotalRow>
             <TotalRow label={t("admin.sales.detail.due")}>{formatMoney(data.amount_due)}</TotalRow>
+            {data.status === "confirmed" && Number(data.estimated_extra) !== 0 && (
+              <div className="text-end text-[0.8rem] text-ink-2">
+                {t("admin.sales.detail.estimatedExtra", { amount: formatMoney(data.estimated_extra) })}
+              </div>
+            )}
             {data.status === "confirmed" && Number(data.amount_due) > 0 && (
               // The money comes in through the treasury: the règlement form opens on this customer.
               <Link

@@ -6755,6 +6755,11 @@ export const CreateInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
+  "gap_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL\'s lots, not settled.')),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -6974,6 +6979,11 @@ export const GetInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
+  "gap_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL\'s lots, not settled.')),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -7212,6 +7222,11 @@ export const UpdateInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
+  "gap_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL\'s lots, not settled.')),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -7398,6 +7413,249 @@ export const CreateCreditNoteResponse = zod.object({
 
 
 /**
+ * Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
+ * amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
+ * its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards.
+ */
+export const GiveUpInvoiceGapParams = zod.object({
+  "invoice_id": zod.int()
+})
+
+export const giveUpInvoiceGapBodyExpectedAmountMax = 30;
+
+export const giveUpInvoiceGapBodyReasonMax = 255;
+
+
+export const giveUpInvoiceGapBodyLotSharesItemAmountMax = 30;
+
+
+
+export const GiveUpInvoiceGapBody = zod.object({
+  "expected_amount": zod.string().max(giveUpInvoiceGapBodyExpectedAmountMax),
+  "reason": zod.string().max(giveUpInvoiceGapBodyReasonMax),
+  "lot_shares": zod.array(zod.object({
+  "batch": zod.int().min(1),
+  "amount": zod.string().max(giveUpInvoiceGapBodyLotSharesItemAmountMax)
+}).describe('The part of a balance write-off charged to one lot, picked by hand (D-257).')).optional()
+})
+
+export const giveUpInvoiceGapResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponsePaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseSettingsWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseLinesItemDefaultVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseLinesItemUnitPriceExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemCreditedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseLinesItemCreditedAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseVatLinesItemRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseVatLinesItemBaseRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseVatLinesItemComputedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseVatLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemNetAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GiveUpInvoiceGapResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "sale": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "issued_on": zod.iso.date().nullable(),
+  "due_on": zod.iso.date().nullable(),
+  "line_count": zod.int(),
+  "apply_vat": zod.boolean(),
+  "prices_include_vat": zod.boolean(),
+  "subtotal": zod.stringFormat('decimal', giveUpInvoiceGapResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', giveUpInvoiceGapResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', giveUpInvoiceGapResponseFiscalStampRegExp),
+  "fees": zod.stringFormat('decimal', giveUpInvoiceGapResponseFeesRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseTotalInclTaxRegExp),
+  "withholding_applied": zod.boolean(),
+  "withholding_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseWithholdingAmountRegExp),
+  "net_to_pay": zod.stringFormat('decimal', giveUpInvoiceGapResponseNetToPayRegExp),
+  "credited_total": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditedTotalRegExp),
+  "remaining_to_pay": zod.stringFormat('decimal', giveUpInvoiceGapResponseRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', giveUpInvoiceGapResponsePaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', giveUpInvoiceGapResponseExtraOverGoodsRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "issued_by": zod.string(),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
+  "einvoice_reference": zod.string(),
+  "certificate": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseCertificateOneAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
+  "gap_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL\'s lots, not settled.')),
+  "notes": zod.string(),
+  "fiscal_stamp_overridden": zod.boolean(),
+  "withholding_rate_overridden": zod.boolean(),
+  "seller": zod.object({
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "phone": zod.string(),
+  "tax_id": zod.string(),
+  "trade_register": zod.string()
+}).describe('A seller or a customer as an invoice prints them.'),
+  "bill_to": zod.object({
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "phone": zod.string(),
+  "tax_id": zod.string(),
+  "trade_register": zod.string()
+}).describe('A seller or a customer as an invoice prints them.'),
+  "settings_valid_from": zod.iso.date().nullable(),
+  "settings_vat_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseSettingsVatRateRegExp).nullable(),
+  "settings_fiscal_stamp": zod.stringFormat('decimal', giveUpInvoiceGapResponseSettingsFiscalStampRegExp).nullable(),
+  "settings_withholding_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseSettingsWithholdingRateRegExp).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "sale_number": zod.string(),
+  "lots": zod.string(),
+  "quantity": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemVatRateRegExp),
+  "vat_rate_overridden": zod.boolean(),
+  "default_vat_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemDefaultVatRateRegExp),
+  "unit_price_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemUnitPriceExclTaxRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemAmountInclTaxRegExp),
+  "credited_quantity": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemCreditedQuantityRegExp),
+  "credited_amount_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseLinesItemCreditedAmountExclTaxRegExp)
+})),
+  "vat_lines": zod.array(zod.object({
+  "rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatLinesItemRateRegExp),
+  "base": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatLinesItemBaseRegExp),
+  "computed_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatLinesItemComputedAmountRegExp),
+  "amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatLinesItemAmountRegExp),
+  "amount_overridden": zod.boolean()
+})),
+  "credit_notes": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['full', 'partial']).describe('* `full` - Totale\n* `partial` - Partielle'),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "issued_on": zod.iso.date()
+}),
+  "issued_on": zod.iso.date(),
+  "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "total_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemFiscalStampRegExp),
+  "fees": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemFeesRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemTotalInclTaxRegExp),
+  "withholding_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemWithholdingAmountRegExp),
+  "net_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemNetAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice_line": zod.int(),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemQuantityRegExp),
+  "vat_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemVatRateRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountInclTaxRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
+  "einvoice_reference": zod.string()
+}))
+})
+
+
+/**
  * Issue a draft: the next number of the year (FA-2026-0001...), today's date, the settings in force now
  * for what was not typed, seller and customer copied. From then on it never changes. Nothing is sent to
  * TTN / El Fatoora (D-016).
@@ -7521,6 +7779,11 @@ export const IssueInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
+  "gap_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL\'s lots, not settled.')),
   "notes": zod.string(),
   "fiscal_stamp_overridden": zod.boolean(),
   "withholding_rate_overridden": zod.boolean(),
@@ -10857,6 +11120,7 @@ export const listMyDeliveriesResponseRevisionsItemLinesItemDeliveredRegExp = new
 export const listMyDeliveriesResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listMyDeliveriesResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveriesResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListMyDeliveriesResponseItem = zod.object({
@@ -10978,7 +11242,8 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', listMyDeliveriesResponseEstimatedExtraRegExp)
 })
 export const ListMyDeliveriesResponse = zod.array(ListMyDeliveriesResponseItem)
 
@@ -11056,6 +11321,7 @@ export const deliverMyDeliveryResponseRevisionsItemLinesItemDeliveredRegExp = ne
 export const deliverMyDeliveryResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverMyDeliveryResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverMyDeliveryResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const DeliverMyDeliveryResponse = zod.object({
@@ -11177,7 +11443,8 @@ export const DeliverMyDeliveryResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', deliverMyDeliveryResponseEstimatedExtraRegExp)
 })
 
 
@@ -11233,6 +11500,7 @@ export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemDeliveredRegExp
 export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const notDeliveredMyDeliveryResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredMyDeliveryResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const NotDeliveredMyDeliveryResponse = zod.object({
@@ -11354,7 +11622,8 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseEstimatedExtraRegExp)
 })
 
 
@@ -14118,6 +14387,7 @@ export const convertQuoteToSaleResponseRevisionsItemLinesItemDeliveredRegExp = n
 export const convertQuoteToSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const convertQuoteToSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const convertQuoteToSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ConvertQuoteToSaleResponse = zod.object({
@@ -14239,7 +14509,8 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', convertQuoteToSaleResponseEstimatedExtraRegExp)
 })
 
 
@@ -16585,6 +16856,7 @@ export const createSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegEx
 export const createSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CreateSaleResponse = zod.object({
@@ -16706,7 +16978,8 @@ export const CreateSaleResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', createSaleResponseEstimatedExtraRegExp)
 })
 
 
@@ -16752,6 +17025,7 @@ export const getSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('
 export const getSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetSaleResponse = zod.object({
@@ -16873,7 +17147,8 @@ export const GetSaleResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', getSaleResponseEstimatedExtraRegExp)
 })
 
 
@@ -16968,6 +17243,7 @@ export const updateSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegEx
 export const updateSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateSaleResponse = zod.object({
@@ -17089,7 +17365,8 @@ export const UpdateSaleResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', updateSaleResponseEstimatedExtraRegExp)
 })
 
 
@@ -17144,6 +17421,7 @@ export const cancelSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegEx
 export const cancelSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const cancelSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const cancelSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CancelSaleResponse = zod.object({
@@ -17265,7 +17543,8 @@ export const CancelSaleResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', cancelSaleResponseEstimatedExtraRegExp)
 })
 
 
@@ -17320,6 +17599,7 @@ export const confirmSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegE
 export const confirmSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const confirmSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const confirmSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ConfirmSaleResponse = zod.object({
@@ -17441,7 +17721,8 @@ export const ConfirmSaleResponse = zod.object({
   "note": zod.string(),
   "actor": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
-}).describe('One version of the BL of a truck load, as it was then (D-178).'))
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', confirmSaleResponseEstimatedExtraRegExp)
 })
 
 

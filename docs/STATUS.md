@@ -4,6 +4,11 @@ _Last updated: 2026-11-02 (receipt corrections are not spoilage, D-270, PR open;
 
 ## Where we are
 
+- **P9-T10 finished (D-256, branch `bl-gap-finish`, awaits CI):** "TTC" button on a BL line of Nouveau règlement (pay up to
+  goods + estimated VAT and stamp), owner-only "Abandonner l'écart" on a partly paid invoice (lots picked, typed amount,
+  recorded with the invoice), statement PDF line and BL-screen estimate. Check on staging: pay a BL 250,900 with TTC, invoice
+  it with VAT, it reads Payée; pay another at its goods, invoice, give up the gap as owner.
+
 - **PM follow-up 2026-11-02 (D-270, P1-T17, branch `receipt-correction-kind`, PR open):** a goods receipt's correction is its own
   movement kind, so it counts in the kg received and the purchases, not in spoilage. Hand-made adjustments are unchanged.
 - **Owner request 2026-11-02 (D-269, P1-T16, branch `receipt-edit-revisions`, PR open):** a goods receipt (BR) can be

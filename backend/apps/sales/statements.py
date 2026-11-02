@@ -44,6 +44,8 @@ class StatementSale:
     total: Decimal
     owed: Decimal
     quantity: Decimal
+    # Paid up to its goods but its invoice still asks more (VAT, stamp): what is left (D-256); zero otherwise.
+    gap_left: Decimal = ZERO
 
 
 @dataclass(frozen=True)
@@ -90,6 +92,14 @@ def _in_period(day: dt.date, date_from: dt.date | None, date_to: dt.date) -> boo
     return (date_from is None or day >= date_from) and day <= date_to
 
 
+def _gap_left(sale: SaleModel, row: receivables.SaleReceivable | None) -> Decimal:
+    """What an invoiced BL still owes although it was paid up to its goods: the VAT and stamp left (D-256)."""
+    if row is None or row.invoice_id is None or row.outstanding <= 0:
+        return ZERO
+    paid = row.on_spot + row.allocated + row.written_off
+    return row.outstanding if paid >= sale.total else ZERO
+
+
 def customer_statement(
     organization: Organization, customer_id: int, *, date_from: dt.date | None, date_to: dt.date
 ) -> CustomerStatement:
@@ -128,10 +138,10 @@ def customer_statement(
         .prefetch_related(Prefetch("lines", queryset=lines))
         .order_by("sold_at", "id")
     )
-    invoice_numbers = {
-        row.sale_id: row.invoice_number
-        for row in receivables.sale_receivables(organization, sale_ids=list(owed_by_sale))
+    receivable_rows = {
+        row.sale_id: row for row in receivables.sale_receivables(organization, sale_ids=list(owed_by_sale))
     }
+    invoice_numbers = {sale_id: row.invoice_number for sale_id, row in receivable_rows.items()}
     statement_sales: list[StatementSale] = []
     for sale in sales:
         sale_lines = tuple(
@@ -156,6 +166,7 @@ def customer_statement(
                 total=sale.total,
                 owed=owed_by_sale[sale.pk],
                 quantity=sum((line.quantity for line in sale_lines), ZERO),
+                gap_left=_gap_left(sale, receivable_rows.get(sale.pk)),
             )
         )
 

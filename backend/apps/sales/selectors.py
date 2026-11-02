@@ -335,15 +335,18 @@ def batch_sales(organization: Organization, *, batch_id: int) -> QuerySet[SaleLi
     )
 
 
-def customer_lots(organization: Organization, *, customer_id: int) -> list[dict[str, Any]]:
+def customer_lots(
+    organization: Organization, *, customer_id: int, sale_ids: Iterable[int] | None = None
+) -> list[dict[str, Any]]:
     """The lots a customer bought from (confirmed sales), newest first, by id with their number and product:
-    the lots a write-off of their balance can be charged to (D-257)."""
-    rows = (
-        SaleLineBatch.objects.for_organization(organization)
-        .filter(line__sale__customer_id=customer_id, line__sale__status=SaleStatus.CONFIRMED)
-        .values("batch_id", "batch__number", "batch__product__name", "batch__received_on")
-        .distinct()
+    the lots a write-off of their balance can be charged to (D-257). With `sale_ids`, only the lots of those BL
+    (the gap of one invoice, D-256)."""
+    sold = SaleLineBatch.objects.for_organization(organization).filter(
+        line__sale__customer_id=customer_id, line__sale__status=SaleStatus.CONFIRMED
     )
+    if sale_ids is not None:
+        sold = sold.filter(line__sale_id__in=list(sale_ids))
+    rows = sold.values("batch_id", "batch__number", "batch__product__name", "batch__received_on").distinct()
     lots = {
         row["batch_id"]: {
             "batch_id": row["batch_id"],

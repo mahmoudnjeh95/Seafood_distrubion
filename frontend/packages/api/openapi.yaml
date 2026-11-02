@@ -3514,6 +3514,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/invoices/{invoice_id}/give-up-gap:
+    post:
+      operationId: giveUpInvoiceGap
+      description: |-
+        Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
+        amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
+        its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
   /api/v1/invoices/{invoice_id}/issue:
     post:
       operationId: issueInvoice
@@ -18269,6 +18305,24 @@ components:
       - prices_include_vat
       - vat_rate
       - withholding_rate
+    GapLot:
+      type: object
+      description: 'A lot the gap of an invoice can be charged to (D-256, D-257):
+        one of its BL''s lots, not settled.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - number
+      - product
     GeneralCost:
       type: object
       properties:
@@ -19362,6 +19416,11 @@ components:
           - $ref: '#/components/schemas/InvoiceCertificate'
           nullable: true
           readOnly: true
+        gap_lots:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapLot'
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -19435,6 +19494,7 @@ components:
       - fees
       - fiscal_stamp
       - fiscal_stamp_overridden
+      - gap_lots
       - id
       - issued_at
       - issued_by
@@ -27691,6 +27751,11 @@ components:
           items:
             $ref: '#/components/schemas/SaleRevision'
           readOnly: true
+        estimated_extra:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - amount_due
       - amount_excl_tax
@@ -27715,6 +27780,7 @@ components:
       - delivery_note
       - delivery_status
       - discount_total
+      - estimated_extra
       - id
       - invoice
       - issued_at

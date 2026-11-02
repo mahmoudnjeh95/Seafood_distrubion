@@ -3648,6 +3648,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - D-256 built (2026-11-02, P9-T10, first slice): estimate (`estimate_invoice`, `GET /invoices/estimate`), `estimated_extra` on
   open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
   per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).
+- D-256 finished (PM decisions): **Régler TTC**: an allocation on a BL not yet invoiced may exceed its goods up to its
+  estimated extra (`estimated_extras`: VAT by the D-202/D-246 rule plus the stamp, as if invoiced alone; a BL invoiced with
+  others shares one stamp, so any excess then reads as credit). The extra waits on the BL and settles the invoice's gap at issue.
+  **Abandonner l'écart**: owner only, `write_off_invoice_gap` reuses the D-252/D-257 routine limited to one issued invoice:
+  reason, the gap typed again, lots of that invoice's BL picked by hand adding up to it; recorded with the invoice
+  (`CustomerBalanceWriteOff.invoice`), never edited. The statement PDF flags "BL réglé, facture non soldée"; the BL screen
+  shows its estimate (`estimated_extra`).
 
 **D-259 · The driver's "Fonds de caisse" and "Argent pour les achats" go back to zero when the office approves the day (owner answer, 2026-11-02; changes D-242)** · provisional · 2026-11-02
 - `dayclose.approve_day_closing` calls `fleet.services.reset_day_fund`, which sets the office's `DayFund` for that driver

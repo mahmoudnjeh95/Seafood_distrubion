@@ -2968,11 +2968,18 @@ def _allocate(
         .order_by("id")
         .values_list("pk", flat=True)
     )
-    open_rows = {
-        row.sale_id: row
-        for row in receivables.sale_receivables(organization, customer_id=payment.customer_id)
-        if row.outstanding > 0
-    }
+    all_rows = {row.sale_id: row for row in receivables.sale_receivables(organization, customer_id=payment.customer_id)}
+    open_rows = {sale_id: row for sale_id, row in all_rows.items() if row.outstanding > 0}
+    # A BL on no invoice yet may be paid above its goods, up to the VAT and stamp its invoice will add (D-256).
+    extras = (
+        estimated_extras(organization, [sale_id for sale_id, row in all_rows.items() if row.invoice_id is None])
+        if requested is not None
+        else {}
+    )
+
+    def room(row: receivables.SaleReceivable) -> Decimal:
+        return row.outstanding + max(extras.get(row.sale_id, ZERO) - row.overpaid, ZERO)
+
     plan: list[tuple[int, Decimal]] = []
     errors: dict[str, str] = {}
     if requested is None:
@@ -2997,15 +3004,20 @@ def _allocate(
                 _plan_invoice(payment, invoice, amount, open_rows, taken, plan, errors, key)
                 continue
             sale = item["sale"]
-            open_row = open_rows.get(sale.pk)
-            if open_row is None or sale.organization_id != organization.pk or sale.customer_id != payment.customer_id:
+            open_row = all_rows.get(sale.pk)
+            if (
+                open_row is None
+                or room(open_row) <= 0
+                or sale.organization_id != organization.pk
+                or sale.customer_id != payment.customer_id
+            ):
                 errors[key] = _("Cette vente ne doit plus rien à ce client.")
             elif amount <= 0:
                 errors[key] = _("Le montant doit être supérieur à zéro.")
-            elif taken.get(sale.pk, Decimal("0.000")) + amount > open_row.outstanding:
+            elif taken.get(sale.pk, Decimal("0.000")) + amount > room(open_row):
                 errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {
                     "number": open_row.number,
-                    "due": display_money(open_row.outstanding),
+                    "due": display_money(room(open_row)),
                 }
             else:
                 taken[sale.pk] = taken.get(sale.pk, Decimal("0.000")) + amount
@@ -3384,7 +3396,6 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
     return payment
 
 
-@transaction.atomic
 def write_off_customer_balance(
     *,
     customer: "Customer",
@@ -3392,6 +3403,36 @@ def write_off_customer_balance(
     expected: Number,
     reason: str,
     lot_shares: list[dict[str, Any]] | None = None,
+) -> CustomerBalanceWriteOff:
+    return _write_off(customer=customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares)
+
+
+def write_off_invoice_gap(
+    *,
+    invoice: Invoice,
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
+) -> CustomerBalanceWriteOff:
+    """Give up what is left to pay on one issued invoice (D-256), for instance the VAT and stamp a BL paid at its
+    goods did not cover. Same rules as clearing a balance (D-252, D-257): the amount typed again must be what the
+    invoice still asks, a reason is required, the loss is charged to the lots of the invoice's BL picked by hand,
+    and the record is never edited. It is limited to this invoice's gap."""
+    return _write_off(
+        customer=invoice.customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares, invoice=invoice
+    )
+
+
+@transaction.atomic
+def _write_off(
+    *,
+    customer: "Customer",
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
+    invoice: Invoice | None = None,
 ) -> CustomerBalanceWriteOff:
     """Clear a customer's balance to zero, the rest given up as a loss on them (D-252): they paid less than they
     owed (10 000 of 10 080 DT leaves 80 DT). `expected` must be the balance shown now, typed again by the office,
@@ -3408,12 +3449,24 @@ def write_off_customer_balance(
         .order_by("id")
         .values_list("pk", flat=True)
     )
-    balance = receivables.customer_balance(organization, customer.pk).balance
+    invoice_sale_ids: list[int] | None = None
+    if invoice is not None:
+        invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+        if invoice.status != InvoiceStatus.ISSUED:
+            raise ValidationError(_("Seule une facture émise a un écart à abandonner."))
+        invoice_sale_ids = list(invoice.sale_links.values_list("sale_id", flat=True))
+        balance = sum(
+            (row.outstanding for row in receivables.sale_receivables(organization, sale_ids=invoice_sale_ids)), ZERO
+        )
+    else:
+        balance = receivables.customer_balance(organization, customer.pk).balance
     try:
         typed = checked_amount(expected)
     except (ValueError, TypeError) as error:
         raise ValidationError({"expected_amount": str(error)}) from None
     if balance <= 0:
+        if invoice is not None:
+            raise ValidationError(_("Cette facture ne demande plus rien : aucun écart à abandonner."))
         raise ValidationError(_("Ce client ne doit rien : son solde n'est pas positif, rien à remettre à zéro."))
     if typed != balance:
         raise ValidationError(
@@ -3429,11 +3482,12 @@ def write_off_customer_balance(
         organization,
         total=balance,
         shares=list(lot_shares or []),
-        candidates=selectors.customer_lots(organization, customer_id=customer.pk),
+        candidates=selectors.customer_lots(organization, customer_id=customer.pk, sale_ids=invoice_sale_ids),
     )
     write_off = CustomerBalanceWriteOff.objects.create(
         organization=organization,
         customer=customer,
+        invoice=invoice,
         written_on=timezone.localdate(),
         amount=balance,
         reason=reason,
@@ -3443,7 +3497,11 @@ def write_off_customer_balance(
     # impayé not tied to a sale) stays on the write-off only.
     left = balance
     open_rows = sorted(
-        (row for row in receivables.sale_receivables(organization, customer_id=customer.pk) if row.outstanding > 0),
+        (
+            row
+            for row in receivables.sale_receivables(organization, customer_id=customer.pk, sale_ids=invoice_sale_ids)
+            if row.outstanding > 0
+        ),
         key=lambda row: (row.document_date, row.sale_id),
     )
     for row in open_rows:
@@ -3463,10 +3521,11 @@ def write_off_customer_balance(
     audit.record(
         organization=organization,
         actor=actor,
-        action="customer.balance_written_off",
+        action="customer.balance_written_off" if invoice is None else "invoice.gap_written_off",
         target=write_off,
         after={
             "customer": customer.name,
+            "invoice": invoice.number if invoice is not None else None,
             "amount": str(balance),
             "reason": reason,
             "lots": {str(batch_id): str(amount) for batch_id, amount in shares},

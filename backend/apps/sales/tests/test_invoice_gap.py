@@ -5,6 +5,7 @@ import datetime as dt
 from decimal import Decimal
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -16,8 +17,8 @@ from apps.inventory import services as stock
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
-from apps.sales import services
-from apps.sales.models import Invoice, Sale
+from apps.sales import selectors, services
+from apps.sales.models import Invoice, Sale, SaleLineBatch
 
 pytestmark = pytest.mark.django_db
 
@@ -195,3 +196,105 @@ def test_an_unpaid_invoice_and_a_draft_read_unpaid_and_none(organization, manage
 
     body = api.get(reverse("invoice-detail", args=[draft.pk])).json()
     assert (body["payment_state"], body["paid_total"]) == ("unpaid", "0.000")
+
+
+# ---- Régler TTC, giving up the gap, statement line, BL estimate (D-256) ----
+
+
+def allocate_to(organization, manager, customer, bl, amount):
+    return services.record_customer_payment(
+        organization=organization,
+        actor=manager.user,
+        customer=customer,
+        amount=amount,
+        method="cash",
+        allocations=[{"sale": bl, "amount": amount}],
+    )
+
+
+def test_a_bl_not_yet_invoiced_takes_a_payment_up_to_its_estimated_ttc(organization, manager, customer, counter):
+    bl = sell(organization, manager, customer, counter, with_vat=True)  # goods 210.000, TTC 250.900
+
+    allocate_to(organization, manager, customer, bl, "250.900")
+
+    invoice = services.create_invoice(sale=bl, apply_vat=True, actor=manager.user, issue=True)
+    bl.refresh_from_db()
+    assert bl.amount_due == D("0.000")
+    assert Invoice.objects.get(pk=invoice.pk).sales.get().amount_due == D("0.000")
+
+
+def test_a_payment_above_the_estimated_ttc_is_refused(organization, manager, customer, counter):
+    bl = sell(organization, manager, customer, counter, with_vat=True)
+
+    with pytest.raises(ValidationError):
+        allocate_to(organization, manager, customer, bl, "251.000")
+
+
+def test_the_estimate_does_not_open_credit_on_an_invoiced_bl(organization, manager, customer, counter):
+    bl = sell(organization, manager, customer, counter, with_vat=False)
+    services.create_invoice(sale=bl, actor=manager.user, issue=True)
+
+    with pytest.raises(ValidationError):
+        allocate_to(organization, manager, customer, bl, "212.000")
+
+
+def lots_of(bl, amount):
+    return [{"batch": SaleLineBatch.objects.get(line__sale=bl).batch_id, "amount": amount}]
+
+
+def test_the_owner_gives_up_the_gap_of_one_invoice_charged_to_a_lot(organization, manager, customer, counter, api):
+    bl = sell(organization, manager, customer, counter, with_vat=True)
+    pay(organization, manager, customer, "210.000")
+    invoice = services.create_invoice(sale=bl, apply_vat=True, actor=manager.user, issue=True)
+    body = api.get(reverse("invoice-detail", args=[invoice.pk])).json()
+    assert [lot["batch_id"] for lot in body["gap_lots"]] == [SaleLineBatch.objects.get(line__sale=bl).batch_id]
+
+    with pytest.raises(ValidationError):
+        services.write_off_invoice_gap(
+            invoice=invoice, actor=manager.user, expected="40.000", reason="x", lot_shares=[]
+        )
+    write_off = services.write_off_invoice_gap(
+        invoice=invoice, actor=manager.user, expected="40.900", reason="Geste", lot_shares=lots_of(bl, "40.900")
+    )
+
+    assert (write_off.invoice_id, write_off.amount) == (invoice.pk, D("40.900"))
+    body = api.get(reverse("invoice-detail", args=[invoice.pk])).json()
+    assert (body["payment_state"], body["remaining_to_pay"]) == ("paid", "0.000")
+    with pytest.raises(ValidationError):
+        services.write_off_invoice_gap(
+            invoice=invoice, actor=manager.user, expected="40.900", reason="Encore", lot_shares=[]
+        )
+
+
+def test_only_the_owner_gives_up_a_gap(organization, manager, customer, counter, api):
+    bl = sell(organization, manager, customer, counter, with_vat=True)
+    pay(organization, manager, customer, "210.000")
+    invoice = services.create_invoice(sale=bl, apply_vat=True, actor=manager.user, issue=True)
+
+    answer = api.post(
+        reverse("invoice-give-up-gap", args=[invoice.pk]),
+        {"expected_amount": "40.900", "reason": "Geste", "lot_shares": [{"batch": 1, "amount": "40.900"}]},
+        format="json",
+    )
+
+    assert answer.status_code == 403
+
+
+def test_the_statement_flags_a_bl_paid_at_its_goods_with_an_invoice_still_open(
+    organization, manager, customer, counter
+):
+    bl = sell(organization, manager, customer, counter, with_vat=True)
+    pay(organization, manager, customer, "210.000")
+    services.create_invoice(sale=bl, apply_vat=True, actor=manager.user, issue=True)
+
+    statement = selectors.customer_statement(organization, customer.pk, date_from=None, date_to=timezone.localdate())
+
+    assert [sale.gap_left for sale in statement.sales] == [D("40.900")]
+
+
+def test_the_bl_detail_shows_its_estimate(organization, manager, customer, counter, api):
+    bl = sell(organization, manager, customer, counter, with_vat=True)
+
+    body = api.get(reverse("sale-detail", args=[bl.pk])).json()
+
+    assert body["estimated_extra"] == "40.900"
