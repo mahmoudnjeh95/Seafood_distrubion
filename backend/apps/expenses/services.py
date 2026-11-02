@@ -466,9 +466,29 @@ def approve_expense(*, expense: Expense, actor: User | None) -> Expense:
 EXPENSE_SOURCE = "expenses.expense"
 
 
+_EFFET_METHODS = (ExpensePaymentMethod.CHEQUE, ExpensePaymentMethod.BILL)
+
+
 def _post_expense_money(expense: Expense, *, actor: User | None) -> None:
     """Out of the driver's cash when the driver paid it in cash, else out of the account its payment method goes to
-    (the Caisse for cash, the main bank account otherwise). Written once: approval is the only time it counts."""
+    (the Caisse for cash, the main bank account otherwise). Written once: approval is the only time it counts.
+    A cheque or a traite of ours is an effet issued instead (D-264): the money leaves when the bank debits it, and
+    the office completes its bank and day in the Portefeuille."""
+    if expense.payment_method in _EFFET_METHODS:
+        treasury.register_instrument(
+            organization=expense.organization,
+            actor=actor,
+            direction="issued",
+            kind=expense.payment_method,
+            number=expense.number,
+            bank=None,
+            amount=expense.amount,
+            issued_on=expense.spent_on,
+            due_on=None,
+            source_number=expense.number,
+            partial=True,
+        )
+        return
     driver = expense.entered_by if expense.paid_by_driver else None
     treasury.post_movement(
         organization=expense.organization,
@@ -490,7 +510,8 @@ def post_treasury_history(*, organization: Organization) -> None:
         "category", "entered_by"
     )
     for expense in approved:
-        _post_expense_money(expense, actor=None)
+        if expense.payment_method not in _EFFET_METHODS:  # an effet is written once, when the expense is approved
+            _post_expense_money(expense, actor=None)
 
 
 @transaction.atomic

@@ -14,7 +14,7 @@ from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import services
-from apps.treasury.models import AccountKind, TreasuryMovement
+from apps.treasury.models import AccountKind, Instrument, TreasuryMovement
 
 pytestmark = pytest.mark.django_db
 
@@ -123,4 +123,23 @@ def test_a_transfer_paid_at_the_sale_goes_to_the_main_bank_account(organization,
 def test_a_sale_with_nothing_paid_moves_no_money(organization, actor, customer, counter, stocked):
     sale = make_sale(organization, actor, customer, counter, stocked, "5")
 
+    assert not TreasuryMovement.objects.filter(source="sales.sale", source_id=sale.pk).exists()
+
+
+def test_a_cheque_taken_at_the_sale_is_an_effet_received_not_money_in_the_bank(
+    organization, actor, customer, counter, stocked
+):
+    sale = make_sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        stocked,
+        "5",
+        payment={"amount_paid": "210.000", "payment_method": "cheque", "payment_reference": "CH-4412"},
+    )
+
+    effet = Instrument.objects.get(organization=organization, source_number=sale.number)
+    assert (effet.direction, effet.kind, effet.status, effet.number) == ("received", "cheque", "portfolio", "CH-4412")
+    assert (effet.customer, effet.amount) == (customer, D("210.000"))
     assert not TreasuryMovement.objects.filter(source="sales.sale", source_id=sale.pk).exists()
