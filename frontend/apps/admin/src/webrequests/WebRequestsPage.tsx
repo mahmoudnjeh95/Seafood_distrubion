@@ -15,6 +15,7 @@ import {
   useServerTable,
   useUrlState,
 } from "@frutti/ui";
+import { useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 
 import { Link, useNavigate } from "react-router";

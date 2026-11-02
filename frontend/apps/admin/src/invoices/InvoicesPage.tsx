@@ -26,7 +26,7 @@ import {
   useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";

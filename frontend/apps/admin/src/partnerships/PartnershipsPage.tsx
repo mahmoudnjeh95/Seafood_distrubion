@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { type ListPartnershipsStatus, useListLotFigures, useListPartnerships } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
