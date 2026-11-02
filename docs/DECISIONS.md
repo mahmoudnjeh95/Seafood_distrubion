@@ -3802,7 +3802,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A receipt correction does not lock the lot's cost or VAT (the cost lock only watches sales, losses, returns, counts and hand adjustments).
 - Migration `inventory.0013_receipt_correction_kind` (choices only; no data changes). The ledger stays append-only: corrections already posted before this change (since D-269 was deployed) keep the `adjustment` kind and so still count as spoilage. They can be identified by their source (the receipt line). Reclassifying them would mean rewriting movements, which the ledger does not allow; the owner decides whether to leave them or record a separate correction.
 
-## D-268 Sorting and paging on every long list (2026-11-02)
+## D-271 Sorting and paging on every long list (2026-11-02)
 
 - Server-paged lists (`PagedList`) take `?ordering=key` or `-key`; each view lists its sortable columns in
   `ordering_columns`. Only stored columns sort (number, date, partner name, kind...); computed amounts
