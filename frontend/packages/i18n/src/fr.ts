@@ -1595,6 +1595,8 @@ export const fr = {
         // D-126: fees typed by the office, outside VAT, added to the total.
         fees: "Frais (DT, hors TVA)",
         withholding: "Retenue à la source",
+        // Owner rule: taken from a total with tax of 1 000,000 DT, on no invoice below it.
+        withholdingRule: "Prélevée sur les factures dont le total TTC atteint 1 000,000 DT ; aucune en dessous.",
         withholdingRate: "Taux de retenue (%)",
         notes: "Mention sur la facture",
         save: "Enregistrer et recalculer",
@@ -1714,7 +1716,7 @@ export const fr = {
       pricesIncludeVat: "Les prix de vente comprennent la TVA",
       pricesHint: "Coché : la TVA est extraite du prix. Décoché : elle s'ajoute au prix.",
       withholdingRate: "Retenue à la source (%)",
-      withholdingHint: "À 0 %, rien n'apparaît sur la facture ; sinon elle est proposée quand on la choisit.",
+      withholdingHint: "Prélevée sur les factures dont le total TTC atteint 1 000,000 DT ; à 0 %, aucune.",
       seller: "Vendeur imprimé sur les factures",
       legalName: "Raison sociale",
       address: "Adresse",
@@ -3988,7 +3990,7 @@ export const fr = {
       tabs: { label: "Personnel et salaires", payroll: "Paie", employees: "Employés" },
       status: { draft: "Brouillon", approved: "Approuvée" },
       method: { cash: "Espèces", cheque: "Chèque", transfer: "Virement", other: "Autre" },
-      kind: { salary: "Salaire", advance: "Avance sur salaire" },
+      kind: { salary: "Salaire", advance: "Avance sur salaire", prime: "Prime" },
       adjustKind: { adjustment: "Ajustement", prime: "Prime" },
       treasury: {
         column: "Trésorerie",
@@ -4159,9 +4161,11 @@ export const fr = {
       },
       prime: {
         title: "Ajouter une prime à {{name}}",
-        hint: "La prime s'ajoute à ce qui est dû pour le mois, avec son motif. Elle ne demande pas de paiement séparé.",
+        hint: "La prime s'ajoute à ce qui est dû pour le mois, avec son motif, et se paie tout de suite : elle sort de la trésorerie le jour du paiement.",
         amount: "Montant de la prime (DT)",
         reason: "Motif de la prime",
+        method: "Mode de paiement",
+        paidOn: "Date du paiement",
         invalidAmount: "Indiquez un montant de prime positif, au millime près.",
         save: "Ajouter la prime",
         recorded: "Prime ajoutée.",

@@ -351,12 +351,15 @@ export function AdjustmentDialog({
   const formId = useId();
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  // A prime is paid when it is added (D-244): how and on which day it leaves the treasury.
+  const [method, setMethod] = useState<SalaryPaymentMethodEnum>("cash");
+  const [paidOn, setPaidOn] = useState(todayInTunis);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const save = useMutation({
     mutationFn: (value: string) =>
       prime
-        ? addSalaryPrime(record.id, { amount: value, reason: reason.trim() })
+        ? addSalaryPrime(record.id, { amount: value, reason: reason.trim(), method, paid_on: paidOn })
         : adjustSalaryRecord(record.id, { amount: value, reason: reason.trim() }),
     onSuccess: async () => {
       toast.success(prime ? t("admin.hr.prime.recorded") : t("admin.hr.adjust.recorded"));
@@ -365,9 +368,11 @@ export function AdjustmentDialog({
     },
     onError: (failure) => {
       const fromServer = fieldErrors(failure);
+      // The prime's payment is one allocation of the amount typed: its error shows under the amount.
+      const amountError = fromServer["allocations.0.amount"] ?? fromServer.allocations;
       setErrors(
         Object.keys(fromServer).length > 0
-          ? fromServer
+          ? { ...fromServer, ...(amountError ? { amount: amountError } : {}) }
           : { detail: prime ? t("admin.hr.prime.error") : t("admin.hr.adjust.error") },
       );
     },
@@ -380,6 +385,7 @@ export function AdjustmentDialog({
     if (parsed === null || Number(parsed) === 0 || (prime && parsed.startsWith("-")))
       found.amount = prime ? t("admin.hr.prime.invalidAmount") : t("admin.hr.adjust.invalidAmount");
     if (!reason.trim()) found.reason = t("admin.hr.form.required");
+    if (prime && !paidOn) found.paid_on = t("admin.hr.form.required");
     setErrors(found);
     if (Object.keys(found).length > 0 || parsed === null) return;
     save.mutate(parsed);
@@ -423,6 +429,33 @@ export function AdjustmentDialog({
             autoComplete="off"
           />
         </Field>
+        {prime && (
+          <div className="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
+            <Field label={t("admin.hr.prime.method")} htmlFor={`${formId}-method`} error={errors.method}>
+              <Select value={method} onValueChange={(value) => setMethod(value as SalaryPaymentMethodEnum)}>
+                <SelectTrigger id={`${formId}-method`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((choice) => (
+                    <SelectItem key={choice} value={choice}>
+                      {t(`admin.hr.method.${choice}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={t("admin.hr.prime.paidOn")} htmlFor={`${formId}-paid_on`} error={errors.paid_on}>
+              <Input
+                id={`${formId}-paid_on`}
+                type="date"
+                max={todayInTunis()}
+                value={paidOn}
+                onChange={(event) => setPaidOn(event.target.value)}
+              />
+            </Field>
+          </div>
+        )}
       </form>
       <Detail message={errors.detail ?? errors.status} />
       <DialogFooter>

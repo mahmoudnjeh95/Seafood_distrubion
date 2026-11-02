@@ -303,6 +303,7 @@ import type {
   PriceBoard,
   PriceList,
   PriceListWrite,
+  PrimeWrite,
   Product,
   ProductCreate,
   ProductPrice,
@@ -25659,11 +25660,11 @@ export const getAddSalaryPrimeUrl = (recordId: number,) => {
 }
 
 /**
- * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
- * with no separate payment (D-234).
+ * Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+ * It is due on top of the salary and its payment leaves the treasury on the day paid.
  */
 export const addSalaryPrime = async (recordId: number,
-    adjustmentWrite: AdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
+    primeWrite: PrimeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -25684,7 +25685,7 @@ return apiFetch<SalaryAdjustment>(getAddSalaryPrimeUrl(recordId),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(adjustmentWrite)
+    body: JSON.stringify(primeWrite)
   }
 );}
 
@@ -25722,9 +25723,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AddSalaryPrimeMutationResult = NonNullable<Awaited<ReturnType<typeof addSalaryPrime>>>
-    export type AddSalaryPrimeMutationBody = AdjustmentWrite
+    export type AddSalaryPrimeMutationBody = PrimeWrite
     export type AddSalaryPrimeMutationError = unknown
-    export type AddSalaryPrimeMutationVariables = {recordId: number;data: AdjustmentWrite}
+    export type AddSalaryPrimeMutationVariables = {recordId: number;data: PrimeWrite}
 
     export const useAddSalaryPrime = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSalaryPrime>>, TError,AddSalaryPrimeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

@@ -585,7 +585,6 @@ def _invoice_choices(data: dict[str, Any]) -> dict[str, Any]:
         "vat_amounts": {row["rate"]: row["amount"] for row in data["vat_amounts"]},
         "fiscal_stamp": data["fiscal_stamp"],
         "fees": data["fees"],
-        "withholding_applied": data["withholding_applied"],
         "withholding_rate": data["withholding_rate"],
         "notes": data["notes"],
     }

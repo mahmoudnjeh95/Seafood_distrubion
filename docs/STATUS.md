@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, PR #278 awaits CI; next free decision D-250)_
+_Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`, PR #278 awaits merge; next free decision D-251)_
 
 ## Where we are
 
+- **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
+  date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
+  treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).
 - **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
   removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
   The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
@@ -50,7 +53,7 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 
 ## Next step
 
-0. **D-249 (`day-office-checks`, PR #278):** wait for green CI, merge. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
+0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
 0. D-243: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
    avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.
 0. P1-T15 (#280): merge once green. On staging: a product, "Ajuster le stock", add 10 kg to a lot then remove it; the average on the product page and on Prix du jour moves.
@@ -59,6 +62,8 @@ _Last updated: 2026-11-02 (office day check, D-249 on branch `day-office-checks`
 2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
    to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
 3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
+   Withholding rule D-250 (PR #277, awaits CI): retenue à la source on invoices of 1 000 DT TTC and more, none below;
+   check on staging with a rate set in Paramètres financiers.
 4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
 
 ## Open owner decisions
