@@ -20259,6 +20259,73 @@ export const ExportAccountStatementResponse = zod.unknown()
 
 
 /**
+ * The lines imported on a bank account between two days (inclusive), oldest first, paginated.
+ */
+export const ListStatementLinesParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const ListStatementLinesQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.')
+})
+
+export const listStatementLinesResponseResultsItemDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listStatementLinesResponseResultsItemCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listStatementLinesResponseResultsItemBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListStatementLinesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "label": zod.string(),
+  "debit": zod.stringFormat('decimal', listStatementLinesResponseResultsItemDebitRegExp),
+  "credit": zod.stringFormat('decimal', listStatementLinesResponseResultsItemCreditRegExp),
+  "balance": zod.stringFormat('decimal', listStatementLinesResponseResultsItemBalanceRegExp).nullable(),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+ * or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+ * already on the account is skipped, so the same file twice adds nothing.
+ */
+export const ImportBankStatementParams = zod.object({
+  "account_id": zod.int()
+})
+
+export const ImportBankStatementBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const ImportBankStatementResponse = zod.object({
+  "created": zod.int(),
+  "skipped": zod.int(),
+  "problems": zod.array(zod.object({
+  "row": zod.int(),
+  "message": zod.string()
+}))
+})
+
+
+/**
  * The banks an effet may be drawn on, in the list's order; `active_only=false` adds those taken off.
  */
 export const listBanksQueryActiveOnlyDefault = true;
@@ -21090,6 +21157,58 @@ export const ListPartyDocumentsResponse = zod.object({
   "total": zod.stringFormat('decimal', listPartyDocumentsResponseSuppliersItemTotalRegExp)
 }))
 }).describe('Per customer: its BL, invoices and net to pay. Per supplier: its BR, invoices and invoiced total (D-211).')
+
+
+/**
+ * Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+ * credit. Both left empty clears it.
+ */
+export const SetStatementLinePartyParams = zod.object({
+  "line_id": zod.int()
+})
+
+
+
+
+
+export const SetStatementLinePartyBody = zod.object({
+  "customer": zod.int().min(1).nullish(),
+  "supplier": zod.int().min(1).nullish()
+})
+
+export const setStatementLinePartyResponseDebitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setStatementLinePartyResponseCreditRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const setStatementLinePartyResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const SetStatementLinePartyResponse = zod.object({
+  "id": zod.int(),
+  "day": zod.iso.date(),
+  "label": zod.string(),
+  "debit": zod.stringFormat('decimal', setStatementLinePartyResponseDebitRegExp),
+  "credit": zod.stringFormat('decimal', setStatementLinePartyResponseCreditRegExp),
+  "balance": zod.stringFormat('decimal', setStatementLinePartyResponseBalanceRegExp).nullable(),
+  "customer": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()]),
+  "supplier": zod.union([zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),zod.null()])
+})
+
+
+/**
+ * Take a line off the statement (owner or manager): a wrong import. It was only a copy of the bank's file.
+ */
+export const DeleteStatementLineParams = zod.object({
+  "line_id": zod.int()
+})
+
+export const DeleteStatementLineResponse = zod.void()
 
 
 /**

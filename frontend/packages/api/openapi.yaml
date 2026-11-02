@@ -10152,6 +10152,80 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/treasury/accounts/{account_id}/statement-lines:
+    get:
+      operationId: listStatementLines
+      description: The lines imported on a bank account between two days (inclusive),
+        oldest first, paginated.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBankStatementLineList'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/statement/import:
+    post:
+      operationId: importBankStatement
+      description: |-
+        Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+        or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+        already on the account is skipped, so the same file twice adds nothing.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementImport'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportReport'
+          description: ''
   /api/v1/treasury/banks:
     get:
       operationId: listBanks
@@ -10725,6 +10799,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/PartyDocuments'
           description: ''
+  /api/v1/treasury/statement-lines/{line_id}:
+    put:
+      operationId: setStatementLineParty
+      description: |-
+        Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+        credit. Both left empty clears it.
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+          description: ''
+    delete:
+      operationId: deleteStatementLine
+      description: 'Take a line off the statement (owner or manager): a wrong import.
+        It was only a copy of the bank''s file.'
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/treasury/transfers:
     get:
       operationId: listAccountTransfers
@@ -11638,6 +11763,54 @@ components:
       - is_active
       - name
       - swift
+    BankStatementLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        debit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+      required:
+      - balance
+      - credit
+      - customer
+      - day
+      - debit
+      - id
+      - label
+      - supplier
     BankWrite:
       type: object
       properties:
@@ -22050,6 +22223,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AccountTransfer'
+    PaginatedBankStatementLineList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankStatementLine'
     PaginatedBatchList:
       type: object
       required:
@@ -28128,6 +28324,55 @@ components:
       - rows
       - total_quantity
       - total_value
+    StatementImport:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    StatementImportReport:
+      type: object
+      properties:
+        created:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementRowError'
+          readOnly: true
+      required:
+      - created
+      - problems
+      - skipped
+    StatementLineParty:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+          nullable: true
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+    StatementRowError:
+      type: object
+      properties:
+        row:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - message
+      - row
     StatusTotal:
       type: object
       properties:
