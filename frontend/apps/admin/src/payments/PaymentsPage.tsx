@@ -23,11 +23,14 @@ import {
   Field,
   Input,
   PageHeader,
+  Pager,
   Pill,
+  SortTh,
   Table,
   Td,
   Th,
   toast,
+  useServerTable,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -41,7 +44,6 @@ import { filterParams, isFiltered, type ListFilters, NO_FILTERS } from "./listFi
 import { MeansChips, PaymentListFilters, PaymentTotalsCard } from "./ListParts";
 import { canCollect, refreshAfterPayment } from "./shared";
 
-const PAGE_SIZE = 50;
 const METHODS: readonly CustomerPaymentMethodEnum[] = ["cash", "cheque", "bill", "transfer", "card", "mixed"];
 
 function VoidDialog({ payment, onClose }: { payment: CustomerPayment; onClose: () => void }) {
@@ -193,13 +195,13 @@ export function PaymentsPage() {
   const session = useOutletContext<Session>();
   const canWrite = canCollect(session);
   const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const [voiding, setVoiding] = useState<CustomerPayment | null>(null);
   const [filters, setFilters] = useState<ListFilters<CustomerPaymentMethodEnum>>(NO_FILTERS);
   const query = useDebounced(search.trim());
   const shared = { ...filterParams(filters), ...(query ? { search: query } : {}) };
   const payments = useListCustomerPayments(
-    { limit: PAGE_SIZE, offset, ...shared },
+    { ...table.params, ...shared },
     { query: { placeholderData: keepPreviousData } },
   );
   const totals = useGetCustomerPaymentTotals(shared, { query: { placeholderData: keepPreviousData } });
@@ -228,7 +230,7 @@ export function PaymentsPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -236,7 +238,7 @@ export function PaymentsPage() {
           filters={filters}
           onChange={(next) => {
             setFilters(next);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           methods={METHODS}
           methodLabel={methodLabel}
@@ -266,11 +268,19 @@ export function PaymentsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.payments.columns.number")}</Th>
-                <Th>{t("admin.payments.columns.date")}</Th>
-                <Th>{t("admin.payments.columns.customer")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.payments.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.payments.columns.date")}
+                </SortTh>
+                <SortTh sortKey="customer" {...table.sorting}>
+                  {t("admin.payments.columns.customer")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.payments.columns.reason")}</Th>
-                <Th>{t("admin.payments.columns.method")}</Th>
+                <SortTh sortKey="method" {...table.sorting}>
+                  {t("admin.payments.columns.method")}
+                </SortTh>
                 <Th numeric>{t("admin.payments.columns.amount")}</Th>
                 <Th numeric>{t("admin.payments.columns.remaining")}</Th>
                 <Th numeric>{t("admin.payments.columns.credit")}</Th>
@@ -317,20 +327,7 @@ export function PaymentsPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-between p-3">
-              <Button
-                variant="ghost"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                {t("admin.payments.previous")}
-              </Button>
-              <Button variant="ghost" disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.payments.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
       {voiding && <VoidDialog payment={voiding} onClose={() => setVoiding(null)} />}

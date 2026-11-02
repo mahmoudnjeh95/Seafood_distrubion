@@ -230,6 +230,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       tags:
       - boxes
       security:
@@ -475,6 +481,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: status
         schema:
@@ -659,6 +671,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -787,6 +805,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -2646,6 +2670,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -2954,6 +2984,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -3325,6 +3361,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: payment_state
         schema:
@@ -3876,6 +3918,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -6573,6 +6621,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -6739,6 +6793,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -6996,6 +7056,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: purchase_order
         schema:
@@ -8337,6 +8403,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -8841,6 +8913,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: product
         schema:
@@ -9027,6 +9105,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: overdue
         schema:
@@ -9277,6 +9361,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -9909,6 +9999,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -11528,6 +11624,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:

@@ -15,16 +15,20 @@ import {
   Icon,
   Input,
   PageHeader,
+  Pager,
   Pill,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SortTh,
   Table,
+  type TableSort,
   Td,
   Th,
   toast,
+  useTableView,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useState } from "react";
@@ -48,6 +52,29 @@ const PILL_TONE = { draft: "neutral", waiting: "sea", done: "good", cancelled: "
   DocumentToneEnum,
   string
 >;
+
+function Head({
+  sortKey,
+  sort,
+  onSort,
+  children,
+  ...props
+}: {
+  sortKey: string;
+  sort?: TableSort;
+  onSort?: (key: string) => void;
+  numeric?: boolean;
+  className?: string;
+  children: string;
+}) {
+  return onSort ? (
+    <SortTh sortKey={sortKey} sort={sort ?? null} onSort={onSort} {...props}>
+      {children}
+    </SortTh>
+  ) : (
+    <Th {...props}>{children}</Th>
+  );
+}
 
 function periodStart(period: Period): string | undefined {
   const today = todayInTunis();
@@ -105,6 +132,16 @@ export function DocumentsPage() {
   const filtering = type !== "" || tone !== "";
   const asTree = view === "tree" && !filtering;
   const lines: TreeLine[] = asTree ? buildTree(shown, collapsed) : flatLines(shown);
+  // The flat list can be sorted and paged; the tree keeps documents under the one they come from.
+  const table = useTableView(lines, {
+    number: ({ row }) => row.number,
+    type: ({ row }) => row.type,
+    partner: ({ row }) => row.partner_name,
+    date: ({ row }) => row.date,
+    amount: ({ row }) => Number(row.amount),
+    status: ({ row }) => row.status_label,
+  });
+  const shownLines = asTree ? lines : table.rows;
   const byKey = useMemo(() => new Map(all.map((row) => [row.key, row])), [all]);
   const childrenOf = useMemo(() => {
     const map = new Map<string, DocumentRow[]>();
@@ -278,6 +315,9 @@ export function DocumentsPage() {
       ? t(asking.row.type === "BA" ? "admin.docHub.confirmBody.cancelOrder" : "admin.docHub.confirmBody.cancelSale")
       : t(`admin.docHub.confirmBody.${asking.action as "send"}`));
 
+  // The tree keeps its own order, so only the flat list has sortable headers.
+  const headProps = asTree ? {} : { sort: table.sort, onSort: table.toggleSort };
+
   return (
     <>
       <PageHeader eyebrow={session.organization.name} title={t("admin.docHub.title")}>
@@ -384,17 +424,29 @@ export function DocumentsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.docHub.columns.number")}</Th>
-                <Th>{t("admin.docHub.columns.type")}</Th>
-                <Th>{t("admin.docHub.columns.partner")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.docHub.columns.date")}</Th>
-                <Th numeric>{t("admin.docHub.columns.amount")}</Th>
-                <Th>{t("admin.docHub.columns.status")}</Th>
+                <Head {...headProps} sortKey="number">
+                  {t("admin.docHub.columns.number")}
+                </Head>
+                <Head {...headProps} sortKey="type">
+                  {t("admin.docHub.columns.type")}
+                </Head>
+                <Head {...headProps} sortKey="partner">
+                  {t("admin.docHub.columns.partner")}
+                </Head>
+                <Head {...headProps} sortKey="date" className="max-[720px]:hidden">
+                  {t("admin.docHub.columns.date")}
+                </Head>
+                <Head {...headProps} sortKey="amount" numeric>
+                  {t("admin.docHub.columns.amount")}
+                </Head>
+                <Head {...headProps} sortKey="status">
+                  {t("admin.docHub.columns.status")}
+                </Head>
                 <Th>{t("admin.docHub.columns.actions")}</Th>
               </tr>
             </thead>
             <tbody>
-              {lines.map(({ row, depth, childCount }) => (
+              {shownLines.map(({ row, depth, childCount }) => (
                 <tr key={row.key} className={cn("hover:bg-surface-2", depth > 0 && "bg-surface-2")}>
                   <Td className="whitespace-nowrap">
                     <div className="flex items-start gap-1.5" style={{ paddingInlineStart: `${depth * 1.4}rem` }}>
@@ -455,6 +507,7 @@ export function DocumentsPage() {
               ))}
             </tbody>
           </Table>
+          {!asTree && <Pager {...table.pager} />}
           <div className="flex flex-wrap justify-between gap-2 p-2 text-[0.82rem] text-ink-2">
             <span aria-live="polite">
               {t("admin.docHub.count", { count: shown.length })}

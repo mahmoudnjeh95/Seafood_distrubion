@@ -1,15 +1,28 @@
 import { type QuoteStatusEnum, useListQuotes } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
 import { canWriteQuotes, QUOTE_STATUSES, STATUS_TONES } from "./shared";
-
-const PAGE_SIZE = 50;
 
 /** "Devis": every quote, newest first, with its status as the customer sees it today. */
 export function QuotesPage() {
@@ -19,11 +32,11 @@ export function QuotesPage() {
   const canWrite = canWriteQuotes(session);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<QuoteStatusEnum | "">("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const quotes = useListQuotes(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    { ...table.params, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = quotes.data;
@@ -37,7 +50,7 @@ export function QuotesPage() {
       aria-pressed={status === value}
       onClick={() => {
         setStatus(value);
-        setOffset(0);
+        table.backToFirstPage();
       }}
       className={cn(
         "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -69,7 +82,7 @@ export function QuotesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -105,9 +118,15 @@ export function QuotesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.quotes.columns.number")}</Th>
-                <Th>{t("admin.quotes.columns.date")}</Th>
-                <Th>{t("admin.quotes.columns.customer")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.quotes.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.quotes.columns.date")}
+                </SortTh>
+                <SortTh sortKey="customer" {...table.sorting}>
+                  {t("admin.quotes.columns.customer")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.quotes.columns.validUntil")}</Th>
                 <Th numeric>{t("admin.quotes.columns.total")}</Th>
               </tr>
@@ -145,23 +164,7 @@ export function QuotesPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.quotes.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.quotes.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.quotes.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

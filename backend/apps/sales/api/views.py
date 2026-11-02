@@ -136,6 +136,12 @@ class QuoteView(OfficeView):
 class QuoteListView(QuoteView, ListAPIView[Quote]):
     serializer_class = QuoteSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("quoted_on",),
+        "customer": ("customer__name",),
+        "validUntil": ("valid_until",),
+    }
 
     def get_queryset(self) -> QuerySet[Quote]:
         filters = QuoteFilterSerializer(data=self.request.query_params)
@@ -380,6 +386,11 @@ class SaleView(OfficeView):
 class SaleListView(SaleView, ListAPIView[Sale]):
     serializer_class = SaleSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("sold_at",),
+        "customer": ("customer__name",),
+    }
 
     def get_serializer_context(self) -> dict[str, Any]:
         return {**super().get_serializer_context(), "show_costs": not self.is_driver}
@@ -633,6 +644,11 @@ class InvoiceView(OfficeView):
 class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
     serializer_class = InvoiceSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("issued_on",),
+        "customer": ("customer_name",),
+    }
 
     def get_queryset(self) -> QuerySet[Invoice]:
         filters = InvoiceFilterSerializer(data=self.request.query_params)
@@ -807,6 +823,12 @@ class InvoiceCreditNoteView(InvoiceView):
 class CreditNoteListView(OfficeView, ListAPIView[CreditNote]):
     serializer_class = CreditNoteSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("issued_on",),
+        "invoice": ("invoice__number",),
+        "reason": ("reason",),
+    }
 
     def get_queryset(self) -> QuerySet[CreditNote]:
         filters = CreditNoteFilterSerializer(data=self.request.query_params)

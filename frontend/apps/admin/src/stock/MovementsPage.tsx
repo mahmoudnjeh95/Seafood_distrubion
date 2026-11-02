@@ -1,6 +1,6 @@
 import { type StockMovementKindEnum, useListLocations, useListMovements, useListProducts } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
-import { Button, Card, EmptyState, Input, PageHeader } from "@frutti/ui";
+import { Button, Card, EmptyState, Input, PageHeader, Pager, useServerTable } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
@@ -9,7 +9,6 @@ import { StockTabs } from "../lib/StockTabs";
 import { MovementsTable } from "./MovementsTable";
 import { MOVEMENT_KINDS } from "./shared";
 
-const PAGE_SIZE = 50;
 const SELECT_CLASSES = "rounded-control border border-line bg-surface px-3 py-2 text-ink";
 const LABEL_CLASSES = "flex flex-col gap-1 text-[0.78rem] font-semibold text-ink-2";
 
@@ -23,14 +22,13 @@ export function MovementsPage() {
   const [kind, setKind] = useState<StockMovementKindEnum | "">("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
 
   const locations = useListLocations({ status: "all" });
   const products = useListProducts({ status: "all" });
   const movements = useListMovements(
     {
-      limit: PAGE_SIZE,
-      offset,
+      ...table.params,
       ...(location ? { location: Number(location) } : {}),
       ...(product ? { product: Number(product) } : {}),
       ...(kind ? { kind } : {}),
@@ -46,7 +44,7 @@ export function MovementsPage() {
   // Any filter change goes back to the first page.
   const change = (set: (value: string) => void) => (event: { target: { value: string } }) => {
     set(event.target.value);
-    setOffset(0);
+    table.backToFirstPage();
   };
   const reset = () => {
     setLocation("");
@@ -54,7 +52,7 @@ export function MovementsPage() {
     setKind("");
     setDateFrom("");
     setDateTo("");
-    setOffset(0);
+    table.backToFirstPage();
   };
 
   return (
@@ -97,7 +95,7 @@ export function MovementsPage() {
             value={kind}
             onChange={(event) => {
               setKind(event.target.value as StockMovementKindEnum | "");
-              setOffset(0);
+              table.backToFirstPage();
             }}
           >
             <option value="">{t("admin.stock.movements.allKinds")}</option>
@@ -137,23 +135,7 @@ export function MovementsPage() {
       ) : (
         <Card className="p-2">
           <MovementsTable movements={list} />
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.stock.movements.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.stock.movements.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.stock.movements.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

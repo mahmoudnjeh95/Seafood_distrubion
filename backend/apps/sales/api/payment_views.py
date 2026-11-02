@@ -127,6 +127,12 @@ class CustomerPaymentView(OfficeView):
 class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment]):
     serializer_class = CustomerPaymentSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("received_on",),
+        "customer": ("customer__name",),
+        "method": ("method",),
+    }
 
     def get_queryset(self) -> QuerySet[CustomerPayment]:
         return _filtered_payments(self.organization, self.request)

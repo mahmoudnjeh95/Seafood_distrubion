@@ -21,6 +21,7 @@ export { Pill } from "./components/pill";
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/select";
 export { Pager } from "./components/pager";
 export { SortTh, Table, Td, Th } from "./components/table";
+export { useServerTable } from "./lib/use-server-table";
 export { PAGE_SIZES, type SortValue, type TableSort, useTableView } from "./lib/use-table-view";
 export { Toaster } from "./components/toast";
 export { ICON_NAMES, type IconName, ILLUSTRATION_NAMES, type IllustrationName } from "./icon-names";
