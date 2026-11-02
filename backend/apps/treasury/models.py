@@ -5,6 +5,8 @@ An effet is written by the règlement that holds it (a customer payment line, la
 `services.register_instrument`; this app never reads the règlement's tables, it keeps the règlement's number.
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -390,7 +392,9 @@ class BankStatementLine(OrganizationScopedModel, TimeStampedModel):
     debit = MoneyField(default=0)
     credit = MoneyField(default=0)
     # The balance column of the file, when it has one.
-    balance = MoneyField(null=True, blank=True)
+    balance = models.DecimalField[Decimal | None, Decimal | None](
+        max_digits=14, decimal_places=3, null=True, blank=True
+    )
     # A debit belongs to a customer, a credit to a supplier (Perfaxis' "Tiers").
     customer = models.ForeignKey(
         "partners.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="statement_lines"

@@ -413,7 +413,8 @@ class StatementRowErrorSerializer(serializers.Serializer[Any]):
 class StatementImportReportSerializer(serializers.Serializer[Any]):
     created = serializers.IntegerField(read_only=True)
     skipped = serializers.IntegerField(read_only=True)
-    errors = StatementRowErrorSerializer(many=True, read_only=True)
+    # The rows that could not be read (the report's `errors`); when there is one, nothing was saved.
+    problems = StatementRowErrorSerializer(source="errors", many=True, read_only=True)
 
 
 class BankStatementLineSerializer(serializers.ModelSerializer[BankStatementLine]):

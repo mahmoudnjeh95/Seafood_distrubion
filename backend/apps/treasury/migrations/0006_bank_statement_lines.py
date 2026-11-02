@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('label', models.CharField(max_length=255)),
                 ('debit', apps.core.money.MoneyField(decimal_places=3, default=0, max_digits=14)),
                 ('credit', apps.core.money.MoneyField(decimal_places=3, default=0, max_digits=14)),
-                ('balance', apps.core.money.MoneyField(blank=True, decimal_places=3, max_digits=14, null=True)),
+                ('balance', models.DecimalField(blank=True, decimal_places=3, max_digits=14, null=True)),
                 ('account', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='statement_lines', to='treasury.treasuryaccount')),
                 ('customer', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='statement_lines', to='partners.customer')),
                 ('imported_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),

@@ -55,8 +55,8 @@ export function StatementSection({
     setProblems([]);
     try {
       const report = await importBankStatement(accountId, { file });
-      if (report.errors.length > 0) {
-        setProblems(report.errors.map((error) => ({ row: error.row, message: error.message })));
+      if (report.problems.length > 0) {
+        setProblems(report.problems.map((error) => ({ row: error.row, message: error.message })));
         toast.error(t("admin.treasury.statement.refused"));
       } else {
         toast.success(t("admin.treasury.statement.imported", { created: report.created, skipped: report.skipped }));

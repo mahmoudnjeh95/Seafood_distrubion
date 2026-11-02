@@ -28001,14 +28001,14 @@ components:
         skipped:
           type: integer
           readOnly: true
-        errors:
+        problems:
           type: array
           items:
             $ref: '#/components/schemas/StatementRowError'
           readOnly: true
       required:
       - created
-      - errors
+      - problems
       - skipped
     StatementLineParty:
       type: object

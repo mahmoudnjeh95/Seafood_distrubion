@@ -19561,7 +19561,7 @@ export const ImportBankStatementBody = zod.object({
 export const ImportBankStatementResponse = zod.object({
   "created": zod.int(),
   "skipped": zod.int(),
-  "errors": zod.array(zod.object({
+  "problems": zod.array(zod.object({
   "row": zod.int(),
   "message": zod.string()
 }))

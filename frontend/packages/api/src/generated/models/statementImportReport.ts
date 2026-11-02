@@ -9,5 +9,5 @@ import type { StatementRowError } from './statementRowError';
 export interface StatementImportReport {
   readonly created: number;
   readonly skipped: number;
-  readonly errors: readonly StatementRowError[];
+  readonly problems: readonly StatementRowError[];
 }
