@@ -8768,6 +8768,7 @@ paths:
         schema:
           enum:
           - receipt
+          - receipt_correction
           - transfer
           - sale
           - customer_return
@@ -8779,6 +8780,7 @@ paths:
           minLength: 1
         description: |-
           * `receipt` - Réception
+          * `receipt_correction` - Correction de réception
           * `transfer` - Transfert
           * `sale` - Vente
           * `customer_return` - Retour client
@@ -29200,6 +29202,7 @@ components:
     StockMovementKindEnum:
       enum:
       - receipt
+      - receipt_correction
       - transfer
       - sale
       - customer_return
@@ -29210,6 +29213,7 @@ components:
       type: string
       description: |-
         * `receipt` - Réception
+        * `receipt_correction` - Correction de réception
         * `transfer` - Transfert
         * `sale` - Vente
         * `customer_return` - Retour client

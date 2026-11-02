@@ -4091,6 +4091,7 @@ export const fr = {
           lot: "Sur le lot",
           truck_day: "Frais du camion du jour",
           receipt: "Réception",
+          receipt_correction: "Correction de réception",
           transfer: "Transfert",
           sale: "Vente",
           customer_return: "Retour client",
@@ -4954,6 +4955,7 @@ export const fr = {
         rounding: "Écart d'arrondi entre la valorisation par lot et les mouvements : {{amount}}",
         kinds: {
           receipt: "Réceptions",
+          receipt_correction: "Corrections de réceptions",
           customer_return: "Retours de clients",
           supplier_return: "Retours aux fournisseurs",
           sale: "Ventes",

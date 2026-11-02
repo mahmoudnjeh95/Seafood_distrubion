@@ -17812,7 +17812,7 @@ export const ListMovementsQueryParams = zod.object({
   "batch": zod.int().min(1).optional(),
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "kind": zod.enum(['receipt', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).optional().describe('* `receipt` - Réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).optional().describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
@@ -17829,7 +17829,7 @@ export const ListMovementsResponse = zod.object({
   "previous": zod.url().nullish(),
   "results": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['receipt', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).describe('* `receipt` - Réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
   "occurred_at": zod.iso.datetime({"offset":true}),
   "product": zod.object({
   "id": zod.int(),

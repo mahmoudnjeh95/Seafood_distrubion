@@ -224,7 +224,7 @@ def create_batch(
 
 
 # Which side each kind of movement needs: (from a location, to a location). None: exactly one of the two,
-# the side giving the direction (an adjustment or a count correction adds or removes).
+# the side giving the direction (an adjustment, a count correction or a receipt correction adds or removes).
 MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
     MovementKind.RECEIPT: (False, True),
     MovementKind.CUSTOMER_RETURN: (False, True),
@@ -232,6 +232,7 @@ MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
     MovementKind.SUPPLIER_RETURN: (True, False),
     MovementKind.LOSS: (True, False),
     MovementKind.TRANSFER: (True, True),
+    MovementKind.RECEIPT_CORRECTION: None,
     MovementKind.ADJUSTMENT: None,
     MovementKind.COUNT_CORRECTION: None,
 }

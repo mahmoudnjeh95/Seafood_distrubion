@@ -92,6 +92,8 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
 
 class MovementKind(models.TextChoices):
     RECEIPT = "receipt", _("Réception")
+    # A change of what a goods receipt says it received (D-270): it changes the kg received, never the spoilage.
+    RECEIPT_CORRECTION = "receipt_correction", _("Correction de réception")
     TRANSFER = "transfer", _("Transfert")
     SALE = "sale", _("Vente")
     CUSTOMER_RETURN = "customer_return", _("Retour client")

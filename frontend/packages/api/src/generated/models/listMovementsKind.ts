@@ -10,6 +10,7 @@ export type ListMovementsKind = typeof ListMovementsKind[keyof typeof ListMoveme
 
 export const ListMovementsKind = {
   receipt: 'receipt',
+  receipt_correction: 'receipt_correction',
   transfer: 'transfer',
   sale: 'sale',
   customer_return: 'customer_return',
