@@ -233,7 +233,16 @@ class SalesPermission(HasRole):
         return request.method in SAFE_METHODS or (membership is not None and membership.role in SELLER_ROLES)
 
 
-def _payment(data: dict[str, Any]) -> services.PaymentFields:
+def _payment(data: dict[str, Any], *, driver: bool) -> services.PaymentFields | None:
+    """What a driver's phone says was paid on the spot (D-133). The office types no payment: its money comes in
+    through a règlement of the treasury (D-240), so a payment typed there is refused, and `None` leaves the sale
+    unpaid (or keeps what a draft already says, see `services.update_sale`)."""
+    if not driver:
+        if data["paid_in_full"] or data["amount_paid"] not in (None, "") or data["payment_method"]:
+            raise ValidationError(
+                {"detail": _("Le paiement d'une vente se saisit dans Règlements clients (trésorerie).")}
+            )
+        return None
     return {
         "amount_paid": data["amount_paid"],
         "paid_in_full": data["paid_in_full"],
@@ -306,7 +315,7 @@ class SaleView(OfficeView):
         fields: dict[str, Any] = {
             "customer": None,
             "notes": data["notes"],
-            "payment": _payment(data),
+            "payment": _payment(data, driver=self.is_driver),
             "sold_at": sold_at,
         }
         if data["customer"] is not None:
@@ -397,8 +406,8 @@ class SaleListView(SaleView, ListAPIView[Sale]):
     @extend_schema(operation_id="createSale", request=SaleWriteSerializer, responses={201: SaleDetailSerializer})
     def post(self, request: Request) -> Response:
         """Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
-        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
-        who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
+        The office types no payment: it comes in through a règlement (D-240); a driver's phone says what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
         Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
         day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
         day's price, also when it was kept without connection and sent later. Within 5 minutes of the
@@ -505,7 +514,7 @@ class QuoteConvertView(QuoteView):
             actor=self.membership.user,
             location=location,
             sold_at=data["sold_at"],
-            payment=_payment(data),
+            payment=_payment(data, driver=False),
             confirm=data["confirm_now"],
             lines=data["lines"],
         )

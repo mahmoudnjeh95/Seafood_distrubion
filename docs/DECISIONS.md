@@ -3487,3 +3487,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: the lots offered are those still on hand (a sold-out lot cannot be topped up: a receipt does that); no new
   cost is typed on an addition (the lot's cost is used, a different cost is a receipt); no owner approval step (unlike a
   loss above the threshold, D-045); the monthly closing counts an adjustment as spoilage, like a count correction.
+
+**D-245 · The office types no payment on a sale: the money comes in through a règlement of the treasurer (owner request, 2026-11-02, P9-T09c)** · accepted (provisional parts marked) · 2026-11-02
+- Owner request: "remove payment surface in vente as everything should pass by trésorier". The sale form, the "Vente comptoir" and the "Convertir en vente" window (from a quote) show no payment block any more.
+- Server: an office create or conversion that carries a payment (`paid_in_full`, `amount_paid`, `payment_method`) is refused (400 on `detail`), so the sale is unpaid. An office edit of a draft keeps what the draft already says (a driver's phone may have recorded it).
+- The sale detail shows "Encaisser au trésorier" while something is still owed; it opens `/reglements/nouveau?client=<id>`.
+- The driver's phone is unchanged: cash in hand is recorded on the phone (D-133), a BL delivered there keeps its payment (D-047, D-239).
+- **Provisional, changes D-047 for the office:** the walk-in customer ("Client de passage") can owe at the office. A counter sale is confirmed unpaid and the treasurer settles it with a règlement for "Client de passage", allocated to the oldest sale. The walk-in is in the règlement customer picker, and the refusal of a walk-in règlement and the "pays on the spot" check are lifted for the office. A walk-in sale a driver made still must be paid on the spot.
+- Unchanged: a règlement posts its money the day it is received (D-219); a sale's money at confirmation is still the driver's (D-239).
+- Tests: the office API and service tests now expect the unpaid counter sale and the refused payment; a walk-in payment test and a driver walk-in test were added. The e2e counter and quote specs follow the new labels ("Enregistrer la vente").

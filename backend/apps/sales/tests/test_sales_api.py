@@ -96,8 +96,6 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
         counter,
         [{"product": crevette.pk, "quantity": "5"}],
         customer=customer.pk,
-        amount_paid="100.000",
-        payment_method="cash",
         confirm_now=True,
     )
 
@@ -107,7 +105,7 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
         FIRST_BL,
         "confirmed",
         "210.000",
-        "110.000",
+        "210.000",
     )
     assert (body["cost_total"], body["margin"], body["tax_amount"]) == ("100.000", "110.000", None)
     assert body["location"] == {"id": counter.pk, "name": "Chambre froide 1", "kind": "cold_room"}
@@ -152,7 +150,7 @@ def test_a_counter_sale_without_customer_goes_to_the_walk_in_customer(api, organ
     receive(organization, crevette, counter, "10")
 
     unpaid = create(api, counter, [{"product": crevette.pk, "quantity": "1"}], confirm_now=True)
-    paid = create(
+    typed = create(
         api,
         counter,
         [{"product": crevette.pk, "quantity": "1"}],
@@ -161,11 +159,13 @@ def test_a_counter_sale_without_customer_goes_to_the_walk_in_customer(api, organ
         confirm_now=True,
     )
 
-    assert unpaid.status_code == 400
-    assert "amount_paid" in unpaid.json()
-    assert paid.status_code == 201
-    assert paid.json()["customer"]["is_walk_in"] is True
-    assert paid.json()["amount_paid"] == "42.000"
+    # The office's counter sale is left unpaid: the treasurer takes the money in Règlements clients (D-240).
+    assert unpaid.status_code == 201
+    assert unpaid.json()["customer"]["is_walk_in"] is True
+    assert (unpaid.json()["amount_paid"], unpaid.json()["amount_due"]) == ("0.000", "42.000")
+    # A payment typed at the office is refused, not dropped.
+    assert typed.status_code == 400
+    assert "detail" in typed.json()
 
 
 def test_line_errors_come_back_on_their_own_keys(api, organization, customer, counter, crevette):

@@ -676,6 +676,16 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
     return {"amount_paid": paid, "payment_method": method, "payment_reference": reference}
 
 
+def _kept_payment(sale: Sale) -> PaymentFields:
+    """What a draft already says it was paid (a driver's phone recorded it). The office types no payment (D-240),
+    so when it changes the lines, the draft keeps this."""
+    return {
+        "amount_paid": str(sale.amount_paid),
+        "payment_method": sale.payment_method,
+        "payment_reference": sale.payment_reference,
+    }
+
+
 def _checked_batches(
     organization: Organization,
     lines: Sequence[SaleLineFields] | Sequence[QuoteLineFields],
@@ -1270,7 +1280,14 @@ def update_sale(
     # A sale made from a quote keeps "quote" as the source of the prices typed again from it.
     typed_source = PriceSource.QUOTE if sale.quote_id is not None else PriceSource.TYPED
     checked_lines, paid = _prepared_sale(
-        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason
+        organization,
+        customer,
+        location,
+        sold_at,
+        lines,
+        payment if payment is not None else _kept_payment(sale),
+        typed_source,
+        below_minimum_reason,
     )
     box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
     sale.customer = customer
@@ -1338,11 +1355,12 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     Above it, the company setting decides (D-018): `block` refuses; `approval` keeps the sale as a pending
     draft until the owner or a manager confirms it (`approve_credit`, granted by the view only to them);
     `warn` lets it through and logs it. The customer row is locked so two sellers cannot both pass. The
-    walk-in customer always pays everything on the spot (D-047).
+    walk-in customer pays everything on the spot when a driver sold it (D-047); a counter sale at the office
+    is paid through a règlement of the treasury instead (D-240), so the walk-in customer has no limit to check.
     """
     due = sale.total - sale.amount_paid
     if sale.customer.is_walk_in:
-        if due > 0:
+        if due > 0 and sale.created_by is not None and _is_driver(sale.created_by, sale.organization):
             raise ValidationError({"amount_paid": _("Un client de passage paie toute la vente sur place.")})
         return
     sale.credit_status = ""
@@ -1546,7 +1564,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     Each line's kilos leave the sale's place oldest batch first (D-037); the line keeps which batches went,
     their cost per kg then and their cost (COGS). Refused as a whole when any line asks more than the place
     holds (each on `lines.<index>.quantity`), when the customer or the place were archived meanwhile, or when
-    a walk-in customer does not pay everything. Lines are posted in product order, so two sales confirmed at
+    a driver's walk-in sale does not pay everything. Lines are posted in product order, so two sales confirmed at
     once lock the same rows in the same order.
     """
     sale = _locked_draft_sale(sale)
@@ -3042,8 +3060,8 @@ def record_customer_payment(
 
     `allocations` None takes the customer's oldest open sales first; a list names the sales and amounts
     (empty keeps everything as credit). What is not allocated stays the customer's credit: their balance
-    already counts the whole payment, and `allocate_customer_payment` can settle sales with it later.
-    Refused for the walk-in customer (they pay on the spot). Numbered RG-0001... in the same transaction.
+    already counts the whole payment, and `allocate_customer_payment` can settle sales with it later. The walk-in
+    customer's counter sales are paid the same way (D-240). Numbered RG-0001... in the same transaction.
     """
     if client_uuid is not None:
         existing = CustomerPayment.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
@@ -3052,8 +3070,6 @@ def record_customer_payment(
     errors: dict[str, str] = {}
     if customer.organization_id != organization.pk:
         errors["customer"] = _("Client inconnu.")
-    elif customer.is_walk_in:
-        errors["customer"] = _("Le client de passage paie sur place : pas de règlement ultérieur.")
     # Dated by the moment it was received (the phone's time, when there is one), else today.
     received_on = received_on or timezone.localtime(made_at or timezone.now()).date()
     if received_on > timezone.localdate():

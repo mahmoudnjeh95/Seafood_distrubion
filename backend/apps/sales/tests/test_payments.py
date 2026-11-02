@@ -185,7 +185,6 @@ def test_a_voided_payment_stops_counting(organization, actor, customer, counter,
 
 
 def test_payment_input_is_checked(organization, actor, customer):
-    walk_in = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     tomorrow = timezone.localdate() + dt.timedelta(days=1)
     with pytest.raises(ValidationError) as refused:
         services.record_customer_payment(
@@ -197,11 +196,20 @@ def test_payment_input_is_checked(organization, actor, customer):
             received_on=tomorrow,
         )
     assert set(refused.value.message_dict) == {"amount", "method", "received_on"}
-    with pytest.raises(ValidationError) as refused:
-        pay(organization, actor, walk_in, "10.000")
-    assert "customer" in refused.value.message_dict
     with pytest.raises(ValidationError):
         pay(organization, actor, customer, "10.0005")
+
+
+def test_a_counter_sale_to_the_walk_in_customer_is_settled_by_a_payment(organization, actor, counter, stocked):
+    walk_in = partners.ensure_walk_in_customer(organization=organization, actor=actor)
+    # The office types no payment at the counter (D-240): the sale is left to the treasurer.
+    sale = make_sale(organization, actor, walk_in, counter, stocked, "1")
+    assert (sale.amount_paid, sale.amount_due) == (D("0.000"), D("42.000"))
+
+    pay(organization, actor, walk_in, "42.000")
+
+    sale.refresh_from_db()
+    assert sale.amount_due == D("0.000")
 
 
 # ---- balance, ageing, history ----
