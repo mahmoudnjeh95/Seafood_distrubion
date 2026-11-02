@@ -107,7 +107,7 @@ Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android 
       ARCHITECTURE §5). Record the result in DECISIONS; it revisits D-002 and D-003.
 - [ ] No printer is chosen yet (Q13): propose two or three models, pick one with the client and buy it
       for testing (human).
-- [x] Receipt layout for the paper width; works offline; reprint from the sale screen (D-276; not yet tested on the real printer).
+- [x] Receipt layout for the paper width; works offline; reprint from the sale screen (D-278; not yet tested on the real printer).
 - [x] The receipt is in French (Q13), whatever language the driver uses in the app.
 - [ ] If native: store accounts, builds, and getting the app onto the drivers' phones (human + agent).
 

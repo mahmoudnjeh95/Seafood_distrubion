@@ -3826,7 +3826,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A Tunisian IBAN with wrong check digits is refused with a clear message. Spaces are dropped; each IBAN still belongs to
   one account of the organization.
 
-**D-276 · Driver receipts printed on a small thermal printer, first step: Android over Bluetooth LE (P3-T10)** · accepted (provisional parts marked) · 2026-11-02
+**D-278 · Driver receipts printed on a small thermal printer, first step: Android over Bluetooth LE (P3-T10)** · accepted (provisional parts marked) · 2026-11-02
 - Owner bought a Digipos DPP-58 (paper said to be 75 mm; the name suggests 58 mm). **Paper width is a phone setting**: 32, 42 (default) or 48 characters per line, with a test page that prints a ruler.
 - The receipt is laid out as text rows (`truck/src/printing/receipt.ts`), then turned into ESC/POS bytes (`escpos.ts`, code page 858 for the French accents; setting to drop accents). In French, whatever the app language (Q13). Works offline: it uses only the sale or purchase already on the phone.
 - Buttons: "Imprimer le reçu" on the sale receipt screen and on each purchase in "Mes achats". Customer or supplier copy, then a "Copie bureau" with a signature line (provisional: on by default, switchable).
