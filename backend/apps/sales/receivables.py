@@ -22,7 +22,9 @@ from apps.core.money import money
 
 from .models import (
     CreditNote,
+    CustomerBalanceWriteOff,
     CustomerPayment,
+    CustomerWriteOffAllocation,
     Invoice,
     InvoiceLine,
     InvoiceSale,
@@ -62,6 +64,8 @@ class SaleReceivable:
     # What is still to collect, never below zero; `overpaid` is what was paid beyond what is owed.
     outstanding: Decimal
     overpaid: Decimal
+    # What a balance write-off gave up on this sale (D-252): settled, not paid.
+    written_off: Decimal = ZERO
 
     def age_days(self, today: dt.date) -> int:
         return max((today - self.document_date).days, 0)
@@ -171,6 +175,13 @@ def sale_receivables(
     # What an impayé took back from a règlement's allocations: those sales owe it again (D-217).
     for release in UnpaidRelease.objects.filter(sale_id__in=ids).values("sale_id").annotate(total=Sum("amount")):
         allocated[release["sale_id"]] = allocated.get(release["sale_id"], ZERO) - release["total"]
+    # What a balance write-off gave up on each sale: settled like a payment, but never paid (D-252).
+    written_off = {
+        row["sale_id"]: row["total"]
+        for row in CustomerWriteOffAllocation.objects.filter(sale_id__in=ids)
+        .values("sale_id")
+        .annotate(total=Sum("amount"))
+    }
     shares: dict[tuple[int, int], Decimal] = {}
     for invoice in invoices.values():
         part = invoice.net_to_pay - credited.get(invoice.pk, ZERO)
@@ -193,7 +204,8 @@ def sale_receivables(
                 owed += shares[(invoice.pk, sale.pk)]
         else:
             owed = sale.total
-        paid = sale.amount_paid + allocated.get(sale.pk, ZERO)
+        given_up = written_off.get(sale.pk, ZERO)
+        paid = sale.amount_paid + allocated.get(sale.pk, ZERO) + given_up
         sold_day = timezone.localtime(sale.sold_at).date()
         if live is not None and live.issued_on is not None:
             document_date = live.issued_on
@@ -216,6 +228,7 @@ def sale_receivables(
                 allocated=allocated.get(sale.pk, ZERO),
                 outstanding=max(owed - paid, ZERO),
                 overpaid=max(paid - owed, ZERO),
+                written_off=given_up,
             )
         )
     rows.sort(key=lambda row: (row.document_date, row.sale_id))
@@ -268,6 +281,13 @@ def customer_balances(
         unpaid_filter &= Q(customer_id=customer_id)
     for agg in UnpaidEffet.objects.filter(unpaid_filter).values("customer_id").annotate(total=Sum("amount")):
         entry(agg["customer_id"]).balance += agg["total"]
+    # What a balance write-off gave up is no longer owed (D-252): the sales it settled say so too.
+    write_off_filter = Q(organization=organization)
+    if customer_id is not None:
+        write_off_filter &= Q(customer_id=customer_id)
+    write_offs = CustomerBalanceWriteOff.objects.filter(write_off_filter)
+    for agg in write_offs.values("customer_id").annotate(total=Sum("amount")):
+        entry(agg["customer_id"]).balance -= agg["total"]
     for item in result.values():
         item.credit = max(item.open_total - item.balance, ZERO)
     if customer_id is not None:
@@ -293,6 +313,8 @@ class HistoryEntry:
     method: str = ""
     voided: bool = False
     balance: Decimal = ZERO
+    # The reason of a balance write-off (D-252).
+    note: str = ""
 
 
 def customer_history(organization: Organization, customer_id: int) -> list[HistoryEntry]:
@@ -349,7 +371,19 @@ def customer_history(organization: Organization, customer_id: int) -> list[Histo
                 method=unpaid.line.method,
             )
         )
-    kind_order = {"sale": 0, "on_spot": 1, "payment": 2, "unpaid": 3}
+    for write_off in CustomerBalanceWriteOff.objects.filter(organization=organization, customer_id=customer_id):
+        entries.append(
+            HistoryEntry(
+                "writeoff",
+                write_off.written_on,
+                write_off.created_at,
+                "",
+                write_off.pk,
+                -write_off.amount,
+                note=write_off.reason,
+            )
+        )
+    kind_order = {"sale": 0, "on_spot": 1, "payment": 2, "unpaid": 3, "writeoff": 4}
     entries.sort(key=lambda entry: (entry.day, kind_order[entry.kind], entry.at, entry.object_id))
     running = ZERO
     result: list[HistoryEntry] = []
@@ -366,6 +400,7 @@ def customer_history(organization: Organization, customer_id: int) -> list[Histo
                 entry.method,
                 entry.voided,
                 running,
+                entry.note,
             )
         )
     return result

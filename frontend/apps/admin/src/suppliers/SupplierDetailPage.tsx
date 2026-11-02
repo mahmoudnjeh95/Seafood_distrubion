@@ -145,7 +145,12 @@ export function SupplierDetailPage() {
           )}
         </Card>
 
-        <SupplierBalanceCard supplierId={data.id} canRecord={canEdit} />
+        <SupplierBalanceCard
+          supplierId={data.id}
+          supplierName={data.name}
+          canRecord={canEdit}
+          canClear={session.role === "owner"}
+        />
       </div>
 
       <Dialog open={editing} onOpenChange={setEditing}>

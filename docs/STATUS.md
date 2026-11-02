@@ -11,6 +11,10 @@ _Last updated: 2026-11-01 (all open PRs merged and on staging; next free decisio
   primes and advances in the treasury, D-235 party counts in the règlement lists, D-236 bank details.
 - **CI and deploy fixes:** the month-start test failures (#256), build heap 1536 MB on the VPS (#261).
 - **SmartFeesh:** `SmartToolsAgro/SmartFeesh` is pushed only when the owner says "push main" (D-209). It is at #234.
+- **D-252 on branch `customer-supplier-write-off` (awaits CI):** "Remettre le solde à zéro" for a customer (owner; the rest
+  is a loss on the customer, shown on the account) and for a supplier (owner; a gain on the supplier). Two steps: the
+  reason, then the exact balance typed again. Provisional: the loss does not yet change the profit per lot (open question).
+  Check on staging: customer card › Remettre le solde à zéro, then the supplier card.
 - **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
   **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
   issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c

@@ -30,6 +30,7 @@ import type {
   AdjustmentWrite,
   AllocateWrite,
   ApprovedMonth,
+  BalanceWriteOff,
   Bank,
   BankWrite,
   Batch,
@@ -62,6 +63,7 @@ import type {
   CustomerPaymentTotals,
   CustomerPaymentWrite,
   CustomerWrite,
+  CustomerWriteOffWrite,
   Dashboard,
   DayClosingApprove,
   DayClosingCorrect,
@@ -4181,6 +4183,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRestoreCustomerMutationOptions(options), queryClient);
+    }
+
+export const getWriteOffCustomerBalanceUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}/write-off`
+}
+
+/**
+ * Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+ */
+export const writeOffCustomerBalance = async (customerId: number,
+    customerWriteOffWrite: CustomerWriteOffWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerBalance> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerBalance>(getWriteOffCustomerBalanceUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerWriteOffWrite)
+  }
+);}
+
+
+
+
+
+export const getWriteOffCustomerBalanceMutationKey = () => ['writeOffCustomerBalance'] as const;
+
+export const getWriteOffCustomerBalanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffCustomerBalance>>, TError,WriteOffCustomerBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeOffCustomerBalance>>, TError,WriteOffCustomerBalanceMutationVariables, TContext> => {
+
+const mutationKey = getWriteOffCustomerBalanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeOffCustomerBalance>>, WriteOffCustomerBalanceMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  writeOffCustomerBalance(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteOffCustomerBalanceMutationResult = NonNullable<Awaited<ReturnType<typeof writeOffCustomerBalance>>>
+    export type WriteOffCustomerBalanceMutationBody = CustomerWriteOffWrite
+    export type WriteOffCustomerBalanceMutationError = unknown
+    export type WriteOffCustomerBalanceMutationVariables = {customerId: number;data: CustomerWriteOffWrite}
+
+    export const useWriteOffCustomerBalance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffCustomerBalance>>, TError,WriteOffCustomerBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeOffCustomerBalance>>,
+        TError,
+        WriteOffCustomerBalanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteOffCustomerBalanceMutationOptions(options), queryClient);
     }
 
 export const getGetDashboardUrl = () => {
@@ -27464,6 +27553,93 @@ export function useGetSupplierBalance<TData = Awaited<ReturnType<typeof getSuppl
 
 
 
+
+export const getWriteOffSupplierBalanceUrl = (supplierId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-balances/${supplierId}/write-off`
+}
+
+/**
+ * Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+ */
+export const writeOffSupplierBalance = async (supplierId: number,
+    balanceWriteOff: BalanceWriteOff, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierBalance> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SupplierBalance>(getWriteOffSupplierBalanceUrl(supplierId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(balanceWriteOff)
+  }
+);}
+
+
+
+
+
+export const getWriteOffSupplierBalanceMutationKey = () => ['writeOffSupplierBalance'] as const;
+
+export const getWriteOffSupplierBalanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffSupplierBalance>>, TError,WriteOffSupplierBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeOffSupplierBalance>>, TError,WriteOffSupplierBalanceMutationVariables, TContext> => {
+
+const mutationKey = getWriteOffSupplierBalanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeOffSupplierBalance>>, WriteOffSupplierBalanceMutationVariables> = (props) => {
+          const {supplierId,data} = props ?? {};
+
+          return  writeOffSupplierBalance(supplierId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteOffSupplierBalanceMutationResult = NonNullable<Awaited<ReturnType<typeof writeOffSupplierBalance>>>
+    export type WriteOffSupplierBalanceMutationBody = BalanceWriteOff
+    export type WriteOffSupplierBalanceMutationError = unknown
+    export type WriteOffSupplierBalanceMutationVariables = {supplierId: number;data: BalanceWriteOff}
+
+    export const useWriteOffSupplierBalance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffSupplierBalance>>, TError,WriteOffSupplierBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeOffSupplierBalance>>,
+        TError,
+        WriteOffSupplierBalanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteOffSupplierBalanceMutationOptions(options), queryClient);
+    }
 
 export const getGetSupplierDebtsUrl = () => {
 

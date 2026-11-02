@@ -8,6 +8,7 @@ from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -34,6 +35,7 @@ from apps.purchasing.models import (
 from apps.treasury import selectors as treasury
 
 from .serializers import (
+    BalanceWriteOffSerializer,
     DifferenceFilterSerializer,
     DifferenceLineSerializer,
     EffetRejectSerializer,
@@ -770,16 +772,46 @@ class SupplierPaymentAllocateView(PaymentView):
         return Response(SupplierPaymentSerializer(self._payment(payment_id)).data)
 
 
-class SupplierBalanceView(PurchasingView):
-    @extend_schema(operation_id="getSupplierBalance", responses=SupplierBalanceSerializer)
-    def get(self, request: Request, supplier_id: int) -> Response:
-        """The trade balance with one supplier: posted invoices − payments, with what is overdue, advances not
-        allocated, drafts and receipts not invoiced yet. A partner's capital and profit share are not in it."""
+class SupplierBalanceAnswer(PurchasingView):
+    def answer(self, supplier_id: int) -> Response:
+        """One supplier's trade balance as the screen reads it (see `SupplierBalanceView`)."""
         try:
             supplier = partners.supplier_of(self.organization, supplier_id)
         except ObjectDoesNotExist:
             raise Http404 from None
         return Response(SupplierBalanceSerializer(selectors.supplier_balance(self.organization, supplier.pk)).data)
+
+
+class SupplierBalanceView(SupplierBalanceAnswer):
+    @extend_schema(operation_id="getSupplierBalance", responses=SupplierBalanceSerializer)
+    def get(self, request: Request, supplier_id: int) -> Response:
+        """The trade balance with one supplier: posted invoices − payments, with what is overdue, advances not
+        allocated, drafts and receipts not invoiced yet. A partner's capital and profit share are not in it."""
+        return self.answer(supplier_id)
+
+
+class SupplierBalanceWriteOffView(SupplierBalanceAnswer):
+    @extend_schema(
+        operation_id="writeOffSupplierBalance", request=BalanceWriteOffSerializer, responses=SupplierBalanceSerializer
+    )
+    def post(self, request: Request, supplier_id: int) -> Response:
+        """Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire remet un solde fournisseur à zéro."))
+        serializer = BalanceWriteOffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            supplier = partners.supplier_of(self.organization, supplier_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.write_off_supplier_balance(
+            supplier=supplier,
+            actor=self.membership.user,
+            expected=serializer.validated_data["expected_amount"],
+            reason=serializer.validated_data["reason"],
+        )
+        return super().get(request, supplier_id)
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----

@@ -40,9 +40,11 @@ from .models import (
     CreditNoteStock,
     CreditPolicy,
     CreditStatus,
+    CustomerBalanceWriteOff,
     CustomerPayment,
     CustomerPaymentLine,
     CustomerPaymentMethod,
+    CustomerWriteOffAllocation,
     DeliveryStatus,
     FinanceSettings,
     Invoice,
@@ -3265,6 +3267,73 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
         after={"reason": reason, "amount": str(payment.amount)},
     )
     return payment
+
+
+@transaction.atomic
+def write_off_customer_balance(
+    *, customer: "Customer", actor: User | None, expected: Number, reason: str
+) -> CustomerBalanceWriteOff:
+    """Clear a customer's balance to zero, the rest given up as a loss on them (D-252): they paid less than they
+    owed (10 000 of 10 080 DT leaves 80 DT). `expected` must be the balance shown now, typed again by the office,
+    so a balance that moved since the screen was read is refused. The amount is spread over the customer's open
+    sales, oldest first, and kept as it was written: never edited or deleted."""
+    organization = customer.organization
+    list(
+        Sale.objects.select_for_update(of=("self",))
+        .filter(organization=organization, customer_id=customer.pk, status=SaleStatus.CONFIRMED)
+        .order_by("id")
+        .values_list("pk", flat=True)
+    )
+    balance = receivables.customer_balance(organization, customer.pk).balance
+    try:
+        typed = checked_amount(expected)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"expected_amount": str(error)}) from None
+    if balance <= 0:
+        raise ValidationError(_("Ce client ne doit rien : son solde n'est pas positif, rien à remettre à zéro."))
+    if typed != balance:
+        raise ValidationError(
+            {
+                "expected_amount": _("Le solde est de %(balance)s DT, pas %(typed)s DT : vérifiez le montant.")
+                % {"balance": display_money(balance), "typed": display_money(typed)}
+            }
+        )
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    write_off = CustomerBalanceWriteOff.objects.create(
+        organization=organization,
+        customer=customer,
+        written_on=timezone.localdate(),
+        amount=balance,
+        reason=reason,
+        created_by=actor,
+    )
+    # The sales still open, oldest first, each settled by what is left; a balance above the open sales (an
+    # impayé not tied to a sale) stays on the write-off only.
+    left = balance
+    open_rows = sorted(
+        (row for row in receivables.sale_receivables(organization, customer_id=customer.pk) if row.outstanding > 0),
+        key=lambda row: (row.document_date, row.sale_id),
+    )
+    for row in open_rows:
+        if left <= 0:
+            break
+        part = min(left, row.outstanding)
+        CustomerWriteOffAllocation.objects.create(
+            organization=organization, write_off=write_off, sale_id=row.sale_id, amount=part
+        )
+        left -= part
+    for sale in Sale.objects.filter(pk__in=[row.sale_id for row in open_rows]).select_related("organization"):
+        refresh_sale_due(sale)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer.balance_written_off",
+        target=write_off,
+        after={"customer": customer.name, "amount": str(balance), "reason": reason},
+    )
+    return write_off
 
 
 def _certificate_content(upload: "UploadedFile[bytes]") -> tuple[ContentFile[bytes], str]:

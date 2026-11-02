@@ -3457,3 +3457,21 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: a cheque or traite given to a partner is counted at the main bank account on its day, not followed as an
   effet issued (the office decides how these are tracked, as for supplier cheques).
 - Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
+
+**D-252 · Clearing a balance to zero: the rest is given up, as a loss on a customer or a gain on a supplier** · accepted · 2026-11-02
+- Owner request: a customer owed 10 080 DT, paid 10 000 and the 80 DT left are never coming. The owner clears the
+  customer's balance to zero; the amount is recorded as a loss on that customer (a `CustomerBalanceWriteOff`, shown on
+  the customer's account with its reason and who did it). The same for a supplier we owe: the rest we no longer pay is
+  a gain on that supplier.
+- Two steps before anything is written: the reason (required), then the exact balance typed again. The server checks
+  the typed amount against the balance at that moment and refuses a balance that moved, a balance that is not positive
+  (nothing to clear, or credit held) and an empty reason.
+- The amount is spread over the open sales (customers) or invoices (suppliers), oldest first, so those read as settled
+  by it, and the balance (customer or supplier) falls by it. Records are never edited or deleted: a wrong clearance is
+  to be corrected by a new record, not undone (not built yet).
+- Owner only, enforced on the server (customers and suppliers).
+- Provisional: the loss is kept on the customer and the gain on the supplier, but does NOT yet change the profit per lot
+  or the profit shares (open question for the owner: should an uncollected balance reduce the lot's profit?). The
+  supplier gain is not a treasury movement (no money moves).
+- Provisional: the customer's clearance counts toward the credit-limit and encours figures as a settled amount (the
+  balance falls, so the room to sell goes back up).
