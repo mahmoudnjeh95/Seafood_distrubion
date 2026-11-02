@@ -437,6 +437,9 @@ def test_certificate_input_and_file(organization, actor, customer, counter, stoc
 
 def test_certificate_totals_and_invoices_awaiting_one(organization, actor, customer, counter, stocked):
     today = timezone.localdate()
+    # Two 20 kg invoices of 1 000.600 DT each: over the fixture's 1 000 DT credit limit.
+    customer.credit_limit = D("100000.000")
+    customer.save(update_fields=["credit_limit"])
     planned = issued_invoice(
         make_sale(organization, actor, customer, counter, stocked, "20"), actor, withholding_rate="1.5"
     )
