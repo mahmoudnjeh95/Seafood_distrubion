@@ -1,9 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-02 (D-242 driver's fund reset when the day is sent, PR open; side menu D-241; P1-T15 stock adjustment in PR #280 (D-247); advance D-243, PR #281; next free decision D-248)_
+_Last updated: 2026-11-02 (prime payment PR #282, D-244; next free decision after the open PRs)_
 
 ## Where we are
 
+- **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
+  date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
+  treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).
 - **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
   removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
   The average purchase price is worked out again from the stock on hand; the success message shows it before and after.

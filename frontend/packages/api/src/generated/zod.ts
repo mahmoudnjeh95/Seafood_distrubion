@@ -14632,7 +14632,7 @@ export const ListSalaryPaymentsResponseItem = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listSalaryPaymentsResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14677,7 +14677,7 @@ export const RecordSalaryPaymentBody = zod.object({
   "paid_on": zod.iso.date(),
   "amount": zod.string(),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire').default(recordSalaryPaymentBodyKindDefault),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime').default(recordSalaryPaymentBodyKindDefault),
   "confirm_overpay": zod.boolean().default(recordSalaryPaymentBodyConfirmOverpayDefault),
   "reference": zod.string().max(recordSalaryPaymentBodyReferenceMax).default(recordSalaryPaymentBodyReferenceDefault),
   "notes": zod.string().max(recordSalaryPaymentBodyNotesMax).default(recordSalaryPaymentBodyNotesDefault),
@@ -14704,7 +14704,7 @@ export const RecordSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', recordSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14746,7 +14746,7 @@ export const GetSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14801,7 +14801,7 @@ export const AllocateSalaryPaymentResponse = zod.object({
 }),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', allocateSalaryPaymentResponseAmountRegExp),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
   "reference": zod.string(),
   "notes": zod.string(),
@@ -14893,7 +14893,7 @@ export const ListSalaryRecordsResponseItem = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', listSalaryRecordsResponsePaymentsItemAmountRegExp),
@@ -14972,7 +14972,7 @@ export const GetSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', getSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15074,7 +15074,7 @@ export const UpdateSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', updateSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15194,7 +15194,7 @@ export const ApproveSalaryRecordResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', approveSalaryRecordResponsePaymentsItemAmountRegExp),
@@ -15211,8 +15211,8 @@ export const ApproveSalaryRecordResponse = zod.object({
 
 
 /**
- * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
- * with no separate payment (D-234).
+ * Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+ * It is due on top of the salary and its payment leaves the treasury on the day paid.
  */
 export const AddSalaryPrimeParams = zod.object({
   "record_id": zod.int()
@@ -15224,7 +15224,9 @@ export const addSalaryPrimeBodyReasonMax = 200;
 
 export const AddSalaryPrimeBody = zod.object({
   "amount": zod.string(),
-  "reason": zod.string().max(addSalaryPrimeBodyReasonMax)
+  "reason": zod.string().max(addSalaryPrimeBodyReasonMax),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre'),
+  "paid_on": zod.iso.date()
 })
 
 export const addSalaryPrimeResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -15322,7 +15324,7 @@ export const GenerateSalaryMonthResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
   "paid_on": zod.iso.date(),
-  "kind": zod.enum(['salary', 'advance']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire'),
+  "kind": zod.enum(['salary', 'advance', 'prime']).describe('* `salary` - Salaire\n* `advance` - Avance sur salaire\n* `prime` - Prime'),
   "method": zod.enum(['cash', 'cheque', 'transfer', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `other` - Autre')
 }),
   "amount": zod.stringFormat('decimal', generateSalaryMonthResponseRecordsItemPaymentsItemAmountRegExp),

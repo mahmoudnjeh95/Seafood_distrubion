@@ -544,6 +544,7 @@ export * from './priceList';
 export * from './priceListItem';
 export * from './priceListItemOut';
 export * from './priceListWrite';
+export * from './primeWrite';
 export * from './product';
 export * from './productCreate';
 export * from './productLocationQuantity';

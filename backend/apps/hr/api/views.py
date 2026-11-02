@@ -30,6 +30,7 @@ from .serializers import (
     LotWorkDayWriteSerializer,
     MonthSerializer,
     PayrollSummarySerializer,
+    PrimeWriteSerializer,
     SalaryAdjustmentSerializer,
     SalaryPaymentAllocateSerializer,
     SalaryPaymentFilterSerializer,
@@ -269,14 +270,14 @@ class SalaryRecordAdjustView(SalaryRecordView):
 class SalaryRecordPrimeView(SalaryRecordView):
     @extend_schema(
         operation_id="addSalaryPrime",
-        request=AdjustmentWriteSerializer,
+        request=PrimeWriteSerializer,
         responses={201: SalaryAdjustmentSerializer},
     )
     def post(self, request: Request, record_id: int) -> Response:
-        """Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
-        with no separate payment (D-234)."""
+        """Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+        It is due on top of the salary and its payment leaves the treasury on the day paid."""
         record = self.record(record_id)
-        serializer = AdjustmentWriteSerializer(data=request.data)
+        serializer = PrimeWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         prime = services.add_prime(record=record, actor=self.membership.user, **serializer.validated_data)
         return Response(SalaryAdjustmentSerializer(prime).data, status=status.HTTP_201_CREATED)

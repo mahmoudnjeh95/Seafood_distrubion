@@ -8,6 +8,7 @@
 /**
  * * `salary` - Salaire
  * * `advance` - Avance sur salaire
+ * * `prime` - Prime
  */
 export type SalaryPaymentKindEnum = typeof SalaryPaymentKindEnum[keyof typeof SalaryPaymentKindEnum];
 
@@ -15,4 +16,5 @@ export type SalaryPaymentKindEnum = typeof SalaryPaymentKindEnum[keyof typeof Sa
 export const SalaryPaymentKindEnum = {
   salary: 'salary',
   advance: 'advance',
+  prime: 'prime',
 } as const;

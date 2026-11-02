@@ -3516,3 +3516,21 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   The fund list reports `ended` for each row so the office screen locks the field.
 - Provisional: the driver does not approve a change the office makes during the day (the owner may want a re-approval
   step instead). A driver who disagrees calls the office, as for the cash (D-203).
+
+**D-244 · A prime is paid when it is added, and its payment is a treasury movement (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- **Why:** a prime (D-234) raised what is due but was never paid by itself, so the treasurer's journal did not show it.
+  The owner wants a payment method on the prime, and the money to leave the treasury like any salary payment.
+- **Supersedes** D-234 provisional (2) "a prime needs no separate payment".
+- **On the screen:** "Ajouter une prime" asks for the amount, the reason, the payment method (espèces, chèque, virement,
+  autre; default espèces) and the payment date (default today). Saving adds the prime and pays it at once, in full.
+- **Treasury:** the prime's payment is a `SalaryPayment` of kind `prime` (migration `hr.0007`), allocated in full to the
+  salary the prime was added to, and writes one outgoing movement the same day: the Caisse for cash, the main bank
+  account for a transfer, a cheque or another means. Label "Prime : <name>", kind "salary", reference = the PS number.
+  The journal and the cash-flow report count it through the salary payment.
+- **API:** `POST salary-records/<id>/primes` now takes `method` and `paid_on` (`PrimeWrite`, `addSalaryPrime`). A refused
+  method, date or amount adds nothing: the prime and its payment are one transaction.
+- **Treasury screens** refresh with the payroll screens after a prime or a salary payment.
+- **Provisional:** (1) a prime paid by cheque or traite is counted at the main bank account on its day, not followed as
+  an effet (as for salary cheques); (2) primes added before this change have no payment and stay out of the treasury:
+  the office pays them through a salary payment, or the owner decides how to record them; (3) the prime does not change
+  the CNSS (D-234, the accountant to confirm).
