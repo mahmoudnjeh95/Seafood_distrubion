@@ -1080,9 +1080,11 @@ def _write_lines(
     *,
     partial: bool,
     post_to_treasury: bool = True,
+    driver: User | None = None,
+    movement_kind: str = "supplier_payment",
 ) -> None:
     """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier, the money of the
-    others leaves its account at once (D-219)."""
+    others leaves its account at once (D-219). Cash a `driver` paid leaves that driver's cash."""
     for method, value, line in checked:
         instrument = None
         if method in INSTRUMENT_METHODS:
@@ -1111,7 +1113,7 @@ def _write_lines(
             instrument=instrument,
         )
         if instrument is None and post_to_treasury:
-            _post_line_money(payment, row, line.get("account"), actor)
+            _post_line_money(payment, row, line.get("account"), actor, driver=driver, kind=movement_kind)
 
 
 # The treasury movement of a supplier règlement line paid in cash, by transfer or by card (D-219).
@@ -1119,17 +1121,24 @@ PAYMENT_LINE_SOURCE = "purchasing.payment_line"
 
 
 def _post_line_money(
-    payment: SupplierPayment, line: SupplierPaymentLine, account: "TreasuryAccount | None", actor: User | None
+    payment: SupplierPayment,
+    line: SupplierPaymentLine,
+    account: "TreasuryAccount | None",
+    actor: User | None,
+    *,
+    driver: User | None = None,
+    kind: str = "supplier_payment",
 ) -> None:
-    """The money of a line leaves an account the day it was paid: the one chosen, else the Caisse for cash, the
-    main bank account for a transfer or a card. Our cheque or traite leaves only when the bank debits it."""
+    """The money of a line leaves an account the day it was paid: the one chosen, else the driver's cash for cash a
+    driver paid, the Caisse for other cash, the main bank account for a transfer or a card. Our cheque or traite
+    leaves only when the bank debits it."""
     organization = payment.organization
     treasury.post_movement(
         organization=organization,
-        account=treasury.line_account(organization, line.method, account),
+        account=treasury.line_account(organization, line.method, account, driver=driver),
         day=payment.paid_on,
         amount=-line.amount,
-        kind="supplier_payment",
+        kind=kind,
         label=f"{payment.number} · {payment.supplier.name}",
         reference=payment.number,
         source=PAYMENT_LINE_SOURCE,
@@ -1189,6 +1198,8 @@ def record_payment(
     plan_line: SupplierPaymentPlanLine | None = None,
     plan_lines: Sequence[SupplierPaymentPlanLine] = (),
     post_to_treasury: bool = True,
+    driver: User | None = None,
+    movement_kind: str = "supplier_payment",
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles (D-043, D-208).
 
@@ -1206,7 +1217,8 @@ def record_payment(
     among the allocations (with an amount) and its supplier the payment's; they become `paid`, linked to it.
 
     The money of its cash, transfer and card lines leaves our accounts at once (D-219); `post_to_treasury` False
-    leaves that to the caller (the port purchase: the driver's money).
+    leaves that to the caller. Cash a `driver` paid (the port purchase) leaves that driver's cash, as a
+    `movement_kind` movement (D-262).
     """
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
@@ -1268,7 +1280,15 @@ def record_payment(
         reason=reason.strip(),
         created_by=actor,
     )
-    _write_lines(payment, actor, checked, partial=partial, post_to_treasury=post_to_treasury)
+    _write_lines(
+        payment,
+        actor,
+        checked,
+        partial=partial,
+        post_to_treasury=post_to_treasury,
+        driver=driver,
+        movement_kind=movement_kind,
+    )
     _allocate(payment, actor, allocated)
     for line in settled:
         line.status = PlanLineStatus.PAID
@@ -2033,8 +2053,10 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
             cash_on=payment.cash_on,
             notes=_("Donné au port, achat terrain %(number)s") % {"number": purchase.number},
             allocations=[],
-            # The driver's purchase money, written with the driver's day (P9-T05b).
-            post_to_treasury=False,
+            # The driver's purchase money leaves the driver's cash the day of the purchase, written now that the
+            # office validated it (D-262).
+            driver=purchase.buyer,
+            movement_kind="field_purchase",
         )
         payment.save(update_fields=["supplier_payment"])
     purchase.status = FieldPurchaseStatus.VALIDATED

@@ -23,6 +23,7 @@ from apps.inventory import selectors as inventory
 from apps.inventory import services as inventory_services
 from apps.purchasing import services as purchasing_services
 from apps.sales import services as sales_services
+from apps.treasury import services as treasury_services
 
 from . import selectors
 from .models import DayClosing, DayClosingRevision, DayClosingStatus, DayReopening, SyncProblem
@@ -292,6 +293,16 @@ def approve_day_closing(
     )
     # The driver's starting cash for the day goes back to zero once the office has approved it (D-259).
     fleet_services.reset_day_fund(driver_day=closing.driver_day)
+    # The cash the office counted goes from the driver's cash to the Caisse (D-262). A new load that opens the day
+    # again leaves it there; the next approval moves what is counted then.
+    treasury_services.hand_over_driver_cash(
+        organization=closing.organization,
+        actor=actor,
+        driver=closing.driver_day.driver,
+        day=timezone.localdate(),
+        amount=(closing.office_counted_cash or Decimal("0")) + (closing.office_counted_purchase_cash or Decimal("0")),
+        source_id=closing.pk,
+    )
     return closing
 
 
