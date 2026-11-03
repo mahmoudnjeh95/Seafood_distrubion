@@ -22,7 +22,7 @@ from .serializers import (
     DriverDaySerializer,
     LocationPingBatchSerializer,
     LocationPingSavedSerializer,
-    PurchaseFloatSerializer,
+    PurchaseFloatChangeSerializer,
     TruckAssignmentFilterSerializer,
     TruckAssignmentSerializer,
     TruckAssignmentWriteSerializer,
@@ -283,6 +283,22 @@ class MyDayView(APIView):
         return Response(DriverDaySerializer(day).data, status=status.HTTP_201_CREATED)
 
 
+class MyDayResumeView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="resumeMyDay", request=None, responses=DriverDaySerializer)
+    def post(self, request: Request) -> Response:
+        """The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+        day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        day = selectors.driver_day_of(membership)
+        if day is None:
+            raise Http404
+        day = services.resume_driver_day(driver_day=day, actor=membership.user)
+        return Response(DriverDaySerializer(day).data)
+
+
 class MyDayFundView(APIView):
     permission_classes = (IsDriver,)
 
@@ -306,7 +322,8 @@ class DayFundListView(APIView):
         responses=DayFundRowSerializer(many=True),
     )
     def get(self, request: Request) -> Response:
-        """Every active driver with the cash set for them on a day (today by default) and whether they started."""
+        """Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         filters = TruckAssignmentFilterSerializer(data=request.query_params)
@@ -316,7 +333,8 @@ class DayFundListView(APIView):
 
     @extend_schema(operation_id="setDayFund", request=DayFundWriteSerializer, responses=DayFundSerializer)
     def put(self, request: Request) -> Response:
-        """Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it."""
+        """Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248)."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         serializer = DayFundWriteSerializer(data=request.data)
@@ -338,23 +356,35 @@ class DayFundListView(APIView):
         return Response(DayFundSerializer(fund).data)
 
 
-class MyPurchaseFloatView(APIView):
+class MyPurchaseChangeView(APIView):
     permission_classes = (IsDriver,)
 
-    @extend_schema(operation_id="setMyPurchaseFloat", request=PurchaseFloatSerializer, responses=DriverDaySerializer)
-    def put(self, request: Request) -> Response:
-        """The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent."""
+    @extend_schema(operation_id="getMyPurchaseChange", responses=PurchaseFloatChangeSerializer)
+    def get(self, request: Request) -> Response:
+        """The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+        404: nothing waits."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        day = selectors.driver_day_of(membership)
+        change = selectors.pending_purchase_float_of(day) if day is not None else None
+        if change is None:
+            raise Http404
+        return Response(PurchaseFloatChangeSerializer(change).data)
+
+
+class MyPurchaseChangeApproveView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="approveMyPurchaseChange", request=None, responses=DriverDaySerializer)
+    def post(self, request: Request) -> Response:
+        """The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+        once. 404 before the day is started."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
         day = selectors.driver_day_of(membership)
         if day is None:
             raise Http404
-        serializer = PurchaseFloatSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        day = services.set_purchase_float(
-            driver_day=day, actor=membership.user, purchase_float=serializer.validated_data["purchase_float"]
-        )
+        day = services.approve_purchase_float(driver_day=day, actor=membership.user)
         return Response(DriverDaySerializer(day).data)
 
 

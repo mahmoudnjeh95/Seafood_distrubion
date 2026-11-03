@@ -15,11 +15,15 @@ import {
   Icon,
   Input,
   PageHeader,
+  Pager,
   Pill,
+  SortTh,
   Table,
   Td,
   Th,
   toast,
+  useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -30,7 +34,6 @@ import { StockTabs } from "../lib/StockTabs";
 import { useDebounced } from "../lib/useDebounced";
 import { canRecordStockChecks, isOwner, LOSS_TONES, refreshAfterStockCheck } from "./shared";
 
-const PAGE_SIZE = 50;
 const STATUSES: LossStatusEnum[] = ["pending", "approved", "rejected"];
 
 /** The owner's threshold: above it, a loss waits for approval. */
@@ -93,17 +96,16 @@ export function LossesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordStockChecks(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [statusFilter, setStatusFilter] = useState<LossStatusEnum | "">("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const [editThreshold, setEditThreshold] = useState(false);
   const query = useDebounced(search.trim());
 
   const settings = useGetStockSettings();
   const losses = useListLosses(
     {
-      limit: PAGE_SIZE,
-      offset,
+      ...table.params,
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(query ? { search: query } : {}),
     },
@@ -120,7 +122,7 @@ export function LossesPage() {
       aria-pressed={statusFilter === value}
       onClick={() => {
         setStatusFilter(value);
-        setOffset(0);
+        table.backToFirstPage();
       }}
       className={cn(
         "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -165,7 +167,7 @@ export function LossesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -197,9 +199,15 @@ export function LossesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.losses.columns.number")}</Th>
-                <Th>{t("admin.losses.columns.date")}</Th>
-                <Th>{t("admin.losses.columns.product")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.losses.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.losses.columns.date")}
+                </SortTh>
+                <SortTh sortKey="product" {...table.sorting}>
+                  {t("admin.losses.columns.product")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.losses.columns.location")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.losses.columns.reason")}</Th>
                 <Th numeric>{t("admin.losses.columns.quantity")}</Th>
@@ -238,23 +246,7 @@ export function LossesPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.losses.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.losses.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.losses.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
 

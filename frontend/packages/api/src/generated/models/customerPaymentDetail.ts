@@ -32,6 +32,7 @@ export interface CustomerPaymentDetail {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly remaining: string;
   readonly is_voided: boolean;
+  readonly cash_limit_confirmed: boolean;
   /** @nullable */
   readonly voided_at: string | null;
   readonly voided_by: string;

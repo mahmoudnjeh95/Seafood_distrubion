@@ -1,17 +1,35 @@
 import { type ListFieldPurchasesStatus, useListFieldPurchases } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  TotalsRow,
+  useServerTable,
+  useUrlState,
+} from "@frutti/ui";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { PurchasingTabs } from "../purchasing/PurchasingTabs";
 import { useDebounced } from "../lib/useDebounced";
+import { totalOf } from "../lib/totals";
 import { canRecordReceipts } from "../receipts/shared";
 import { STATUS_TONE } from "./shared";
 
-const PAGE_SIZE = 50;
 const FILTERS = ["submitted", "validated", "refused", "all"] as const;
 type Filter = (typeof FILTERS)[number];
 
@@ -21,14 +39,14 @@ export function FieldPurchasesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordReceipts(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("submitted");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const status: ListFieldPurchasesStatus | undefined = filter === "all" ? undefined : filter;
   const purchases = useListFieldPurchases(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    { ...table.params, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = purchases.data;
@@ -58,7 +76,7 @@ export function FieldPurchasesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -70,7 +88,7 @@ export function FieldPurchasesPage() {
               aria-pressed={filter === choice}
               onClick={() => {
                 setFilter(choice);
-                setOffset(0);
+                table.backToFirstPage();
               }}
               className={cn(
                 "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -105,9 +123,15 @@ export function FieldPurchasesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.fieldPurchases.columns.number")}</Th>
-                <Th>{t("admin.fieldPurchases.columns.date")}</Th>
-                <Th>{t("admin.fieldPurchases.columns.supplier")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.fieldPurchases.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.fieldPurchases.columns.date")}
+                </SortTh>
+                <SortTh sortKey="supplier" {...table.sorting}>
+                  {t("admin.fieldPurchases.columns.supplier")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.fieldPurchases.columns.buyer")}</Th>
                 <Th numeric>{t("admin.fieldPurchases.columns.total")}</Th>
                 <Th numeric className="max-[720px]:hidden">
@@ -166,24 +190,32 @@ export function FieldPurchasesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={4}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((p) => p.status !== "refused"),
+                    (p) => p.total,
+                  ),
+                },
+                {
+                  value: totalOf(
+                    list.filter((p) => p.status !== "refused"),
+                    (p) => p.paid,
+                  ),
+                  phoneHidden: true,
+                },
+                {
+                  value: totalOf(
+                    list.filter((p) => p.status !== "refused"),
+                    (p) => p.rest,
+                  ),
+                },
+              ]}
+            />
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.fieldPurchases.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.fieldPurchases.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.fieldPurchases.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

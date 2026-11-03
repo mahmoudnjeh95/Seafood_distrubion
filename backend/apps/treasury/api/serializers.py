@@ -3,6 +3,8 @@
 from typing import Any
 
 from django.utils.translation import gettext as _
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.models import User
@@ -10,6 +12,7 @@ from apps.treasury.models import (
     AccountKind,
     AccountTransfer,
     Bank,
+    BankStatementLine,
     CashCount,
     CashType,
     Deposit,
@@ -20,6 +23,7 @@ from apps.treasury.models import (
     MovementKind,
     TransferKind,
     TreasuryAccount,
+    TreasuryMovement,
 )
 
 
@@ -94,6 +98,20 @@ class InstrumentSerializer(serializers.ModelSerializer[Instrument]):
             "created_at",
         )
         read_only_fields: tuple[str, ...] = fields
+
+
+class PartyDocumentRowSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="party_id", read_only=True)
+    deliveries = serializers.IntegerField(read_only=True)
+    invoices = serializers.IntegerField(read_only=True)
+    total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class PartyDocumentsSerializer(serializers.Serializer[Any]):
+    """Per customer: its BL, invoices and net to pay. Per supplier: its BR, invoices and invoiced total (D-211)."""
+
+    customers = PartyDocumentRowSerializer(many=True, read_only=True)
+    suppliers = PartyDocumentRowSerializer(many=True, read_only=True)
 
 
 class InstrumentFilterSerializer(serializers.Serializer[Any]):
@@ -360,3 +378,114 @@ class CashCountWriteSerializer(serializers.Serializer[Any]):
     counted = serializers.CharField(allow_blank=True, max_length=30)
     # Needed when the count differs from what the movements say.
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+
+
+class MovementOfFilterSerializer(serializers.Serializer[Any]):
+    # Where the money was written from: "sales.payment_line", "sales.sale", "expenses.expense"...
+    from_source = serializers.CharField(max_length=40)
+    # The records' ids, comma separated (at most 200).
+    source_ids = serializers.CharField(max_length=2000)
+
+
+class MovementOfSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    source_id = serializers.IntegerField(read_only=True)
+    day = serializers.DateField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    kind = serializers.ChoiceField(choices=MovementKind.choices, read_only=True)
+    account = AccountRefSerializer(read_only=True)
+
+
+@extend_schema_field(OpenApiTypes.BINARY)
+class StatementUploadField(serializers.FileField):
+    """A file sent in a multipart form: a Blob in the generated client, not a URL."""
+
+
+class StatementImportSerializer(serializers.Serializer[Any]):
+    # The bank's statement as an Excel file (.xlsx).
+    file = StatementUploadField()
+
+
+class StatementRowErrorSerializer(serializers.Serializer[Any]):
+    row = serializers.IntegerField(source="number", read_only=True)
+    message = serializers.CharField(read_only=True)
+
+
+class StatementImportReportSerializer(serializers.Serializer[Any]):
+    created = serializers.IntegerField(read_only=True)
+    skipped = serializers.IntegerField(read_only=True)
+    # The rows that could not be read (the report's `errors`); when there is one, nothing was saved.
+    problems = StatementRowErrorSerializer(source="errors", many=True, read_only=True)
+
+
+class MatchedMovementSerializer(serializers.ModelSerializer[TreasuryMovement]):
+    """The movement of our ledger a statement line was matched to (rapprochement, D-265)."""
+
+    class Meta:
+        model = TreasuryMovement
+        fields: tuple[str, ...] = ("id", "day", "amount", "kind", "label", "reference")
+        read_only_fields: tuple[str, ...] = fields
+
+
+class BankStatementLineSerializer(serializers.ModelSerializer[BankStatementLine]):
+    customer = PartyRefSerializer(read_only=True, allow_null=True)
+    supplier = PartyRefSerializer(read_only=True, allow_null=True)
+    movement = MatchedMovementSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = BankStatementLine
+        fields: tuple[str, ...] = (
+            "id",
+            "day",
+            "label",
+            "debit",
+            "credit",
+            "balance",
+            "customer",
+            "supplier",
+            "movement",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+
+class MatchCandidateFilterSerializer(serializers.Serializer[Any]):
+    # False (the default): only the suggestions (same amount, within three days). True: every movement within a month.
+    by_hand = serializers.BooleanField(required=False, default=False)
+
+
+class MatchCandidateSerializer(serializers.Serializer[Any]):
+    movement = MatchedMovementSerializer(read_only=True)
+    # Same amount within three days: what the system suggests.
+    suggested = serializers.BooleanField(read_only=True)
+
+
+class MatchWriteSerializer(serializers.Serializer[Any]):
+    movement = serializers.IntegerField(min_value=1)
+
+
+class StatementLineFilterSerializer(serializers.Serializer[Any]):
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    # all (default), matched, or unmatched: the lines with no movement of ours yet (D-274).
+    state = serializers.ChoiceField(choices=["all", "matched", "unmatched"], required=False, default="all")
+
+
+class ReconciliationFilterSerializer(serializers.Serializer[Any]):
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+
+
+class ReconciliationSummarySerializer(serializers.Serializer[Any]):
+    lines = serializers.IntegerField(read_only=True)
+    matched = serializers.IntegerField(read_only=True)
+    unmatched = serializers.IntegerField(read_only=True)
+    unmatched_in = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    unmatched_out = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    movements = MatchedMovementSerializer(many=True, read_only=True)
+    movements_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class StatementLinePartySerializer(serializers.Serializer[Any]):
+    # A customer for a debit, a supplier for a credit; both null clears the line's third party.
+    customer = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
+    supplier = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)

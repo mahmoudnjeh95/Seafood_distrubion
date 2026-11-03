@@ -15,4 +15,5 @@ export interface RoadPaymentWrite {
   client_uuid?: string | null;
   /** @nullable */
   made_at?: string | null;
+  confirm_cash_limit?: boolean;
 }

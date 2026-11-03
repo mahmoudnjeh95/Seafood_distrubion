@@ -164,3 +164,21 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
       opening stock on a real database (D-135).
 - [x] "Bilan des caisses" on the Caisses page: in hand, at clients (to collect), owed to suppliers (to give back),
       and the company's own boxes; a one-line note on each of the three lists (D-187).
+
+### P1-T15 · Stock adjustment by hand · S (added 2026-11-02, D-247)
+- [x] "Ajuster le stock" on the product page: add or remove kilos of a lot at a place, with the reason
+      (`adjustment` movement, `services.adjust_stock`, `POST /stock/adjustments`, owner and manager).
+- [x] The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
+- [ ] Check on staging: add 10 kg to a lot, remove it again; the average on the product page and on Prix du jour moves.
+
+### P1-T16 · Changing a goods receipt after saving · M (added 2026-11-02, D-269)
+- [x] "Modifier" on the receipt page (owner and manager) while no invoice carries it: supplier reference, notes, VAT, and each line's
+      invoiced and accepted weight, cost per kg and use-by date; a required reason (`services.revise_receipt`).
+- [x] A changed accepted weight is an `adjustment` movement on the lot; the original movement is kept; refused below what already left.
+- [x] Cost and VAT change only while nothing valued has left the lot; each change kept as a revision and audited; history on the page.
+- [ ] Check on staging: correct a receipt's weight and cost, then the lot's stock and the purchase price on Prix du jour move.
+
+### P1-T17 · A goods receipt's correction is not spoilage · S (added 2026-11-02, D-270)
+- [x] A receipt correction is the `receipt_correction` movement kind: the lot result counts it in kg received, the monthly closing in purchases; never spoilage.
+- [x] Hand-made stock adjustments (D-247) still count as spoilage.
+- [ ] Check on staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.

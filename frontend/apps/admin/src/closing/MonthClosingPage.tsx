@@ -50,7 +50,14 @@ type CheckCode =
   | "cash_differences"
   | "driver_days_closed";
 type LedgerKind =
-  "receipt" | "customer_return" | "supplier_return" | "sale" | "loss" | "count_correction" | "adjustment";
+  | "receipt"
+  | "receipt_correction"
+  | "customer_return"
+  | "supplier_return"
+  | "sale"
+  | "loss"
+  | "count_correction"
+  | "adjustment";
 
 const STATE_TONE: Record<MonthStateEnum, "neutral" | "good" | "warn"> = {
   open: "neutral",

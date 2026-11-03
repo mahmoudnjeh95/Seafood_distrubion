@@ -14,6 +14,7 @@ from .models import (
     AccountKind,
     AccountTransfer,
     Bank,
+    BankStatementLine,
     CashCount,
     Deposit,
     Instrument,
@@ -277,3 +278,161 @@ def movement_of_source(organization: Organization, *, source: str, source_id: in
 # The choices of an account and a movement, for other apps' serializers.
 ACCOUNT_KIND_CHOICES = AccountKind.choices
 MOVEMENT_KIND_CHOICES = MovementKind.choices
+
+
+def movements_of(organization: Organization, *, source: str, source_ids: list[int]) -> QuerySet[TreasuryMovement]:
+    """The movements the given records of one source wrote (a règlement's lines, a sale, an expense...), in day order:
+    each one shows the account it went through. Reversals (`role` "void") come too, so a voided money shows both."""
+    return (
+        TreasuryMovement.objects.filter(organization=organization, source=source, source_id__in=source_ids)
+        .select_related("account")
+        .order_by("day", "id")
+    )
+
+
+def statement_lines_of(
+    organization: Organization,
+    account: TreasuryAccount,
+    *,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    state: str = "all",
+) -> QuerySet[BankStatementLine]:
+    """The imported lines of a bank account between two days (inclusive), oldest first. `state` narrows them to
+    the matched ones, or to the lines not matched yet (rapprochement, D-274)."""
+    lines = BankStatementLine.objects.filter(organization=organization, account=account).select_related(
+        "customer", "supplier", "movement"
+    )
+    if date_from is not None:
+        lines = lines.filter(day__gte=date_from)
+    if date_to is not None:
+        lines = lines.filter(day__lte=date_to)
+    if state == "matched":
+        lines = lines.filter(movement__isnull=False)
+    elif state == "unmatched":
+        lines = lines.filter(movement__isnull=True)
+    return lines.order_by("day", "id")
+
+
+@dataclass(frozen=True)
+class ReconciliationSummary:
+    """Both sides of the rapprochement of a bank account over a period (D-274)."""
+
+    lines: int
+    matched: int
+    unmatched: int
+    # The bank's lines not matched yet: what came in (debits of the file) and what went out (credits).
+    unmatched_in: Decimal
+    unmatched_out: Decimal
+    # Our own movements on the account the bank's file does not show yet, and what they add up to (+ in, − out).
+    movements: list[TreasuryMovement]
+    movements_total: Decimal
+
+
+MOVEMENTS_SHOWN = 200
+
+
+def reconciliation_summary(
+    organization: Organization,
+    account: TreasuryAccount,
+    *,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+) -> ReconciliationSummary:
+    """What is left to match on a bank account between two days: the lines of the bank's statement with no
+    movement, and the movements of our ledger with no line (both sides, D-274). Nothing here changes a balance."""
+    lines = statement_lines_of(organization, account, date_from=date_from, date_to=date_to)
+    unmatched_lines = lines.filter(movement__isnull=True)
+    sums = unmatched_lines.aggregate(
+        money_in=Coalesce(Sum("debit"), Decimal("0.000")), money_out=Coalesce(Sum("credit"), Decimal("0.000"))
+    )
+    ours = TreasuryMovement.objects.filter(organization=organization, account=account, statement_line__isnull=True)
+    if date_from is not None:
+        ours = ours.filter(day__gte=date_from)
+    if date_to is not None:
+        ours = ours.filter(day__lte=date_to)
+    total = ours.aggregate(total=Coalesce(Sum("amount"), Decimal("0.000")))["total"]
+    return ReconciliationSummary(
+        lines=lines.count(),
+        matched=lines.filter(movement__isnull=False).count(),
+        unmatched=unmatched_lines.count(),
+        unmatched_in=sums["money_in"],
+        unmatched_out=sums["money_out"],
+        movements=list(ours.order_by("day", "id")[:MOVEMENTS_SHOWN]),
+        movements_total=total,
+    )
+
+
+def statement_line_of(organization: Organization, line_id: int) -> BankStatementLine:
+    """One imported line. Raises BankStatementLine.DoesNotExist outside the organization."""
+    return BankStatementLine.objects.select_related("customer", "supplier", "account", "movement").get(
+        organization=organization, pk=line_id
+    )
+
+
+# Our cheques are watched from the day before they fall due, our traites from 15 days before (D-254).
+ISSUED_CHEQUE_WARNING_DAYS = 1
+ISSUED_BILL_WARNING_DAYS = 15
+DUE_ALERTS_LIMIT = 200
+
+
+def due_alerts(organization: Organization, *, today: dt.date) -> QuerySet[Instrument]:
+    """The effets that need someone today, soonest due first: a cheque or traite we received and still hold or have
+    at the bank (due today or before: cash it, or chase the bank); a cheque of ours from the day before it falls due
+    and a traite of ours from 15 days before, until the bank debits it."""
+    received = Q(
+        direction=InstrumentDirection.RECEIVED,
+        status__in=(InstrumentStatus.PORTFOLIO, InstrumentStatus.DEPOSITED),
+        due_on__lte=today,
+    )
+    our_cheques = Q(
+        direction=InstrumentDirection.ISSUED,
+        status=InstrumentStatus.ISSUED,
+        kind=InstrumentKind.CHEQUE,
+        due_on__lte=today + dt.timedelta(days=ISSUED_CHEQUE_WARNING_DAYS),
+    )
+    our_bills = Q(
+        direction=InstrumentDirection.ISSUED,
+        status=InstrumentStatus.ISSUED,
+        kind=InstrumentKind.BILL,
+        due_on__lte=today + dt.timedelta(days=ISSUED_BILL_WARNING_DAYS),
+    )
+    return (
+        Instrument.objects.filter(organization=organization)
+        .filter(received | our_cheques | our_bills)
+        .select_related("bank", "customer", "supplier", "deposit")
+        .order_by("due_on", "id")
+    )
+
+
+# A suggested match: the same amount within three days; by hand, any movement of the account within a month (D-265).
+SUGGEST_DAYS = 3
+HAND_DAYS = 31
+
+
+def line_amount(line: BankStatementLine) -> Decimal:
+    """What the bank's line did to our account: a debit of the file is money in, a credit money out (D-253)."""
+    return line.debit - line.credit
+
+
+def match_candidates(line: BankStatementLine, *, by_hand: bool = False) -> list[tuple[TreasuryMovement, bool]]:
+    """The movements of the line's account a line could be matched to, nearest day first, each with whether it is a
+    suggestion (same amount, within three days). Without `by_hand` only the suggestions come; with it, every movement
+    within a month that is not matched yet."""
+    days = dt.timedelta(days=HAND_DAYS if by_hand else SUGGEST_DAYS)
+    movements = TreasuryMovement.objects.filter(
+        organization=line.organization,
+        account=line.account,
+        statement_line__isnull=True,
+        day__gte=line.day - days,
+        day__lte=line.day + days,
+    )
+    wanted = line_amount(line)
+    rows = [
+        (movement, movement.amount == wanted and abs((movement.day - line.day).days) <= SUGGEST_DAYS)
+        for movement in movements
+    ]
+    if not by_hand:
+        rows = [row for row in rows if row[1]]
+    rows.sort(key=lambda row: (not row[1], abs((row[0].day - line.day).days), row[0].pk))
+    return rows[:100]

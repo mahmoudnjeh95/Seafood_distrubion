@@ -24,7 +24,7 @@ from apps.core.tests.factories import MembershipFactory, OrganizationFactory
 from apps.inventory.tests.factories import StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.purchasing import selectors, services
-from apps.purchasing.models import FieldPurchase, SupplierInvoice, SupplierInvoiceStatus
+from apps.purchasing.models import FieldPurchase, GoodsReceipt, SupplierInvoice, SupplierInvoiceStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -61,17 +61,25 @@ def client_for(membership):
 
 
 def owed(organization, supplier, room, product, *, amount: str, received_on: dt.date, terms="days", days=30):
-    """A delivery owed at once: `amount` DT (1 kg at that price)."""
-    return services.receive_and_invoice(
+    """A delivery owed at once: `amount` DT (1 kg at that price). The receipt, then its invoice posted (D-268)."""
+    receipt = services.receive_goods(
         organization=organization,
         actor=None,
         supplier=supplier,
         location=room,
         received_on=received_on,
         lines=[{"product": product, "invoiced_quantity": "1", "accepted_quantity": "1", "unit_cost": amount}],
-        terms=terms,
-        due_days=days,
     )
+    services.create_invoice(
+        organization=organization,
+        actor=None,
+        supplier=supplier,
+        receipts=[receipt],
+        invoice_date=received_on,
+        due_date=services.due_date_of(received_on, terms, days if terms != "cash" else 0),
+        post=True,
+    )
+    return receipt
 
 
 # ---- A delivery owed at once ----
@@ -90,7 +98,7 @@ def test_a_receipt_invoiced_at_once_is_owed_from_the_reception(organization, roo
     assert selectors.supplier_balance(organization, supplier.pk).balance == Decimal("500.000")
 
 
-def test_the_receipt_form_sends_the_deal(organization, room, product):
+def test_the_receipt_form_makes_no_invoice_the_office_makes_it_from_the_receipt(organization, room, product):
     supplier = SupplierFactory.create(organization=organization)
     manager = client_for(MembershipFactory.create(organization=organization, role=Role.MANAGER))
     payload: dict[str, Any] = {
@@ -98,25 +106,13 @@ def test_the_receipt_form_sends_the_deal(organization, room, product):
         "location": room.pk,
         "received_on": TODAY().isoformat(),
         "lines": [{"product": product.pk, "invoiced_quantity": "10", "accepted_quantity": "10", "unit_cost": "12"}],
-        "invoice_now": True,
-        "terms": "cash",
     }
 
     created = manager.post(reverse("receipt-list"), payload, format="json")
 
     assert created.status_code == 201, created.json()
-    assert created.json()["invoice"]["status"] == "posted"
-    assert SupplierInvoice.objects.get().due_date == TODAY()
-    # Without it, the receipt waits for the supplier's invoice as before.
-    payload["invoice_now"] = False
-    assert manager.post(reverse("receipt-list"), payload, format="json").json()["invoice"] is None
-
-
-def test_a_deal_at_n_days_needs_the_days(organization, room, product):
-    supplier = SupplierFactory.create(organization=organization)
-    with pytest.raises(ValidationError) as caught:
-        owed(organization, supplier, room, product, amount="10", received_on=TODAY(), terms="days", days=0)
-    assert "due_days" in caught.value.message_dict
+    assert created.json()["invoice"] is None
+    assert not SupplierInvoice.objects.exists()
 
 
 # ---- What is owed, and when ----
@@ -262,10 +258,10 @@ def test_a_paper_that_is_not_a_photo_is_refused(organization, product):
     assert not FieldPurchase.objects.get().paper
 
 
-# ---- Given now, at the reception (D-192) ----
+# ---- Given now, at the reception (D-192, D-268) ----
 
 
-def test_a_receipt_owed_at_once_records_what_is_given_now(organization, room, product):
+def test_what_is_given_at_the_reception_is_an_advance_the_invoice_takes(organization, room, product):
     supplier = SupplierFactory.create(organization=organization)
     manager = client_for(MembershipFactory.create(organization=organization, role=Role.MANAGER))
     payload: dict[str, Any] = {
@@ -273,9 +269,6 @@ def test_a_receipt_owed_at_once_records_what_is_given_now(organization, room, pr
         "location": room.pk,
         "received_on": TODAY().isoformat(),
         "lines": [{"product": product.pk, "invoiced_quantity": "10", "accepted_quantity": "10", "unit_cost": "12"}],
-        "invoice_now": True,
-        "terms": "days",
-        "due_days": 30,
         "payments": [
             {"method": "cash", "amount": "50"},
             {"method": "cheque", "amount": "20", "reference": "CH-1", "cash_on": TODAY().isoformat()},
@@ -285,40 +278,34 @@ def test_a_receipt_owed_at_once_records_what_is_given_now(organization, room, pr
     created = manager.post(reverse("receipt-list"), payload, format="json")
 
     assert created.status_code == 201, created.json()
-    assert SupplierInvoice.objects.get().total == Decimal("120.000")
+    assert not SupplierInvoice.objects.exists()
+    assert selectors.supplier_debts(organization).rows[0].advances == Decimal("70.000")
+    invoice = services.create_invoice(
+        organization=organization,
+        actor=None,
+        supplier=supplier,
+        receipts=[GoodsReceipt.objects.get()],
+        invoice_date=TODAY(),
+        due_date=TODAY(),
+        post=True,
+        apply_advances=True,
+    )
+    assert invoice.total == Decimal("120.000")
     assert selectors.supplier_balance(organization, supplier.pk).balance == Decimal("50.000")
 
 
 def test_more_given_than_the_receipt_is_refused_and_nothing_is_kept(organization, room, product):
     supplier = SupplierFactory.create(organization=organization)
     with pytest.raises(ValidationError) as caught:
-        services.receive_and_invoice(
+        services.receive_goods(
             organization=organization,
             actor=None,
             supplier=supplier,
             location=room,
             received_on=TODAY(),
             lines=[{"product": product, "invoiced_quantity": "1", "accepted_quantity": "1", "unit_cost": "100"}],
-            terms="cash",
             payments=[{"method": "cash", "amount": "80"}, {"method": "cash", "amount": "30"}],
         )
     assert set(caught.value.message_dict) == {"payments.1.amount"}
-    assert not SupplierInvoice.objects.exists()
-
-
-def test_a_payment_without_the_invoice_is_refused(organization, room, product):
-    supplier = SupplierFactory.create(organization=organization)
-    manager = client_for(MembershipFactory.create(organization=organization, role=Role.MANAGER))
-    payload: dict[str, Any] = {
-        "supplier": supplier.pk,
-        "location": room.pk,
-        "received_on": TODAY().isoformat(),
-        "lines": [{"product": product.pk, "invoiced_quantity": "10", "accepted_quantity": "10", "unit_cost": "12"}],
-        "invoice_now": False,
-        "payments": [{"method": "cash", "amount": "10"}],
-    }
-
-    refused = manager.post(reverse("receipt-list"), payload, format="json")
-
-    assert refused.status_code == 400
+    assert not GoodsReceipt.objects.exists()
     assert not SupplierInvoice.objects.exists()

@@ -9,7 +9,7 @@ from rest_framework import serializers
 
 from apps.core.models import Organization, User
 from apps.fleet import selectors
-from apps.fleet.models import DriverDay, Truck, TruckAssignment, TruckCondition
+from apps.fleet.models import DriverDay, PurchaseFloatChange, Truck, TruckAssignment, TruckCondition
 
 
 class DriverRefSerializer(serializers.ModelSerializer[User]):
@@ -119,8 +119,14 @@ class DriverDaySerializer(serializers.ModelSerializer[DriverDay]):
 
     class Meta:
         model = DriverDay
-        fields = ("id", "date", "truck_name", "opening_cash", "purchase_float", "ended_at")
+        fields = ("id", "date", "truck_name", "opening_cash", "purchase_float", "ended_at", "restart_pending")
         read_only_fields = fields
+
+    # A new load opened the sent day again and the driver has not confirmed the new start yet (D-281).
+    restart_pending = serializers.SerializerMethodField()
+
+    def get_restart_pending(self, day: DriverDay) -> bool:
+        return day.restart_pending_since is not None
 
 
 class DayFundSerializer(serializers.Serializer[Any]):
@@ -148,6 +154,20 @@ class DayFundRowSerializer(serializers.Serializer[Any]):
     can_buy = serializers.BooleanField(read_only=True)
     fund = DayFundSerializer(read_only=True, allow_null=True)
     started = serializers.BooleanField(read_only=True)
+    # The driver sent the closing: the day is over and even the purchase money is locked.
+    ended = serializers.BooleanField(read_only=True)
+    # A new money for purchases the office proposed and the driver has not approved yet (D-260); null when none.
+    pending_purchase_float = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
+    pending_proposed_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
+class PurchaseFloatChangeSerializer(serializers.ModelSerializer[PurchaseFloatChange]):
+    """The money for purchases the office proposed on the phone's day, waiting for the driver's approval (D-260)."""
+
+    class Meta:
+        model = PurchaseFloatChange
+        fields = ("amount", "previous_amount", "created_at")
+        read_only_fields = fields
 
 
 class DayFundWriteSerializer(serializers.Serializer[Any]):
@@ -158,10 +178,6 @@ class DayFundWriteSerializer(serializers.Serializer[Any]):
     purchase_float = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=0, required=False, default=Decimal("0.000")
     )
-
-
-class PurchaseFloatSerializer(serializers.Serializer[Any]):
-    purchase_float = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
 
 
 MAX_PINGS_PER_BATCH = 200

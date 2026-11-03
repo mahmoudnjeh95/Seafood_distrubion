@@ -378,6 +378,8 @@ class MyStockLineSerializer(serializers.Serializer[Any]):
 
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(read_only=True)
+    # The Arabic name, printed under the French one on the receipt (D-282); empty when there is none.
+    product_name_ar = serializers.CharField(read_only=True)
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     unit_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
     # The product's photo, empty when it has none; the driver app shows a plain mark then.
@@ -591,6 +593,17 @@ class CountedSerializer(serializers.Serializer[Any]):
 class CountFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=CountStatus.choices, required=False)
     location = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class StockAdjustmentWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    batch = serializers.IntegerField(min_value=1)
+    # "add" puts kilos into the place, "remove" takes them out of it.
+    direction = serializers.ChoiceField(choices=["add", "remove"])
+    # A weight as a string ("1.500"), checked by the service.
+    quantity = serializers.CharField(allow_blank=True)
+    reason = serializers.CharField(allow_blank=True, max_length=200)
 
 
 # ---- Stock screens (P1-T11) ----

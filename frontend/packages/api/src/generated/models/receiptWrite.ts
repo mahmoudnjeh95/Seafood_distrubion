@@ -5,7 +5,6 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { FieldPurchasePaymentWrite } from './fieldPurchasePaymentWrite';
-import type { PaymentTermsEnum } from './paymentTermsEnum';
 import type { ReceiptLineWrite } from './receiptLineWrite';
 import type { ReceiptWriteBoxes } from './receiptWriteBoxes';
 
@@ -26,12 +25,6 @@ export interface ReceiptWrite {
   notes?: string;
   lines: ReceiptLineWrite[];
   boxes?: ReceiptWriteBoxes;
-  invoice_now?: boolean;
-  terms?: PaymentTermsEnum;
-  /**
-     * @minimum 0
-     * @maximum 365
-     */
-  due_days?: number;
   payments?: FieldPurchasePaymentWrite[];
+  confirm_cash_limit?: boolean;
 }

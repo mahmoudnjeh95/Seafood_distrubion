@@ -9,15 +9,18 @@ import {
   Icon,
   Input,
   PageHeader,
+  Pager,
   Pill,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SortTh,
   Table,
   Td,
-  Th,
+  useTableView,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
@@ -35,7 +38,7 @@ export function CustomersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canEdit = canEditCustomers(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<Status>("active");
   const [kind, setKind] = useState(ALL_KINDS);
   const [creating, setCreating] = useState(false);
@@ -51,6 +54,16 @@ export function CustomersPage() {
   );
   const list = customers.data ?? [];
   const filtering = query !== "" || status !== "active" || kind !== ALL_KINDS;
+
+  const view = useTableView(list, {
+    reference: (customer) => customer.reference,
+    name: (customer) => customer.name,
+    kind: (customer) => customer.kind,
+    phone: (customer) => customer.phone,
+    creditLimit: (customer) => Number(customer.credit_limit),
+    paymentTerms: (customer) => customer.payment_terms_days,
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (
     <>
@@ -123,16 +136,28 @@ export function CustomersPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.customers.columns.reference")}</Th>
-                <Th>{t("admin.customers.columns.name")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.customers.columns.kind")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.customers.columns.phone")}</Th>
-                <Th className="text-end">{t("admin.customers.columns.creditLimit")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.customers.columns.paymentTerms")}</Th>
+                <SortTh sortKey="reference" {...sorting}>
+                  {t("admin.customers.columns.reference")}
+                </SortTh>
+                <SortTh sortKey="name" {...sorting}>
+                  {t("admin.customers.columns.name")}
+                </SortTh>
+                <SortTh sortKey="kind" {...sorting} className="max-[720px]:hidden">
+                  {t("admin.customers.columns.kind")}
+                </SortTh>
+                <SortTh sortKey="phone" {...sorting} className="max-[720px]:hidden">
+                  {t("admin.customers.columns.phone")}
+                </SortTh>
+                <SortTh numeric sortKey="creditLimit" {...sorting}>
+                  {t("admin.customers.columns.creditLimit")}
+                </SortTh>
+                <SortTh sortKey="paymentTerms" {...sorting} className="max-[720px]:hidden">
+                  {t("admin.customers.columns.paymentTerms")}
+                </SortTh>
               </tr>
             </thead>
             <tbody>
-              {list.map((customer) => (
+              {view.rows.map((customer) => (
                 // The name is the link; a click anywhere on the row opens the same page.
                 <tr
                   key={customer.id}
@@ -175,6 +200,7 @@ export function CustomersPage() {
               ))}
             </tbody>
           </Table>
+          <Pager {...view.pager} />
         </Card>
       )}
 

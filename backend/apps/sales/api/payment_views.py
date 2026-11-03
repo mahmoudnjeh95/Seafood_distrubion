@@ -16,16 +16,20 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.core.api.pagination import PagedList
+from apps.core.api.exports import ORDERING_HELP
+from apps.core.api.pagination import PagedList, ordered
+from apps.core.models import Role
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.sales import payment_selectors, receivables, selectors, services
 from apps.sales.models import CustomerPayment, Invoice, WithholdingCertificate
 from apps.treasury import selectors as treasury
@@ -38,6 +42,7 @@ from .payment_serializers import (
     CustomerPaymentSerializer,
     CustomerPaymentTotalsSerializer,
     CustomerPaymentWriteSerializer,
+    CustomerWriteOffWriteSerializer,
     ReceivablesAgeingSerializer,
     UnpaidWriteSerializer,
     VoidWriteSerializer,
@@ -123,6 +128,12 @@ class CustomerPaymentView(OfficeView):
 class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment]):
     serializer_class = CustomerPaymentSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("received_on",),
+        "customer": ("customer__name",),
+        "method": ("method",),
+    }
 
     def get_queryset(self) -> QuerySet[CustomerPayment]:
         return _filtered_payments(self.organization, self.request)
@@ -165,6 +176,7 @@ class CustomerPaymentListView(CustomerPaymentView, ListAPIView[CustomerPayment])
             reason=data["reason"],
             paid_by=data["paid_by"],
             allocations=_allocations(self.organization, data["allocations"]),
+            confirm_cash_limit=data["confirm_cash_limit"],
         )
         return self.answer(payment.pk, status_code=status.HTTP_201_CREATED)
 
@@ -200,12 +212,18 @@ class CustomerPaymentTotalsView(OfficeView):
 class CustomerPaymentExportView(OfficeView):
     @extend_schema(
         operation_id="exportCustomerPayments",
-        parameters=[CustomerPaymentFilterSerializer],
+        parameters=[CustomerPaymentFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
         responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
     )
     def get(self, request: Request) -> HttpResponse:
         """The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked)."""
-        payments = list(_filtered_payments(self.organization, request)[:5000])
+        payments = list(
+            ordered(
+                _filtered_payments(self.organization, request),
+                request.query_params.get("ordering", ""),
+                CustomerPaymentListView.ordering_columns,
+            )[:5000]
+        )
         zero = Decimal("0.000")
 
         def allocated(payment: CustomerPayment) -> Decimal:
@@ -343,11 +361,9 @@ def _balance_row(customer: Any, balance: receivables.CustomerBalance) -> dict[st
     }
 
 
-class CustomerBalanceView(OfficeView):
-    @extend_schema(operation_id="getCustomerBalance", responses=CustomerBalanceSerializer)
-    def get(self, request: Request, customer_id: int) -> Response:
-        """What one customer owes: balance (negative = their credit), the part overdue, the ageing in 0-30,
-        31-60 and 61+ days, the open sales (oldest first) and their account history with a running balance."""
+class CustomerBalanceAnswer(OfficeView):
+    def answer(self, customer_id: int) -> Response:
+        """One customer's balance as the screen reads it (see `CustomerBalanceView`)."""
         try:
             customer = partners.customer_of(self.organization, customer_id)
         except ObjectDoesNotExist:
@@ -355,6 +371,9 @@ class CustomerBalanceView(OfficeView):
         today = timezone.localdate()
         balance = receivables.customer_balance(self.organization, customer.pk, today=today)
         history = receivables.customer_history(self.organization, customer.pk)
+        extras = services.estimated_extras(
+            self.organization, [row.sale_id for row in balance.open_sales if row.invoice_id is None]
+        )
         data = {
             **_balance_row(customer, balance),
             "open_total": balance.open_total,
@@ -373,13 +392,64 @@ class CustomerBalanceView(OfficeView):
                     "owed": row.owed,
                     "on_spot": row.on_spot,
                     "allocated": row.allocated,
+                    "written_off": row.written_off,
                     "outstanding": row.outstanding,
+                    "estimated_extra": extras.get(row.sale_id, Decimal("0.000")),
                 }
                 for row in balance.open_sales
             ],
             "history": list(reversed(history))[:HISTORY_LIMIT],
+            "write_offs": [
+                {
+                    "id": write_off.pk,
+                    "written_on": write_off.written_on,
+                    "amount": write_off.amount,
+                    "reason": write_off.reason,
+                    "created_by": str(write_off.created_by or ""),
+                }
+                for write_off in customer.balance_write_offs.select_related("created_by")
+            ],
+            "written_off_total": sum((write_off.amount for write_off in customer.balance_write_offs.all()), ZERO),
+            "write_off_lots": partnerships.open_write_off_lots(
+                self.organization, selectors.customer_lots(self.organization, customer_id=customer.pk)
+            ),
         }
         return Response(CustomerBalanceSerializer(data).data)
+
+
+class CustomerBalanceView(CustomerBalanceAnswer):
+    @extend_schema(operation_id="getCustomerBalance", responses=CustomerBalanceSerializer)
+    def get(self, request: Request, customer_id: int) -> Response:
+        """What one customer owes: balance (negative = their credit), the part overdue, the ageing in 0-30,
+        31-60 and 61+ days, the open sales (oldest first) and their account history with a running balance."""
+        return self.answer(customer_id)
+
+
+class CustomerWriteOffView(CustomerBalanceAnswer):
+    @extend_schema(
+        operation_id="writeOffCustomerBalance",
+        request=CustomerWriteOffWriteSerializer,
+        responses=CustomerBalanceSerializer,
+    )
+    def post(self, request: Request, customer_id: int) -> Response:
+        """Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire remet un solde client à zéro."))
+        serializer = CustomerWriteOffWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            customer = partners.customer_of(self.organization, customer_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.write_off_customer_balance(
+            customer=customer,
+            actor=self.membership.user,
+            expected=serializer.validated_data["expected_amount"],
+            reason=serializer.validated_data["reason"],
+            lot_shares=serializer.validated_data.get("lot_shares", []),
+        )
+        return self.answer(customer_id)
 
 
 class ReceivablesAgeingView(OfficeView):

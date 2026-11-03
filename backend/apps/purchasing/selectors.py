@@ -1,12 +1,13 @@
 """Reusable read queries of purchases."""
 
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal
 
 from django.db.models import (
     Case,
+    Count,
     DecimalField,
     Exists,
     ExpressionWrapper,
@@ -24,8 +25,9 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core.documents import DocumentFilters, DocumentRow, Tone, document_key
+from apps.core.documents import DocumentFilters, DocumentRow, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
+from apps.inventory import selectors as inventory
 
 from .models import (
     RECEIVABLE_ORDER_STATUSES,
@@ -43,6 +45,7 @@ from .models import (
     PurchaseOrderStatus,
     RejectedEffet,
     RejectedRelease,
+    SupplierBalanceWriteOff,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -50,6 +53,8 @@ from .models import (
     SupplierPaymentAllocation,
     SupplierPaymentLine,
     SupplierPaymentPlanLine,
+    SupplierWriteOffAllocation,
+    SupplierWriteOffLotShare,
 )
 
 if TYPE_CHECKING:
@@ -80,7 +85,7 @@ def receipts_of(
     receipts = (
         GoodsReceipt.objects.for_organization(organization)
         .select_related("supplier", "location", "created_by", "invoice_link__invoice", "purchase_order")
-        .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(Prefetch("lines", queryset=lines), "revisions")
         .annotate(has_differences=Exists(GoodsReceiptLine.objects.filter(DIFFERENT, receipt=OuterRef("pk"))))
         .order_by("-received_on", "-id")
     )
@@ -212,6 +217,19 @@ def _sum_of_allocations(**match: Any) -> Coalesce:
     return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
 
 
+def _sum_of_write_offs(**match: Any) -> Coalesce:
+    """What balance write-offs gave up on the invoices matching `match` (an OuterRef), as a subquery (D-252)."""
+    group = next(iter(match))
+    allocations = (
+        SupplierWriteOffAllocation.objects.filter(**match)
+        .order_by()
+        .values(group)
+        .annotate(total=Sum("amount"))
+        .values("total")
+    )
+    return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
+
+
 def _sum_of_releases(**match: Any) -> Coalesce:
     """The sum of what rejected effets took back (`RejectedRelease`) matching `match`, as a subquery (D-218)."""
     group = next(iter(match))
@@ -253,7 +271,9 @@ def invoices_of(
         .prefetch_related(Prefetch("allocations", queryset=allocations))
         .annotate(
             paid_amount=ExpressionWrapper(
-                _sum_of_allocations(invoice=OuterRef("pk")) - _sum_of_releases(invoice=OuterRef("pk")),
+                _sum_of_allocations(invoice=OuterRef("pk"))
+                - _sum_of_releases(invoice=OuterRef("pk"))
+                + _sum_of_write_offs(invoice=OuterRef("pk")),
                 output_field=AMOUNT,
             )
         )
@@ -278,6 +298,25 @@ def invoices_of(
 def invoice_of(organization: Organization, invoice_id: int) -> SupplierInvoice:
     """One invoice with its receipts and payments. Raises SupplierInvoice.DoesNotExist outside the organization."""
     return invoices_of(organization).get(pk=invoice_id)
+
+
+def supplier_lots(organization: Organization, *, supplier_id: int) -> list[dict[str, Any]]:
+    """The lots a supplier sold us, newest first, by id with their number and product: the lots a write-off of
+    what we owe them can be credited to (D-257)."""
+    return [
+        {"batch_id": batch.pk, "number": batch.number, "product": batch.product.name, "received_on": batch.received_on}
+        for batch in inventory.batches_of(organization, supplier_id=supplier_id)
+    ]
+
+
+def write_off_shares_of_batch(organization: Organization, *, batch_id: int) -> QuerySet[SupplierWriteOffLotShare]:
+    """The supplier balance write-offs credited to one lot (D-257), oldest first, with the write-off and supplier."""
+    return (
+        SupplierWriteOffLotShare.objects.for_organization(organization)
+        .filter(batch_id=batch_id)
+        .select_related("write_off__supplier")
+        .order_by("write_off__written_on", "id")
+    )
 
 
 def open_invoices_of(organization: Organization, *, supplier_id: int) -> QuerySet[SupplierInvoice]:
@@ -417,14 +456,15 @@ def payment_totals(payments: QuerySet[SupplierPayment]) -> PaymentTotals:
 class SupplierBalance:
     """What the company owes one supplier for goods: the trade payable only (D-040, D-043).
 
-    `balance` = posted invoices − payments. Negative, the supplier holds an advance. A partner's capital
-    and profit share are other balances (Phase 6) and never appear here.
+    `balance` = posted invoices − payments − what was written off (D-252). Negative, the supplier holds an
+    advance. A partner's capital and profit share are other balances (Phase 6) and never appear here.
     """
 
     supplier_id: int
     invoiced: Decimal  # posted invoices, paid or not
     paid: Decimal  # every payment, allocated or not
     balance: Decimal
+    written_off: Decimal  # what the balance write-offs gave up (D-252): a gain, not paid
     outstanding: Decimal  # still to pay on posted invoices
     unallocated: Decimal  # paid but not allocated to an invoice yet (advances)
     overdue: Decimal  # still to pay on invoices past their due date
@@ -591,11 +631,15 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
         RejectedRelease.objects.for_organization(organization).filter(rejected__supplier_id=supplier_id), "amount"
     )
     paid = _total(payments, "amount") - rejected
+    # The balance we gave up on, clear to zero (D-252): the invoices it settled read as paid by it.
+    write_offs = SupplierBalanceWriteOff.objects.for_organization(organization).filter(supplier_id=supplier_id)
+    written_off = _total(write_offs, "amount")
     return SupplierBalance(
         supplier_id=supplier_id,
         invoiced=invoiced,
         paid=paid,
-        balance=invoiced - paid,
+        balance=invoiced - paid - written_off,
+        written_off=written_off,
         outstanding=sum((getattr(invoice, "outstanding") for invoice in open_invoices), ZERO),  # noqa: B009
         unallocated=paid - (_total(allocations, "amount") - released),
         overdue=sum((getattr(invoice, "outstanding") for invoice in late), ZERO),  # noqa: B009
@@ -1107,3 +1151,52 @@ def undefined_settlements_late(organization: Organization, *, now: dt.datetime |
 def plan_line_of(organization: Organization, line_id: int) -> SupplierPaymentPlanLine:
     """One plan line. Raises SupplierPaymentPlanLine.DoesNotExist outside the organization."""
     return SupplierPaymentPlanLine.objects.for_organization(organization).select_related("invoice").get(pk=line_id)
+
+
+# ---- Supplier documents for the règlement forms (D-211) ----
+
+
+def supplier_documents(organization: Organization) -> dict[int, PartyDocuments]:
+    """Per supplier with a BR or an invoice: its goods receipts, its invoices (not drafts) and their total (D-211)."""
+    documents: dict[int, PartyDocuments] = {}
+    receipts = (
+        GoodsReceipt.objects.for_organization(organization).values("supplier_id").annotate(count=Count("id")).order_by()
+    )
+    for row in receipts:
+        documents[row["supplier_id"]] = PartyDocuments(party_id=row["supplier_id"], deliveries=row["count"])
+    invoices = (
+        SupplierInvoice.objects.for_organization(organization)
+        .exclude(status=SupplierInvoiceStatus.DRAFT)
+        .values("supplier_id")
+        .annotate(count=Count("id"), total=Sum("total"))
+        .order_by()
+    )
+    for row in invoices:
+        current = documents.get(row["supplier_id"], PartyDocuments(party_id=row["supplier_id"]))
+        documents[row["supplier_id"]] = replace(current, invoices=row["count"], total=row["total"])
+    return documents
+
+
+def _shown_flag(value: Any) -> str | None:
+    if isinstance(value, bool):
+        return "oui" if value else "non"
+    return _shown(value)
+
+
+def receipt_changes(before: dict[str, Any], after: dict[str, Any]) -> list[RevisionChange]:
+    """What one change of a goods receipt changed (D-269): its header values, then each line's by its position."""
+    changes: list[RevisionChange] = []
+    for key in ("supplier_reference", "notes", "with_vat"):
+        if before.get(key) != after.get(key):
+            changes.append(
+                RevisionChange(
+                    field=key, line=None, before=_shown_flag(before.get(key)), after=_shown_flag(after.get(key))
+                )
+            )
+    for position, (old, new) in enumerate(zip(before.get("lines", []), after.get("lines", []), strict=False)):
+        for key in ("invoiced_quantity", "accepted_quantity", "unit_cost", "use_by"):
+            if old.get(key) != new.get(key):
+                changes.append(
+                    RevisionChange(field=key, line=position, before=_shown(old.get(key)), after=_shown(new.get(key)))
+                )
+    return changes

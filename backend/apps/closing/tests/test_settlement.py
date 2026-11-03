@@ -370,3 +370,36 @@ def test_another_organizations_lot_is_not_found(api, finished_lot):
     assert stranger.get(f"/api/v1/lots/{finished_lot.pk}/settlement").status_code == 404
     assert stranger.post(f"/api/v1/lots/{finished_lot.pk}/settle", {}, format="json").status_code == 404
     assert api.get("/api/v1/lots/999999/settlement").status_code == 404
+
+
+# ---- The money paid to the partner is in the treasury (D-240, D-264) ----
+
+
+def test_the_cash_and_transfer_paid_to_the_partner_leave_the_caisse_and_the_bank(
+    organization, actor, finished_lot, partner
+):
+    from apps.treasury.models import AccountKind, TreasuryMovement
+
+    close(organization, actor, finished_lot)
+
+    settle(organization, actor, finished_lot, ("1000.000", "cash"), ("286.000", "transfer"))
+
+    rows = TreasuryMovement.objects.filter(organization=organization, kind="partner_settlement")
+    assert sorted((row.account.kind, row.amount) for row in rows) == [
+        (AccountKind.BANK, D("-286.000")),
+        (AccountKind.CASH, D("-1000.000")),
+    ]
+
+
+def test_a_cheque_given_to_the_partner_is_an_effet_issued_and_moves_no_money(
+    organization, actor, finished_lot, partner
+):
+    from apps.treasury.models import Instrument, TreasuryMovement
+
+    close(organization, actor, finished_lot)
+
+    settle(organization, actor, finished_lot, ("1286.000", "cheque"))
+
+    effet = Instrument.objects.get(organization=organization, direction="issued")
+    assert (effet.kind, effet.status, effet.amount, effet.supplier) == ("cheque", "issued", D("1286.000"), partner)
+    assert not TreasuryMovement.objects.filter(organization=organization, kind="partner_settlement").exists()

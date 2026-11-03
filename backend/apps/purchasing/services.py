@@ -17,9 +17,11 @@ from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total
+from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 from apps.partnerships import services as partnerships
+from apps.sales import selectors as sales_selectors
 from apps.treasury import services as treasury
 
 from . import selectors
@@ -35,6 +37,7 @@ from .models import (
     FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
+    GoodsReceiptRevision,
     PaymentTerms,
     PlanLineStatus,
     PurchaseOrder,
@@ -42,6 +45,7 @@ from .models import (
     PurchaseOrderStatus,
     RejectedEffet,
     RejectedRelease,
+    SupplierBalanceWriteOff,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -49,6 +53,8 @@ from .models import (
     SupplierPaymentAllocation,
     SupplierPaymentLine,
     SupplierPaymentPlanLine,
+    SupplierWriteOffAllocation,
+    SupplierWriteOffLotShare,
 )
 from .models import PaymentMethod as PaymentMethod  # re-exported for apps that record payments (the demo)
 
@@ -290,6 +296,236 @@ def create_receipt(
         action="receipt.created",
         target=receipt,
         after=_snapshot(receipt, saved),
+    )
+    return receipt
+
+
+# ---- Changing a goods receipt after it was saved (D-269) ----
+# Allowed while no supplier invoice carries it. What it moved out of the stock is never edited: a change of an
+# accepted weight is a correction movement, and a price or VAT change waits until nothing valued has left the lot.
+
+
+class ReceiptRevisionLineFields(TypedDict, total=False):
+    id: int
+    invoiced_quantity: Number
+    accepted_quantity: Number
+    unit_cost: Number
+    use_by: dt.date | None
+
+
+class ReceiptRevisionFields(TypedDict, total=False):
+    supplier_reference: str
+    notes: str
+    with_vat: bool
+    lines: Sequence[ReceiptRevisionLineFields]
+
+
+def receipt_snapshot(receipt: GoodsReceipt) -> dict[str, Any]:
+    """What a receipt says, as plain values: what a change keeps, and what two versions are compared on."""
+    lines = list(receipt.lines.select_related("product", "batch").order_by("id"))
+    return {
+        "supplier_reference": receipt.supplier_reference,
+        "notes": receipt.notes,
+        "with_vat": receipt.with_vat,
+        "lines": [
+            {
+                "product": line.product.name,
+                "invoiced_quantity": str(line.invoiced_quantity),
+                "accepted_quantity": str(line.accepted_quantity),
+                "unit_cost": str(line.unit_cost),
+                "use_by": line.batch.use_by.isoformat() if line.batch.use_by else None,
+            }
+            for line in lines
+        ],
+    }
+
+
+def _locked_receipt(receipt: GoodsReceipt, revision: int) -> GoodsReceipt:
+    """The receipt re-read under a row lock: refused while an invoice carries it, or when someone changed it since
+    `revision`."""
+    locked = (
+        GoodsReceipt.objects.select_for_update(of=("self",))
+        .select_related("organization", "location", "purchase_order")
+        .get(pk=receipt.pk)
+    )
+    link = getattr(locked, "invoice_link", None)
+    if link is not None:
+        invoice = link.invoice
+        if invoice.status == SupplierInvoiceStatus.DRAFT:
+            raise ValidationError(
+                _("La réception %(number)s est sur la facture brouillon %(invoice)s : supprimez d'abord ce brouillon.")
+                % {"number": locked.number, "invoice": invoice.number}
+            )
+        raise ValidationError(
+            _(
+                "La réception %(number)s est sur la facture validée %(invoice)s : elle ne se modifie plus. "
+                "Corrigez par la facture ou par un retour fournisseur."
+            )
+            % {"number": locked.number, "invoice": invoice.number}
+        )
+    if revision != locked.revision:
+        raise ValidationError(
+            {
+                "revision": _(
+                    "La réception %(number)s a été modifiée entre-temps (version %(revision)s) : rechargez-la."
+                )
+                % {"number": locked.number, "revision": locked.revision}
+            }
+        )
+    return locked
+
+
+def _checked_revised_line(
+    index: int, item: ReceiptRevisionLineFields, received_on: dt.date, errors: dict[str, str]
+) -> dict[str, Any]:
+    checked: dict[str, Any] = {"use_by": item.get("use_by")}
+    try:
+        checked["invoiced_quantity"] = checked_quantity(item.get("invoiced_quantity", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "invoiced_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+    try:
+        checked["accepted_quantity"] = checked_quantity(item.get("accepted_quantity", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "accepted_quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+    try:
+        checked["unit_cost"] = checked_amount(item.get("unit_cost", ""))
+    except (ValueError, TypeError):
+        errors[line_error_key(index, "unit_cost")] = _("Indiquez un coût en DT par kg, au millime près.")
+    if "unit_cost" in checked and "invoiced_quantity" in checked and "accepted_quantity" in checked:
+        biggest = max(checked["invoiced_quantity"], checked["accepted_quantity"])
+        if line_total(biggest, checked["unit_cost"]) > MAX_AMOUNT:
+            errors[line_error_key(index, "unit_cost")] = _(
+                "Le montant de cette ligne est trop grand : vérifiez le coût au kg."
+            )
+    use_by = checked["use_by"]
+    if use_by is not None and use_by < received_on:
+        errors[line_error_key(index, "use_by")] = _("La date limite ne peut pas précéder la réception.")
+    return checked
+
+
+@transaction.atomic
+def revise_receipt(
+    *,
+    receipt: GoodsReceipt,
+    actor: User | None,
+    revision: int,
+    reason: str,
+    fields: ReceiptRevisionFields,
+) -> GoodsReceipt:
+    """Change a goods receipt after it was saved (D-269): its supplier reference, notes and VAT flag, and each of
+    its lines' invoiced and accepted weight, cost per kg and use-by date. Every line is sent, by its id.
+
+    Refused while an invoice carries the receipt (a draft one is deleted first), when `revision` is not its current
+    one, and without a reason. A changed accepted weight posts a receipt correction on the lot, from the receipt's
+    place,
+    and the original movement stays as it was; it is refused when it would take the lot below what already left it.
+    A changed cost or VAT flag is refused once something valued has left the lot (a sale, a loss, a return, a count).
+    Each change is kept as a revision with its before and after, and audited. Problems come back together.
+    """
+    receipt = _locked_receipt(receipt, revision)
+    organization = receipt.organization
+    before = receipt_snapshot(receipt)
+    errors: dict[str, str] = {}
+    reason = reason.strip()
+    if not reason:
+        errors["reason"] = _("Indiquez la raison de la modification.")
+    lines = {line.pk: line for line in receipt.lines.select_related("product", "batch")}
+    sent = list(fields.get("lines", []))
+    if sorted(item["id"] for item in sent) != sorted(lines):
+        errors["lines"] = _("Renvoyez toutes les lignes de la réception, sans en ajouter ni en retirer.")
+    checked: list[tuple[int, GoodsReceiptLine, dict[str, Any]]] = []
+    for index, item in enumerate(sent):
+        if item["id"] in lines:
+            checked.append((index, lines[item["id"]], _checked_revised_line(index, item, receipt.received_on, errors)))
+    if errors:
+        raise ValidationError(errors)
+    supplier_reference = fields.get("supplier_reference", "").strip()
+    notes = fields.get("notes", "").strip()
+    with_vat = fields["with_vat"]
+
+    for index, line, values in checked:
+        if values["unit_cost"] != line.unit_cost and inventory_selectors.batch_valued_outside(
+            organization, batch_id=line.batch_id
+        ):
+            errors[line_error_key(index, "unit_cost")] = _(
+                "Des kilos de ce lot ont déjà été vendus, perdus ou corrigés : son prix ne se change plus."
+            )
+        delta = values["accepted_quantity"] - line.accepted_quantity
+        if delta < 0:
+            on_hand = inventory_selectors.quantity_on_hand(organization, batch_id=line.batch_id)
+            if on_hand + delta < 0:
+                errors[line_error_key(index, "accepted_quantity")] = _(
+                    "Il est déjà sorti %(left)s kg de ce lot : la quantité acceptée ne descend pas sous ce poids."
+                ) % {"left": line.accepted_quantity - on_hand}
+    if with_vat != receipt.with_vat and any(
+        inventory_selectors.batch_valued_outside(organization, batch_id=line.batch_id)
+        for _index, line, _values in checked
+    ):
+        errors["with_vat"] = _(
+            "Des kilos de ce lot ont déjà été vendus, perdus ou corrigés : la TVA ne se change plus."
+        )
+    if errors:
+        raise ValidationError(errors)
+
+    receipt.supplier_reference = supplier_reference
+    receipt.notes = notes
+    receipt.with_vat = with_vat
+    occurred_at = timezone.now()
+    correction_reason = _("Correction du bon %(number)s : %(reason)s") % {"number": receipt.number, "reason": reason}
+    for index, line, values in checked:
+        inventory.correct_batch(
+            batch=line.batch,
+            unit_cost=values["unit_cost"],
+            use_by=values["use_by"],
+            bought_with_vat=with_vat,
+            receipt_reference=supplier_reference or receipt.number,
+        )
+        delta = values["accepted_quantity"] - line.accepted_quantity
+        if delta:
+            try:
+                inventory.post_movement(
+                    organization=organization,
+                    actor=actor,
+                    kind=MovementKind.RECEIPT_CORRECTION,
+                    batch=line.batch,
+                    quantity=abs(delta),
+                    from_location=receipt.location if delta < 0 else None,
+                    to_location=receipt.location if delta > 0 else None,
+                    reason=correction_reason,
+                    source=line,
+                    occurred_at=occurred_at,
+                )
+            except ValidationError as error:
+                raise ValidationError({line_error_key(index, "accepted_quantity"): error.messages[0]}) from None
+        line.invoiced_quantity = values["invoiced_quantity"]
+        line.accepted_quantity = values["accepted_quantity"]
+        line.unit_cost = values["unit_cost"]
+        line.save(update_fields=["invoiced_quantity", "accepted_quantity", "unit_cost"])
+
+    receipt.revision += 1
+    receipt.save(update_fields=["supplier_reference", "notes", "with_vat", "revision", "updated_at"])
+    after = receipt_snapshot(receipt)
+    if after == before:
+        raise ValidationError({"lines": _("Rien n'a changé : modifiez au moins une valeur.")})
+    GoodsReceiptRevision.objects.create(
+        organization=organization,
+        receipt=receipt,
+        number=receipt.revision,
+        created_by=actor,
+        reason=reason,
+        before=before,
+        after=after,
+    )
+    order = receipt.purchase_order
+    if order is not None:
+        refresh_order_status(order)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="receipt.edited",
+        target=receipt,
+        before=before,
+        after=after,
     )
     return receipt
 
@@ -822,12 +1058,17 @@ def allocation_error_key(index: int, field: str) -> str:
 
 
 def _paid_on(invoice: SupplierInvoice) -> Decimal:
+    """What settles the invoice: its payments, less what rejected effets took back, plus what a balance write-off
+    gave up on it (D-252: settled though nothing was paid)."""
     paid = SupplierPaymentAllocation.objects.filter(invoice=invoice, payment__voided_at__isnull=True).aggregate(
         total=Sum("amount")
     )["total"]
     released = RejectedRelease.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
     if released:
         paid = (paid or Decimal("0.000")) - released
+    given_up = SupplierWriteOffAllocation.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    if given_up:
+        paid = (paid or Decimal("0.000")) + given_up
     return paid if paid is not None else Decimal("0.000")
 
 
@@ -1073,9 +1314,11 @@ def _write_lines(
     *,
     partial: bool,
     post_to_treasury: bool = True,
+    driver: User | None = None,
+    movement_kind: str = "supplier_payment",
 ) -> None:
     """Write the règlement's lines; each cheque or traite becomes an effet issued to the supplier, the money of the
-    others leaves its account at once (D-219)."""
+    others leaves its account at once (D-219). Cash a `driver` paid leaves that driver's cash."""
     for method, value, line in checked:
         instrument = None
         if method in INSTRUMENT_METHODS:
@@ -1104,7 +1347,7 @@ def _write_lines(
             instrument=instrument,
         )
         if instrument is None and post_to_treasury:
-            _post_line_money(payment, row, line.get("account"), actor)
+            _post_line_money(payment, row, line.get("account"), actor, driver=driver, kind=movement_kind)
 
 
 # The treasury movement of a supplier règlement line paid in cash, by transfer or by card (D-219).
@@ -1112,17 +1355,24 @@ PAYMENT_LINE_SOURCE = "purchasing.payment_line"
 
 
 def _post_line_money(
-    payment: SupplierPayment, line: SupplierPaymentLine, account: "TreasuryAccount | None", actor: User | None
+    payment: SupplierPayment,
+    line: SupplierPaymentLine,
+    account: "TreasuryAccount | None",
+    actor: User | None,
+    *,
+    driver: User | None = None,
+    kind: str = "supplier_payment",
 ) -> None:
-    """The money of a line leaves an account the day it was paid: the one chosen, else the Caisse for cash, the
-    main bank account for a transfer or a card. Our cheque or traite leaves only when the bank debits it."""
+    """The money of a line leaves an account the day it was paid: the one chosen, else the driver's cash for cash a
+    driver paid, the Caisse for other cash, the main bank account for a transfer or a card. Our cheque or traite
+    leaves only when the bank debits it."""
     organization = payment.organization
     treasury.post_movement(
         organization=organization,
-        account=treasury.line_account(organization, line.method, account),
+        account=treasury.line_account(organization, line.method, account, driver=driver),
         day=payment.paid_on,
         amount=-line.amount,
-        kind="supplier_payment",
+        kind=kind,
         label=f"{payment.number} · {payment.supplier.name}",
         reference=payment.number,
         source=PAYMENT_LINE_SOURCE,
@@ -1182,6 +1432,9 @@ def record_payment(
     plan_line: SupplierPaymentPlanLine | None = None,
     plan_lines: Sequence[SupplierPaymentPlanLine] = (),
     post_to_treasury: bool = True,
+    driver: User | None = None,
+    movement_kind: str = "supplier_payment",
+    confirm_cash_limit: bool = False,
 ) -> SupplierPayment:
     """Record money paid to a supplier and the posted invoices it settles (D-043, D-208).
 
@@ -1199,7 +1452,8 @@ def record_payment(
     among the allocations (with an amount) and its supplier the payment's; they become `paid`, linked to it.
 
     The money of its cash, transfer and card lines leaves our accounts at once (D-219); `post_to_treasury` False
-    leaves that to the caller (the port purchase: the driver's money).
+    leaves that to the caller. Cash a `driver` paid (the port purchase) leaves that driver's cash, as a
+    `movement_kind` movement (D-262).
     """
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
@@ -1243,6 +1497,14 @@ def record_payment(
     settled = _checked_plan_lines(organization, supplier, named, allocated, errors) if named else []
     if plan_line is not None and "plan_lines.0" in errors and not plan_lines:
         errors["plan_line"] = errors.pop("plan_lines.0")
+    over_limit = not errors and sales_selectors.cash_over_limit(
+        organization, paid_on, (value for line_method, value, _line in checked if line_method == "cash")
+    )
+    if over_limit and not confirm_cash_limit:
+        # A cash line at or above the limit goes through only when confirmed (D-273).
+        errors["cash_limit"] = _(
+            "Paiement en espèces au-delà du plafond légal (%(limit)s DT) : confirmez pour continuer."
+        ) % {"limit": display_money(sales_selectors.cash_limit_on(organization, paid_on))}
     if errors:
         raise ValidationError(errors)
     assert total is not None  # an amount error would have been raised above
@@ -1250,6 +1512,7 @@ def record_payment(
     only = checked[0][2] if len(checked) == 1 else None
     payment = SupplierPayment.objects.create(
         organization=organization,
+        cash_limit_confirmed=over_limit,
         number=numbering.next_number(organization, "supplier_payment"),
         supplier=supplier,
         paid_on=paid_on,
@@ -1261,7 +1524,15 @@ def record_payment(
         reason=reason.strip(),
         created_by=actor,
     )
-    _write_lines(payment, actor, checked, partial=partial, post_to_treasury=post_to_treasury)
+    _write_lines(
+        payment,
+        actor,
+        checked,
+        partial=partial,
+        post_to_treasury=post_to_treasury,
+        driver=driver,
+        movement_kind=movement_kind,
+    )
     _allocate(payment, actor, allocated)
     for line in settled:
         line.status = PlanLineStatus.PAID
@@ -1328,6 +1599,96 @@ def _invoice_status_from_payments(invoice: SupplierInvoice) -> str:
     if paid >= invoice.total:
         return SupplierInvoiceStatus.PAID
     return SupplierInvoiceStatus.PARTLY_PAID if paid > 0 else SupplierInvoiceStatus.POSTED
+
+
+@transaction.atomic
+def write_off_supplier_balance(
+    *,
+    supplier: "Supplier",
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
+) -> SupplierBalanceWriteOff:
+    """Clear what we owe a supplier to zero, the rest given up as a gain on them (D-252): the supplier takes less
+    than its balance. `expected` must be the balance shown now, typed again by the office, so a balance that moved
+    since the screen was read is refused. The amount is spread over the open invoices, oldest due date first, and
+    kept as it was written: never edited or deleted.
+
+    The gain is also credited to the lots the owner picks by hand (`lot_shares`: `{"batch", "amount"}` adding up
+    to the balance, D-257), so it raises those lots' net result and their partner shares it. A lot already settled
+    with its partner is refused; a closed lot takes it as a late adjustment on the partner's next settlement."""
+    organization = supplier.organization
+    list(
+        SupplierInvoice.objects.select_for_update(of=("self",))
+        .filter(organization=organization, supplier=supplier)
+        .order_by("id")
+        .values_list("pk", flat=True)
+    )
+    balance = selectors.supplier_balance(organization, supplier.pk).balance
+    try:
+        typed = checked_amount(expected)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"expected_amount": str(error)}) from None
+    if balance <= 0:
+        raise ValidationError(_("Nous ne devons rien à ce fournisseur : rien à remettre à zéro."))
+    if typed != balance:
+        raise ValidationError(
+            {
+                "expected_amount": _("Le solde est de %(balance)s DT, pas %(typed)s DT : vérifiez le montant.")
+                % {"balance": display_money(balance), "typed": display_money(typed)}
+            }
+        )
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    shares = partnerships.checked_write_off_lot_shares(
+        organization,
+        total=balance,
+        shares=list(lot_shares or []),
+        candidates=selectors.supplier_lots(organization, supplier_id=supplier.pk),
+    )
+    write_off = SupplierBalanceWriteOff.objects.create(
+        organization=organization,
+        supplier=supplier,
+        written_on=timezone.localdate(),
+        amount=balance,
+        reason=reason,
+        created_by=actor,
+    )
+    # The open invoices, oldest due date first, each settled by what is left; a balance above the open invoices
+    # (a rejected effet not released yet) stays on the write-off only.
+    left = balance
+    for invoice in selectors.open_invoices_of(organization, supplier_id=supplier.pk):
+        outstanding: Decimal = getattr(invoice, "outstanding")  # noqa: B009
+        if left <= 0:
+            break
+        if outstanding <= 0:
+            continue
+        part = min(left, outstanding)
+        SupplierWriteOffAllocation.objects.create(
+            organization=organization, write_off=write_off, invoice=invoice, amount=part
+        )
+        invoice.status = _invoice_status_from_payments(invoice)
+        invoice.save(update_fields=["status", "updated_at"])
+        left -= part
+    for batch_id, amount in shares:
+        SupplierWriteOffLotShare.objects.create(
+            organization=organization, write_off=write_off, batch_id=batch_id, amount=amount
+        )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="supplier.balance_written_off",
+        target=write_off,
+        after={
+            "supplier": supplier.name,
+            "amount": str(balance),
+            "reason": reason,
+            "lots": {str(batch_id): str(amount) for batch_id, amount in shares},
+        },
+    )
+    return write_off
 
 
 @transaction.atomic
@@ -1960,8 +2321,12 @@ def _validate_field_purchase(purchase: FieldPurchase, actor: User | None) -> Non
             cash_on=payment.cash_on,
             notes=_("Donné au port, achat terrain %(number)s") % {"number": purchase.number},
             allocations=[],
-            # The driver's purchase money, written with the driver's day (P9-T05b).
-            post_to_treasury=False,
+            # The driver's purchase money leaves the driver's cash the day of the purchase, written now that the
+            # office validated it (D-262).
+            driver=purchase.buyer,
+            movement_kind="field_purchase",
+            # Paid at the port by the driver, validated by the office: the cash limit flag is recorded (D-273).
+            confirm_cash_limit=True,
         )
         payment.save(update_fields=["supplier_payment"])
     purchase.status = FieldPurchaseStatus.VALIDATED
@@ -2044,11 +2409,20 @@ def refuse_field_purchase(*, purchase: FieldPurchase, actor: User | None, revisi
     return purchase
 
 
+@transaction.atomic
+def validate_field_purchase(*, purchase: FieldPurchase, actor: User | None) -> FieldPurchase:
+    """Validate a purchase as the driver sent it, from the day's check (D-239): one click, when its supplier,
+    products and place are already set (else the validation says what is missing). Its kilos enter stock there."""
+    purchase = _locked_field_purchase(purchase, purchase.revision)
+    _validate_field_purchase(purchase, actor)
+    return purchase
+
+
 # ---- Paying suppliers (P3-T12c, D-159) ----
 
 
 @transaction.atomic
-def receive_and_invoice(
+def receive_goods(
     *,
     organization: Organization,
     actor: User | None,
@@ -2056,26 +2430,19 @@ def receive_and_invoice(
     location: "StockLocation",
     received_on: dt.date,
     lines: Sequence[ReceiptLineFields],
-    terms: str,
-    due_days: int = 0,
     supplier_reference: str = "",
     notes: str = "",
     purchase_order: PurchaseOrder | None = None,
     boxes: Mapping[str, int] | None = None,
     payments: Sequence[FieldPaymentFields] = (),
     with_vat: bool = False,
+    confirm_cash_limit: bool = False,
 ) -> GoodsReceipt:
-    """Record goods received and, in the same step, what is owed for them (D-159): a posted supplier invoice for the
-    receipt, due by the deal made for this delivery, as a purchase at the port is (D-176). The debt starts at the
-    reception; a paper invoice of the supplier, if one comes, is only matched by its number. `payments` are the
-    sums given now (D-192), recorded and allocated to that invoice; more than its total is refused."""
+    """Record goods received: the receipt, its batches, stock and boxes (D-268). No invoice is made here: the
+    office makes the supplier's invoice afterwards, from this receipt. `payments` are the sums given now (D-192):
+    each is recorded as money not yet allocated to an invoice, an advance that the invoice made from this receipt
+    takes (`apply_advances`). More than the receipt's value is refused, as a typing mistake (D-181)."""
     errors: dict[str, str] = {}
-    if terms not in PaymentTerms.values:
-        errors["terms"] = _("Accord de paiement inconnu.")
-    elif not 0 <= due_days <= 365:
-        errors["due_days"] = _("Indiquez un nombre de jours entre 0 et 365.")
-    elif terms == PaymentTerms.DAYS and due_days == 0:
-        errors["due_days"] = _("Indiquez dans combien de jours la livraison est payée.")
     checked_payments = _checked_payment_lines(payments, received_on, errors)
     if errors:
         raise ValidationError(errors)
@@ -2092,26 +2459,17 @@ def receive_and_invoice(
         boxes=boxes,
         with_vat=with_vat,
     )
-    invoice = create_invoice(
-        organization=organization,
-        actor=actor,
-        supplier=supplier,
-        receipts=[receipt],
-        invoice_date=received_on,
-        due_date=due_date_of(received_on, terms, due_days if terms != PaymentTerms.CASH else 0),
-        supplier_reference=receipt.supplier_reference,
-        post=True,
-    )
     given = sum((payment["amount"] for payment in checked_payments), ZERO)
-    if given > invoice.total:
-        # Rolls the whole receipt back: more given than owed is a typing mistake (D-181).
+    received = sum((line.invoiced_amount for line in receipt.lines.all()), ZERO)
+    if given > received:
+        # Rolls the whole receipt back: more given than the receipt is worth is a typing mistake (D-181).
         raise ValidationError(
             {
                 payment_error_key(len(checked_payments) - 1, "amount"): _(
                     "L'argent donné (%(given)s DT) dépasse le montant de la réception (%(total)s DT) : "
                     "vérifiez les montants."
                 )
-                % {"given": display_money(given), "total": display_money(invoice.total)}
+                % {"given": display_money(given), "total": display_money(received)}
             }
         )
     for payment in checked_payments:
@@ -2125,7 +2483,8 @@ def receive_and_invoice(
             reference=payment["reference"],
             cash_on=payment["cash_on"],
             notes=_("Donné à la réception %(number)s") % {"number": receipt.number},
-            allocations=[{"invoice": invoice, "amount": payment["amount"]}],
+            allocations=[],
+            confirm_cash_limit=confirm_cash_limit,
         )
     return receipt
 

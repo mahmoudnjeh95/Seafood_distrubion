@@ -69,3 +69,15 @@ class DocumentRow:
     @property
     def key(self) -> str:
         return document_key(self.type, self.id)
+
+
+@dataclass(frozen=True)
+class PartyDocuments:
+    """What one customer or supplier has on paper, for the règlement forms (D-211): its BL (a customer) or BR (a
+    supplier), its invoices, and their total (a customer's net to pay, a supplier's invoiced total). Drafts and
+    cancelled documents are not counted."""
+
+    party_id: int
+    deliveries: int = 0
+    invoices: int = 0
+    total: Decimal = Decimal("0.000")

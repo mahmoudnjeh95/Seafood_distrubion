@@ -3,6 +3,7 @@ import {
   recordSupplierPayment,
   type SupplierPaymentWrite,
   useListBanks,
+  useListPartyDocuments,
   useListSupplierInvoices,
   useListSupplierSettlements,
   useGetSupplierBalance,
@@ -30,7 +31,10 @@ import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "
 
 import { subtract, sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { CashLimitNotice } from "../payments/CashLimitNotice";
 import { ConfirmPaymentDialog } from "../payments/ConfirmPaymentDialog";
+import { PartyDocumentCounts } from "../payments/PartyDocumentCounts";
+import { countsOf } from "../payments/partyCounts";
 import { FormPanel } from "../treasury/FormPanel";
 import {
   describeLine,
@@ -82,6 +86,7 @@ export function SupplierPaymentFormPage() {
   const planMethod = METHODS.find((one) => one === params.get("mode")) ?? "";
 
   const suppliers = useListSuppliers({ status: "all" });
+  const documents = useListPartyDocuments();
   const banks = useListBanks();
   const [supplier, setSupplier] = useState(() => String(idFrom(params.get("fournisseur")) ?? ""));
   const [paidOn, setPaidOn] = useState(todayInTunis);
@@ -108,6 +113,8 @@ export function SupplierPaymentFormPage() {
   const [checked, setChecked] = useState(false);
   const [invoiceErrors, setInvoiceErrors] = useState<Record<number, string>>({});
   const [confirming, setConfirming] = useState<SupplierPaymentWrite | null>(null);
+  // A cash line at or above the cash limit, refused until confirmed (D-273): its message and the payment to resend.
+  const [cashWarning, setCashWarning] = useState<{ message: string; payload: SupplierPaymentWrite } | null>(null);
 
   // From "Règlements fournisseurs" with several plan lines ticked (`?fournisseur=3&lignes=4,7`, D-215): one règlement
   // pays them all, a line of means per plan line, each amount on its invoice.
@@ -199,6 +206,10 @@ export function SupplierPaymentFormPage() {
     onError: (failure, payload) => {
       setConfirming(null);
       const fromServer = fieldErrors(failure);
+      if (fromServer.cash_limit) {
+        setCashWarning({ message: fromServer.cash_limit, payload });
+        return;
+      }
       const { lines: byLine, rest } = errorsByLine(fromServer);
       setServerLineErrors(byLine);
       setInvoiceErrors(errorsByInvoice(rest, payload.allocations ?? []));
@@ -226,6 +237,7 @@ export function SupplierPaymentFormPage() {
     // A refused allocation already shows its message on its own row.
     const rowsRefused = payload === null || hasAllocationProblem(invoices, shownAllocations);
     setErrors(found);
+    setCashWarning(null);
     setChecked(true);
     setServerLineErrors({});
     setInvoiceErrors({});
@@ -266,6 +278,8 @@ export function SupplierPaymentFormPage() {
               <Input
                 id={id("paid_on")}
                 type="date"
+                required
+                className="border-bad/60"
                 max={todayInTunis()}
                 value={paidOn}
                 onChange={(event) => setPaidOn(event.target.value)}
@@ -292,14 +306,25 @@ export function SupplierPaymentFormPage() {
                   setTouched(true);
                 }}
               >
-                <SelectTrigger id={id("supplier")} aria-invalid={errors.supplier ? true : undefined}>
+                <SelectTrigger
+                  id={id("supplier")}
+                  aria-required
+                  className="border-bad/60"
+                  aria-invalid={errors.supplier ? true : undefined}
+                >
                   <SelectValue placeholder={t("admin.supplierPayments.form.choose")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(suppliers.data ?? [])
                     .filter((one) => one.is_active || String(one.id) === supplier)
                     .map((one) => (
-                      <SelectItem key={one.id} value={String(one.id)}>
+                      <SelectItem
+                        key={one.id}
+                        value={String(one.id)}
+                        detail={
+                          <PartyDocumentCounts counts={countsOf(documents.data?.suppliers, one.id)} side="supplier" />
+                        }
+                      >
                         {one.name}
                       </SelectItem>
                     ))}
@@ -399,6 +424,18 @@ export function SupplierPaymentFormPage() {
             />
           </Field>
         </Card>
+
+        {cashWarning && (
+          <CashLimitNotice
+            message={cashWarning.message}
+            pending={save.isPending}
+            onConfirm={() => {
+              const payload = cashWarning.payload;
+              setCashWarning(null);
+              save.mutate({ ...payload, confirm_cash_limit: true });
+            }}
+          />
+        )}
 
         {(errors.detail ?? errors.plan_line ?? planLinesError) && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">

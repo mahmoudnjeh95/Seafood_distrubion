@@ -289,3 +289,24 @@ def test_permissions(organization, supplier):
     # Another organization's invoice is not found.
     stranger = client_for(MembershipFactory.create(organization=OrganizationFactory.create(), role=Role.OWNER))
     assert stranger.put(url, body, format="json").status_code == 404
+
+
+def test_planning_a_cash_line_over_the_limit_asks_nothing_paying_it_does(organization, supplier):
+    invoice = invoice_of(organization, supplier, amount="6000")
+
+    services.set_payment_plan(invoice=invoice, actor=None, lines=[line("5000")])  # a plan is not a payment (D-280)
+    plan_line = SupplierPaymentPlanLine.objects.get()
+
+    with pytest.raises(ValidationError) as refused:
+        pay(organization, supplier, invoice, "5000", plan_line=plan_line)
+    assert "cash_limit" in refused.value.message_dict
+    plan_line.refresh_from_db()
+    assert plan_line.status == PlanLineStatus.OPEN
+
+    payment = pay(organization, supplier, invoice, "5000", plan_line=plan_line, confirm_cash_limit=True)
+    plan_line.refresh_from_db()
+    assert (plan_line.status, plan_line.payment_id, payment.cash_limit_confirmed) == (
+        PlanLineStatus.PAID,
+        payment.pk,
+        True,
+    )

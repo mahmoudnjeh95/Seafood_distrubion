@@ -1,7 +1,23 @@
 import { useListSuppliers } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, Dialog, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  Dialog,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  useTableView,
+  useUrlState,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
@@ -19,7 +35,7 @@ export function SuppliersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canEdit = canEditSuppliers(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<Status>("active");
   const [creating, setCreating] = useState(false);
   const query = useDebounced(search.trim());
@@ -34,6 +50,15 @@ export function SuppliersPage() {
     (supplier) => kind === "all" || !partnerLots || partnerLots.has(supplier.id) === (kind === "partner"),
   );
   const filtering = query !== "" || status !== "active" || kind !== "all";
+
+  const view = useTableView(list, {
+    reference: (supplier) => supplier.reference,
+    name: (supplier) => supplier.name,
+    phone: (supplier) => supplier.phone,
+    taxId: (supplier) => supplier.tax_id,
+    contacts: (supplier) => supplier.contacts.length,
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (
     <>
@@ -113,15 +138,25 @@ export function SuppliersPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.suppliers.columns.reference")}</Th>
-                <Th>{t("admin.suppliers.columns.name")}</Th>
-                <Th>{t("admin.suppliers.columns.phone")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.suppliers.columns.taxId")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.suppliers.columns.contacts")}</Th>
+                <SortTh sortKey="reference" {...sorting}>
+                  {t("admin.suppliers.columns.reference")}
+                </SortTh>
+                <SortTh sortKey="name" {...sorting}>
+                  {t("admin.suppliers.columns.name")}
+                </SortTh>
+                <SortTh sortKey="phone" {...sorting}>
+                  {t("admin.suppliers.columns.phone")}
+                </SortTh>
+                <SortTh sortKey="taxId" {...sorting} className="max-[720px]:hidden">
+                  {t("admin.suppliers.columns.taxId")}
+                </SortTh>
+                <SortTh sortKey="contacts" {...sorting} className="max-[720px]:hidden">
+                  {t("admin.suppliers.columns.contacts")}
+                </SortTh>
               </tr>
             </thead>
             <tbody>
-              {list.map((supplier) => (
+              {view.rows.map((supplier) => (
                 // The name is the link; a click anywhere on the row opens the same page.
                 <tr
                   key={supplier.id}
@@ -159,6 +194,7 @@ export function SuppliersPage() {
               ))}
             </tbody>
           </Table>
+          <Pager {...view.pager} />
         </Card>
       )}
 

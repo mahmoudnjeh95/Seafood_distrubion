@@ -11,7 +11,7 @@ import {
   useListProducts,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
-import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatDate, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -35,6 +35,9 @@ import { useOnline } from "./offline";
 import { PaidNow } from "./PaidNow";
 import { blankPayLine, effectiveLines, hasPaper, type PaidMode, type PayLine } from "./purchasePay";
 import { PaperPhotoInput } from "./PaperPhotoInput";
+import { PrintButton } from "./printing/PrintButton";
+import { PROVISIONAL, PROVISIONAL_NOTE, type ReceiptData } from "./printing/receipt";
+import { purchaseReceipt } from "./printing/records";
 import { dueDateOn, lineAmount, purchaseTotals } from "./purchase";
 import { sendError } from "./sendError";
 import { sendOrKeep } from "./sendOrKeep";
@@ -59,27 +62,76 @@ function todayInTunis(): string {
 }
 
 /** "Achat au port": a new purchase, or one already sent (`/achats/:id`) the office has not decided yet. */
+/** What the screen shows once the purchase is sent, kept on the phone or changed: the message and its receipt. */
+type Saved = { message: string; receipt: ReceiptData; edited: boolean };
+
 export function PurchasePage() {
   const { t } = useTranslation();
   const session = useSession();
   const { purchaseId } = useParams();
   const purchases = useListMyFieldPurchases({ query: { enabled: purchaseId !== undefined } });
+  const [saved, setSaved] = useState<Saved | null>(null);
   if (session.data?.can_buy !== true) {
     return <EmptyState illustration="fish" title={t("truck.purchase.notAllowed")} />;
   }
-  if (purchaseId === undefined) return <PurchaseForm />;
+  if (saved !== null) return <PurchaseDone saved={saved} onNew={() => setSaved(null)} />;
+  if (purchaseId === undefined) return <PurchaseForm onSaved={setSaved} />;
   if (purchases.isLoading) return null;
   const purchase = purchases.data?.find((one) => String(one.id) === purchaseId);
   if (purchase === undefined || purchase.status !== "submitted") {
     return <EmptyState illustration="fish" title={t("truck.purchase.empty")} />;
   }
-  return <PurchaseForm key={purchase.revision} purchase={purchase} />;
+  return <PurchaseForm key={purchase.revision} purchase={purchase} onSaved={setSaved} />;
 }
 
-function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
+/** After "Envoyer l'achat": the purchase as saved, with "Imprimer le reçu" for the supplier (P3-T10). */
+function PurchaseDone({ saved, onNew }: { saved: Saved; onNew: () => void }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { receipt } = saved;
+  return (
+    <div className="space-y-4">
+      <Card className="space-y-3">
+        <p className="text-xl font-bold">{saved.message}</p>
+        <p className="text-ink-2">
+          {receipt.number} · {receipt.partyName}
+        </p>
+        <ul className="divide-y divide-line">
+          {receipt.lines.map((line, index) => (
+            <li key={index} className="flex items-baseline justify-between gap-3 py-2">
+              <span>
+                {line.name} · {formatQuantity(line.quantity)}
+              </span>
+              <span className="font-semibold">{formatMoney(line.amount)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="flex justify-between text-xl font-bold">
+          <span>{t("truck.purchase.total")}</span>
+          <span>{formatMoney(receipt.total)}</span>
+        </p>
+        <p className="flex justify-between">
+          <span>{t("truck.purchase.rest")}</span>
+          <span>{formatMoney(receipt.rest)}</span>
+        </p>
+      </Card>
+      <PrintButton receipt={receipt} />
+      <Button size="lg" className="py-4 text-lg" onClick={() => void navigate("/achats")}>
+        {t("truck.purchase.mine")}
+      </Button>
+      {saved.edited ? null : (
+        <Button size="lg" variant="primary" className="py-4 text-lg" onClick={onNew}>
+          {t("truck.purchase.title")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function PurchaseForm({ purchase, onSaved }: { purchase?: MyFieldPurchase; onSaved: (saved: Saved) => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const session = useSession();
   const online = useOnline();
   const suppliers = useListMySuppliers();
   const products = useListProducts({ status: "active" });
@@ -197,16 +249,48 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
   const label = () =>
     newSupplier ? supplierName.trim() : (suppliers.data?.find((one) => String(one.id) === supplier)?.name ?? "");
 
+  const company = session.data?.organization.name ?? "";
+  const driver = session.data?.user.first_name;
+
+  /** The receipt of a purchase kept on the phone, from what was typed: the office gives its number later. */
+  const typedReceipt = (): ReceiptData => ({
+    kind: "purchase",
+    company,
+    number: PROVISIONAL,
+    date: new Date().toISOString(),
+    partyName: label(),
+    by: driver,
+    lines: lines.map((line) => ({
+      name: line.isNew
+        ? line.newName.trim()
+        : (products.data?.find((product) => String(product.id) === line.product)?.name ?? ""),
+      nameAr: line.isNew ? undefined : products.data?.find((product) => String(product.id) === line.product)?.name_ar,
+      quantity: parseDecimalInput(line.kilos.trim(), 3) ?? line.kilos,
+      unitPrice: parseDecimalInput(line.price.trim(), 3) ?? line.price,
+      amount: lineAmount(line.kilos, line.price) ?? "0",
+    })),
+    total: totals.total,
+    paid: totals.paid,
+    rest: totals.rest,
+    note: PROVISIONAL_NOTE,
+  });
+
   const save = async () => {
     setSaving(true);
     setError("");
     const changes = payload();
     try {
       if (purchase) {
-        await changeMyFieldPurchase(purchase.id, { ...changes, revision: purchase.revision });
-        if (paperPhoto) await addMyFieldPurchasePaper(purchase.id, { paper: paperPhoto });
+        let changed = await changeMyFieldPurchase(purchase.id, { ...changes, revision: purchase.revision });
+        if (paperPhoto) changed = await addMyFieldPurchasePaper(purchase.id, { paper: paperPhoto });
         toast.success(t("truck.purchase.changed"));
+        onSaved({
+          message: t("truck.purchase.changed"),
+          receipt: purchaseReceipt(changed, company, driver),
+          edited: true,
+        });
       } else {
+        const receipt = typedReceipt();
         const data: MyFieldPurchaseCreate = { ...changes, client_uuid: uuid };
         const outcome = await sendOrKeep(
           {
@@ -221,12 +305,17 @@ function PurchaseForm({ purchase }: { purchase?: MyFieldPurchase }) {
           },
           () => sendPurchase(data, paperPhoto),
         );
-        toast.success(t(outcome.kept ? "truck.purchase.kept" : "truck.purchase.sent"));
+        const message = t(outcome.kept ? "truck.purchase.kept" : "truck.purchase.sent");
+        toast.success(message);
         setUuid(newUuid());
         void sendWaiting(queryClient);
+        onSaved({
+          message,
+          receipt: outcome.result ? purchaseReceipt(outcome.result, company, driver) : receipt,
+          edited: false,
+        });
       }
       void queryClient.invalidateQueries();
-      void navigate("/achats");
     } catch (failure) {
       const conflict = failure instanceof ApiError && JSON.stringify(failure.body ?? "").includes("revision");
       setError(

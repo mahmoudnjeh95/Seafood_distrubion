@@ -33,6 +33,7 @@ import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
 import { PdfButton } from "../lib/PdfButton";
 import { openPdf } from "../lib/pdf";
+import { TreasuryTrace } from "../treasury/TreasuryTrace";
 import { canSell, DELIVERY_TONES, refreshAfterSale, STATUS_TONES } from "./shared";
 
 const isZero = (value: string) => /^0+(\.0+)?$/.test(value);
@@ -226,6 +227,7 @@ export function SaleDetailPage() {
           </Button>
         )}
       </PageHeader>
+      <TreasuryTrace source="sales.sale" ids={[data.id]} />
 
       {data.status === "draft" && fromLoad && (
         <p role="note" className="rounded-chip bg-surface-2 px-3 py-2 text-[0.9rem]">
@@ -378,6 +380,20 @@ export function SaleDetailPage() {
             </TotalRow>
             <TotalRow label={t("admin.sales.detail.paid")}>{formatMoney(data.amount_paid)}</TotalRow>
             <TotalRow label={t("admin.sales.detail.due")}>{formatMoney(data.amount_due)}</TotalRow>
+            {data.status === "confirmed" && Number(data.estimated_extra) !== 0 && (
+              <div className="text-end text-[0.8rem] text-ink-2">
+                {t("admin.sales.detail.estimatedExtra", { amount: formatMoney(data.estimated_extra) })}
+              </div>
+            )}
+            {data.status === "confirmed" && Number(data.amount_due) > 0 && (
+              // The money comes in through the treasury: the règlement form opens on this customer.
+              <Link
+                to={`/reglements/nouveau?client=${data.customer.id}`}
+                className="text-end text-[0.85rem] font-semibold text-sea hover:underline"
+              >
+                {t("admin.sales.detail.settle")}
+              </Link>
+            )}
             {data.cost_total !== null && data.margin !== null && (
               <>
                 <TotalRow label={t("admin.sales.detail.costTotal")}>{formatMoney(data.cost_total)}</TotalRow>

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Max, QuerySet
+from django.db.models import Max, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -43,6 +43,23 @@ if TYPE_CHECKING:
 # four characters, four digits, three digits); spaces are dropped before the check.
 SWIFT_RE = re.compile(r"[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?")
 IBAN_RE = re.compile(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{4}[0-9]{3}")
+# The real Tunisian IBAN (D-275): "TN" and two check digits, then the 20 digits of the RIB (24 characters).
+TUNISIAN_IBAN_RE = re.compile(r"TN[0-9]{22}")
+
+
+def iban_error(iban: str) -> str:
+    """What is wrong with an IBAN (spaces already dropped); empty when fine. The 24-character Tunisian IBAN has its
+    check digits verified (ISO 7064 mod 97); the 15-character form of the office's spec has none to verify."""
+    if TUNISIAN_IBAN_RE.fullmatch(iban):
+        moved = iban[4:] + iban[:4]
+        number = int("".join(str(int(char, 36)) for char in moved))
+        if number % 97 != 1:
+            return _("La clé de cet IBAN est fausse : vérifiez les chiffres.")
+        return ""
+    if IBAN_RE.fullmatch(iban):
+        return ""
+    return _("L'IBAN tunisien compte 24 caractères (TN et 22 chiffres) ; l'ancienne forme en compte 15.")
+
 
 # The Tunisian banks every organization starts with (code, name). Kept again in migration 0001 as data.
 DEFAULT_BANKS = (
@@ -909,10 +926,8 @@ def _checked_account(
             errors["rib"] = _("Le RIB compte %(count)s chiffres.") % {"count": RIB_DIGITS}
         elif rib and _taken(TreasuryAccount.objects.filter(organization=organization, rib=rib), account):
             errors["rib"] = _("Ce RIB appartient déjà à un autre compte.")
-        if iban and not IBAN_RE.fullmatch(iban):
-            errors["iban"] = _(
-                "L'IBAN compte deux lettres, deux chiffres, quatre caractères, quatre et trois chiffres."
-            )
+        if iban and iban_error(iban):
+            errors["iban"] = iban_error(iban)
         elif iban and _taken(TreasuryAccount.objects.filter(organization=organization, iban=iban), account):
             errors["iban"] = _("Cet IBAN appartient déjà à un autre compte.")
     else:
@@ -1278,3 +1293,96 @@ def count_cash(
         },
     )
     return count
+
+
+# The cash a driver holds is the Caisse's money handed out and handed back (D-262, D-213, D-134).
+DRIVER_FUND_SOURCE = "fleet.driver_day_fund"
+DRIVER_HANDOVER_SOURCE = "dayclose.handover"
+
+
+def move_cash(
+    *,
+    organization: Organization,
+    actor: User | None,
+    from_account: TreasuryAccount,
+    to_account: TreasuryAccount,
+    day: dt.date,
+    amount: Number,
+    kind: str,
+    label: str,
+    source: str,
+    source_id: int,
+) -> None:
+    """Money from one of our accounts to another, as two movements of one record. A record can move money more than
+    once (the fund changed, a day approved again): each move has its own roles, so none is counted twice."""
+    value = money(amount)
+    if value == 0:
+        return
+    moves_done = TreasuryMovement.objects.filter(organization=organization, source=source, source_id=source_id).count()
+    turn = moves_done // 2
+    for account, signed, role in ((from_account, -value, f"out{turn}"), (to_account, value, f"in{turn}")):
+        post_movement(
+            organization=organization,
+            account=account,
+            day=day,
+            amount=signed,
+            kind=kind,
+            label=label,
+            source=source,
+            source_id=source_id,
+            role=role,
+            actor=actor,
+        )
+
+
+def sync_driver_fund(
+    *, organization: Organization, actor: User | None, driver: User, day: dt.date, given: Number, source_id: int
+) -> None:
+    """The cash the office gave a driver for a day (the fund and the money for buying at the port) is in the driver's
+    cash, taken from the Caisse. Called when the day starts and when the money for purchases changes: only the
+    difference with what is already written moves."""
+    driver_cash = driver_account(organization, driver)
+    written = (
+        TreasuryMovement.objects.filter(
+            organization=organization, source=DRIVER_FUND_SOURCE, source_id=source_id, account=driver_cash
+        ).aggregate(total=Sum("amount"))["total"]
+        or 0
+    )
+    difference = money(given) - money(written)
+    caisse = default_account(organization, AccountKind.CASH)
+    label = _("Fonds de caisse de %(name)s") % {"name": _person(driver)}
+    if difference > 0:
+        source_account, target = caisse, driver_cash
+    else:
+        source_account, target, difference = driver_cash, caisse, -difference
+    move_cash(
+        organization=organization,
+        actor=actor,
+        from_account=source_account,
+        to_account=target,
+        day=day,
+        amount=difference,
+        kind=MovementKind.DRIVER_FUND,
+        label=label,
+        source=DRIVER_FUND_SOURCE,
+        source_id=source_id,
+    )
+
+
+def hand_over_driver_cash(
+    *, organization: Organization, actor: User | None, driver: User, day: dt.date, amount: Number, source_id: int
+) -> None:
+    """The cash the office counted at the approval of a driver's day goes from the driver's cash to the Caisse. A
+    new load that opens the day again leaves it in the Caisse (D-134): nothing moves back."""
+    move_cash(
+        organization=organization,
+        actor=actor,
+        from_account=driver_account(organization, driver),
+        to_account=default_account(organization, AccountKind.CASH),
+        day=day,
+        amount=amount,
+        kind=MovementKind.DRIVER_HANDOVER,
+        label=_("Remise de %(name)s") % {"name": _person(driver)},
+        source=DRIVER_HANDOVER_SOURCE,
+        source_id=source_id,
+    )

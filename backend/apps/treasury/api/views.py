@@ -15,6 +15,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import ListAPIView
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,9 +24,21 @@ from apps.core.api.pagination import PagedList
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
+from apps.partners import selectors as partners
+from apps.purchasing import selectors as purchasing
+from apps.sales import selectors as sales
 
-from .. import selectors, services
-from ..models import AccountTransfer, Bank, CashCount, Deposit, Instrument, TreasuryAccount
+from .. import selectors, services, statements
+from ..models import (
+    AccountTransfer,
+    Bank,
+    BankStatementLine,
+    CashCount,
+    Deposit,
+    Instrument,
+    TreasuryAccount,
+    TreasuryMovement,
+)
 from .serializers import (
     AccountFilterSerializer,
     AccountStatementSerializer,
@@ -33,6 +46,7 @@ from .serializers import (
     AccountTransferWriteSerializer,
     BankFilterSerializer,
     BankSerializer,
+    BankStatementLineSerializer,
     BankWriteSerializer,
     CashCountSerializer,
     CashCountWriteSerializer,
@@ -42,7 +56,19 @@ from .serializers import (
     InstrumentFilterSerializer,
     InstrumentSerializer,
     InstrumentTotalsSerializer,
+    MatchCandidateFilterSerializer,
+    MatchCandidateSerializer,
+    MatchWriteSerializer,
+    MovementOfFilterSerializer,
+    MovementOfSerializer,
+    PartyDocumentsSerializer,
+    ReconciliationFilterSerializer,
+    ReconciliationSummarySerializer,
     StatementFilterSerializer,
+    StatementImportReportSerializer,
+    StatementImportSerializer,
+    StatementLineFilterSerializer,
+    StatementLinePartySerializer,
     TransferFilterSerializer,
     TreasuryAccountSerializer,
     TreasuryAccountWriteSerializer,
@@ -87,6 +113,19 @@ class BankListView(OfficeView):
             address=serializer.validated_data["address"],
         )
         return Response(BankSerializer(bank).data, status=status.HTTP_201_CREATED)
+
+
+class PartyDocumentsView(OfficeView):
+    @extend_schema(operation_id="listPartyDocuments", responses=PartyDocumentsSerializer)
+    def get(self, request: Request) -> Response:
+        """What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+        confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+        drafts) with their total. A party with no such document is not listed."""
+        answer = {
+            "customers": list(sales.customer_documents(self.organization).values()),
+            "suppliers": list(purchasing.supplier_documents(self.organization).values()),
+        }
+        return Response(PartyDocumentsSerializer(answer).data)
 
 
 class BankDetailView(OfficeView):
@@ -539,3 +578,195 @@ class CashCountListView(OfficeView, ListAPIView[CashCount]):
             reason=data["reason"],
         )
         return Response(CashCountSerializer(count).data, status=status.HTTP_201_CREATED)
+
+
+class MovementsOfView(OfficeView):
+    @extend_schema(
+        operation_id="listMovementsOf",
+        parameters=[MovementOfFilterSerializer],
+        responses=MovementOfSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The treasury movements written by the given records of one source, each with the account it went through
+        (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money."""
+        filters = MovementOfFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        raw = filters.validated_data["source_ids"].split(",")
+        try:
+            ids = [int(value) for value in raw if value.strip()]
+        except ValueError:
+            raise ValidationError({"source_ids": _("Des numéros de pièce sont attendus.")}) from None
+        if len(ids) > 200:
+            raise ValidationError({"source_ids": _("200 pièces au plus.")})
+        movements = selectors.movements_of(
+            self.organization, source=filters.validated_data["from_source"], source_ids=ids
+        )
+        return Response(MovementOfSerializer(movements, many=True).data)
+
+
+# The bank's statement file is read in memory: a few thousand lines at most (the reader refuses more).
+MAX_STATEMENT_BYTES = 5 * 1024 * 1024
+
+
+def _statement_line(organization: Organization, line_id: int) -> BankStatementLine:
+    try:
+        return selectors.statement_line_of(organization, line_id)
+    except ObjectDoesNotExist:
+        raise Http404 from None
+
+
+class StatementImportView(OfficeView):
+    parser_classes = (MultiPartParser,)
+
+    @extend_schema(
+        operation_id="importBankStatement",
+        request={"multipart/form-data": StatementImportSerializer},
+        responses=StatementImportReportSerializer,
+    )
+    def post(self, request: Request, account_id: int) -> Response:
+        """Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+        or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+        already on the account is skipped, so the same file twice adds nothing."""
+        account = _account(self.organization, account_id)
+        serializer = StatementImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        upload = serializer.validated_data["file"]
+        if upload.size > MAX_STATEMENT_BYTES:
+            raise ValidationError({"file": _("Fichier trop gros (5 Mo au plus).")})
+        report = statements.import_statement(
+            organization=self.organization, actor=self.membership.user, account=account, content=upload.read()
+        )
+        return Response(StatementImportReportSerializer(report).data)
+
+
+class StatementLineListView(OfficeView, ListAPIView[BankStatementLine]):
+    serializer_class = BankStatementLineSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[BankStatementLine]:
+        filters = StatementLineFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        account = _account(self.organization, self.kwargs["account_id"])
+        return selectors.statement_lines_of(
+            self.organization,
+            account,
+            date_from=filters.validated_data.get("date_from"),
+            date_to=filters.validated_data.get("date_to"),
+            state=filters.validated_data["state"],
+        )
+
+    @extend_schema(operation_id="listStatementLines", parameters=[StatementLineFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+        keeps only the matched lines, or only those not matched yet."""
+        return super().get(request, *args, **kwargs)
+
+
+class ReconciliationView(OfficeView):
+    @extend_schema(
+        operation_id="getReconciliationSummary",
+        parameters=[ReconciliationFilterSerializer],
+        responses=ReconciliationSummarySerializer,
+    )
+    def get(self, request: Request, account_id: int) -> Response:
+        """The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+        matched, the money of those not matched yet, and our own movements the statement does not show (at most
+        200). It changes no balance."""
+        account = _account(self.organization, account_id)
+        filters = ReconciliationFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        summary = selectors.reconciliation_summary(
+            self.organization,
+            account,
+            date_from=filters.validated_data.get("date_from"),
+            date_to=filters.validated_data.get("date_to"),
+        )
+        return Response(ReconciliationSummarySerializer(summary).data)
+
+
+class StatementLineDetailView(OfficeView):
+    @extend_schema(
+        operation_id="setStatementLineParty",
+        request=StatementLinePartySerializer,
+        responses=BankStatementLineSerializer,
+    )
+    def put(self, request: Request, line_id: int) -> Response:
+        """Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+        credit. Both left empty clears it."""
+        line = _statement_line(self.organization, line_id)
+        serializer = StatementLinePartySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            customer = partners.customer_of(self.organization, data["customer"]) if data["customer"] else None
+        except ObjectDoesNotExist:
+            raise ValidationError({"customer": _("Client inconnu.")}) from None
+        try:
+            supplier = partners.supplier_of(self.organization, data["supplier"]) if data["supplier"] else None
+        except ObjectDoesNotExist:
+            raise ValidationError({"supplier": _("Fournisseur inconnu.")}) from None
+        statements.set_line_party(line=line, actor=self.membership.user, customer=customer, supplier=supplier)
+        return Response(BankStatementLineSerializer(_statement_line(self.organization, line_id)).data)
+
+    @extend_schema(operation_id="deleteStatementLine", responses={204: None})
+    def delete(self, request: Request, line_id: int) -> Response:
+        """Take a line off the statement (owner or manager): a wrong import. It was only a copy of the bank's file."""
+        line = _statement_line(self.organization, line_id)
+        statements.delete_line(line=line, actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DueAlertsView(OfficeView):
+    @extend_schema(operation_id="listDueAlerts", responses=InstrumentSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+        today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+        15 days before, until the bank debits it). At most 200."""
+        rows = selectors.due_alerts(self.organization, today=timezone.localdate())[: selectors.DUE_ALERTS_LIMIT]
+        return Response(InstrumentSerializer(rows, many=True).data)
+
+
+class StatementLineCandidatesView(OfficeView):
+    @extend_schema(
+        operation_id="listMatchCandidates",
+        parameters=[MatchCandidateFilterSerializer],
+        responses=MatchCandidateSerializer(many=True),
+    )
+    def get(self, request: Request, line_id: int) -> Response:
+        """The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+        suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+        a month. Nearest day first."""
+        line = _statement_line(self.organization, line_id)
+        filters = MatchCandidateFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        rows = selectors.match_candidates(line, by_hand=filters.validated_data["by_hand"])
+        return Response(
+            MatchCandidateSerializer([{"movement": move, "suggested": flag} for move, flag in rows], many=True).data
+        )
+
+
+class StatementLineMatchView(OfficeView):
+    @extend_schema(
+        operation_id="matchStatementLine", request=MatchWriteSerializer, responses=BankStatementLineSerializer
+    )
+    def post(self, request: Request, line_id: int) -> Response:
+        """The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+        The same account; neither already matched. It changes no balance."""
+        line = _statement_line(self.organization, line_id)
+        serializer = MatchWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            movement = TreasuryMovement.objects.get(
+                organization=self.organization, pk=serializer.validated_data["movement"]
+            )
+        except ObjectDoesNotExist:
+            raise ValidationError({"movement": _("Mouvement inconnu.")}) from None
+        statements.match_line(line=line, movement=movement, actor=self.membership.user)
+        return Response(BankStatementLineSerializer(_statement_line(self.organization, line_id)).data)
+
+    @extend_schema(operation_id="unmatchStatementLine", responses=BankStatementLineSerializer)
+    def delete(self, request: Request, line_id: int) -> Response:
+        """Undo a match (owner or manager): the line and the movement are free again."""
+        line = _statement_line(self.organization, line_id)
+        statements.unmatch_line(line=line, actor=self.membership.user)
+        return Response(BankStatementLineSerializer(_statement_line(self.organization, line_id)).data)

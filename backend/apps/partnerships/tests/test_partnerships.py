@@ -288,3 +288,57 @@ def test_an_archived_partner_is_refused_on_the_receipt_line(organization, actor,
         receipt_with_partner(organization, actor, cold_room, partner, partner=archived)
 
     assert "lines.0.partner" in errors_of(refused)
+
+
+# ---- Advances from the capital (owner request 2026-11-02) ----
+
+
+def test_an_advance_comes_out_of_the_capital_and_never_more_than_it(organization, actor, cold_room, partner):
+    batch = receive(organization, cold_room, "10.000")
+    created = partnership(organization, actor, batch, partner, capital="1000.000")
+
+    services.advance_capital(partnership=created, actor=actor, amount="300.000", method="cash", reference="BON-1")
+
+    created.refresh_from_db()
+    assert entries(created) == [
+        (CapitalEntryKind.CONTRIBUTION, D("1000.000")),
+        (CapitalEntryKind.ADVANCE, D("-300.000")),
+    ]
+    assert selectors.capital_balance(created) == D("700.000")
+    with pytest.raises(ValidationError) as refused:
+        services.advance_capital(partnership=created, actor=actor, amount="700.001", method="cash")
+    assert "amount" in errors_of(refused)
+    for amount, method in (("0", "cash"), ("10", "unknown")):
+        with pytest.raises(ValidationError):
+            services.advance_capital(partnership=created, actor=actor, amount=amount, method=method)
+    # A correction of the capital cannot take it below what was already advanced.
+    with pytest.raises(ValidationError):
+        services.update_partnership(partnership=created, actor=actor, partner_capital="200.000")
+    assert selectors.capital_balance(created) == D("700.000")
+
+
+def test_an_advance_is_refused_once_the_partnership_is_settled_or_cancelled(organization, actor, cold_room, partner):
+    batch = receive(organization, cold_room, "10.000")
+    created = partnership(organization, actor, batch, partner, capital="400.000")
+    services.cancel_partnership(partnership=created, actor=actor, reason="Erreur")
+
+    with pytest.raises(ValidationError):
+        services.advance_capital(partnership=created, actor=actor, amount="10.000", method="cash")
+
+
+def test_the_owner_pays_an_advance_through_the_api(api, organization, actor, cold_room, partner):
+    batch = receive(organization, cold_room, "20.000")
+    created = partnership(organization, actor, batch, partner, capital="1500.000")
+
+    response = api.post(
+        f"/api/v1/partnerships/{created.pk}/advances",
+        {"amount": "400.000", "method": "transfer", "reference": "VIR-9"},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.json()
+    data = response.json()
+    assert data["capital"] == "1100.000"
+    entry = data["capital_entries"][-1]
+    assert (entry["kind"], entry["method"], entry["reference"]) == ("advance", "transfer", "VIR-9")
+    assert D(entry["amount"]) == D("-400.000")

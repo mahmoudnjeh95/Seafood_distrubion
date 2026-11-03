@@ -475,9 +475,33 @@ def add_adjustment(
     return adjustment
 
 
-def add_prime(*, record: SalaryRecord, actor: User | None, amount: Number, reason: str) -> SalaryAdjustment:
-    """Add a prime to an approved salary: owner point 13 (D-234). The approved record does not change."""
-    return add_adjustment(record=record, actor=actor, amount=amount, reason=reason, kind=SalaryAdjustmentKind.PRIME)
+@transaction.atomic
+def add_prime(
+    *,
+    record: SalaryRecord,
+    actor: User | None,
+    amount: Number,
+    reason: str,
+    method: str,
+    paid_on: dt.date,
+) -> SalaryAdjustment:
+    """Add a prime to an approved salary (owner point 13, D-234) and pay it by `method` on `paid_on` (D-244): the
+    payment is allocated to that salary in full and leaves the treasury the day it is paid. The approved record
+    itself does not change."""
+    adjustment = add_adjustment(
+        record=record, actor=actor, amount=amount, reason=reason, kind=SalaryAdjustmentKind.PRIME
+    )
+    record_payment(
+        organization=record.organization,
+        actor=actor,
+        employee=record.employee,
+        paid_on=paid_on,
+        amount=adjustment.amount,
+        method=method,
+        allocations=[{"salary_record": record, "amount": adjustment.amount}],
+        kind=SalaryPaymentKind.PRIME,
+    )
+    return adjustment
 
 
 # ---- Salary payments ----
@@ -594,7 +618,11 @@ def _post_payment_money(organization: Organization, payment: SalaryPayment, acto
     """The money of a salary payment leaves our treasury the day it was paid (D-234): the Caisse when paid in cash,
     the main bank account for a transfer, a cheque or another means. Written once per payment (its source)."""
     method = "cash" if payment.method == SalaryPaymentMethod.CASH else "transfer"
-    what = "Avance" if payment.kind == SalaryPaymentKind.ADVANCE else "Salaire"
+    what = "Salaire"
+    if payment.kind == SalaryPaymentKind.ADVANCE:
+        what = "Avance"
+    elif payment.kind == SalaryPaymentKind.PRIME:
+        what = "Prime"
     treasury.post_movement(
         organization=organization,
         account=treasury.line_account(organization, method),
@@ -638,7 +666,8 @@ def record_payment(
     """Record cash paid to an employee and the approved salaries it settles (all, part, or none: an advance).
 
     An advance (`kind` "advance", D-234) settles the full amount on the salary of the payment's month; above what is
-    still due it is refused unless `confirm_overpay` is set. Either way the payment writes its treasury movement."""
+    still due it is refused unless `confirm_overpay` is set. A prime (`kind` "prime", D-244) settles the full amount
+    on the one salary it was added to. Either way the payment writes its treasury movement."""
     errors: dict[str, str] = {}
     if employee.organization_id != organization.pk:
         errors["employee"] = _("Employé inconnu.")
@@ -651,6 +680,8 @@ def record_payment(
     advance = kind == SalaryPaymentKind.ADVANCE
     if advance and len(allocations) != 1:
         errors["allocations"] = _("Une avance se règle sur la paie de son mois, en une seule ligne.")
+    if kind == SalaryPaymentKind.PRIME and len(allocations) != 1:
+        errors["allocations"] = _("Une prime se règle sur la paie à laquelle elle est ajoutée, en une seule ligne.")
     checked: Decimal | None = None
     try:
         checked = checked_amount(amount)

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from typing import Any
 
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
@@ -73,6 +74,8 @@ class QuoteProductSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    # Printed under the French name on the driver's receipt (D-282); empty when the product has none.
+    name_ar = serializers.CharField(read_only=True)
 
 
 class QuoteLineSerializer(serializers.ModelSerializer[QuoteLine]):
@@ -476,10 +479,18 @@ class SaleDetailSerializer(SaleSerializer):
     boxes = serializers.SerializerMethodField()
     # Every version of the BL of a truck load, oldest first (D-178); empty for any other sale.
     revisions = SaleRevisionSerializer(many=True, read_only=True)
+    # A BL on no invoice yet: what its invoice would add to the goods (VAT, stamp), D-256; "0.000" otherwise.
+    estimated_extra = serializers.SerializerMethodField()
 
     class Meta(SaleSerializer.Meta):
-        fields = (*SaleSerializer.Meta.fields, "lines", "boxes", "revisions")
+        fields = (*SaleSerializer.Meta.fields, "lines", "boxes", "revisions", "estimated_extra")
         read_only_fields = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_estimated_extra(self, sale: Sale) -> str:
+        from apps.sales import services
+
+        return str(services.estimated_extras(sale.organization, [sale.pk]).get(sale.pk, Decimal("0.000")))
 
     @extend_schema_field(serializers.DictField(child=serializers.IntegerField()))
     def get_boxes(self, sale: Sale) -> dict[str, int]:
@@ -641,6 +652,7 @@ class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
             "fiscal_stamp",
             "prices_include_vat",
             "withholding_rate",
+            "cash_limit",
             "credit_policy",
             "legal_name",
             "address",
@@ -672,8 +684,10 @@ class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.CharField(allow_blank=True)
     prices_include_vat = serializers.BooleanField()
     withholding_rate = serializers.CharField(allow_blank=True)
+    # DT, as a string: a cash line of this amount or more needs confirming (D-273). Left out: no change.
+    cash_limit = serializers.CharField(required=False, allow_blank=True)
     # What happens above a customer's credit limit: block, ask the owner or a manager, or warn and log.
-    # Empty keeps the version in force.
+    # Left out, it keeps the version in force.
     credit_policy = serializers.ChoiceField(choices=CreditPolicy.choices, required=False)
     legal_name = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
     address = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
@@ -838,6 +852,11 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
     # What its credit notes gave back (net), and what remains to collect.
     credited_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     remaining_to_pay = serializers.SerializerMethodField()
+    # "unpaid", "partial" or "paid" for an issued invoice, else "none"; what was paid so far; and what the invoice
+    # adds to its goods (VAT, stamp, fees, less withholding), the part a règlement of the goods alone misses (D-256).
+    payment_state = serializers.SerializerMethodField()
+    paid_total = serializers.SerializerMethodField()
+    extra_over_goods = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     issued_by = serializers.SerializerMethodField()
 
@@ -868,6 +887,9 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "net_to_pay",
             "credited_total",
             "remaining_to_pay",
+            "payment_state",
+            "paid_total",
+            "extra_over_goods",
             "created_by",
             "created_at",
             "issued_by",
@@ -886,6 +908,26 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
         if invoice.status == InvoiceStatus.CANCELLED:
             return "0.000"
         return str(invoice.net_to_pay)
+
+    def _paid(self, invoice: Invoice) -> Decimal:
+        owed = invoice.net_to_pay - sum((note.net_amount for note in invoice.credit_notes.all()), Decimal("0.000"))
+        return max(owed - Decimal(self.get_remaining_to_pay(invoice)), Decimal("0.000"))
+
+    @extend_schema_field(serializers.ChoiceField(choices=["none", "unpaid", "partial", "paid"]))
+    def get_payment_state(self, invoice: Invoice) -> str:
+        if invoice.status != InvoiceStatus.ISSUED:
+            return "none"
+        if Decimal(self.get_remaining_to_pay(invoice)) <= 0:
+            return "paid"
+        return "partial" if self._paid(invoice) > 0 else "unpaid"
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_paid_total(self, invoice: Invoice) -> str:
+        return str(self._paid(invoice)) if invoice.status == InvoiceStatus.ISSUED else "0.000"
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_extra_over_goods(self, invoice: Invoice) -> str:
+        return str(invoice.vat_total + invoice.fiscal_stamp + invoice.fees - invoice.withholding_amount)
 
     @extend_schema_field(SaleRefSerializer)
     def get_sale(self, invoice: Invoice) -> dict[str, Any]:
@@ -943,7 +985,18 @@ class InvoiceCertificateSerializer(serializers.ModelSerializer[WithholdingCertif
         return person_name(certificate.created_by)
 
 
+class GapLotSerializer(serializers.Serializer[Any]):
+    """A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL's lots, not settled."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = serializers.CharField(read_only=True)
+
+
 class InvoiceDetailSerializer(InvoiceSerializer):
+    # The lots the invoice's gap can be given up against (D-256, D-257); empty unless issued.
+    gap_lots = serializers.SerializerMethodField()
+
     lines = InvoiceLineSerializer(many=True, read_only=True)
     vat_lines = InvoiceVatLineSerializer(many=True, read_only=True)
     credit_notes = CreditNoteSerializer(many=True, read_only=True)
@@ -965,6 +1018,10 @@ class InvoiceDetailSerializer(InvoiceSerializer):
     # The live withholding certificate (P2-T06), if one was recorded.
     certificate = serializers.SerializerMethodField()
 
+    @extend_schema_field(GapLotSerializer(many=True))
+    def get_gap_lots(self, invoice: Invoice) -> list[dict[str, Any]]:
+        return [dict(GapLotSerializer(lot).data) for lot in self.context.get("gap_lots", [])]
+
     @extend_schema_field(InvoiceCertificateSerializer(allow_null=True))
     def get_certificate(self, invoice: Invoice) -> dict[str, Any] | None:
         live = next((row for row in invoice.certificates.all() if row.voided_at is None), None)
@@ -974,6 +1031,7 @@ class InvoiceDetailSerializer(InvoiceSerializer):
         fields = (
             *InvoiceSerializer.Meta.fields,
             "certificate",
+            "gap_lots",
             "notes",
             "fiscal_stamp_overridden",
             "withholding_rate_overridden",
@@ -1045,8 +1103,8 @@ class InvoiceVatAmountSerializer(serializers.Serializer[Any]):
 class InvoiceChoicesSerializer(serializers.Serializer[Any]):
     """What may change on a draft invoice. Every empty value takes the finance settings (D-056)."""
 
-    # False: an invoice without VAT.
-    apply_vat = serializers.BooleanField(required=False, default=True)
+    # False: an invoice without VAT; empty: with VAT only when a BL holds goods bought with VAT (D-246).
+    apply_vat = serializers.BooleanField(required=False, allow_null=True, default=None)
     # One per line, in the order of the lines; empty list: every line takes its proposed rate.
     lines = InvoiceLineChoiceSerializer(many=True, required=False, default=list)
     # Typed VAT amounts per rate; errors come back on `vat_amounts.<rate>`.
@@ -1054,7 +1112,7 @@ class InvoiceChoicesSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     # "Frais" in DT, outside VAT; empty: none (D-126).
     fees = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
-    withholding_applied = serializers.BooleanField(required=False, default=False)
+    # The withholding is not typed: the server takes it on invoices of 1 000 DT and more (the output says so).
     withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     # Issue it in the same request (numbered and frozen).
@@ -1074,6 +1132,35 @@ class InvoiceFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+    # Issued invoices by what their BL still owe (D-256): "partial" = something paid, something left.
+    payment_state = serializers.ChoiceField(choices=["unpaid", "partial", "paid"], required=False)
+
+
+class InvoiceEstimateFilterSerializer(serializers.Serializer[Any]):
+    # Comma separated BL ids: `sales=1,2,3`.
+    sales = serializers.CharField()
+
+    def validate_sales(self, value: str) -> list[int]:
+        try:
+            ids = [int(part) for part in value.split(",") if part.strip()]
+        except ValueError:
+            raise serializers.ValidationError(_("Indiquez les numéros des BL séparés par des virgules.")) from None
+        if not ids or any(pk < 1 for pk in ids):
+            raise serializers.ValidationError(_("Choisissez au moins un bon de livraison."))
+        return list(dict.fromkeys(ids))
+
+
+class InvoiceEstimateSerializer(serializers.Serializer[Any]):
+    """The invoice some BL would make, not saved (D-256)."""
+
+    total_excl_tax = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    vat_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    vat_by_rate = serializers.ListField(child=serializers.ListField(child=serializers.CharField()), read_only=True)
+    fiscal_stamp = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    withholding_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    net_to_pay = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    extra = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    extra_by_sale = serializers.DictField(child=serializers.CharField(), read_only=True)
 
 
 class CreditNoteLineWriteSerializer(serializers.Serializer[Any]):

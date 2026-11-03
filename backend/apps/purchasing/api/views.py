@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+from dataclasses import asdict
 from decimal import Decimal
 from typing import Any
 
@@ -6,20 +8,23 @@ from django.db.models import QuerySet
 from django.http import FileResponse, Http404, HttpResponse
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
-from apps.core.api.pagination import PagedList
+from apps.core.api.exports import ORDERING_HELP, ListExport
+from apps.core.api.pagination import PagedList, ordered
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.purchasing import selectors, services
 from apps.purchasing.models import (
     FieldPurchase,
@@ -34,6 +39,7 @@ from apps.purchasing.models import (
 from apps.treasury import selectors as treasury
 
 from .serializers import (
+    BalanceWriteOffSerializer,
     DifferenceFilterSerializer,
     DifferenceLineSerializer,
     EffetRejectSerializer,
@@ -53,6 +59,7 @@ from .serializers import (
     PaymentVoidSerializer,
     PlanWriteSerializer,
     ReceiptFilterSerializer,
+    ReceiptRevisionWriteSerializer,
     ReceiptSerializer,
     ReceiptWriteSerializer,
     SettlementFilterSerializer,
@@ -131,6 +138,12 @@ def _resolved(organization: Organization, data: dict[str, Any], *, is_owner: boo
 class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     serializer_class = ReceiptSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("received_on",),
+        "supplier": ("supplier__name",),
+        "location": ("location__name",),
+    }
 
     def get_queryset(self) -> QuerySet[GoodsReceipt]:
         filters = ReceiptFilterSerializer(data=self.request.query_params)
@@ -155,27 +168,19 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
     def post(self, request: Request) -> Response:
         """Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
-        `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`."""
+        against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+        invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+        kept as advances the invoice takes (D-268)."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = _resolved(self.organization, serializer.validated_data, is_owner=self.membership.role == Role.OWNER)
-        invoice_now, terms, due_days = data.pop("invoice_now"), data.pop("terms"), data.pop("due_days")
         payments = data.pop("payments", [])
-        if payments and not invoice_now:
-            raise ValidationError({"payments": _("Un paiement à la réception demande « Dû dès la réception ».")})
-        if invoice_now:
-            # Owed at once, due by the deal made for this delivery (D-159).
-            receipt = services.receive_and_invoice(
-                organization=self.organization,
-                actor=self.membership.user,
-                terms=terms,
-                due_days=due_days,
-                payments=payments,
-                **data,
-            )
-        else:
-            receipt = services.create_receipt(organization=self.organization, actor=self.membership.user, **data)
+        receipt = services.receive_goods(
+            organization=self.organization,
+            actor=self.membership.user,
+            payments=payments,
+            **data,
+        )
         return Response(
             ReceiptSerializer(selectors.receipt_of(self.organization, receipt.pk)).data,
             status=status.HTTP_201_CREATED,
@@ -190,6 +195,29 @@ class ReceiptDetailView(PurchasingView):
         except GoodsReceipt.DoesNotExist:
             raise Http404 from None
         return Response(ReceiptSerializer(receipt).data)
+
+
+class ReceiptReviseView(PurchasingView):
+    @extend_schema(operation_id="reviseReceipt", request=ReceiptRevisionWriteSerializer, responses=ReceiptSerializer)
+    def post(self, request: Request, receipt_id: int) -> Response:
+        """Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+        invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+        it, and when `revision` is not its current one. `reason` is required. Each change stays in its history."""
+        try:
+            receipt = selectors.receipt_of(self.organization, receipt_id)
+        except GoodsReceipt.DoesNotExist:
+            raise Http404 from None
+        serializer = ReceiptRevisionWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.revise_receipt(
+            receipt=receipt,
+            actor=self.membership.user,
+            revision=data["revision"],
+            reason=data["reason"],
+            fields=data,
+        )
+        return Response(ReceiptSerializer(selectors.receipt_of(self.organization, receipt_id)).data)
 
 
 class ReceiptDifferenceListView(PurchasingView, ListAPIView[GoodsReceiptLine]):
@@ -234,6 +262,12 @@ class LastCostListView(PurchasingView):
 class OrderListView(PurchasingView, ListAPIView[PurchaseOrder]):
     serializer_class = OrderSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("ordered_on",),
+        "supplier": ("supplier__name",),
+        "expected": ("expected_on",),
+    }
 
     def get_queryset(self) -> QuerySet[PurchaseOrder]:
         filters = OrderFilterSerializer(data=self.request.query_params)
@@ -401,6 +435,12 @@ def _payment_lines(organization: Organization, lines: list[dict[str, Any]]) -> l
 class SupplierInvoiceListView(PurchasingView, ListAPIView[SupplierInvoice]):
     serializer_class = SupplierInvoiceSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("invoice_date",),
+        "supplier": ("supplier__name",),
+        "due": ("due_date",),
+    }
 
     def get_queryset(self) -> QuerySet[SupplierInvoice]:
         filters = SupplierInvoiceFilterSerializer(data=self.request.query_params)
@@ -565,6 +605,11 @@ class SupplierSettlementsView(PurchasingView):
 class SupplierPaymentListView(PurchasingView, ListAPIView[SupplierPayment]):
     serializer_class = SupplierPaymentSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("paid_on",),
+        "supplier": ("supplier__name",),
+    }
 
     def get_queryset(self) -> QuerySet[SupplierPayment]:
         return _filtered_payments(self.organization, self.request)
@@ -647,12 +692,18 @@ class SupplierPaymentTotalsView(PurchasingView):
 class SupplierPaymentExportView(PurchasingView):
     @extend_schema(
         operation_id="exportSupplierPayments",
-        parameters=[SupplierPaymentFilterSerializer],
+        parameters=[SupplierPaymentFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
         responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
     )
     def get(self, request: Request) -> HttpResponse:
         """The règlements of the same filters as the list, as an Excel file (one row each, voided ones marked)."""
-        payments = list(_filtered_payments(self.organization, request)[:5000])
+        payments = list(
+            ordered(
+                _filtered_payments(self.organization, request),
+                request.query_params.get("ordering", ""),
+                SupplierPaymentListView.ordering_columns,
+            )[:5000]
+        )
         rows = [
             [
                 payment.number,
@@ -770,16 +821,51 @@ class SupplierPaymentAllocateView(PaymentView):
         return Response(SupplierPaymentSerializer(self._payment(payment_id)).data)
 
 
-class SupplierBalanceView(PurchasingView):
-    @extend_schema(operation_id="getSupplierBalance", responses=SupplierBalanceSerializer)
-    def get(self, request: Request, supplier_id: int) -> Response:
-        """The trade balance with one supplier: posted invoices − payments, with what is overdue, advances not
-        allocated, drafts and receipts not invoiced yet. A partner's capital and profit share are not in it."""
+class SupplierBalanceAnswer(PurchasingView):
+    def answer(self, supplier_id: int) -> Response:
+        """One supplier's trade balance as the screen reads it (see `SupplierBalanceView`)."""
         try:
             supplier = partners.supplier_of(self.organization, supplier_id)
         except ObjectDoesNotExist:
             raise Http404 from None
-        return Response(SupplierBalanceSerializer(selectors.supplier_balance(self.organization, supplier.pk)).data)
+        balance = selectors.supplier_balance(self.organization, supplier.pk)
+        lots = partnerships.open_write_off_lots(
+            self.organization, selectors.supplier_lots(self.organization, supplier_id=supplier.pk)
+        )
+        return Response(SupplierBalanceSerializer({**asdict(balance), "write_off_lots": lots}).data)
+
+
+class SupplierBalanceView(SupplierBalanceAnswer):
+    @extend_schema(operation_id="getSupplierBalance", responses=SupplierBalanceSerializer)
+    def get(self, request: Request, supplier_id: int) -> Response:
+        """The trade balance with one supplier: posted invoices − payments, with what is overdue, advances not
+        allocated, drafts and receipts not invoiced yet. A partner's capital and profit share are not in it."""
+        return self.answer(supplier_id)
+
+
+class SupplierBalanceWriteOffView(SupplierBalanceAnswer):
+    @extend_schema(
+        operation_id="writeOffSupplierBalance", request=BalanceWriteOffSerializer, responses=SupplierBalanceSerializer
+    )
+    def post(self, request: Request, supplier_id: int) -> Response:
+        """Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire remet un solde fournisseur à zéro."))
+        serializer = BalanceWriteOffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            supplier = partners.supplier_of(self.organization, supplier_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        services.write_off_supplier_balance(
+            supplier=supplier,
+            actor=self.membership.user,
+            expected=serializer.validated_data["expected_amount"],
+            reason=serializer.validated_data["reason"],
+            lot_shares=serializer.validated_data.get("lot_shares", []),
+        )
+        return self.answer(supplier_id)
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
@@ -852,6 +938,11 @@ def _field_purchase_fields(
 class FieldPurchaseListView(PurchasingView, ListAPIView[FieldPurchase]):
     serializer_class = FieldPurchaseListSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("bought_on",),
+        "supplier": ("supplier__name",),
+    }
 
     def get_queryset(self) -> QuerySet[FieldPurchase]:
         filters = FieldPurchaseFilterSerializer(data=self.request.query_params)
@@ -975,3 +1066,59 @@ class FieldPurchasePaperView(FieldPurchaseView):
         # A new photo gets a new random file name, and the API answers its address again.
         response["Cache-Control"] = "private, max-age=3600"
         return response
+
+
+class SupplierInvoiceExportView(ListExport, SupplierInvoiceListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "factures-fournisseurs"
+    export_title = _("Factures fournisseurs")
+
+    @extend_schema(
+        operation_id="exportSupplierInvoices",
+        parameters=[SupplierInvoiceFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The supplier invoices of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        zero = Decimal("0.000")
+        headers = [
+            _("N°"),
+            _("Date"),
+            _("Échéance"),
+            _("Fournisseur"),
+            _("Réf. fournisseur"),
+            _("État"),
+            _("Total"),
+            _("Payé"),
+            _("Reste"),
+        ]
+        rows = [
+            [
+                invoice.number,
+                invoice.invoice_date,
+                invoice.due_date,
+                invoice.supplier.name,
+                invoice.supplier_reference,
+                invoice.get_status_display(),
+                invoice.total,
+                invoice.paid_amount,
+                invoice.outstanding,
+            ]
+            for invoice in items
+        ]
+        posted = [invoice for invoice in items if invoice.status != "draft"]
+        totals = [
+            _("Total"),
+            "",
+            "",
+            "",
+            "",
+            "",
+            sum((invoice.total for invoice in posted), zero),
+            sum((invoice.paid_amount for invoice in posted), zero),
+            sum((invoice.outstanding for invoice in posted), zero),
+        ]
+        return headers, rows, totals

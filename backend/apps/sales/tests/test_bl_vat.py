@@ -105,7 +105,7 @@ def test_the_bl_totals_are_the_ones_its_invoice_then_takes(organization, actor, 
     )
     printable = printing.delivery_note_printable(organization, bl.pk)
 
-    invoice = services.create_invoice(sale=bl, actor=actor)
+    invoice = services.create_invoice(apply_vat=True, sale=bl, actor=actor)
 
     assert printable.context["has_vat"] is True
     assert (printable.context["amount_excl_tax"], printable.context["vat_total"]) == (D("210.000"), D("39.900"))

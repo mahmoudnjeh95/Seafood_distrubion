@@ -10,6 +10,8 @@ export interface TruckTab {
   to: string;
   label: string;
   icon: IconName;
+  /** Greyed out and not a link (the driver's day waits for a confirmation first, D-281). */
+  disabled?: boolean;
 }
 
 interface Props {
@@ -95,17 +97,28 @@ export function TruckShell({
         className="grid border-t border-line bg-surface px-1 pt-1.5 pb-[max(10px,env(safe-area-inset-bottom))]"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.to === "/"}
-            className="flex flex-col items-center gap-0.5 py-1.5 text-[0.7rem] font-semibold text-ink-2 aria-[current=page]:text-coral"
-          >
-            <Icon name={tab.icon} />
-            {tab.label}
-          </NavLink>
-        ))}
+        {tabs.map((tab) =>
+          tab.disabled ? (
+            <span
+              key={tab.to}
+              aria-disabled="true"
+              className="flex flex-col items-center gap-0.5 py-1.5 text-[0.7rem] font-semibold text-ink-2 opacity-40"
+            >
+              <Icon name={tab.icon} />
+              {tab.label}
+            </span>
+          ) : (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.to === "/"}
+              className="flex flex-col items-center gap-0.5 py-1.5 text-[0.7rem] font-semibold text-ink-2 aria-[current=page]:text-coral"
+            >
+              <Icon name={tab.icon} />
+              {tab.label}
+            </NavLink>
+          ),
+        )}
       </nav>
       <LogoutDialog open={leaving} onOpenChange={setLeaving} onLogout={onLogout} warning={logoutWarning} />
     </div>

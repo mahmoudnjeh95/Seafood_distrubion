@@ -6,6 +6,7 @@ urlpatterns = [
     path("treasury/banks", views.BankListView.as_view(), name="treasury-bank-list"),
     path("treasury/banks/<int:bank_id>", views.BankDetailView.as_view(), name="treasury-bank-detail"),
     path("treasury/instruments", views.InstrumentListView.as_view(), name="treasury-instrument-list"),
+    path("treasury/party-documents", views.PartyDocumentsView.as_view(), name="treasury-party-documents"),
     path("treasury/instruments/totals", views.InstrumentTotalsView.as_view(), name="treasury-instrument-totals"),
     path("treasury/instruments/cash", views.InstrumentCashView.as_view(), name="treasury-instrument-cash"),
     path("treasury/instruments/withdraw", views.InstrumentWithdrawView.as_view(), name="treasury-instrument-withdraw"),
@@ -28,4 +29,36 @@ urlpatterns = [
     path("treasury/transfers", views.TransferListView.as_view(), name="treasury-transfer-list"),
     path("treasury/transfers/<int:transfer_id>/void", views.TransferVoidView.as_view(), name="treasury-transfer-void"),
     path("treasury/cash-counts", views.CashCountListView.as_view(), name="treasury-cash-count-list"),
+    path("treasury/movements-of", views.MovementsOfView.as_view(), name="treasury-movements-of"),
+    path("treasury/due-alerts", views.DueAlertsView.as_view(), name="treasury-due-alerts"),
+    path(
+        "treasury/accounts/<int:account_id>/statement/import",
+        views.StatementImportView.as_view(),
+        name="treasury-statement-import",
+    ),
+    path(
+        "treasury/accounts/<int:account_id>/statement-lines",
+        views.StatementLineListView.as_view(),
+        name="treasury-statement-line-list",
+    ),
+    path(
+        "treasury/accounts/<int:account_id>/reconciliation",
+        views.ReconciliationView.as_view(),
+        name="treasury-reconciliation",
+    ),
+    path(
+        "treasury/statement-lines/<int:line_id>",
+        views.StatementLineDetailView.as_view(),
+        name="treasury-statement-line-detail",
+    ),
+    path(
+        "treasury/statement-lines/<int:line_id>/candidates",
+        views.StatementLineCandidatesView.as_view(),
+        name="treasury-statement-line-candidates",
+    ),
+    path(
+        "treasury/statement-lines/<int:line_id>/match",
+        views.StatementLineMatchView.as_view(),
+        name="treasury-statement-line-match",
+    ),
 ]

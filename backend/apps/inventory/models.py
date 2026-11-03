@@ -58,7 +58,9 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
 
     Kilos of different batches never mix, so every kilo sold knows its supplier and its cost (D-009, Q4,
     Q7). How much of a batch is where comes from the stock ledger (P1-T06), and goods receipts create the
-    batches (P1-T07). A batch is never edited once created: a mistake is corrected by a new document.
+    batches (P1-T07). A batch is never edited once created: a mistake is corrected by a new document. The
+    exception is a goods receipt changed after saving (D-269): its price, use-by date, VAT and receipt
+    reference follow the receipt, and its price and VAT only while nothing valued has left the lot.
     """
 
     # "L-0001", "L-0002"... given by `services.create_batch`, never typed.
@@ -90,6 +92,8 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
 
 class MovementKind(models.TextChoices):
     RECEIPT = "receipt", _("Réception")
+    # A change of what a goods receipt says it received (D-270): it changes the kg received, never the spoilage.
+    RECEIPT_CORRECTION = "receipt_correction", _("Correction de réception")
     TRANSFER = "transfer", _("Transfert")
     SALE = "sale", _("Vente")
     CUSTOMER_RETURN = "customer_return", _("Retour client")

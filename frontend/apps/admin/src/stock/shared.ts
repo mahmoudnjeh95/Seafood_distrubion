@@ -14,6 +14,7 @@ export const MOVEMENT_KINDS: StockMovementKindEnum[] = [
 /** The prototype's colours: receipts green, transfers blue, sales coral, losses red. */
 export const MOVEMENT_TONES = {
   receipt: "good",
+  receipt_correction: "good",
   transfer: "sea",
   sale: "coral",
   customer_return: "neutral",

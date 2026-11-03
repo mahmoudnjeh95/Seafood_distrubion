@@ -1,13 +1,15 @@
 import datetime as dt
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
@@ -17,17 +19,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
+from apps.core.api.exports import ORDERING_HELP, ListExport
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization, Role
 from apps.core.permissions import HasRole, IsDriver, IsOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.xlsx import XLSX_TYPE
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
+from apps.partnerships import selectors as partnerships
 from apps.sales import selectors, services
-from apps.sales.models import CreditNote, DeliveryStatus, Invoice, PriceSource, Quote, Sale, SaleStatus
+from apps.sales.models import CreditNote, DeliveryStatus, Invoice, InvoiceStatus, PriceSource, Quote, Sale, SaleStatus
 
+from .payment_serializers import CustomerWriteOffWriteSerializer
 from .serializers import (
     BatchSalesSerializer,
     CreditNoteFilterSerializer,
@@ -39,6 +45,8 @@ from .serializers import (
     InvoiceChoicesSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
+    InvoiceEstimateFilterSerializer,
+    InvoiceEstimateSerializer,
     InvoiceFilterSerializer,
     InvoiceSerializer,
     NotDeliveredSerializer,
@@ -132,6 +140,12 @@ class QuoteView(OfficeView):
 class QuoteListView(QuoteView, ListAPIView[Quote]):
     serializer_class = QuoteSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("quoted_on",),
+        "customer": ("customer__name",),
+        "validUntil": ("valid_until",),
+    }
 
     def get_queryset(self) -> QuerySet[Quote]:
         filters = QuoteFilterSerializer(data=self.request.query_params)
@@ -233,7 +247,16 @@ class SalesPermission(HasRole):
         return request.method in SAFE_METHODS or (membership is not None and membership.role in SELLER_ROLES)
 
 
-def _payment(data: dict[str, Any]) -> services.PaymentFields:
+def _payment(data: dict[str, Any], *, driver: bool) -> services.PaymentFields | None:
+    """What a driver's phone says was paid on the spot (D-133). The office types no payment: its money comes in
+    through a règlement of the treasury (D-245), so a payment typed there is refused, and `None` leaves the sale
+    unpaid (or keeps what a draft already says, see `services.update_sale`)."""
+    if not driver:
+        if data["paid_in_full"] or data["amount_paid"] not in (None, "") or data["payment_method"]:
+            raise ValidationError(
+                {"detail": _("Le paiement d'une vente se saisit dans Règlements clients (trésorerie).")}
+            )
+        return None
     return {
         "amount_paid": data["amount_paid"],
         "paid_in_full": data["paid_in_full"],
@@ -306,7 +329,7 @@ class SaleView(OfficeView):
         fields: dict[str, Any] = {
             "customer": None,
             "notes": data["notes"],
-            "payment": _payment(data),
+            "payment": _payment(data, driver=self.is_driver),
             "sold_at": sold_at,
         }
         if data["customer"] is not None:
@@ -367,6 +390,11 @@ class SaleView(OfficeView):
 class SaleListView(SaleView, ListAPIView[Sale]):
     serializer_class = SaleSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("sold_at",),
+        "customer": ("customer__name",),
+    }
 
     def get_serializer_context(self) -> dict[str, Any]:
         return {**super().get_serializer_context(), "show_costs": not self.is_driver}
@@ -397,8 +425,9 @@ class SaleListView(SaleView, ListAPIView[Sale]):
     @extend_schema(operation_id="createSale", request=SaleWriteSerializer, responses={201: SaleDetailSerializer})
     def post(self, request: Request) -> Response:
         """Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
-        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
-        who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
+        The office types no payment: the money comes in through a règlement of the treasurer. A driver's phone says
+        what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
         Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
         day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
         day's price, also when it was kept without connection and sent later. Within 5 minutes of the
@@ -505,7 +534,7 @@ class QuoteConvertView(QuoteView):
             actor=self.membership.user,
             location=location,
             sold_at=data["sold_at"],
-            payment=_payment(data),
+            payment=_payment(data, driver=False),
             confirm=data["confirm_now"],
             lines=data["lines"],
         )
@@ -585,7 +614,6 @@ def _invoice_choices(data: dict[str, Any]) -> dict[str, Any]:
         "vat_amounts": {row["rate"]: row["amount"] for row in data["vat_amounts"]},
         "fiscal_stamp": data["fiscal_stamp"],
         "fees": data["fees"],
-        "withholding_applied": data["withholding_applied"],
         "withholding_rate": data["withholding_rate"],
         "notes": data["notes"],
     }
@@ -598,15 +626,33 @@ class InvoiceView(OfficeView):
         except Invoice.DoesNotExist:
             raise Http404 from None
 
+    def gap_lots(self, invoice: Invoice) -> list[dict[str, Any]]:
+        """The lots the gap of a partly paid invoice can be charged to (its BL's lots, not settled, D-256)."""
+        if invoice.status != InvoiceStatus.ISSUED:
+            return []
+        return partnerships.open_write_off_lots(
+            self.organization,
+            selectors.customer_lots(
+                self.organization,
+                customer_id=invoice.customer_id,
+                sale_ids=[sale.pk for sale in invoice.sales.all()],
+            ),
+        )
+
     def answer(self, invoice_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
         invoice = self.invoice(invoice_id)
-        context = {"credited": selectors.credited_by_line(invoice)}
+        context = {"credited": selectors.credited_by_line(invoice), "gap_lots": self.gap_lots(invoice)}
         return Response(InvoiceDetailSerializer(invoice, context=context).data, status=status_code)
 
 
 class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
     serializer_class = InvoiceSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("issued_on",),
+        "customer": ("customer_name",),
+    }
 
     def get_queryset(self) -> QuerySet[Invoice]:
         filters = InvoiceFilterSerializer(data=self.request.query_params)
@@ -619,6 +665,7 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
             date_from=filters.validated_data.get("date_from"),
             date_to=filters.validated_data.get("date_to"),
             search=filters.validated_data["search"],
+            payment_state=filters.validated_data.get("payment_state"),
         )
 
     @extend_schema(operation_id="listInvoices", parameters=[InvoiceFilterSerializer])
@@ -633,7 +680,8 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
     def post(self, request: Request) -> Response:
         """Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
-        `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+        `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
+        every typed value is flagged and audited. Errors:
         `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`."""
         serializer = InvoiceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -649,6 +697,63 @@ class InvoiceListView(InvoiceView, ListAPIView[Invoice]):
             sales=sales, actor=self.membership.user, issue=data["issue_now"], **_invoice_choices(data)
         )
         return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
+
+
+class InvoiceGiveUpGapView(InvoiceView):
+    @extend_schema(
+        operation_id="giveUpInvoiceGap", request=CustomerWriteOffWriteSerializer, responses=InvoiceDetailSerializer
+    )
+    def post(self, request: Request, invoice_id: int) -> Response:
+        """Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
+        amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
+        its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards."""
+        if self.membership.role != Role.OWNER:
+            raise PermissionDenied(_("Seul le propriétaire abandonne l'écart d'une facture."))
+        serializer = CustomerWriteOffWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invoice = self.invoice(invoice_id)
+        services.write_off_invoice_gap(
+            invoice=invoice,
+            actor=self.membership.user,
+            expected=serializer.validated_data["expected_amount"],
+            reason=serializer.validated_data["reason"],
+            lot_shares=serializer.validated_data.get("lot_shares", []),
+        )
+        return self.answer(invoice_id)
+
+
+class InvoiceEstimateView(OfficeView):
+    @extend_schema(
+        operation_id="estimateInvoice",
+        parameters=[InvoiceEstimateFilterSerializer],
+        responses=InvoiceEstimateSerializer,
+    )
+    def get(self, request: Request) -> Response:
+        """What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+        stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256)."""
+        filters = InvoiceEstimateFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        try:
+            sales = [selectors.sale_of(self.organization, pk) for pk in filters.validated_data["sales"]]
+        except Sale.DoesNotExist:
+            raise ValidationError({"sales": _("Vente inconnue.")}) from None
+        if len({sale.customer_id for sale in sales}) > 1:
+            raise ValidationError({"sales": _("Une facture ne regroupe que les bons de livraison d'un même client.")})
+        estimate = services.estimate_invoice(organization=self.organization, sales=sales)
+        return Response(
+            InvoiceEstimateSerializer(
+                {
+                    "total_excl_tax": estimate.total_excl_tax,
+                    "vat_total": estimate.vat_total,
+                    "vat_by_rate": [[str(rate), str(amount)] for rate, amount in estimate.vat_by_rate],
+                    "fiscal_stamp": estimate.fiscal_stamp,
+                    "withholding_amount": estimate.withholding_amount,
+                    "net_to_pay": estimate.net_to_pay,
+                    "extra": estimate.extra,
+                    "extra_by_sale": {str(pk): str(extra) for pk, extra in estimate.extra_by_sale.items()},
+                }
+            ).data
+        )
 
 
 class InvoiceDetailView(InvoiceView):
@@ -722,6 +827,12 @@ class InvoiceCreditNoteView(InvoiceView):
 class CreditNoteListView(OfficeView, ListAPIView[CreditNote]):
     serializer_class = CreditNoteSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("issued_on",),
+        "invoice": ("invoice__number",),
+        "reason": ("reason",),
+    }
 
     def get_queryset(self) -> QuerySet[CreditNote]:
         filters = CreditNoteFilterSerializer(data=self.request.query_params)
@@ -773,6 +884,28 @@ class MyDeliveriesView(APIView):
         return Response(SaleDetailSerializer(sales, many=True, context={"show_costs": False}).data)
 
 
+class MyDeliveredView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyDelivered", responses=SaleDetailSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+        shows them again on the sale screen and prints their receipt again (D-281)."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        today = timezone.localdate()
+        sales = (
+            selectors.sales_of(membership.organization)
+            .filter(
+                delivery_status__in=(DeliveryStatus.DELIVERED, DeliveryStatus.PARTIAL),
+                delivered_by_id=membership.user_id,
+                delivered_at__date=today,
+            )
+            .order_by("-delivered_at", "-id")
+        )
+        return Response(SaleDetailSerializer(sales, many=True, context={"show_costs": False}).data)
+
+
 class MyDeliveryView(APIView):
     """One BL of the driver's truck to deliver (D-178); a retry finds the delivery it already recorded."""
 
@@ -821,7 +954,7 @@ class MyDeliveryDeliverView(MyDeliveryView):
                 lines=data["lines"],
                 boxes=data["boxes"],
                 note=data["note"],
-                payment=_payment(data),
+                payment=_payment(data, driver=True),
                 delivery_uuid=data["client_uuid"],
             )
         return self.answer(membership, sale_id)
@@ -845,3 +978,87 @@ class MyDeliveryNotDeliveredView(MyDeliveryView):
                 sale=sale, actor=membership.user, note=data["note"], delivery_uuid=data["client_uuid"]
             )
         return self.answer(membership, sale_id)
+
+
+class SaleExportView(ListExport, SaleListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "ventes"
+    export_title = _("Ventes")
+
+    @extend_schema(
+        operation_id="exportSales",
+        parameters=[SaleFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The sales of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        zero = Decimal("0.000")
+        headers = [_("N°"), _("Date"), _("Client"), _("État"), _("Total HT"), _("Reste dû")]
+        rows = [
+            [
+                sale.number,
+                timezone.localtime(sale.sold_at).date(),
+                sale.customer.name,
+                sale.get_status_display(),
+                sale.total_excl_tax,
+                sale.amount_due if sale.status == SaleStatus.CONFIRMED else zero,
+            ]
+            for sale in items
+        ]
+        live = [sale for sale in items if sale.status != SaleStatus.CANCELLED]
+        totals = [
+            _("Total"),
+            "",
+            "",
+            "",
+            sum((sale.total_excl_tax for sale in live), zero),
+            sum((sale.amount_due for sale in items if sale.status == SaleStatus.CONFIRMED), zero),
+        ]
+        return headers, rows, totals
+
+
+class InvoiceExportView(ListExport, InvoiceListView):
+    http_method_names = ["get", "head", "options"]  # the list view also creates records
+    export_name = "factures"
+    export_title = _("Factures")
+
+    @extend_schema(
+        operation_id="exportInvoices",
+        parameters=[InvoiceFilterSerializer, OpenApiParameter("ordering", str, description=ORDERING_HELP)],
+        responses={(200, XLSX_TYPE): OpenApiTypes.BINARY},
+    )
+    def get(self, request: Request, *args: object, **kwargs: object) -> HttpResponse:  # type: ignore[override]
+        """The invoices of the same filters and sort as the list, every row, as an Excel file."""
+        return self.export_response()
+
+    def export_table(self, items: Sequence[Any]) -> tuple[list[str], list[list[Any]], list[Any] | None]:
+        zero = Decimal("0.000")
+        headers = [_("N°"), _("Date"), _("Échéance"), _("Client"), _("État"), _("Total HT"), _("TVA"), _("Total TTC")]
+        rows = [
+            [
+                invoice.number,
+                invoice.issued_on,
+                invoice.due_on,
+                invoice.customer_name,
+                invoice.get_status_display(),
+                invoice.total_excl_tax,
+                invoice.vat_total,
+                invoice.total_incl_tax,
+            ]
+            for invoice in items
+        ]
+        live = [invoice for invoice in items if invoice.status != InvoiceStatus.CANCELLED]
+        totals = [
+            _("Total"),
+            "",
+            "",
+            "",
+            "",
+            sum((invoice.total_excl_tax for invoice in live), zero),
+            sum((invoice.vat_total for invoice in live), zero),
+            sum((invoice.total_incl_tax for invoice in live), zero),
+        ]
+        return headers, rows, totals

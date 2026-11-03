@@ -80,6 +80,9 @@ class DriverDay(OrganizationScopedModel, TimeStampedModel):
     purchase_float = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     # When the driver sent the closing; null while the day is running, and again once a new load reopened it.
     ended_at = models.DateTimeField(null=True, blank=True)
+    # When a new load opened the sent day again (D-281): until the driver confirms the new start on the phone
+    # (`resumed`), the phone shows only "Ma journée" and the server takes nothing on the day. Null otherwise.
+    restart_pending_since = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-date", "id"]
@@ -122,6 +125,49 @@ class DayFund(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.date} · {self.driver} · {self.opening_cash}"
+
+
+class PurchaseFloatChange(OrganizationScopedModel, TimeStampedModel):
+    """A change of the money for purchases that the office makes while the driver's day runs (D-260). It takes
+    effect only when the driver approves it on the phone; until then the amount in force stays. The record keeps
+    who proposed it and who agreed, and when."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("En attente du chauffeur")
+        APPROVED = "approved", _("Approuvé par le chauffeur")
+        REPLACED = "replaced", _("Remplacé par un nouveau montant")
+        EXPIRED = "expired", _("Non approuvé avant la clôture")
+
+    driver_day = models.ForeignKey(DriverDay, on_delete=models.PROTECT, related_name="purchase_float_changes")
+    # The amount in force when the change was proposed, and the amount proposed.
+    previous_amount = models.DecimalField(max_digits=14, decimal_places=3)
+    amount = models.DecimalField(max_digits=14, decimal_places=3)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    proposed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # Who agreed on the phone, and when; null while pending.
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["driver_day"],
+                condition=models.Q(status="pending"),
+                name="one_pending_purchase_float_change_per_day",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0, previous_amount__gte=0),
+                name="purchase_float_change_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.driver_day} · {self.previous_amount} → {self.amount} · {self.status}"
 
 
 class LocationPing(OrganizationScopedModel, TimeStampedModel):

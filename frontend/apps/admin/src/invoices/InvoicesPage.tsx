@@ -1,45 +1,40 @@
-import { type InvoiceStatusEnum, useListCreditNotes, useListInvoices } from "@frutti/api";
+import {
+  getExportInvoicesUrl,
+  type InvoiceStatusEnum,
+  type ListInvoicesPaymentState,
+  useListCreditNotes,
+  useListInvoices,
+} from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  TotalsRow,
+  useServerTable,
+  useUrlState,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { totalOf } from "../lib/totals";
 import { canInvoice, INVOICE_STATUSES, isZero, STATUS_TONES } from "./shared";
-
-const PAGE_SIZE = 50;
+import { ExportButton } from "../lib/ExportButton";
 
 type Tab = "invoices" | "creditNotes";
-
-function Pager({
-  offset,
-  count,
-  hasNext,
-  onMove,
-}: {
-  offset: number;
-  count: number;
-  hasNext: boolean;
-  onMove: (offset: number) => void;
-}) {
-  const { t } = useTranslation();
-  if (count <= PAGE_SIZE) return null;
-  return (
-    <div className="flex items-center justify-end gap-2 p-2">
-      <span className="me-auto text-[0.85rem] text-ink-2">
-        {t("admin.invoices.page", { from: offset + 1, to: Math.min(offset + PAGE_SIZE, count), count })}
-      </span>
-      <Button disabled={offset === 0} onClick={() => onMove(Math.max(0, offset - PAGE_SIZE))}>
-        {t("admin.invoices.previous")}
-      </Button>
-      <Button disabled={!hasNext} onClick={() => onMove(offset + PAGE_SIZE)}>
-        {t("admin.invoices.next")}
-      </Button>
-    </div>
-  );
-}
 
 function Segmented<T extends string>({
   label,
@@ -78,21 +73,27 @@ export function InvoicesPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("invoices");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<InvoiceStatusEnum | "">("");
-  const [offset, setOffset] = useState(0);
+  const [paymentState, setPaymentState] = useState<ListInvoicesPaymentState | "">("");
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
+  const invoiceFilters = {
+    ...(status ? { status } : {}),
+    ...(paymentState ? { payment_state: paymentState } : {}),
+    ...(query ? { search: query } : {}),
+  };
   const invoices = useListInvoices(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    { ...table.params, ...invoiceFilters },
     { query: { placeholderData: keepPreviousData, enabled: tab === "invoices" } },
   );
   const creditNotes = useListCreditNotes(
-    { limit: PAGE_SIZE, offset, ...(query ? { search: query } : {}) },
+    { ...table.params, ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData, enabled: tab === "creditNotes" } },
   );
   const current = tab === "invoices" ? invoices : creditNotes;
-  const filtering = query !== "" || (tab === "invoices" && status !== "");
+  const filtering = query !== "" || (tab === "invoices" && (status !== "" || paymentState !== ""));
 
   let body: ReactNode;
   if (current.isPending) body = <p className="text-ink-2">{t("common.loading")}</p>;
@@ -119,9 +120,15 @@ export function InvoicesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.invoices.columns.number")}</Th>
-                <Th>{t("admin.invoices.columns.date")}</Th>
-                <Th>{t("admin.invoices.columns.customer")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.invoices.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.invoices.columns.date")}
+                </SortTh>
+                <SortTh sortKey="customer" {...table.sorting}>
+                  {t("admin.invoices.columns.customer")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.invoices.columns.sale")}</Th>
                 <Th numeric>{t("admin.invoices.columns.total")}</Th>
                 <Th numeric className="max-[720px]:hidden">
@@ -165,12 +172,35 @@ export function InvoicesPage() {
                     )}
                   >
                     {invoice.status === "issued" ? formatMoney(invoice.remaining_to_pay) : "—"}
+                    {invoice.payment_state === "partial" && (
+                      <Pill className="ms-2" tone="warn">
+                        {t("admin.invoices.paymentStates.partial")}
+                      </Pill>
+                    )}
                   </Td>
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={4}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((i) => i.status !== "cancelled"),
+                    (i) => i.total_incl_tax,
+                  ),
+                },
+                {
+                  value: totalOf(
+                    list.filter((i) => i.status === "issued"),
+                    (i) => i.remaining_to_pay,
+                  ),
+                  phoneHidden: true,
+                },
+              ]}
+            />
           </Table>
-          {page && <Pager offset={offset} count={page.count} hasNext={!!page.next} onMove={setOffset} />}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       );
   } else {
@@ -184,10 +214,18 @@ export function InvoicesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.invoices.columns.number")}</Th>
-                <Th>{t("admin.invoices.columns.date")}</Th>
-                <Th>{t("admin.invoices.columns.invoice")}</Th>
-                <Th>{t("admin.invoices.columns.reason")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.invoices.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.invoices.columns.date")}
+                </SortTh>
+                <SortTh sortKey="invoice" {...table.sorting}>
+                  {t("admin.invoices.columns.invoice")}
+                </SortTh>
+                <SortTh sortKey="reason" {...table.sorting}>
+                  {t("admin.invoices.columns.reason")}
+                </SortTh>
                 <Th numeric>{t("admin.invoices.columns.creditAmount")}</Th>
               </tr>
             </thead>
@@ -214,8 +252,9 @@ export function InvoicesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow span={4} cells={[{ value: totalOf(list, (n) => n.net_amount) }]} />
           </Table>
-          {page && <Pager offset={offset} count={page.count} hasNext={!!page.next} onMove={setOffset} />}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       );
   }
@@ -237,6 +276,7 @@ export function InvoicesPage() {
             {t("admin.financeSettings.title")}
           </Button>
         )}
+        {tab === "invoices" && <ExportButton href={getExportInvoicesUrl({ ...table.ordering, ...invoiceFilters })} />}
       </PageHeader>
       <p className="text-ink-2">{t("admin.invoices.intro")}</p>
 
@@ -250,7 +290,7 @@ export function InvoicesPage() {
           ]}
           onChange={(value) => {
             setTab(value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
         />
         <Input
@@ -260,7 +300,7 @@ export function InvoicesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -274,7 +314,24 @@ export function InvoicesPage() {
             ]}
             onChange={(value) => {
               setStatus(value);
-              setOffset(0);
+              table.backToFirstPage();
+            }}
+          />
+        )}
+        {tab === "invoices" && (
+          <Segmented
+            label={t("admin.invoices.paymentFilter")}
+            value={paymentState}
+            options={[
+              { value: "" as const, label: t("admin.invoices.allPayments") },
+              ...(["unpaid", "partial", "paid"] as const).map((value) => ({
+                value,
+                label: t(`admin.invoices.paymentStates.${value}`),
+              })),
+            ]}
+            onChange={(value) => {
+              setPaymentState(value);
+              table.backToFirstPage();
             }}
           />
         )}

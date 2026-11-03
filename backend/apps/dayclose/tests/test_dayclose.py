@@ -15,6 +15,7 @@ from apps.core.models import Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.dayclose.models import DayClosing, DayClosingRevision, DayClosingStatus
 from apps.fleet import services as fleet
+from apps.fleet.models import DayFund
 from apps.inventory import services as inventory
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
@@ -92,6 +93,12 @@ def day():
         "driver": driver.user,
         "actor": actor,
     }
+
+
+def empty_the_truck(client, closing_id):
+    """The office gives back what the truck holds before it approves the day (D-249)."""
+    driver_day_id = client.get(reverse("day-closing-detail", args=[closing_id])).json()["driver_day_id"]
+    client.post(reverse("day-overview-return-to-stock", args=[driver_day_id]))
 
 
 def sell(day, kg, paid):
@@ -216,6 +223,7 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     resent = day["api"].post(reverse("my-day-closing"), {"note": "Dépense non saisie"}, format="json")
     assert resent.status_code == 201
     url = reverse("day-closing-approve", args=[closing["id"]])
+    empty_the_truck(day["office"], closing["id"])
     # The office counts 135 DT: a gap with the 150 DT the driver should hold needs a note (D-204, D-213).
     counted = day["office"].post(
         reverse("day-closing-count", args=[closing["id"]]), {"office_counted_cash": "135.000"}, format="json"
@@ -232,8 +240,47 @@ def test_the_driver_sends_the_day_and_the_office_approves_it_after_a_justificati
     assert day["office"].post(url).status_code == 400
 
 
+def test_approving_the_day_resets_the_cash_the_office_set_for_that_driver_to_zero(day):
+    sell(day, "5", "100.000")
+    # The office refuses an approval while the truck still holds stock: the 7 kg left go back to the cold room first.
+    inventory.create_transfer(
+        organization=day["organization"],
+        actor=None,
+        from_location=day["truck"].location,
+        to_location=day["room"],
+        transferred_on=timezone.localdate(),
+        lines=[{"product": day["product"], "quantity": Decimal("7")}],
+        validate=True,
+    )
+    DayFund.objects.filter(driver=day["driver"]).update(purchase_float=Decimal("30.000"))
+    today = timezone.localdate().isoformat()
+
+    sent = day["api"].post(reverse("my-day-closing"), {}, format="json")
+
+    assert (sent.status_code, sent.json()["closing"]["expected_cash"]) == (201, "150.000")
+    assert (day["api"].get(reverse("my-day-fund")).json()["opening_cash"]) == "50.000"  # sending keeps the cash
+    closing = day["office"].get(reverse("day-closing-list")).json()[0]
+    counted = day["office"].post(
+        reverse("day-closing-count", args=[closing["id"]]),
+        {"office_counted_cash": "150.000", "office_counted_purchase_cash": "0.000"},
+        format="json",
+    )
+    assert counted.status_code == 200
+    approved = day["office"].post(reverse("day-closing-approve", args=[closing["id"]]), {}, format="json")
+    assert approved.status_code == 200, approved.content
+    assert approved.json()["status"] == "approved"
+    fund = day["api"].get(reverse("my-day-fund")).json()
+    assert (fund["opening_cash"], fund["purchase_float"]) == ("0.000", "0.000")
+    rows = day["office"].get(reverse("day-fund-list"), {"date": today}).json()
+    mine = next(row for row in rows if row["driver"]["id"] == day["driver"].pk)
+    assert (mine["fund"]["opening_cash"], mine["fund"]["purchase_float"]) == ("0.000", "0.000")
+    load_again(day, "1")  # a new load reopens the approved day; the amounts do not come back (D-259)
+    assert day["api"].get(reverse("my-day-fund")).json()["opening_cash"] == "0.000"
+
+
 def load_again(day, kg):
-    return inventory.create_transfer(
+    """The office loads the truck again, and the driver confirms the new start on the phone (D-281)."""
+    transfer = inventory.create_transfer(
         organization=day["organization"],
         actor=None,
         from_location=day["room"],
@@ -242,6 +289,8 @@ def load_again(day, kg):
         lines=[{"product": day["product"], "quantity": Decimal(kg)}],
         validate=True,
     )
+    assert day["api"].post(reverse("my-day-resume")).status_code == 200
+    return transfer
 
 
 def test_a_day_loaded_again_after_sending_is_sent_again_before_the_office_approves_it(day):
@@ -279,6 +328,7 @@ def test_a_day_loaded_again_after_sending_is_sent_again_before_the_office_approv
         reverse("day-closing-count", args=[closing_id]), {"office_counted_cash": "56.000"}, format="json"
     )
     assert counted_again.status_code == 200, counted_again.json()
+    empty_the_truck(day["office"], closing_id)
     approved = day["office"].post(reverse("day-closing-approve", args=[closing_id]), {}, format="json")
     assert approved.json()["status"] == "approved"
 
@@ -423,6 +473,7 @@ def test_the_monthly_closing_sees_cash_differences_and_days_never_sent(day):
     found = selectors.period_days(organization, date_from=today, date_to=today)
     assert (found.difference_count, found.difference_amount) == (1, Decimal("-10.000"))
 
+    empty_the_truck(day["office"], closing_id)
     approved = day["office"].post(
         reverse("day-closing-approve", args=[closing_id]), {"note": "Billet faux"}, format="json"
     )
@@ -845,3 +896,18 @@ def test_a_day_a_new_load_reopened_is_not_corrected_on_its_old_send(day):
     )
 
     assert response.status_code == 400
+
+
+def test_a_driver_cash_collection_at_the_limit_goes_through_once_the_phone_confirms(day):
+    from apps.sales.models import CustomerPayment
+
+    assert day["api"].get(reverse("my-cash-limit")).json() == {"cash_limit": "5000.000"}
+    body = {"customer": day["customer"].pk, "amount": "5000.000", "method": "cash", "client_uuid": str(uuid4())}
+
+    refused = day["api"].post(reverse("my-payments"), body, format="json")
+    assert refused.status_code == 400
+    assert "cash_limit" in refused.json()
+
+    confirmed = day["api"].post(reverse("my-payments"), {**body, "confirm_cash_limit": True}, format="json")
+    assert confirmed.status_code == 201
+    assert CustomerPayment.objects.get().cash_limit_confirmed is True

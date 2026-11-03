@@ -94,7 +94,7 @@ def test_a_sale_chain_shows_each_document_with_its_parent(api, organization, cus
     stock_up(organization, crevette, counter, D("20"))
     quote = accepted_quote(organization, customer, counter, crevette)
     sale = sales.create_sale_from_quote(quote=quote, actor=None, confirm=True)
-    invoice = sales.create_invoice(sale=sale, actor=None, issue=True)
+    invoice = sales.create_invoice(apply_vat=True, sale=sale, actor=None, issue=True)
     note = sales.create_credit_note(invoice=invoice, actor=None, kind="full", reason="Erreur de client")
 
     rows = rows_of(api.get(URL))
@@ -143,7 +143,7 @@ def test_actions_follow_the_state_of_each_document(api, organization, customer, 
         lines=[{"product": crevette, "quantity": "1"}],
         confirm=True,
     )
-    draft_invoice = sales.create_invoice(sale=confirmed, actor=None)
+    draft_invoice = sales.create_invoice(apply_vat=True, sale=confirmed, actor=None)
 
     rows = rows_of(api.get(URL))
 
@@ -188,7 +188,7 @@ def test_an_invoice_of_several_bl_names_them_all(api, organization, customer, co
         )
         for _ in range(2)
     )
-    invoice = sales.create_invoice(sales=[first, second], actor=None)
+    invoice = sales.create_invoice(apply_vat=True, sales=[first, second], actor=None)
 
     rows = rows_of(api.get(URL))
 

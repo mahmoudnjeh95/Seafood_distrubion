@@ -82,6 +82,7 @@ class CustomerPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
             "unallocated",
             "remaining",
             "is_voided",
+            "cash_limit_confirmed",
             "voided_at",
             "voided_by",
             "void_reason",
@@ -230,6 +231,8 @@ class CustomerPaymentWriteSerializer(AllocateWriteSerializer):
     # What the money is for, and who handed it over (both optional).
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=200)
     paid_by = serializers.CharField(required=False, allow_blank=True, default="", max_length=120)
+    # True: a cash line at or above the cash limit is confirmed by the person recording the payment (D-273).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
 
 
 class UnpaidWriteSerializer(serializers.Serializer[Any]):
@@ -241,6 +244,39 @@ class UnpaidWriteSerializer(serializers.Serializer[Any]):
 
 class VoidWriteSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
+
+
+class WriteOffLotShareWriteSerializer(serializers.Serializer[Any]):
+    """The part of a balance write-off charged to one lot, picked by hand (D-257)."""
+
+    batch = serializers.IntegerField(min_value=1)
+    amount = serializers.CharField(max_length=30)
+
+
+class WriteOffLotSerializer(serializers.Serializer[Any]):
+    """A lot a balance write-off can be charged to (D-257): one the party bought or sold, not settled."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = serializers.CharField(read_only=True)
+
+
+class CustomerWriteOffWriteSerializer(serializers.Serializer[Any]):
+    # The balance as shown on screen, typed again: the write-off is refused when it moved.
+    expected_amount = serializers.CharField(max_length=30)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
+    # The lots the loss is charged to, adding up to the balance (D-257); asked for only when a lot is offered.
+    lot_shares = WriteOffLotShareWriteSerializer(many=True, required=False)
+
+
+class CustomerWriteOffSerializer(serializers.Serializer[Any]):
+    """A balance written off (D-252): the loss on the customer, with its reason."""
+
+    id = serializers.IntegerField(read_only=True)
+    written_on = serializers.DateField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    reason = serializers.CharField(read_only=True)
+    created_by = serializers.CharField(read_only=True)
 
 
 class CustomerPaymentFilterSerializer(serializers.Serializer[Any]):
@@ -291,13 +327,18 @@ class OpenSaleSerializer(serializers.Serializer[Any]):
     owed = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     on_spot = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     allocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # What a balance write-off gave up on this sale (D-252).
+    written_off = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # A BL on no invoice yet: what its invoice would add to the goods (VAT, stamp, less withholding), if invoiced alone
+    # (D-256). Zero once invoiced.
+    estimated_extra = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
 class HistoryEntrySerializer(serializers.Serializer[Any]):
-    # "sale" (what it owes now), "on_spot" (paid at the sale), "payment", or "unpaid" (an effet refused by the
-    # bank: owed again, D-217).
-    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment", "unpaid"], read_only=True)
+    # "sale" (what it owes now), "on_spot" (paid at the sale), "payment", "unpaid" (an effet refused by the
+    # bank: owed again, D-217), or "writeoff" (the balance given up, D-252; `note` is its reason).
+    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment", "unpaid", "writeoff"], read_only=True)
     day = serializers.DateField(read_only=True)
     number = serializers.CharField(read_only=True)
     object_id = serializers.IntegerField(read_only=True)
@@ -306,6 +347,7 @@ class HistoryEntrySerializer(serializers.Serializer[Any]):
     method = serializers.CharField(read_only=True)
     voided = serializers.BooleanField(read_only=True)
     balance = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    note = serializers.CharField(read_only=True)
 
 
 class CustomerBalanceSerializer(serializers.Serializer[Any]):
@@ -324,6 +366,11 @@ class CustomerBalanceSerializer(serializers.Serializer[Any]):
     open_sales = OpenSaleSerializer(many=True, read_only=True)
     # Newest first, at most 200 entries; `balance` is the running balance after each entry.
     history = HistoryEntrySerializer(many=True, read_only=True)
+    # The balances given up (D-252), newest first, and their total: the customer's loss.
+    write_offs = CustomerWriteOffSerializer(many=True, read_only=True)
+    written_off_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # The lots a write-off of this balance can be charged to (D-257), newest first.
+    write_off_lots = WriteOffLotSerializer(many=True, read_only=True)
 
 
 class AgeingRowSerializer(serializers.Serializer[Any]):

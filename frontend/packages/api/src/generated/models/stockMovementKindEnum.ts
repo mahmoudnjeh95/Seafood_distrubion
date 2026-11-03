@@ -7,6 +7,7 @@
 
 /**
  * * `receipt` - Réception
+ * * `receipt_correction` - Correction de réception
  * * `transfer` - Transfert
  * * `sale` - Vente
  * * `customer_return` - Retour client
@@ -20,6 +21,7 @@ export type StockMovementKindEnum = typeof StockMovementKindEnum[keyof typeof St
 
 export const StockMovementKindEnum = {
   receipt: 'receipt',
+  receipt_correction: 'receipt_correction',
   transfer: 'transfer',
   sale: 'sale',
   customer_return: 'customer_return',

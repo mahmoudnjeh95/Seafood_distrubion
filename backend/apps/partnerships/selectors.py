@@ -3,6 +3,7 @@
 import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any
 
 from django.db.models import Count, Q, QuerySet, Sum
 
@@ -58,6 +59,22 @@ def partnerships_of(
             | Q(partner__reference__icontains=search)
         )
     return partnerships
+
+
+def settled_batch_ids(organization: Organization, *, batch_ids: list[int]) -> set[int]:
+    """The lots among `batch_ids` whose partnership is settled: their sharing is final (D-257 refuses them)."""
+    return set(
+        LotPartnership.objects.for_organization(organization)
+        .filter(batch_id__in=batch_ids, status=PartnershipStatus.SETTLED)
+        .values_list("batch_id", flat=True)
+    )
+
+
+def open_write_off_lots(organization: Organization, lots: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """`lots` less those whose partnership is settled: the lots a balance write-off can still be charged to
+    (D-257). A settled lot's sharing is final."""
+    settled = settled_batch_ids(organization, batch_ids=[lot["batch_id"] for lot in lots])
+    return [lot for lot in lots if lot["batch_id"] not in settled]
 
 
 def partnership_of(organization: Organization, partnership_id: int) -> LotPartnership:
@@ -218,9 +235,9 @@ class PartnerFlows:
     """What moved on one partner's two ledgers between two days (by `entry_date`), as positive amounts.
 
     Capital: `contributed` (money put in, corrections included), `loss_deducted` (their loss share taken from
-    it, net of reversals on reopening), `returned` (paid back). Profit share: `share` (their part of profits),
-    `uncovered_loss` (what their capital could not cover: they owe it), `late_adjustments` (signed: a cost or a
-    sale after a closing), `paid` (paid out of the share).
+    it, net of reversals on reopening), `returned` (paid back, advances included). Profit share: `share` (their
+    part of profits), `uncovered_loss` (what their capital could not cover: they owe it), `late_adjustments`
+    (signed: a cost or a sale after a closing), `paid` (paid out of the share).
     """
 
     partner_id: int
@@ -254,7 +271,7 @@ def partner_flows(organization: Organization, *, date_from: dt.date, date_to: dt
             add(partner_id, "contributed", total)
         elif kind in (CapitalEntryKind.LOSS_DEDUCTION, CapitalEntryKind.LOSS_REVERSAL):
             add(partner_id, "loss_deducted", -total)
-        elif kind == CapitalEntryKind.RETURN:
+        elif kind in (CapitalEntryKind.RETURN, CapitalEntryKind.ADVANCE):
             add(partner_id, "returned", -total)
     share_rows = (
         ProfitShareEntry.objects.for_organization(organization)

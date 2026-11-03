@@ -129,7 +129,7 @@ def test_sales_by_customer_and_by_product_add_up_to_the_closing(organization, ac
 def test_credit_notes_come_off_the_period_they_are_issued_in(organization, actor, cold_room, dorade):
     receive(organization, cold_room, dorade, "100.000")
     sale = sell(organization, actor, cold_room, dorade, "10.000", "40.000")
-    invoice = sales.create_invoice(sale=sale, actor=actor, issue=True)
+    invoice = sales.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True)
     sales.create_credit_note(
         invoice=invoice,
         actor=actor,

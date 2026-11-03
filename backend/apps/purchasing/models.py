@@ -13,8 +13,9 @@ from apps.core.money import MoneyField, QuantityField, line_total
 class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     """Goods received from a supplier on one day into one location, with their real net weight (Q12).
 
-    Saving it creates one batch per line and posts the receipt movements (P1-T07). A receipt is never
-    edited afterwards: a mistake is corrected by a supplier return or an adjustment (ARCHITECTURE §4.5).
+    Saving it creates one batch per line and posts the receipt movements (P1-T07). Afterwards it may be
+    corrected (D-269) while no supplier invoice carries it: each change is kept as a revision, and what
+    left the stock is never edited, only corrected by an adjustment (ARCHITECTURE §4.5).
     """
 
     # "BR-0001", "BR-0002"... per organization, given by `services.create_receipt`.
@@ -33,6 +34,9 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     # Bought with VAT: its lots are sold with VAT on the invoice (D-202).
     with_vat = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
+    # The number of the last change made after saving (D-269): a change must name it, so two people never
+    # overwrite each other. Zero until the receipt is changed.
+    revision = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
@@ -45,6 +49,29 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+class GoodsReceiptRevision(OrganizationScopedModel):
+    """One change made to a goods receipt after it was saved (D-269): who, when, why, and what it said
+    before and after. Never changed nor deleted; a mistake is corrected by another change."""
+
+    receipt = models.ForeignKey(GoodsReceipt, on_delete=models.CASCADE, related_name="revisions")
+    number = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # Required: why the receipt was changed.
+    reason = models.TextField()
+    before = models.JSONField(encoder=DjangoJSONEncoder)
+    after = models.JSONField(encoder=DjangoJSONEncoder)
+
+    class Meta:
+        ordering = ["receipt", "number"]
+        constraints = [models.UniqueConstraint(fields=["receipt", "number"], name="goods_receipt_revision_unique")]
+
+    def __str__(self) -> str:
+        return f"{self.receipt} · v{self.number}"
 
 
 class GoodsReceiptLine(OrganizationScopedModel):
@@ -292,6 +319,8 @@ class SupplierPayment(OrganizationScopedModel, TimeStampedModel):
     # A règlement typed by mistake is voided, never deleted (D-211): it stays in the list, its allocations stop
     # counting, its invoices owe again and its effets are cancelled.
     voided_at = models.DateTimeField(null=True, blank=True)
+    # A cash line at or above the cash limit was confirmed by the person who recorded it (D-273).
+    cash_limit_confirmed = models.BooleanField(default=False)
     voided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
@@ -397,6 +426,71 @@ class SupplierPaymentAllocation(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.payment} → {self.invoice}"
+
+
+class SupplierBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
+    """The rest of what we owe a supplier given up (D-252): the supplier takes less than its balance and we clear
+    the balance to zero. A gain on that supplier, kept as it is: never edited, never deleted.
+
+    Its amount is spread over the supplier's open invoices, oldest due date first (`SupplierWriteOffAllocation`), so
+    each invoice reads as settled by it. Lowers the supplier balance like a payment does.
+    """
+
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="balance_write_offs")
+    written_on = models.DateField()
+    amount = MoneyField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-written_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_write_off_amount_positive")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.supplier} · {self.amount}"
+
+
+class SupplierWriteOffAllocation(OrganizationScopedModel, TimeStampedModel):
+    """The part of a supplier balance write-off that settles one invoice. Written once with its write-off."""
+
+    write_off = models.ForeignKey(SupplierBalanceWriteOff, on_delete=models.PROTECT, related_name="allocations")
+    invoice = models.ForeignKey(SupplierInvoice, on_delete=models.PROTECT, related_name="write_off_allocations")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0), name="supplier_write_off_allocation_amount_positive"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} → {self.invoice}"
+
+
+class SupplierWriteOffLotShare(OrganizationScopedModel, TimeStampedModel):
+    """The part of a supplier balance write-off credited to one lot (D-257): a gain that raises that lot's net
+    result, so its partner shares the gain. The owner picks the lots and amounts by hand; the shares add up to the
+    write-off. Written once with its write-off."""
+
+    write_off = models.ForeignKey(SupplierBalanceWriteOff, on_delete=models.PROTECT, related_name="lot_shares")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_write_off_lot_share_positive"),
+            models.UniqueConstraint(fields=["write_off", "batch"], name="supplier_write_off_lot_share_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} → {self.batch_id} · {self.amount}"
 
 
 class PlanLineStatus(models.TextChoices):

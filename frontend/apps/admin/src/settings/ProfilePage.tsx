@@ -7,6 +7,7 @@ import { type FormEvent, useId, useRef, useState } from "react";
 import { useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { ListDisplayCard } from "./ListDisplayCard";
 
 function PhotoCard({ session }: { session: Session }) {
   const { t } = useTranslation();
@@ -211,6 +212,7 @@ export function ProfilePage() {
         <PhotoCard session={session} />
         <IdentityCard session={session} />
         <PasswordCard />
+        <ListDisplayCard />
       </div>
     </>
   );

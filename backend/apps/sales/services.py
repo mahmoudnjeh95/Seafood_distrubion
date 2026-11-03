@@ -28,6 +28,7 @@ from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.notifications import services as notifications
 from apps.partners import services as partners
+from apps.partnerships import services as partnership_services
 from apps.treasury import services as treasury
 
 from . import invoicing, receivables, selectors
@@ -40,9 +41,12 @@ from .models import (
     CreditNoteStock,
     CreditPolicy,
     CreditStatus,
+    CustomerBalanceWriteOff,
     CustomerPayment,
     CustomerPaymentLine,
     CustomerPaymentMethod,
+    CustomerWriteOffAllocation,
+    CustomerWriteOffLotShare,
     DeliveryStatus,
     FinanceSettings,
     Invoice,
@@ -81,6 +85,7 @@ if TYPE_CHECKING:
 
 # Validity when none is given: the prototype's quote is "valable 3 jours". Provisional (D-050): seafood
 # prices move daily, so a short validity is the safe default.
+ZERO = Decimal("0.000")
 DEFAULT_VALIDITY_DAYS = 3
 MAX_DISCOUNT_RATE = Decimal("100")
 _RATE_STEP = Decimal("0.01")
@@ -674,6 +679,16 @@ def _checked_payment(total: Decimal, payment: PaymentFields, errors: dict[str, s
     if paid == 0:
         method, reference = "", ""
     return {"amount_paid": paid, "payment_method": method, "payment_reference": reference}
+
+
+def _kept_payment(sale: Sale) -> PaymentFields:
+    """What a draft already says it was paid (a driver's phone recorded it). The office types no payment (D-245),
+    so when it changes the lines, the draft keeps this."""
+    return {
+        "amount_paid": str(sale.amount_paid),
+        "payment_method": sale.payment_method,
+        "payment_reference": sale.payment_reference,
+    }
 
 
 def _checked_batches(
@@ -1270,7 +1285,14 @@ def update_sale(
     # A sale made from a quote keeps "quote" as the source of the prices typed again from it.
     typed_source = PriceSource.QUOTE if sale.quote_id is not None else PriceSource.TYPED
     checked_lines, paid = _prepared_sale(
-        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason
+        organization,
+        customer,
+        location,
+        sold_at,
+        lines,
+        payment if payment is not None else _kept_payment(sale),
+        typed_source,
+        below_minimum_reason,
     )
     box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
     sale.customer = customer
@@ -1338,11 +1360,12 @@ def check_credit(sale: Sale, *, actor: User | None = None, approve_credit: bool 
     Above it, the company setting decides (D-018): `block` refuses; `approval` keeps the sale as a pending
     draft until the owner or a manager confirms it (`approve_credit`, granted by the view only to them);
     `warn` lets it through and logs it. The customer row is locked so two sellers cannot both pass. The
-    walk-in customer always pays everything on the spot (D-047).
+    walk-in customer pays everything on the spot when a driver sold it (D-047); a counter sale at the office
+    is paid through a règlement of the treasury instead (D-245), so the walk-in customer has no limit to check.
     """
     due = sale.total - sale.amount_paid
     if sale.customer.is_walk_in:
-        if due > 0:
+        if due > 0 and sale.created_by is not None and _is_driver(sale.created_by, sale.organization):
             raise ValidationError({"amount_paid": _("Un client de passage paie toute la vente sur place.")})
         return
     sale.credit_status = ""
@@ -1546,7 +1569,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     Each line's kilos leave the sale's place oldest batch first (D-037); the line keeps which batches went,
     their cost per kg then and their cost (COGS). Refused as a whole when any line asks more than the place
     holds (each on `lines.<index>.quantity`), when the customer or the place were archived meanwhile, or when
-    a walk-in customer does not pay everything. Lines are posted in product order, so two sales confirmed at
+    a driver's walk-in sale does not pay everything. Lines are posted in product order, so two sales confirmed at
     once lock the same rows in the same order.
     """
     sale = _locked_draft_sale(sale)
@@ -1643,7 +1666,54 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
             target=sale,
             after={"lines": [{"product": line.product_id, "unit_price": str(line.unit_price)} for line in below]},
         )
+    _post_sale_cash(sale, actor=actor)
     return sale
+
+
+# The treasury movement of the money a sale was paid at the sale (P9-T05b, D-239): cash a driver took on the road is
+# in the driver's cash, other cash in the Caisse, a transfer or a card in the main bank account.
+SALE_SOURCE = "sales.sale"
+
+
+def _post_sale_cash(sale: Sale, *, actor: User | None) -> None:
+    """Written once, when the sale is confirmed, with what it was paid then. A sale cancelled later keeps its money:
+    what was paid becomes the customer's credit (the P2-T06 hook), so nothing is reversed here."""
+    if sale.amount_paid <= 0:
+        return
+    if sale.payment_method == SalePaymentMethod.CHEQUE:
+        # A cheque taken at the sale is an effet received from the customer (D-264): held in the portfolio until the
+        # bank pays it. The office completes its bank and due day there.
+        treasury.register_instrument(
+            organization=sale.organization,
+            actor=actor,
+            direction="received",
+            kind="cheque",
+            number=sale.payment_reference or sale.number,
+            bank=None,
+            amount=sale.amount_paid,
+            issued_on=timezone.localtime(sale.sold_at).date(),
+            due_on=None,
+            drawer=sale.customer.name,
+            customer=sale.customer,
+            source_number=sale.number,
+            partial=True,
+        )
+        return
+    driver = None
+    if sale.delivered_by is not None and _is_driver(sale.delivered_by, sale.organization):
+        driver = sale.delivered_by
+    treasury.post_movement(
+        organization=sale.organization,
+        account=treasury.line_account(sale.organization, sale.payment_method, None, driver=driver),
+        day=timezone.localtime(sale.sold_at).date(),
+        amount=sale.amount_paid,
+        kind="sale_cash",
+        label=f"{sale.number} · {sale.customer.name}",
+        reference=sale.number,
+        source=SALE_SOURCE,
+        source_id=sale.pk,
+        actor=actor,
+    )
 
 
 @transaction.atomic
@@ -1822,7 +1892,8 @@ FIRST_SETTINGS: dict[str, Any] = {
     "vat_rate": Decimal("19.00"),
     "fiscal_stamp": Decimal("1.000"),
     "prices_include_vat": False,
-    "withholding_rate": Decimal("0.00"),
+    # Owner, 2026-11 (D-266, provisional until the accountant confirms): 1 %, editable on the settings screen.
+    "withholding_rate": Decimal("1.00"),
 }
 SETTINGS_TEXT_FIELDS = ("legal_name", "address", "phone", "tax_id", "trade_register")
 _TEXT_LENGTHS = {"legal_name": 200, "address": 255, "phone": 50, "tax_id": 30, "trade_register": 50}
@@ -1835,6 +1906,8 @@ class FinanceSettingsFields(TypedDict, total=False):
     fiscal_stamp: Number
     prices_include_vat: bool
     withholding_rate: Number
+    # DT: a cash line of this amount or more needs confirming (D-273).
+    cash_limit: Number
     # `block`, `approval` or `warn` (D-018, D-062).
     credit_policy: str
     legal_name: str
@@ -1878,6 +1951,7 @@ def _settings_snapshot(version: FinanceSettings) -> dict[str, Any]:
         "fiscal_stamp": str(version.fiscal_stamp),
         "prices_include_vat": version.prices_include_vat,
         "withholding_rate": str(version.withholding_rate),
+        "cash_limit": str(version.cash_limit),
         "credit_policy": version.credit_policy,
         **{name: getattr(version, name) for name in SETTINGS_TEXT_FIELDS},
     }
@@ -1914,6 +1988,13 @@ def save_finance_settings(
         values["fiscal_stamp"] = checked_amount(stamp)
     except (ValueError, TypeError):
         errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
+    limit_raw: Any = fields.get("cash_limit", in_force.cash_limit)
+    try:
+        values["cash_limit"] = checked_amount(limit_raw)
+        if values["cash_limit"] <= 0:
+            errors["cash_limit"] = _("Le plafond des espèces doit être supérieur à zéro.")
+    except (ValueError, TypeError):
+        errors["cash_limit"] = _("Indiquez un montant en DT, au millime près.")
     values["prices_include_vat"] = bool(fields.get("prices_include_vat", in_force.prices_include_vat))
     policy = str(fields.get("credit_policy", in_force.credit_policy))
     if policy not in CreditPolicy.values:
@@ -1957,8 +2038,8 @@ def save_finance_settings(
 class InvoiceChoices(TypedDict, total=False):
     """What the person may change on a draft invoice; empty values take the settings (D-056)."""
 
-    # False: an invoice without VAT.
-    apply_vat: bool
+    # False: an invoice without VAT; empty: with VAT only when a BL holds goods bought with VAT (D-246).
+    apply_vat: bool | None
     # One per line, in the order of the lines: the VAT rate in percent; empty = the product's or the settings'.
     vat_rates: Sequence[Number | None] | None
     # Typed VAT amounts by rate (percent → DT); a rate left out keeps the computed amount.
@@ -1967,8 +2048,7 @@ class InvoiceChoices(TypedDict, total=False):
     fiscal_stamp: Number | None
     # "Frais" in DT; empty = none (D-126).
     fees: Number | None
-    withholding_applied: bool
-    # Empty = the settings' rate.
+    # Empty = the settings' rate. The withholding itself follows the invoice total (1 000 DT, invoicing.py).
     withholding_rate: Number | None
     notes: str
 
@@ -1981,7 +2061,6 @@ class _Overrides:
     vat_rates: list[Decimal | None]
     vat_amounts: dict[Decimal, Decimal]
     fiscal_stamp: Decimal | None
-    withholding_applied: bool
     withholding_rate: Decimal | None
     notes: str
     fees: Decimal = Decimal("0.000")
@@ -1991,9 +2070,9 @@ def _settings_in_force(organization: Organization) -> FinanceSettings:
     return selectors.finance_settings_on(organization) or ensure_finance_settings(organization=organization)
 
 
-def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
+def _checked_choices(choices: InvoiceChoices, line_count: int, default_apply_vat: bool) -> _Overrides:
     """The typed values of a draft, or a ValidationError naming each wrong field (`lines.<i>.vat_rate`,
-    `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`)."""
+    `vat_amounts.<rate>`, `fiscal_stamp`, `withholding_rate`). An empty `apply_vat` takes `default_apply_vat`."""
     errors: dict[str, str] = {}
     rate_message = _("Indiquez un taux en %, de 0 à 100, avec 2 décimales au plus.")
     typed_rates = list(choices.get("vat_rates") or [])
@@ -2043,12 +2122,12 @@ def _checked_choices(choices: InvoiceChoices, line_count: int) -> _Overrides:
             errors["withholding_rate"] = rate_message
     if errors:
         raise ValidationError(errors)
+    typed_apply_vat = choices.get("apply_vat")
     return _Overrides(
-        apply_vat=choices.get("apply_vat", True),
+        apply_vat=default_apply_vat if typed_apply_vat is None else typed_apply_vat,
         vat_rates=rates,
         vat_amounts=amounts,
         fiscal_stamp=stamp,
-        withholding_applied=choices.get("withholding_applied", False),
         withholding_rate=withholding_rate,
         notes=(choices.get("notes") or "").strip(),
         fees=fees,
@@ -2063,7 +2142,6 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
         vat_rates=[line.vat_rate if line.vat_rate_overridden else None for line in lines],
         vat_amounts={row.rate: row.amount for row in invoice.vat_lines.filter(amount_overridden=True)},
         fiscal_stamp=invoice.fiscal_stamp if invoice.fiscal_stamp_overridden else None,
-        withholding_applied=invoice.withholding_applied,
         withholding_rate=invoice.withholding_rate if invoice.withholding_rate_overridden else None,
         notes=invoice.notes,
         fees=invoice.fees,
@@ -2099,7 +2177,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         apply_vat=overrides.apply_vat,
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=stamp,
-        withholding_rate=withholding_rate if overrides.withholding_applied else None,
+        withholding_rate=withholding_rate,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
     )
@@ -2155,7 +2233,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = overrides.withholding_applied
+    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_incl_tax)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
@@ -2218,6 +2296,79 @@ def _checked_sale_to_invoice(sale: Sale) -> None:
         )
 
 
+@dataclass(frozen=True)
+class InvoiceEstimate:
+    """What the invoice of some BL would ask, worked out without saving anything (D-256)."""
+
+    total_excl_tax: Decimal
+    vat_total: Decimal
+    # (rate in percent, VAT amount), highest rate first.
+    vat_by_rate: list[tuple[Decimal, Decimal]]
+    fiscal_stamp: Decimal
+    withholding_amount: Decimal
+    net_to_pay: Decimal
+    # `net_to_pay` less what the BL hold now (their goods without VAT): what a règlement of the goods alone misses.
+    extra: Decimal
+    # `extra` shared over the BL by what each holds, by sale id.
+    extra_by_sale: dict[int, Decimal]
+
+
+def _invoiceable_now(sale: Sale) -> bool:
+    """A confirmed BL of a named customer that is on no live invoice yet (the rules of `_checked_sale_to_invoice`)."""
+    return (
+        sale.status == SaleStatus.CONFIRMED
+        and not sale.is_opening
+        and not sale.customer.is_walk_in
+        and not sale.invoices.exclude(status=InvoiceStatus.CANCELLED).exists()
+    )
+
+
+def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> InvoiceEstimate:
+    """The invoice the given BL would make with the settings in force and the proposed choices (VAT only for
+    goods bought with VAT, D-246; each product's rate; one stamp; the withholding from 1 000 DT): the same
+    arithmetic as `create_invoice` (`invoicing.compute`), nothing saved. BL already invoiced or not invoiceable
+    are left out."""
+    open_sales = [sale for sale in sales if _invoiceable_now(sale)]
+    if not open_sales:
+        return InvoiceEstimate(ZERO, ZERO, [], ZERO, ZERO, ZERO, ZERO, {})
+    version = _settings_in_force(organization)
+    lines = [line for sale in open_sales for line in sale.lines.select_related("product").order_by("id")]
+    amounts = invoicing.compute(
+        [
+            invoicing.LineInput(
+                amount=line.amount, vat_rate=_default_rate(line.product, version), unit_price=line.unit_price
+            )
+            for line in lines
+        ],
+        apply_vat=bool(_vat_product_names(open_sales)),
+        prices_include_vat=version.prices_include_vat,
+        fiscal_stamp=version.fiscal_stamp,
+        withholding_rate=version.withholding_rate,
+    )
+    held = [sum((line.amount for line in sale.lines.all()), ZERO) for sale in open_sales]
+    extra = amounts.net_to_pay - sum(held, ZERO)
+    return InvoiceEstimate(
+        total_excl_tax=amounts.total_excl_tax,
+        vat_total=amounts.vat_total,
+        vat_by_rate=[(group.rate, group.amount) for group in amounts.vat_groups],
+        fiscal_stamp=amounts.fiscal_stamp,
+        withholding_amount=amounts.withholding_amount,
+        net_to_pay=amounts.net_to_pay,
+        extra=extra,
+        extra_by_sale=dict(zip((sale.pk for sale in open_sales), invoicing.shared_by(extra, held), strict=True)),
+    )
+
+
+def estimated_extras(organization: Organization, sale_ids: Sequence[int]) -> dict[int, Decimal]:
+    """For each given BL on no invoice, what its invoice would add to its goods if it were invoiced alone (D-256)."""
+    sales = Sale.objects.filter(organization=organization, pk__in=sale_ids).select_related("customer")
+    return {
+        sale.pk: estimate_invoice(organization=organization, sales=[sale]).extra
+        for sale in sales
+        if _invoiceable_now(sale)
+    }
+
+
 @transaction.atomic
 def create_invoice(
     *,
@@ -2248,7 +2399,7 @@ def create_invoice(
         _checked_sale_to_invoice(chosen)
     sale = locked[0]
     sale_lines = [line for chosen in locked for line in chosen.lines.select_related("product").order_by("id")]
-    overrides = _checked_choices(choices, len(sale_lines))
+    overrides = _checked_choices(choices, len(sale_lines), default_apply_vat=bool(_vat_product_names(locked)))
     invoice = Invoice.objects.create(
         organization=sale.organization,
         customer=sale.customer,
@@ -2317,7 +2468,7 @@ def update_invoice(
     `issue`, issue it too (one transaction)."""
     invoice = _locked_draft_invoice(invoice)
     before = _invoice_snapshot(invoice)
-    overrides = _checked_choices(choices, invoice.lines.count())
+    overrides = _checked_choices(choices, invoice.lines.count(), default_apply_vat=invoice.apply_vat)
     _compute(invoice, _settings_in_force(invoice.organization), overrides)
     audit.record(
         organization=invoice.organization,
@@ -2352,16 +2503,21 @@ def record_invoice_receivable(invoice: Invoice) -> None:
     refresh_invoice_sales(invoice)
 
 
-def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
-    """Goods bought with VAT are sold with VAT (D-202): an invoice without VAT is refused when one of its BL took
-    kilos from a lot bought with VAT, and the message names the products."""
-    names = sorted(
+def _vat_product_names(sales: Sequence[Sale]) -> list[str]:
+    """The names of the products whose kilos came from a lot bought with VAT (D-202)."""
+    return sorted(
         set(
             SaleLineBatch.objects.filter(line__sale__in=sales, batch__bought_with_vat=True).values_list(
                 "line__product__name", flat=True
             )
         )
     )
+
+
+def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
+    """Goods bought with VAT are sold with VAT (D-202): an invoice without VAT is refused when one of its BL took
+    kilos from a lot bought with VAT, and the message names the products."""
+    names = _vat_product_names(sales)
     if names:
         raise ValidationError(
             {
@@ -2779,6 +2935,7 @@ def _payment_snapshot(payment: CustomerPayment) -> dict[str, Any]:
         "reference": payment.reference,
         "reason": payment.reason,
         "paid_by": payment.paid_by,
+        "cash_limit_confirmed": payment.cash_limit_confirmed,
         "lines": [_line_snapshot(line) for line in payment.lines.select_related("instrument__bank").order_by("id")],
         "allocations": [
             {"sale": row.sale.number, "amount": str(row.amount)}
@@ -2822,11 +2979,18 @@ def _allocate(
         .order_by("id")
         .values_list("pk", flat=True)
     )
-    open_rows = {
-        row.sale_id: row
-        for row in receivables.sale_receivables(organization, customer_id=payment.customer_id)
-        if row.outstanding > 0
-    }
+    all_rows = {row.sale_id: row for row in receivables.sale_receivables(organization, customer_id=payment.customer_id)}
+    open_rows = {sale_id: row for sale_id, row in all_rows.items() if row.outstanding > 0}
+    # A BL on no invoice yet may be paid above its goods, up to the VAT and stamp its invoice will add (D-256).
+    extras = (
+        estimated_extras(organization, [sale_id for sale_id, row in all_rows.items() if row.invoice_id is None])
+        if requested is not None
+        else {}
+    )
+
+    def room(row: receivables.SaleReceivable) -> Decimal:
+        return row.outstanding + max(extras.get(row.sale_id, ZERO) - row.overpaid, ZERO)
+
     plan: list[tuple[int, Decimal]] = []
     errors: dict[str, str] = {}
     if requested is None:
@@ -2851,15 +3015,20 @@ def _allocate(
                 _plan_invoice(payment, invoice, amount, open_rows, taken, plan, errors, key)
                 continue
             sale = item["sale"]
-            open_row = open_rows.get(sale.pk)
-            if open_row is None or sale.organization_id != organization.pk or sale.customer_id != payment.customer_id:
+            open_row = all_rows.get(sale.pk)
+            if (
+                open_row is None
+                or room(open_row) <= 0
+                or sale.organization_id != organization.pk
+                or sale.customer_id != payment.customer_id
+            ):
                 errors[key] = _("Cette vente ne doit plus rien à ce client.")
             elif amount <= 0:
                 errors[key] = _("Le montant doit être supérieur à zéro.")
-            elif taken.get(sale.pk, Decimal("0.000")) + amount > open_row.outstanding:
+            elif taken.get(sale.pk, Decimal("0.000")) + amount > room(open_row):
                 errors[key] = _("%(number)s ne doit plus que %(due)s DT.") % {
                     "number": open_row.number,
-                    "due": display_money(open_row.outstanding),
+                    "due": display_money(room(open_row)),
                 }
             else:
                 taken[sale.pk] = taken.get(sale.pk, Decimal("0.000")) + amount
@@ -3004,6 +3173,7 @@ def record_customer_payment(
     allocations: Sequence[AllocationFields] | None = None,
     client_uuid: uuid.UUID | None = None,
     made_at: dt.datetime | None = None,
+    confirm_cash_limit: bool = False,
 ) -> CustomerPayment:
     """Register a règlement received from a customer and allocate it (D-062, D-197).
 
@@ -3014,8 +3184,8 @@ def record_customer_payment(
 
     `allocations` None takes the customer's oldest open sales first; a list names the sales and amounts
     (empty keeps everything as credit). What is not allocated stays the customer's credit: their balance
-    already counts the whole payment, and `allocate_customer_payment` can settle sales with it later.
-    Refused for the walk-in customer (they pay on the spot). Numbered RG-0001... in the same transaction.
+    already counts the whole payment, and `allocate_customer_payment` can settle sales with it later. The walk-in
+    customer's counter sales are paid the same way (D-245). Numbered RG-0001... in the same transaction.
     """
     if client_uuid is not None:
         existing = CustomerPayment.objects.for_organization(organization).filter(client_uuid=client_uuid).first()
@@ -3024,8 +3194,6 @@ def record_customer_payment(
     errors: dict[str, str] = {}
     if customer.organization_id != organization.pk:
         errors["customer"] = _("Client inconnu.")
-    elif customer.is_walk_in:
-        errors["customer"] = _("Le client de passage paie sur place : pas de règlement ultérieur.")
     # Dated by the moment it was received (the phone's time, when there is one), else today.
     received_on = received_on or timezone.localtime(made_at or timezone.now()).date()
     if received_on > timezone.localdate():
@@ -3049,6 +3217,14 @@ def record_customer_payment(
                     errors["amount"] = _("Le total ne correspond pas à la somme des moyens de paiement.")
             except (ValueError, TypeError):
                 errors["amount"] = _("Indiquez un montant en DT, au millime près.")
+    over_limit = not errors and selectors.cash_over_limit(
+        organization, received_on, (value for line_method, value, _line in checked if line_method == "cash")
+    )
+    if over_limit and not confirm_cash_limit:
+        # A cash line at or above the limit goes through only when confirmed (D-273).
+        errors["cash_limit"] = _(
+            "Paiement en espèces au-delà du plafond légal (%(limit)s DT) : confirmez pour continuer."
+        ) % {"limit": display_money(selectors.cash_limit_on(organization, received_on))}
     if errors:
         raise ValidationError(errors)
     paid = sum((value for _method, value, _line in checked), Decimal("0.000"))
@@ -3057,6 +3233,7 @@ def record_customer_payment(
     payment = CustomerPayment.objects.create(
         organization=organization,
         number=number,
+        cash_limit_confirmed=over_limit,
         customer=customer,
         amount=paid,
         method=methods.pop() if len(methods) == 1 else CustomerPaymentMethod.MIXED,
@@ -3146,7 +3323,16 @@ def _reverse_line_money(payment: CustomerPayment, actor: User | None, day: dt.da
 
 def post_treasury_history(*, organization: Organization) -> None:
     """Write the treasury movements of the règlements recorded before the accounts existed (D-219), and undo those
-    of the voided ones on the day they were voided. Safe to run again."""
+    of the voided ones on the day they were voided. Safe to run again. The money paid at the sale of the confirmed
+    sales is written too (D-239)."""
+    paid_at_sale = Sale.objects.filter(
+        organization=organization,
+        status__in=(SaleStatus.CONFIRMED, SaleStatus.CANCELLED),
+        amount_paid__gt=0,
+    ).select_related("organization", "customer", "delivered_by")
+    for sale in paid_at_sale:
+        if sale.payment_method != SalePaymentMethod.CHEQUE:  # an effet is written once, when the sale is confirmed
+            _post_sale_cash(sale, actor=None)
     done = treasury.posted_source_ids(organization, PAYMENT_LINE_SOURCE)
     lines = (
         CustomerPaymentLine.objects.filter(organization=organization, instrument__isnull=True)
@@ -3229,6 +3415,144 @@ def void_customer_payment(*, payment: CustomerPayment, actor: User | None, reaso
         after={"reason": reason, "amount": str(payment.amount)},
     )
     return payment
+
+
+def write_off_customer_balance(
+    *,
+    customer: "Customer",
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
+) -> CustomerBalanceWriteOff:
+    return _write_off(customer=customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares)
+
+
+def write_off_invoice_gap(
+    *,
+    invoice: Invoice,
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
+) -> CustomerBalanceWriteOff:
+    """Give up what is left to pay on one issued invoice (D-256), for instance the VAT and stamp a BL paid at its
+    goods did not cover. Same rules as clearing a balance (D-252, D-257): the amount typed again must be what the
+    invoice still asks, a reason is required, the loss is charged to the lots of the invoice's BL picked by hand,
+    and the record is never edited. It is limited to this invoice's gap."""
+    return _write_off(
+        customer=invoice.customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares, invoice=invoice
+    )
+
+
+@transaction.atomic
+def _write_off(
+    *,
+    customer: "Customer",
+    actor: User | None,
+    expected: Number,
+    reason: str,
+    lot_shares: list[dict[str, Any]] | None = None,
+    invoice: Invoice | None = None,
+) -> CustomerBalanceWriteOff:
+    """Clear a customer's balance to zero, the rest given up as a loss on them (D-252): they paid less than they
+    owed (10 000 of 10 080 DT leaves 80 DT). `expected` must be the balance shown now, typed again by the office,
+    so a balance that moved since the screen was read is refused. The amount is spread over the customer's open
+    sales, oldest first, and kept as it was written: never edited or deleted.
+
+    The loss is also charged to the lots the owner picks by hand (`lot_shares`: `{"batch", "amount"}` adding up to
+    the balance, D-257), so it lowers those lots' net result and their partner shares it. A lot already settled
+    with its partner is refused; a closed lot takes it as a late cost on the partner's next settlement."""
+    organization = customer.organization
+    list(
+        Sale.objects.select_for_update(of=("self",))
+        .filter(organization=organization, customer_id=customer.pk, status=SaleStatus.CONFIRMED)
+        .order_by("id")
+        .values_list("pk", flat=True)
+    )
+    invoice_sale_ids: list[int] | None = None
+    if invoice is not None:
+        invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+        if invoice.status != InvoiceStatus.ISSUED:
+            raise ValidationError(_("Seule une facture émise a un écart à abandonner."))
+        invoice_sale_ids = list(invoice.sale_links.values_list("sale_id", flat=True))
+        balance = sum(
+            (row.outstanding for row in receivables.sale_receivables(organization, sale_ids=invoice_sale_ids)), ZERO
+        )
+    else:
+        balance = receivables.customer_balance(organization, customer.pk).balance
+    try:
+        typed = checked_amount(expected)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"expected_amount": str(error)}) from None
+    if balance <= 0:
+        if invoice is not None:
+            raise ValidationError(_("Cette facture ne demande plus rien : aucun écart à abandonner."))
+        raise ValidationError(_("Ce client ne doit rien : son solde n'est pas positif, rien à remettre à zéro."))
+    if typed != balance:
+        raise ValidationError(
+            {
+                "expected_amount": _("Le solde est de %(balance)s DT, pas %(typed)s DT : vérifiez le montant.")
+                % {"balance": display_money(balance), "typed": display_money(typed)}
+            }
+        )
+    reason = reason.strip()[:255]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison de la remise à zéro.")})
+    shares = partnership_services.checked_write_off_lot_shares(
+        organization,
+        total=balance,
+        shares=list(lot_shares or []),
+        candidates=selectors.customer_lots(organization, customer_id=customer.pk, sale_ids=invoice_sale_ids),
+    )
+    write_off = CustomerBalanceWriteOff.objects.create(
+        organization=organization,
+        customer=customer,
+        invoice=invoice,
+        written_on=timezone.localdate(),
+        amount=balance,
+        reason=reason,
+        created_by=actor,
+    )
+    # The sales still open, oldest first, each settled by what is left; a balance above the open sales (an
+    # impayé not tied to a sale) stays on the write-off only.
+    left = balance
+    open_rows = sorted(
+        (
+            row
+            for row in receivables.sale_receivables(organization, customer_id=customer.pk, sale_ids=invoice_sale_ids)
+            if row.outstanding > 0
+        ),
+        key=lambda row: (row.document_date, row.sale_id),
+    )
+    for row in open_rows:
+        if left <= 0:
+            break
+        part = min(left, row.outstanding)
+        CustomerWriteOffAllocation.objects.create(
+            organization=organization, write_off=write_off, sale_id=row.sale_id, amount=part
+        )
+        left -= part
+    for sale in Sale.objects.filter(pk__in=[row.sale_id for row in open_rows]).select_related("organization"):
+        refresh_sale_due(sale)
+    for batch_id, amount in shares:
+        CustomerWriteOffLotShare.objects.create(
+            organization=organization, write_off=write_off, batch_id=batch_id, amount=amount
+        )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer.balance_written_off" if invoice is None else "invoice.gap_written_off",
+        target=write_off,
+        after={
+            "customer": customer.name,
+            "invoice": invoice.number if invoice is not None else None,
+            "amount": str(balance),
+            "reason": reason,
+            "lots": {str(batch_id): str(amount) for batch_id, amount in shares},
+        },
+    )
+    return write_off
 
 
 def _certificate_content(upload: "UploadedFile[bytes]") -> tuple[ContentFile[bytes], str]:

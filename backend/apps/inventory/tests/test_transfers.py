@@ -643,6 +643,7 @@ def test_a_driver_sees_the_stock_and_price_of_their_truck(organization, actor, c
         {
             "product_id": dorade.pk,
             "product_name": "Dorade royale",
+            "product_name_ar": "",
             "quantity": "12.000",
             "unit_price": "28.000",
             # No photo yet: the driver app shows a plain mark.

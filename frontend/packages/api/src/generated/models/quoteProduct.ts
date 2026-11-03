@@ -9,4 +9,5 @@ export interface QuoteProduct {
   readonly id: number;
   readonly reference: string;
   readonly name: string;
+  readonly name_ar: string;
 }

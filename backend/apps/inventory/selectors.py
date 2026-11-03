@@ -98,6 +98,25 @@ def batches_of(
     return batches
 
 
+# Movements that carry the lot's value: once one has happened, the lot's price and VAT are settled (D-269).
+VALUED_KINDS = (
+    MovementKind.SALE,
+    MovementKind.CUSTOMER_RETURN,
+    MovementKind.SUPPLIER_RETURN,
+    MovementKind.LOSS,
+    MovementKind.ADJUSTMENT,
+    MovementKind.COUNT_CORRECTION,
+)
+
+
+def batch_valued_outside(organization: Organization, *, batch_id: int) -> bool:
+    """Whether a lot has moved in a way that carries its value (a sale, a loss, a return, a count or a hand
+    adjustment). A goods receipt's correction does not count: it corrects what was received (D-270)."""
+    return (
+        StockMovement.objects.for_organization(organization).filter(batch_id=batch_id, kind__in=VALUED_KINDS).exists()
+    )
+
+
 def batch_of(organization: Organization, batch_id: int) -> Batch:
     """One batch. Raises Batch.DoesNotExist outside the organization."""
     return batches_of(organization).get(pk=batch_id)
@@ -470,6 +489,16 @@ def on_hand_differences(organization: Organization) -> list[OnHandDifference]:
         return [OnHandDifference(*row) for row in cursor.fetchall()]
 
 
+def active_cold_rooms(organization: Organization) -> list[StockLocation]:
+    """The active cold rooms, by id: a load "from the cold rooms" empties the first one first (D-174), and a truck
+    gives its stock back to the first one (D-239)."""
+    return list(
+        StockLocation.objects.for_organization(organization)
+        .filter(kind=LocationKind.COLD_ROOM, is_active=True)
+        .order_by("id")
+    )
+
+
 def location_stock_at(organization: Organization, *, location_id: int, moment: dt.datetime) -> list[dict[str, Any]]:
     """What one location held just before `moment` per product, from the ledger: every movement dated
     (`occurred_at`) before it. Same keys as `location_stock`. Read at the moment a driver's day starts, it is
@@ -753,9 +782,10 @@ COUNT_SHEET_ORDER = ("product__name", "batch__received_on", "id")
 
 
 def counts_of(
-    organization: Organization, *, status: str | None = None, location_id: int | None = None
+    organization: Organization, *, status: str | None = None, location_id: int | None = None, search: str = ""
 ) -> QuerySet[StockCount]:
-    """Stock counts newest first, with their location and lines (batch and product)."""
+    """Stock counts newest first, with their location and lines (batch and product). `search` matches the
+    number and the place."""
     lines = StockCountLine.objects.select_related("batch", "product").order_by(*COUNT_SHEET_ORDER)
     counts = (
         StockCount.objects.for_organization(organization)
@@ -767,6 +797,8 @@ def counts_of(
         counts = counts.filter(status=status)
     if location_id is not None:
         counts = counts.filter(location_id=location_id)
+    if search := search.strip():
+        counts = counts.filter(Q(number__icontains=search) | Q(location__name__icontains=search))
     return counts
 
 

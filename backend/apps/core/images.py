@@ -29,7 +29,9 @@ def reencoded_photo(upload: UploadedFile[bytes], *, field: str = "photo") -> Con
             if image.width * image.height > MAX_PHOTO_PIXELS:
                 raise ValidationError({field: _("La photo est trop grande.")})
             upright = ImageOps.exif_transpose(image)
-            upright = upright.convert("RGBA" if "A" in upright.getbands() else "RGB")
+            # A palette PNG keeps its transparent colour in `info`: without RGBA it turns black (seen on a logo, D-282).
+            see_through = "A" in upright.getbands() or "transparency" in upright.info
+            upright = upright.convert("RGBA" if see_through else "RGB")
             upright.thumbnail((PHOTO_SIDE, PHOTO_SIDE))
             buffer = io.BytesIO()
             upright.save(buffer, format="WEBP", quality=82, method=4)

@@ -106,7 +106,7 @@ def sale(organization, manager, setup):
 
 @pytest.fixture
 def invoice(sale, manager):
-    return sales.create_invoice(sale=sale, actor=manager.user, issue=True)
+    return sales.create_invoice(apply_vat=True, sale=sale, actor=manager.user, issue=True)
 
 
 def url(kind, object_id, **query):
@@ -207,7 +207,7 @@ def test_the_invoice_follows_the_paper_form(organization, invoice):
 
 
 def test_the_frais_box_prints_the_invoice_fees(organization, sale, manager):
-    invoice = sales.create_invoice(sale=sale, actor=manager.user, issue=True, fees="7.250")
+    invoice = sales.create_invoice(apply_vat=True, sale=sale, actor=manager.user, issue=True, fees="7.250")
 
     html = services.render_html(services.printable(organization, "invoice", invoice.pk))
 
@@ -297,7 +297,7 @@ def test_every_document_has_the_invoice_header_and_footer(organization, invoice,
 
 
 def test_a_draft_invoice_has_no_pdf(organization, sale, manager):
-    draft = sales.create_invoice(sale=sale, actor=manager.user)
+    draft = sales.create_invoice(apply_vat=True, sale=sale, actor=manager.user)
 
     with pytest.raises(Exception, match="brouillon"):
         services.printable(organization, "invoice", draft.pk)
@@ -437,7 +437,7 @@ def test_the_api_answers_404_for_unknown_kinds_and_other_organizations(api, invo
 
 
 def test_a_draft_invoice_is_refused_with_a_reason(api, sale, manager):
-    draft = sales.create_invoice(sale=sale, actor=manager.user)
+    draft = sales.create_invoice(apply_vat=True, sale=sale, actor=manager.user)
 
     response = api.get(url("invoice", draft.pk))
 

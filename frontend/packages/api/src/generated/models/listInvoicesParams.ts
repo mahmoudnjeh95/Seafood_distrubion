@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ListInvoicesPaymentState } from './listInvoicesPaymentState';
 import type { ListInvoicesStatus } from './listInvoicesStatus';
 
 export type ListInvoicesParams = {
@@ -21,6 +22,17 @@ limit?: number;
  * L'index initial depuis lequel retourner les résultats.
  */
 offset?: number;
+/**
+ * Column to sort by; a leading `-` sorts descending.
+ */
+ordering?: string;
+/**
+ * * `unpaid` - unpaid
+ * * `partial` - partial
+ * * `paid` - paid
+ * @minLength 1
+ */
+payment_state?: ListInvoicesPaymentState;
 /**
  * @minimum 1
  */

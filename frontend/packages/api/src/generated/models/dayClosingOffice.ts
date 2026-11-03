@@ -11,6 +11,7 @@ import type { DayClosingStatusEnum } from './dayClosingStatusEnum';
  */
 export interface DayClosingOffice {
   readonly id: number;
+  readonly driver_day_id: number;
   readonly date: string;
   readonly truck_name: string;
   readonly driver_name: string;

@@ -30,7 +30,9 @@ import type {
   AdjustmentWrite,
   AllocateWrite,
   ApprovedMonth,
+  BalanceWriteOff,
   Bank,
+  BankStatementLine,
   BankWrite,
   Batch,
   BatchSales,
@@ -40,6 +42,7 @@ import type {
   CashCount,
   CashCountWrite,
   CashFlow,
+  CashLimit,
   Category,
   ChangePassword,
   CloseLot,
@@ -62,6 +65,7 @@ import type {
   CustomerPaymentTotals,
   CustomerPaymentWrite,
   CustomerWrite,
+  CustomerWriteOffWrite,
   Dashboard,
   DayClosingApprove,
   DayClosingCorrect,
@@ -69,6 +73,7 @@ import type {
   DayClosingDetail,
   DayClosingRow,
   DayClosingWrite,
+  DayExpenseDecision,
   DayFund,
   DayFundRow,
   DayFundWrite,
@@ -79,6 +84,7 @@ import type {
   DayOverviewDetail,
   DayOverviewDriver,
   DayOverviewRow,
+  DayReturnToStock,
   DayRoute,
   Deliver,
   Deposit,
@@ -92,6 +98,7 @@ import type {
   EmailWrite,
   Employee,
   EmployeeWrite,
+  EstimateInvoiceParams,
   ExpenseCategory,
   ExpenseCategoryWrite,
   ExpenseDetail,
@@ -102,11 +109,15 @@ import type {
   ExportAccountStatementParams,
   ExportCashFlowReportParams,
   ExportCustomerPaymentsParams,
+  ExportExpensesParams,
+  ExportInvoicesParams,
   ExportLossesReportParams,
   ExportMonthResultReportParams,
   ExportPartnerReportParams,
+  ExportSalesParams,
   ExportSalesReportParams,
   ExportSlowMovingReportParams,
+  ExportSupplierInvoicesParams,
   ExportSupplierPaymentsParams,
   FieldPurchase,
   FieldPurchaseCreate,
@@ -132,6 +143,7 @@ import type {
   GetMonthResultReportParams,
   GetPartnerReportParams,
   GetPayrollSummaryParams,
+  GetReconciliationSummaryParams,
   GetSalesReportParams,
   GetSlowMovingReportParams,
   GetSupplierPaymentTotalsParams,
@@ -147,6 +159,7 @@ import type {
   InvoiceChoices,
   InvoiceCreate,
   InvoiceDetail,
+  InvoiceEstimate,
   Justification,
   LastCost,
   ListAccountTransfersParams,
@@ -177,6 +190,8 @@ import type {
   ListLossesParams,
   ListLotFiguresParams,
   ListLotWorkDaysParams,
+  ListMatchCandidatesParams,
+  ListMovementsOfParams,
   ListMovementsParams,
   ListMyCustomersParams,
   ListMyPurchaseCostsParams,
@@ -192,6 +207,7 @@ import type {
   ListSalaryPaymentsParams,
   ListSalaryRecordsParams,
   ListSalesParams,
+  ListStatementLinesParams,
   ListSupplierInvoicesParams,
   ListSupplierPaymentsParams,
   ListSupplierSettlementsParams,
@@ -213,6 +229,7 @@ import type {
   LossWrite,
   LotCosts,
   LotFigure,
+  LotPartnershipAdvance,
   LotPartnershipCancel,
   LotPartnershipDetail,
   LotPartnershipWrite,
@@ -221,6 +238,8 @@ import type {
   LotWorkDay,
   LotWorkDayWrite,
   MarkRead,
+  MatchCandidate,
+  MatchWrite,
   Member,
   MemberCreate,
   MemberPasswordReset,
@@ -228,6 +247,7 @@ import type {
   MonthResult,
   MonthRow,
   MonthView,
+  MovementOf,
   MyBoxDay,
   MyBoxPickupWrite,
   MyCustomerWrite,
@@ -247,6 +267,7 @@ import type {
   OrderWrite,
   Organization,
   PaginatedAccountTransferList,
+  PaginatedBankStatementLineList,
   PaginatedBatchList,
   PaginatedBoxMovementList,
   PaginatedCashCountList,
@@ -272,6 +293,7 @@ import type {
   PaginatedWebRequestList,
   PartnerBalances,
   PartnerReport,
+  PartyDocuments,
   PatchedCategory,
   PatchedCustomerWrite,
   PatchedEmployeeWrite,
@@ -289,6 +311,7 @@ import type {
   PatchedTruckWrite,
   PatchedUpdateProfile,
   PaymentAllocate,
+  PaymentOrderNotice,
   PaymentTotals,
   PaymentVoid,
   PayrollSummary,
@@ -298,19 +321,24 @@ import type {
   PriceBoard,
   PriceList,
   PriceListWrite,
+  PrimeWrite,
   Product,
   ProductCreate,
   ProductPrice,
   ProductStockDetail,
   ProfilePhotoUpload,
-  PurchaseFloat,
+  PurchaseFloatChange,
   QuoteConvert,
   QuoteDetail,
   QuoteRefuse,
   QuoteWrite,
   Receipt,
+  ReceiptHeader,
+  ReceiptRevisionWrite,
   ReceiptWrite,
   ReceivablesAgeing,
+  Recipient,
+  ReconciliationSummary,
   RecurringCost,
   RecurringCostWrite,
   ReopenLot,
@@ -345,6 +373,10 @@ import type {
   SiteRequestReceived,
   SiteSettings,
   SlowReport,
+  StatementImport,
+  StatementImportReport,
+  StatementLineParty,
+  StockAdjustmentWrite,
   StockCheckHealth,
   StockLocation,
   StockLocationCreate,
@@ -4182,6 +4214,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRestoreCustomerMutationOptions(options), queryClient);
     }
 
+export const getWriteOffCustomerBalanceUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/v1/customers/${customerId}/write-off`
+}
+
+/**
+ * Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+ */
+export const writeOffCustomerBalance = async (customerId: number,
+    customerWriteOffWrite: CustomerWriteOffWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerBalance> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerBalance>(getWriteOffCustomerBalanceUrl(customerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerWriteOffWrite)
+  }
+);}
+
+
+
+
+
+export const getWriteOffCustomerBalanceMutationKey = () => ['writeOffCustomerBalance'] as const;
+
+export const getWriteOffCustomerBalanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffCustomerBalance>>, TError,WriteOffCustomerBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeOffCustomerBalance>>, TError,WriteOffCustomerBalanceMutationVariables, TContext> => {
+
+const mutationKey = getWriteOffCustomerBalanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeOffCustomerBalance>>, WriteOffCustomerBalanceMutationVariables> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  writeOffCustomerBalance(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteOffCustomerBalanceMutationResult = NonNullable<Awaited<ReturnType<typeof writeOffCustomerBalance>>>
+    export type WriteOffCustomerBalanceMutationBody = CustomerWriteOffWrite
+    export type WriteOffCustomerBalanceMutationError = unknown
+    export type WriteOffCustomerBalanceMutationVariables = {customerId: number;data: CustomerWriteOffWrite}
+
+    export const useWriteOffCustomerBalance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffCustomerBalance>>, TError,WriteOffCustomerBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeOffCustomerBalance>>,
+        TError,
+        WriteOffCustomerBalanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteOffCustomerBalanceMutationOptions(options), queryClient);
+    }
+
 export const getGetDashboardUrl = () => {
 
 
@@ -4853,7 +4972,8 @@ export const getListDayFundsUrl = (params?: ListDayFundsParams,) => {
 }
 
 /**
- * Every active driver with the cash set for them on a day (today by default) and whether they started.
+ * Every active driver with the cash set for them on a day (today by default), whether they started and whether
+ * their closing is sent.
  */
 export const listDayFunds = async (params?: ListDayFundsParams, options?: Parameters<typeof apiFetch>[1]): Promise<DayFundRow[]> => {
 
@@ -4951,7 +5071,8 @@ export const getSetDayFundUrl = () => {
 }
 
 /**
- * Set the cash handed to a driver for a day (D-203); it changes until the driver accepts it.
+ * Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+ * the money for purchases changes, and only here (D-248).
  */
 export const setDayFund = async (dayFundWrite: DayFundWrite, options?: Parameters<typeof apiFetch>[1]): Promise<DayFund> => {
 
@@ -5856,6 +5977,257 @@ export function useGetDayOverview<TData = Awaited<ReturnType<typeof getDayOvervi
 
 
 
+
+export const getDecideDayOverviewExpenseUrl = (dayId: number,
+    expenseId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/expenses/${expenseId}/decide`
+}
+
+/**
+ * Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+ * A sent day whose figures move is corrected with a revision.
+ */
+export const decideDayOverviewExpense = async (dayId: number,
+    expenseId: number,
+    dayExpenseDecision: DayExpenseDecision, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayOverviewDetail>(getDecideDayOverviewExpenseUrl(dayId,expenseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayExpenseDecision)
+  }
+);}
+
+
+
+
+
+export const getDecideDayOverviewExpenseMutationKey = () => ['decideDayOverviewExpense'] as const;
+
+export const getDecideDayOverviewExpenseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideDayOverviewExpense>>, TError,DecideDayOverviewExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideDayOverviewExpense>>, TError,DecideDayOverviewExpenseMutationVariables, TContext> => {
+
+const mutationKey = getDecideDayOverviewExpenseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideDayOverviewExpense>>, DecideDayOverviewExpenseMutationVariables> = (props) => {
+          const {dayId,expenseId,data} = props ?? {};
+
+          return  decideDayOverviewExpense(dayId,expenseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideDayOverviewExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof decideDayOverviewExpense>>>
+    export type DecideDayOverviewExpenseMutationBody = DayExpenseDecision
+    export type DecideDayOverviewExpenseMutationError = unknown
+    export type DecideDayOverviewExpenseMutationVariables = {dayId: number;expenseId: number;data: DayExpenseDecision}
+
+    export const useDecideDayOverviewExpense = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideDayOverviewExpense>>, TError,DecideDayOverviewExpenseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decideDayOverviewExpense>>,
+        TError,
+        DecideDayOverviewExpenseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideDayOverviewExpenseMutationOptions(options), queryClient);
+    }
+
+export const getValidateDayOverviewPurchaseUrl = (dayId: number,
+    purchaseId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/purchases/${purchaseId}/validate`
+}
+
+/**
+ * Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+ * while the purchase is not complete (supplier, products, place).
+ */
+export const validateDayOverviewPurchase = async (dayId: number,
+    purchaseId: number, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+  return apiFetch<DayOverviewDetail>(getValidateDayOverviewPurchaseUrl(dayId,purchaseId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getValidateDayOverviewPurchaseMutationKey = () => ['validateDayOverviewPurchase'] as const;
+
+export const getValidateDayOverviewPurchaseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, TError,ValidateDayOverviewPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, TError,ValidateDayOverviewPurchaseMutationVariables, TContext> => {
+
+const mutationKey = getValidateDayOverviewPurchaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, ValidateDayOverviewPurchaseMutationVariables> = (props) => {
+          const {dayId,purchaseId} = props ?? {};
+
+          return  validateDayOverviewPurchase(dayId,purchaseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateDayOverviewPurchaseMutationResult = NonNullable<Awaited<ReturnType<typeof validateDayOverviewPurchase>>>
+
+    export type ValidateDayOverviewPurchaseMutationError = unknown
+    export type ValidateDayOverviewPurchaseMutationVariables = {dayId: number;purchaseId: number}
+
+    export const useValidateDayOverviewPurchase = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateDayOverviewPurchase>>, TError,ValidateDayOverviewPurchaseMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof validateDayOverviewPurchase>>,
+        TError,
+        ValidateDayOverviewPurchaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getValidateDayOverviewPurchaseMutationOptions(options), queryClient);
+    }
+
+export const getReturnDayOverviewToStockUrl = (dayId: number,) => {
+
+
+
+
+  return `/api/v1/day-overview/${dayId}/return-to-stock`
+}
+
+/**
+ * Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+ * manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+ * driver sent the day; only on the truck's latest day.
+ */
+export const returnDayOverviewToStock = async (dayId: number,
+    dayReturnToStock?: DayReturnToStock, options?: Parameters<typeof apiFetch>[1]): Promise<DayOverviewDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<DayOverviewDetail>(getReturnDayOverviewToStockUrl(dayId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dayReturnToStock)
+  }
+);}
+
+
+
+
+
+export const getReturnDayOverviewToStockMutationKey = () => ['returnDayOverviewToStock'] as const;
+
+export const getReturnDayOverviewToStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext> => {
+
+const mutationKey = getReturnDayOverviewToStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof returnDayOverviewToStock>>, ReturnDayOverviewToStockMutationVariables> = (props) => {
+          const {dayId,data} = props ?? {};
+
+          return  returnDayOverviewToStock(dayId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReturnDayOverviewToStockMutationResult = NonNullable<Awaited<ReturnType<typeof returnDayOverviewToStock>>>
+    export type ReturnDayOverviewToStockMutationBody = DayReturnToStock | undefined
+    export type ReturnDayOverviewToStockMutationError = unknown
+    export type ReturnDayOverviewToStockMutationVariables = {dayId: number;data?: DayReturnToStock}
+
+    export const useReturnDayOverviewToStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof returnDayOverviewToStock>>, TError,ReturnDayOverviewToStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof returnDayOverviewToStock>>,
+        TError,
+        ReturnDayOverviewToStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReturnDayOverviewToStockMutationOptions(options), queryClient);
+    }
 
 export const getGetDayRouteUrl = (dayId: number,) => {
 
@@ -8432,6 +8804,111 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRejectExpenseMutationOptions(options), queryClient);
     }
 
+export const getExportExpensesUrl = (params?: ExportExpensesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/expenses/export?${stringifiedParams}` : `/api/v1/expenses/export`
+}
+
+/**
+ * The expenses of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportExpenses = async (params?: ExportExpensesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportExpensesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportExpensesQueryKey = (params?: ExportExpensesParams,) => {
+    return [
+    `/api/v1/expenses/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportExpensesQueryOptions = <TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportExpensesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportExpenses>>> = ({ signal }) => exportExpenses(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportExpensesQueryResult = NonNullable<Awaited<ReturnType<typeof exportExpenses>>>
+export type ExportExpensesQueryError = unknown
+
+
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params: undefined |  ExportExpensesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof exportExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportExpenses>>,
+          TError,
+          Awaited<ReturnType<typeof exportExpenses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportExpenses<TData = Awaited<ReturnType<typeof exportExpenses>>, TError = unknown>(
+ params?: ExportExpensesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportExpenses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportExpensesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetExpenseTotalsUrl = (params?: GetExpenseTotalsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -9845,7 +10322,8 @@ export const getCreateInvoiceUrl = () => {
 /**
  * Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
  * once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
- * `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+ * `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
+ * every typed value is flagged and audited. Errors:
  * `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
  */
 export const createInvoice = async (invoiceCreate?: InvoiceCreate, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {
@@ -10269,6 +10747,94 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreateCreditNoteMutationOptions(options), queryClient);
     }
 
+export const getGiveUpInvoiceGapUrl = (invoiceId: number,) => {
+
+
+
+
+  return `/api/v1/invoices/${invoiceId}/give-up-gap`
+}
+
+/**
+ * Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
+ * amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
+ * its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards.
+ */
+export const giveUpInvoiceGap = async (invoiceId: number,
+    customerWriteOffWrite: CustomerWriteOffWrite, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<InvoiceDetail>(getGiveUpInvoiceGapUrl(invoiceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerWriteOffWrite)
+  }
+);}
+
+
+
+
+
+export const getGiveUpInvoiceGapMutationKey = () => ['giveUpInvoiceGap'] as const;
+
+export const getGiveUpInvoiceGapMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof giveUpInvoiceGap>>, TError,GiveUpInvoiceGapMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof giveUpInvoiceGap>>, TError,GiveUpInvoiceGapMutationVariables, TContext> => {
+
+const mutationKey = getGiveUpInvoiceGapMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof giveUpInvoiceGap>>, GiveUpInvoiceGapMutationVariables> = (props) => {
+          const {invoiceId,data} = props ?? {};
+
+          return  giveUpInvoiceGap(invoiceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GiveUpInvoiceGapMutationResult = NonNullable<Awaited<ReturnType<typeof giveUpInvoiceGap>>>
+    export type GiveUpInvoiceGapMutationBody = CustomerWriteOffWrite
+    export type GiveUpInvoiceGapMutationError = unknown
+    export type GiveUpInvoiceGapMutationVariables = {invoiceId: number;data: CustomerWriteOffWrite}
+
+    export const useGiveUpInvoiceGap = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof giveUpInvoiceGap>>, TError,GiveUpInvoiceGapMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof giveUpInvoiceGap>>,
+        TError,
+        GiveUpInvoiceGapMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGiveUpInvoiceGapMutationOptions(options), queryClient);
+    }
+
 export const getIssueInvoiceUrl = (invoiceId: number,) => {
 
 
@@ -10429,6 +10995,217 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRecordWithholdingCertificateMutationOptions(options), queryClient);
     }
+
+export const getEstimateInvoiceUrl = (params: EstimateInvoiceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/invoices/estimate?${stringifiedParams}` : `/api/v1/invoices/estimate`
+}
+
+/**
+ * What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+ * stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256).
+ */
+export const estimateInvoice = async (params: EstimateInvoiceParams, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceEstimate> => {
+
+  return apiFetch<InvoiceEstimate>(getEstimateInvoiceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEstimateInvoiceQueryKey = (params?: EstimateInvoiceParams,) => {
+    return [
+    `/api/v1/invoices/estimate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getEstimateInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEstimateInvoiceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof estimateInvoice>>> = ({ signal }) => estimateInvoice(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type EstimateInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof estimateInvoice>>>
+export type EstimateInvoiceQueryError = unknown
+
+
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof estimateInvoice>>,
+          TError,
+          Awaited<ReturnType<typeof estimateInvoice>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof estimateInvoice>>,
+          TError,
+          Awaited<ReturnType<typeof estimateInvoice>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useEstimateInvoice<TData = Awaited<ReturnType<typeof estimateInvoice>>, TError = unknown>(
+ params: EstimateInvoiceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estimateInvoice>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getEstimateInvoiceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportInvoicesUrl = (params?: ExportInvoicesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/invoices/export?${stringifiedParams}` : `/api/v1/invoices/export`
+}
+
+/**
+ * The invoices of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportInvoices = async (params?: ExportInvoicesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportInvoicesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportInvoicesQueryKey = (params?: ExportInvoicesParams,) => {
+    return [
+    `/api/v1/invoices/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportInvoicesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportInvoices>>> = ({ signal }) => exportInvoices(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof exportInvoices>>>
+export type ExportInvoicesQueryError = unknown
+
+
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params: undefined |  ExportInvoicesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoices>>, TError = unknown>(
+ params?: ExportInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportInvoicesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListLocationsUrl = (params?: ListLocationsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -14715,6 +15492,105 @@ export function useGetMyBoxDay<TData = Awaited<ReturnType<typeof getMyBoxDay>>, 
 
 
 
+export const getGetMyCashLimitUrl = () => {
+
+
+
+
+  return `/api/v1/my-cash-limit`
+}
+
+/**
+ * The amount from which a cash collection needs the driver's confirmation (D-273, D-280): the phone asks
+ * before sending, and keeps the answer for when it has no connection.
+ */
+export const getMyCashLimit = async ( options?: Parameters<typeof apiFetch>[1]): Promise<CashLimit> => {
+
+  return apiFetch<CashLimit>(getGetMyCashLimitUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyCashLimitQueryKey = () => {
+    return [
+    `/api/v1/my-cash-limit`
+    ] as const;
+    }
+
+
+export const getGetMyCashLimitQueryOptions = <TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyCashLimitQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCashLimit>>> = ({ signal }) => getMyCashLimit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyCashLimitQueryResult = NonNullable<Awaited<ReturnType<typeof getMyCashLimit>>>
+export type GetMyCashLimitQueryError = unknown
+
+
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyCashLimit>>,
+          TError,
+          Awaited<ReturnType<typeof getMyCashLimit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyCashLimit>>,
+          TError,
+          Awaited<ReturnType<typeof getMyCashLimit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyCashLimit<TData = Awaited<ReturnType<typeof getMyCashLimit>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCashLimit>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyCashLimitQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListMyCustomersUrl = (params?: ListMyCustomersParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -15448,40 +16324,26 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRecordMyLocationsMutationOptions(options), queryClient);
     }
 
-export const getSetMyPurchaseFloatUrl = () => {
+export const getGetMyPurchaseChangeUrl = () => {
 
 
 
 
-  return `/api/v1/my-day/purchase-float`
+  return `/api/v1/my-day/purchase-change`
 }
 
 /**
- * The money the office gave for purchases at the port today, typed again when it gives more (D-158).
- * 404 before the day is started; refused once its closing is sent.
+ * The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+ * 404: nothing waits.
  */
-export const setMyPurchaseFloat = async (purchaseFloat: PurchaseFloat, options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+export const getMyPurchaseChange = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PurchaseFloatChange> => {
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<DriverDay>(getSetMyPurchaseFloatUrl(),
+  return apiFetch<PurchaseFloatChange>(getGetMyPurchaseChangeUrl(),
   {
     ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(purchaseFloat)
+    method: 'GET'
+
+
   }
 );}
 
@@ -15489,13 +16351,112 @@ return apiFetch<DriverDay>(getSetMyPurchaseFloatUrl(),
 
 
 
-export const getSetMyPurchaseFloatMutationKey = () => ['setMyPurchaseFloat'] as const;
+export const getGetMyPurchaseChangeQueryKey = () => {
+    return [
+    `/api/v1/my-day/purchase-change`
+    ] as const;
+    }
 
-export const getSetMyPurchaseFloatMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext> => {
 
-const mutationKey = getSetMyPurchaseFloatMutationKey();
+export const getGetMyPurchaseChangeQueryOptions = <TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPurchaseChangeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPurchaseChange>>> = ({ signal }) => getMyPurchaseChange({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyPurchaseChangeQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPurchaseChange>>>
+export type GetMyPurchaseChangeQueryError = unknown
+
+
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyPurchaseChange>>,
+          TError,
+          Awaited<ReturnType<typeof getMyPurchaseChange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyPurchaseChange>>,
+          TError,
+          Awaited<ReturnType<typeof getMyPurchaseChange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyPurchaseChange<TData = Awaited<ReturnType<typeof getMyPurchaseChange>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyPurchaseChange>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyPurchaseChangeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveMyPurchaseChangeUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/purchase-change/approve`
+}
+
+/**
+ * The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+ * once. 404 before the day is started.
+ */
+export const approveMyPurchaseChange = async ( options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+
+  return apiFetch<DriverDay>(getApproveMyPurchaseChangeUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveMyPurchaseChangeMutationKey = () => ['approveMyPurchaseChange'] as const;
+
+export const getApproveMyPurchaseChangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMyPurchaseChange>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveMyPurchaseChange>>, TError,void, TContext> => {
+
+const mutationKey = getApproveMyPurchaseChangeMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -15505,10 +16466,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMyPurchaseFloat>>, SetMyPurchaseFloatMutationVariables> = (props) => {
-          const {data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveMyPurchaseChange>>, void> = () => {
 
-          return  setMyPurchaseFloat(data,requestOptions)
+
+          return  approveMyPurchaseChange(requestOptions)
         }
 
 
@@ -15518,20 +16479,92 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type SetMyPurchaseFloatMutationResult = NonNullable<Awaited<ReturnType<typeof setMyPurchaseFloat>>>
-    export type SetMyPurchaseFloatMutationBody = PurchaseFloat
-    export type SetMyPurchaseFloatMutationError = unknown
-    export type SetMyPurchaseFloatMutationVariables = {data: PurchaseFloat}
+    export type ApproveMyPurchaseChangeMutationResult = NonNullable<Awaited<ReturnType<typeof approveMyPurchaseChange>>>
 
-    export const useSetMyPurchaseFloat = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyPurchaseFloat>>, TError,SetMyPurchaseFloatMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+    export type ApproveMyPurchaseChangeMutationError = unknown
+
+
+    export const useApproveMyPurchaseChange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveMyPurchaseChange>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof setMyPurchaseFloat>>,
+        Awaited<ReturnType<typeof approveMyPurchaseChange>>,
         TError,
-        SetMyPurchaseFloatMutationVariables,
+        void,
         TContext
       > => {
-      return useMutation(getSetMyPurchaseFloatMutationOptions(options), queryClient);
+      return useMutation(getApproveMyPurchaseChangeMutationOptions(options), queryClient);
+    }
+
+export const getResumeMyDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/resume`
+}
+
+/**
+ * The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+ * day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today.
+ */
+export const resumeMyDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+
+  return apiFetch<DriverDay>(getResumeMyDayUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeMyDayMutationKey = () => ['resumeMyDay'] as const;
+
+export const getResumeMyDayMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMyDay>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeMyDay>>, TError,void, TContext> => {
+
+const mutationKey = getResumeMyDayMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeMyDay>>, void> = () => {
+
+
+          return  resumeMyDay(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeMyDayMutationResult = NonNullable<Awaited<ReturnType<typeof resumeMyDay>>>
+
+    export type ResumeMyDayMutationError = unknown
+
+
+    export const useResumeMyDay = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMyDay>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resumeMyDay>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResumeMyDayMutationOptions(options), queryClient);
     }
 
 export const getListMyDaysUrl = () => {
@@ -16091,6 +17124,105 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getNotDeliveredMyDeliveryMutationOptions(options), queryClient);
     }
+
+export const getListMyDeliveredUrl = () => {
+
+
+
+
+  return `/api/v1/my-deliveries/done`
+}
+
+/**
+ * The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+ * shows them again on the sale screen and prints their receipt again (D-281).
+ */
+export const listMyDelivered = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail[]> => {
+
+  return apiFetch<SaleDetail[]>(getListMyDeliveredUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyDeliveredQueryKey = () => {
+    return [
+    `/api/v1/my-deliveries/done`
+    ] as const;
+    }
+
+
+export const getListMyDeliveredQueryOptions = <TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyDeliveredQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyDelivered>>> = ({ signal }) => listMyDelivered({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyDeliveredQueryResult = NonNullable<Awaited<ReturnType<typeof listMyDelivered>>>
+export type ListMyDeliveredQueryError = unknown
+
+
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDelivered>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDelivered>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDelivered>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDelivered>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyDeliveredQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListRoadCategoriesUrl = () => {
 
@@ -17103,6 +18235,106 @@ export function useListMyPurchaseCosts<TData = Awaited<ReturnType<typeof listMyP
 
 
 
+export const getGetMyReceiptHeaderUrl = () => {
+
+
+
+
+  return `/api/v1/my-receipt-header`
+}
+
+/**
+ * The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+ * fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+ * for printing without a connection.
+ */
+export const getMyReceiptHeader = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ReceiptHeader> => {
+
+  return apiFetch<ReceiptHeader>(getGetMyReceiptHeaderUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyReceiptHeaderQueryKey = () => {
+    return [
+    `/api/v1/my-receipt-header`
+    ] as const;
+    }
+
+
+export const getGetMyReceiptHeaderQueryOptions = <TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyReceiptHeaderQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyReceiptHeader>>> = ({ signal }) => getMyReceiptHeader({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyReceiptHeaderQueryResult = NonNullable<Awaited<ReturnType<typeof getMyReceiptHeader>>>
+export type GetMyReceiptHeaderQueryError = unknown
+
+
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyReceiptHeader>>,
+          TError,
+          Awaited<ReturnType<typeof getMyReceiptHeader>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyReceiptHeader>>,
+          TError,
+          Awaited<ReturnType<typeof getMyReceiptHeader>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyReceiptHeaderQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getReturnMyStockUrl = () => {
 
 
@@ -17648,6 +18880,191 @@ export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetMyTruckDayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getNotifyPaymentOrderUrl = (planLineId: number,) => {
+
+
+
+
+  return `/api/v1/notifications/payment-orders/${planLineId}`
+}
+
+/**
+ * Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
+ * and it opens the supplier règlements.
+ */
+export const notifyPaymentOrder = async (planLineId: number,
+    paymentOrderNotice: PaymentOrderNotice, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getNotifyPaymentOrderUrl(planLineId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentOrderNotice)
+  }
+);}
+
+
+
+
+
+export const getNotifyPaymentOrderMutationKey = () => ['notifyPaymentOrder'] as const;
+
+export const getNotifyPaymentOrderMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notifyPaymentOrder>>, TError,NotifyPaymentOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof notifyPaymentOrder>>, TError,NotifyPaymentOrderMutationVariables, TContext> => {
+
+const mutationKey = getNotifyPaymentOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notifyPaymentOrder>>, NotifyPaymentOrderMutationVariables> = (props) => {
+          const {planLineId,data} = props ?? {};
+
+          return  notifyPaymentOrder(planLineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotifyPaymentOrderMutationResult = NonNullable<Awaited<ReturnType<typeof notifyPaymentOrder>>>
+    export type NotifyPaymentOrderMutationBody = PaymentOrderNotice
+    export type NotifyPaymentOrderMutationError = unknown
+    export type NotifyPaymentOrderMutationVariables = {planLineId: number;data: PaymentOrderNotice}
+
+    export const useNotifyPaymentOrder = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notifyPaymentOrder>>, TError,NotifyPaymentOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notifyPaymentOrder>>,
+        TError,
+        NotifyPaymentOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNotifyPaymentOrderMutationOptions(options), queryClient);
+    }
+
+export const getListNoticeRecipientsUrl = () => {
+
+
+
+
+  return `/api/v1/notifications/recipients`
+}
+
+/**
+ * The people a payment order can be sent to: the active owners and managers (D-255).
+ */
+export const listNoticeRecipients = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Recipient[]> => {
+
+  return apiFetch<Recipient[]>(getListNoticeRecipientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNoticeRecipientsQueryKey = () => {
+    return [
+    `/api/v1/notifications/recipients`
+    ] as const;
+    }
+
+
+export const getListNoticeRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNoticeRecipientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNoticeRecipients>>> = ({ signal }) => listNoticeRecipients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListNoticeRecipientsQueryResult = NonNullable<Awaited<ReturnType<typeof listNoticeRecipients>>>
+export type ListNoticeRecipientsQueryError = unknown
+
+
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNoticeRecipients>>,
+          TError,
+          Awaited<ReturnType<typeof listNoticeRecipients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNoticeRecipients>>,
+          TError,
+          Awaited<ReturnType<typeof listNoticeRecipients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListNoticeRecipients<TData = Awaited<ReturnType<typeof listNoticeRecipients>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoticeRecipients>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListNoticeRecipientsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -18465,6 +19882,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdatePartnershipMutationOptions(options), queryClient);
+    }
+
+export const getAdvancePartnerCapitalUrl = (partnershipId: number,) => {
+
+
+
+
+  return `/api/v1/partnerships/${partnershipId}/advances`
+}
+
+/**
+ * Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+ * still in; the settlement pays the rest.
+ */
+export const advancePartnerCapital = async (partnershipId: number,
+    lotPartnershipAdvance: LotPartnershipAdvance, options?: Parameters<typeof apiFetch>[1]): Promise<LotPartnershipDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<LotPartnershipDetail>(getAdvancePartnerCapitalUrl(partnershipId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lotPartnershipAdvance)
+  }
+);}
+
+
+
+
+
+export const getAdvancePartnerCapitalMutationKey = () => ['advancePartnerCapital'] as const;
+
+export const getAdvancePartnerCapitalMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext> => {
+
+const mutationKey = getAdvancePartnerCapitalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof advancePartnerCapital>>, AdvancePartnerCapitalMutationVariables> = (props) => {
+          const {partnershipId,data} = props ?? {};
+
+          return  advancePartnerCapital(partnershipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdvancePartnerCapitalMutationResult = NonNullable<Awaited<ReturnType<typeof advancePartnerCapital>>>
+    export type AdvancePartnerCapitalMutationBody = LotPartnershipAdvance
+    export type AdvancePartnerCapitalMutationError = unknown
+    export type AdvancePartnerCapitalMutationVariables = {partnershipId: number;data: LotPartnershipAdvance}
+
+    export const useAdvancePartnerCapital = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advancePartnerCapital>>, TError,AdvancePartnerCapitalMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof advancePartnerCapital>>,
+        TError,
+        AdvancePartnerCapitalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdvancePartnerCapitalMutationOptions(options), queryClient);
     }
 
 export const getCancelPartnershipUrl = (partnershipId: number,) => {
@@ -21290,8 +22794,9 @@ export const getCreateReceiptUrl = () => {
 /**
  * Record goods received from a supplier: one batch per line, its accepted net weight into stock.
  * Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
- * against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
- * `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
+ * against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+ * invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+ * kept as advances the invoice takes (D-268).
  */
 export const createReceipt = async (receiptWrite: ReceiptWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
 
@@ -21461,6 +22966,94 @@ export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TE
 
 
 
+
+export const getReviseReceiptUrl = (receiptId: number,) => {
+
+
+
+
+  return `/api/v1/receipts/${receiptId}/revise`
+}
+
+/**
+ * Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+ * invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+ * it, and when `revision` is not its current one. `reason` is required. Each change stays in its history.
+ */
+export const reviseReceipt = async (receiptId: number,
+    receiptRevisionWrite: ReceiptRevisionWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Receipt>(getReviseReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(receiptRevisionWrite)
+  }
+);}
+
+
+
+
+
+export const getReviseReceiptMutationKey = () => ['reviseReceipt'] as const;
+
+export const getReviseReceiptMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviseReceipt>>, TError,ReviseReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviseReceipt>>, TError,ReviseReceiptMutationVariables, TContext> => {
+
+const mutationKey = getReviseReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviseReceipt>>, ReviseReceiptMutationVariables> = (props) => {
+          const {receiptId,data} = props ?? {};
+
+          return  reviseReceipt(receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviseReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof reviseReceipt>>>
+    export type ReviseReceiptMutationBody = ReceiptRevisionWrite
+    export type ReviseReceiptMutationError = unknown
+    export type ReviseReceiptMutationVariables = {receiptId: number;data: ReceiptRevisionWrite}
+
+    export const useReviseReceipt = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviseReceipt>>, TError,ReviseReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reviseReceipt>>,
+        TError,
+        ReviseReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviseReceiptMutationOptions(options), queryClient);
+    }
 
 export const getListReceiptDifferencesUrl = (params?: ListReceiptDifferencesParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -25416,11 +27009,11 @@ export const getAddSalaryPrimeUrl = (recordId: number,) => {
 }
 
 /**
- * Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
- * with no separate payment (D-234).
+ * Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+ * It is due on top of the salary and its payment leaves the treasury on the day paid.
  */
 export const addSalaryPrime = async (recordId: number,
-    adjustmentWrite: AdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
+    primeWrite: PrimeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SalaryAdjustment> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -25441,7 +27034,7 @@ return apiFetch<SalaryAdjustment>(getAddSalaryPrimeUrl(recordId),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(adjustmentWrite)
+    body: JSON.stringify(primeWrite)
   }
 );}
 
@@ -25479,9 +27072,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AddSalaryPrimeMutationResult = NonNullable<Awaited<ReturnType<typeof addSalaryPrime>>>
-    export type AddSalaryPrimeMutationBody = AdjustmentWrite
+    export type AddSalaryPrimeMutationBody = PrimeWrite
     export type AddSalaryPrimeMutationError = unknown
-    export type AddSalaryPrimeMutationVariables = {recordId: number;data: AdjustmentWrite}
+    export type AddSalaryPrimeMutationVariables = {recordId: number;data: PrimeWrite}
 
     export const useAddSalaryPrime = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addSalaryPrime>>, TError,AddSalaryPrimeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -25781,8 +27374,9 @@ export const getCreateSaleUrl = () => {
 
 /**
  * Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
- * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
- * who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+ * and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
+ * The office types no payment: the money comes in through a règlement of the treasurer. A driver's phone says
+ * what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
  * Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
  * day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
  * day's price, also when it was kept without connection and sent later. Within 5 minutes of the
@@ -26226,6 +27820,111 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getConfirmSaleMutationOptions(options), queryClient);
     }
+
+export const getExportSalesUrl = (params?: ExportSalesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/sales/export?${stringifiedParams}` : `/api/v1/sales/export`
+}
+
+/**
+ * The sales of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportSales = async (params?: ExportSalesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportSalesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSalesQueryKey = (params?: ExportSalesParams,) => {
+    return [
+    `/api/v1/sales/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportSalesQueryOptions = <TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSalesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSales>>> = ({ signal }) => exportSales(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportSalesQueryResult = NonNullable<Awaited<ReturnType<typeof exportSales>>>
+export type ExportSalesQueryError = unknown
+
+
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params: undefined |  ExportSalesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSales>>,
+          TError,
+          Awaited<ReturnType<typeof exportSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSales>>,
+          TError,
+          Awaited<ReturnType<typeof exportSales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportSales<TData = Awaited<ReturnType<typeof exportSales>>, TError = unknown>(
+ params?: ExportSalesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportSalesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSiteProductsUrl = () => {
 
@@ -27062,6 +28761,92 @@ export function useListProductBatches<TData = Awaited<ReturnType<typeof listProd
 
 
 
+export const getAdjustStockUrl = () => {
+
+
+
+
+  return `/api/v1/stock/adjustments`
+}
+
+/**
+ * Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+ * kilos keep the lot's cost. The answer is the product's stock again, with its new average price.
+ */
+export const adjustStock = async (stockAdjustmentWrite: StockAdjustmentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ProductStockDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ProductStockDetail>(getAdjustStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockAdjustmentWrite)
+  }
+);}
+
+
+
+
+
+export const getAdjustStockMutationKey = () => ['adjustStock'] as const;
+
+export const getAdjustStockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext> => {
+
+const mutationKey = getAdjustStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustStock>>, AdjustStockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  adjustStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustStockMutationResult = NonNullable<Awaited<ReturnType<typeof adjustStock>>>
+    export type AdjustStockMutationBody = StockAdjustmentWrite
+    export type AdjustStockMutationError = unknown
+    export type AdjustStockMutationVariables = {data: StockAdjustmentWrite}
+
+    export const useAdjustStock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustStock>>, TError,AdjustStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof adjustStock>>,
+        TError,
+        AdjustStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdjustStockMutationOptions(options), queryClient);
+    }
+
 export const getListMovementsUrl = (params?: ListMovementsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -27463,6 +29248,93 @@ export function useGetSupplierBalance<TData = Awaited<ReturnType<typeof getSuppl
 
 
 
+
+export const getWriteOffSupplierBalanceUrl = (supplierId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-balances/${supplierId}/write-off`
+}
+
+/**
+ * Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+ * typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+ */
+export const writeOffSupplierBalance = async (supplierId: number,
+    balanceWriteOff: BalanceWriteOff, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierBalance> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SupplierBalance>(getWriteOffSupplierBalanceUrl(supplierId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(balanceWriteOff)
+  }
+);}
+
+
+
+
+
+export const getWriteOffSupplierBalanceMutationKey = () => ['writeOffSupplierBalance'] as const;
+
+export const getWriteOffSupplierBalanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffSupplierBalance>>, TError,WriteOffSupplierBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeOffSupplierBalance>>, TError,WriteOffSupplierBalanceMutationVariables, TContext> => {
+
+const mutationKey = getWriteOffSupplierBalanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeOffSupplierBalance>>, WriteOffSupplierBalanceMutationVariables> = (props) => {
+          const {supplierId,data} = props ?? {};
+
+          return  writeOffSupplierBalance(supplierId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteOffSupplierBalanceMutationResult = NonNullable<Awaited<ReturnType<typeof writeOffSupplierBalance>>>
+    export type WriteOffSupplierBalanceMutationBody = BalanceWriteOff
+    export type WriteOffSupplierBalanceMutationError = unknown
+    export type WriteOffSupplierBalanceMutationVariables = {supplierId: number;data: BalanceWriteOff}
+
+    export const useWriteOffSupplierBalance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffSupplierBalance>>, TError,WriteOffSupplierBalanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeOffSupplierBalance>>,
+        TError,
+        WriteOffSupplierBalanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteOffSupplierBalanceMutationOptions(options), queryClient);
+    }
 
 export const getGetSupplierDebtsUrl = () => {
 
@@ -28255,6 +30127,111 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getPostSupplierInvoiceMutationOptions(options), queryClient);
     }
+
+export const getExportSupplierInvoicesUrl = (params?: ExportSupplierInvoicesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/supplier-invoices/export?${stringifiedParams}` : `/api/v1/supplier-invoices/export`
+}
+
+/**
+ * The supplier invoices of the same filters and sort as the list, every row, as an Excel file.
+ */
+export const exportSupplierInvoices = async (params?: ExportSupplierInvoicesParams, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getExportSupplierInvoicesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSupplierInvoicesQueryKey = (params?: ExportSupplierInvoicesParams,) => {
+    return [
+    `/api/v1/supplier-invoices/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportSupplierInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSupplierInvoicesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSupplierInvoices>>> = ({ signal }) => exportSupplierInvoices(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportSupplierInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof exportSupplierInvoices>>>
+export type ExportSupplierInvoicesQueryError = unknown
+
+
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params: undefined |  ExportSupplierInvoicesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSupplierInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportSupplierInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportSupplierInvoices>>,
+          TError,
+          Awaited<ReturnType<typeof exportSupplierInvoices>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportSupplierInvoices<TData = Awaited<ReturnType<typeof exportSupplierInvoices>>, TError = unknown>(
+ params?: ExportSupplierInvoicesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportSupplierInvoices>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportSupplierInvoicesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSupplierPaymentsUrl = (params?: ListSupplierPaymentsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -31027,6 +33004,311 @@ export function useExportAccountStatement<TData = Awaited<ReturnType<typeof expo
 
 
 
+export const getGetReconciliationSummaryUrl = (accountId: number,
+    params?: GetReconciliationSummaryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/accounts/${accountId}/reconciliation?${stringifiedParams}` : `/api/v1/treasury/accounts/${accountId}/reconciliation`
+}
+
+/**
+ * The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+ * matched, the money of those not matched yet, and our own movements the statement does not show (at most
+ * 200). It changes no balance.
+ */
+export const getReconciliationSummary = async (accountId: number,
+    params?: GetReconciliationSummaryParams, options?: Parameters<typeof apiFetch>[1]): Promise<ReconciliationSummary> => {
+
+  return apiFetch<ReconciliationSummary>(getGetReconciliationSummaryUrl(accountId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReconciliationSummaryQueryKey = (accountId: number,
+    params?: GetReconciliationSummaryParams,) => {
+    return [
+    `/api/v1/treasury/accounts/${accountId}/reconciliation`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetReconciliationSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReconciliationSummaryQueryKey(accountId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReconciliationSummary>>> = ({ signal }) => getReconciliationSummary(accountId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: accountId !== null && accountId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReconciliationSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getReconciliationSummary>>>
+export type GetReconciliationSummaryQueryError = unknown
+
+
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params: undefined |  GetReconciliationSummaryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReconciliationSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReconciliationSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReconciliationSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReconciliationSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetReconciliationSummary<TData = Awaited<ReturnType<typeof getReconciliationSummary>>, TError = unknown>(
+ accountId: number,
+    params?: GetReconciliationSummaryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReconciliationSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReconciliationSummaryQueryOptions(accountId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListStatementLinesUrl = (accountId: number,
+    params?: ListStatementLinesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/accounts/${accountId}/statement-lines?${stringifiedParams}` : `/api/v1/treasury/accounts/${accountId}/statement-lines`
+}
+
+/**
+ * The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+ * keeps only the matched lines, or only those not matched yet.
+ */
+export const listStatementLines = async (accountId: number,
+    params?: ListStatementLinesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedBankStatementLineList> => {
+
+  return apiFetch<PaginatedBankStatementLineList>(getListStatementLinesUrl(accountId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStatementLinesQueryKey = (accountId: number,
+    params?: ListStatementLinesParams,) => {
+    return [
+    `/api/v1/treasury/accounts/${accountId}/statement-lines`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListStatementLinesQueryOptions = <TData = Awaited<ReturnType<typeof listStatementLines>>, TError = unknown>(accountId: number,
+    params?: ListStatementLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStatementLines>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStatementLinesQueryKey(accountId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStatementLines>>> = ({ signal }) => listStatementLines(accountId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: accountId !== null && accountId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStatementLines>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStatementLinesQueryResult = NonNullable<Awaited<ReturnType<typeof listStatementLines>>>
+export type ListStatementLinesQueryError = unknown
+
+
+export function useListStatementLines<TData = Awaited<ReturnType<typeof listStatementLines>>, TError = unknown>(
+ accountId: number,
+    params: undefined |  ListStatementLinesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStatementLines>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStatementLines>>,
+          TError,
+          Awaited<ReturnType<typeof listStatementLines>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStatementLines<TData = Awaited<ReturnType<typeof listStatementLines>>, TError = unknown>(
+ accountId: number,
+    params?: ListStatementLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStatementLines>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStatementLines>>,
+          TError,
+          Awaited<ReturnType<typeof listStatementLines>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStatementLines<TData = Awaited<ReturnType<typeof listStatementLines>>, TError = unknown>(
+ accountId: number,
+    params?: ListStatementLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStatementLines>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListStatementLines<TData = Awaited<ReturnType<typeof listStatementLines>>, TError = unknown>(
+ accountId: number,
+    params?: ListStatementLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStatementLines>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStatementLinesQueryOptions(accountId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportBankStatementUrl = (accountId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/accounts/${accountId}/statement/import`
+}
+
+/**
+ * Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+ * or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+ * already on the account is skipped, so the same file twice adds nothing.
+ */
+export const importBankStatement = async (accountId: number,
+    statementImport: StatementImport, options?: Parameters<typeof apiFetch>[1]): Promise<StatementImportReport> => {
+    const formData = new FormData();
+formData.append(`file`, statementImport.file);
+
+  return apiFetch<StatementImportReport>(getImportBankStatementUrl(accountId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getImportBankStatementMutationKey = () => ['importBankStatement'] as const;
+
+export const getImportBankStatementMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importBankStatement>>, TError,ImportBankStatementMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importBankStatement>>, TError,ImportBankStatementMutationVariables, TContext> => {
+
+const mutationKey = getImportBankStatementMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importBankStatement>>, ImportBankStatementMutationVariables> = (props) => {
+          const {accountId,data} = props ?? {};
+
+          return  importBankStatement(accountId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportBankStatementMutationResult = NonNullable<Awaited<ReturnType<typeof importBankStatement>>>
+    export type ImportBankStatementMutationBody = StatementImport
+    export type ImportBankStatementMutationError = unknown
+    export type ImportBankStatementMutationVariables = {accountId: number;data: StatementImport}
+
+    export const useImportBankStatement = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importBankStatement>>, TError,ImportBankStatementMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importBankStatement>>,
+        TError,
+        ImportBankStatementMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportBankStatementMutationOptions(options), queryClient);
+    }
+
 export const getListBanksUrl = (params?: ListBanksParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -31784,6 +34066,106 @@ export function useGetDeposit<TData = Awaited<ReturnType<typeof getDeposit>>, TE
 
 
 
+export const getListDueAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/due-alerts`
+}
+
+/**
+ * The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+ * today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+ * 15 days before, until the bank debits it). At most 200.
+ */
+export const listDueAlerts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Instrument[]> => {
+
+  return apiFetch<Instrument[]>(getListDueAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDueAlertsQueryKey = () => {
+    return [
+    `/api/v1/treasury/due-alerts`
+    ] as const;
+    }
+
+
+export const getListDueAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDueAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDueAlerts>>> = ({ signal }) => listDueAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDueAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listDueAlerts>>>
+export type ListDueAlertsQueryError = unknown
+
+
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDueAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listDueAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDueAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listDueAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDueAlerts<TData = Awaited<ReturnType<typeof listDueAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDueAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDueAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListInstrumentsUrl = (params?: ListInstrumentsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -32335,6 +34717,643 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getWithdrawInstrumentsMutationOptions(options), queryClient);
+    }
+
+export const getListMovementsOfUrl = (params: ListMovementsOfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/movements-of?${stringifiedParams}` : `/api/v1/treasury/movements-of`
+}
+
+/**
+ * The treasury movements written by the given records of one source, each with the account it went through
+ * (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+ */
+export const listMovementsOf = async (params: ListMovementsOfParams, options?: Parameters<typeof apiFetch>[1]): Promise<MovementOf[]> => {
+
+  return apiFetch<MovementOf[]>(getListMovementsOfUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMovementsOfQueryKey = (params?: ListMovementsOfParams,) => {
+    return [
+    `/api/v1/treasury/movements-of`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMovementsOfQueryOptions = <TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMovementsOfQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMovementsOf>>> = ({ signal }) => listMovementsOf(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMovementsOfQueryResult = NonNullable<Awaited<ReturnType<typeof listMovementsOf>>>
+export type ListMovementsOfQueryError = unknown
+
+
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovementsOf>>,
+          TError,
+          Awaited<ReturnType<typeof listMovementsOf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMovementsOf>>,
+          TError,
+          Awaited<ReturnType<typeof listMovementsOf>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMovementsOf<TData = Awaited<ReturnType<typeof listMovementsOf>>, TError = unknown>(
+ params: ListMovementsOfParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMovementsOf>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMovementsOfQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPartyDocumentsUrl = () => {
+
+
+
+
+  return `/api/v1/treasury/party-documents`
+}
+
+/**
+ * What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+ * confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+ * drafts) with their total. A party with no such document is not listed.
+ */
+export const listPartyDocuments = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PartyDocuments> => {
+
+  return apiFetch<PartyDocuments>(getListPartyDocumentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPartyDocumentsQueryKey = () => {
+    return [
+    `/api/v1/treasury/party-documents`
+    ] as const;
+    }
+
+
+export const getListPartyDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPartyDocumentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPartyDocuments>>> = ({ signal }) => listPartyDocuments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPartyDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listPartyDocuments>>>
+export type ListPartyDocumentsQueryError = unknown
+
+
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartyDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listPartyDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartyDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listPartyDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPartyDocuments<TData = Awaited<ReturnType<typeof listPartyDocuments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartyDocuments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPartyDocumentsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetStatementLinePartyUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/statement-lines/${lineId}`
+}
+
+/**
+ * Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+ * credit. Both left empty clears it.
+ */
+export const setStatementLineParty = async (lineId: number,
+    statementLineParty?: StatementLineParty, options?: Parameters<typeof apiFetch>[1]): Promise<BankStatementLine> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<BankStatementLine>(getSetStatementLinePartyUrl(lineId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(statementLineParty)
+  }
+);}
+
+
+
+
+
+export const getSetStatementLinePartyMutationKey = () => ['setStatementLineParty'] as const;
+
+export const getSetStatementLinePartyMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStatementLineParty>>, TError,SetStatementLinePartyMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setStatementLineParty>>, TError,SetStatementLinePartyMutationVariables, TContext> => {
+
+const mutationKey = getSetStatementLinePartyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setStatementLineParty>>, SetStatementLinePartyMutationVariables> = (props) => {
+          const {lineId,data} = props ?? {};
+
+          return  setStatementLineParty(lineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetStatementLinePartyMutationResult = NonNullable<Awaited<ReturnType<typeof setStatementLineParty>>>
+    export type SetStatementLinePartyMutationBody = StatementLineParty | undefined
+    export type SetStatementLinePartyMutationError = unknown
+    export type SetStatementLinePartyMutationVariables = {lineId: number;data?: StatementLineParty}
+
+    export const useSetStatementLineParty = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStatementLineParty>>, TError,SetStatementLinePartyMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setStatementLineParty>>,
+        TError,
+        SetStatementLinePartyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetStatementLinePartyMutationOptions(options), queryClient);
+    }
+
+export const getDeleteStatementLineUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/statement-lines/${lineId}`
+}
+
+/**
+ * Take a line off the statement (owner or manager): a wrong import. It was only a copy of the bank's file.
+ */
+export const deleteStatementLine = async (lineId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteStatementLineUrl(lineId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStatementLineMutationKey = () => ['deleteStatementLine'] as const;
+
+export const getDeleteStatementLineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStatementLine>>, TError,DeleteStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStatementLine>>, TError,DeleteStatementLineMutationVariables, TContext> => {
+
+const mutationKey = getDeleteStatementLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStatementLine>>, DeleteStatementLineMutationVariables> = (props) => {
+          const {lineId} = props ?? {};
+
+          return  deleteStatementLine(lineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStatementLineMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStatementLine>>>
+
+    export type DeleteStatementLineMutationError = unknown
+    export type DeleteStatementLineMutationVariables = {lineId: number}
+
+    export const useDeleteStatementLine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStatementLine>>, TError,DeleteStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStatementLine>>,
+        TError,
+        DeleteStatementLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteStatementLineMutationOptions(options), queryClient);
+    }
+
+export const getListMatchCandidatesUrl = (lineId: number,
+    params?: ListMatchCandidatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/treasury/statement-lines/${lineId}/candidates?${stringifiedParams}` : `/api/v1/treasury/statement-lines/${lineId}/candidates`
+}
+
+/**
+ * The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+ * suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+ * a month. Nearest day first.
+ */
+export const listMatchCandidates = async (lineId: number,
+    params?: ListMatchCandidatesParams, options?: Parameters<typeof apiFetch>[1]): Promise<MatchCandidate[]> => {
+
+  return apiFetch<MatchCandidate[]>(getListMatchCandidatesUrl(lineId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMatchCandidatesQueryKey = (lineId: number,
+    params?: ListMatchCandidatesParams,) => {
+    return [
+    `/api/v1/treasury/statement-lines/${lineId}/candidates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMatchCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMatchCandidatesQueryKey(lineId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMatchCandidates>>> = ({ signal }) => listMatchCandidates(lineId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: lineId !== null && lineId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMatchCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof listMatchCandidates>>>
+export type ListMatchCandidatesQueryError = unknown
+
+
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params: undefined |  ListMatchCandidatesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMatchCandidates>>,
+          TError,
+          Awaited<ReturnType<typeof listMatchCandidates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMatchCandidates>>,
+          TError,
+          Awaited<ReturnType<typeof listMatchCandidates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMatchCandidates<TData = Awaited<ReturnType<typeof listMatchCandidates>>, TError = unknown>(
+ lineId: number,
+    params?: ListMatchCandidatesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMatchCandidates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMatchCandidatesQueryOptions(lineId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMatchStatementLineUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/statement-lines/${lineId}/match`
+}
+
+/**
+ * The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+ * The same account; neither already matched. It changes no balance.
+ */
+export const matchStatementLine = async (lineId: number,
+    matchWrite: MatchWrite, options?: Parameters<typeof apiFetch>[1]): Promise<BankStatementLine> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<BankStatementLine>(getMatchStatementLineUrl(lineId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(matchWrite)
+  }
+);}
+
+
+
+
+
+export const getMatchStatementLineMutationKey = () => ['matchStatementLine'] as const;
+
+export const getMatchStatementLineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchStatementLine>>, TError,MatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof matchStatementLine>>, TError,MatchStatementLineMutationVariables, TContext> => {
+
+const mutationKey = getMatchStatementLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchStatementLine>>, MatchStatementLineMutationVariables> = (props) => {
+          const {lineId,data} = props ?? {};
+
+          return  matchStatementLine(lineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MatchStatementLineMutationResult = NonNullable<Awaited<ReturnType<typeof matchStatementLine>>>
+    export type MatchStatementLineMutationBody = MatchWrite
+    export type MatchStatementLineMutationError = unknown
+    export type MatchStatementLineMutationVariables = {lineId: number;data: MatchWrite}
+
+    export const useMatchStatementLine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchStatementLine>>, TError,MatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof matchStatementLine>>,
+        TError,
+        MatchStatementLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMatchStatementLineMutationOptions(options), queryClient);
+    }
+
+export const getUnmatchStatementLineUrl = (lineId: number,) => {
+
+
+
+
+  return `/api/v1/treasury/statement-lines/${lineId}/match`
+}
+
+/**
+ * Undo a match (owner or manager): the line and the movement are free again.
+ */
+export const unmatchStatementLine = async (lineId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getUnmatchStatementLineUrl(lineId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnmatchStatementLineMutationKey = () => ['unmatchStatementLine'] as const;
+
+export const getUnmatchStatementLineMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unmatchStatementLine>>, TError,UnmatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unmatchStatementLine>>, TError,UnmatchStatementLineMutationVariables, TContext> => {
+
+const mutationKey = getUnmatchStatementLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unmatchStatementLine>>, UnmatchStatementLineMutationVariables> = (props) => {
+          const {lineId} = props ?? {};
+
+          return  unmatchStatementLine(lineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnmatchStatementLineMutationResult = NonNullable<Awaited<ReturnType<typeof unmatchStatementLine>>>
+
+    export type UnmatchStatementLineMutationError = unknown
+    export type UnmatchStatementLineMutationVariables = {lineId: number}
+
+    export const useUnmatchStatementLine = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unmatchStatementLine>>, TError,UnmatchStatementLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unmatchStatementLine>>,
+        TError,
+        UnmatchStatementLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnmatchStatementLineMutationOptions(options), queryClient);
     }
 
 export const getListAccountTransfersUrl = (params?: ListAccountTransfersParams,) => {

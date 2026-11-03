@@ -32,6 +32,7 @@ import { Link, useNavigate, useOutletContext, useSearchParams } from "react-rout
 import { sum } from "../lib/decimal";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import { TresorerieRibbon } from "../treasury/TresorerieRibbon";
+import { NotifyOrderDialog } from "./NotifyOrderDialog";
 import { PlanDialog } from "./PlanDialog";
 import { refreshPurchasing } from "./shared";
 
@@ -70,6 +71,7 @@ export function SupplierSettlementsPage() {
   const type = TYPES.find((one) => one === params.get("type"));
   const supplierId = Number(params.get("fournisseur")) || undefined;
   const [editing, setEditing] = useState<SettlementRow | null>(null);
+  const [notifying, setNotifying] = useState<number | null>(null);
   // Plan lines ticked to be paid by one règlement (D-215): all of one supplier.
   const [selected, setSelected] = useState<Record<number, { supplier: number; amount: string }>>({});
   const chosen = Object.entries(selected);
@@ -306,6 +308,9 @@ export function SupplierSettlementsPage() {
                             <Button onClick={() => pay(row, line)}>
                               {t("admin.supplierSettlements.recordPayment")}
                             </Button>
+                            <Button variant="ghost" onClick={() => setNotifying(line.id)}>
+                              {t("admin.supplierSettlements.notify.open")}
+                            </Button>
                             <ConfirmButton
                               variant="ghost"
                               title={t("admin.supplierSettlements.cancelTitle")}
@@ -358,6 +363,7 @@ export function SupplierSettlementsPage() {
       )}
 
       {editing && <PlanDialog row={editing} onClose={() => setEditing(null)} />}
+      {notifying !== null && <NotifyOrderDialog lineId={notifying} onClose={() => setNotifying(null)} />}
     </>
   );
 }

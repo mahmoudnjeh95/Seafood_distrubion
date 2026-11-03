@@ -12,6 +12,7 @@ import type { DaySummary } from './daySummary';
 
 export interface DayClosingDetail {
   readonly id: number;
+  readonly driver_day_id: number;
   readonly date: string;
   readonly truck_name: string;
   readonly driver_name: string;
@@ -45,4 +46,5 @@ export interface DayClosingDetail {
   readonly revisions: readonly DayClosingRevision[];
   readonly changes_since_sent: readonly ChangedFigure[];
   readonly changed_since_sent: boolean;
+  readonly review_blockers: readonly string[];
 }

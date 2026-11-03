@@ -185,7 +185,6 @@ def test_a_voided_payment_stops_counting(organization, actor, customer, counter,
 
 
 def test_payment_input_is_checked(organization, actor, customer):
-    walk_in = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     tomorrow = timezone.localdate() + dt.timedelta(days=1)
     with pytest.raises(ValidationError) as refused:
         services.record_customer_payment(
@@ -197,11 +196,20 @@ def test_payment_input_is_checked(organization, actor, customer):
             received_on=tomorrow,
         )
     assert set(refused.value.message_dict) == {"amount", "method", "received_on"}
-    with pytest.raises(ValidationError) as refused:
-        pay(organization, actor, walk_in, "10.000")
-    assert "customer" in refused.value.message_dict
     with pytest.raises(ValidationError):
         pay(organization, actor, customer, "10.0005")
+
+
+def test_a_counter_sale_to_the_walk_in_customer_is_settled_by_a_payment(organization, actor, counter, stocked):
+    walk_in = partners.ensure_walk_in_customer(organization=organization, actor=actor)
+    # The office types no payment at the counter (D-245): the sale is left to the treasurer.
+    sale = make_sale(organization, actor, walk_in, counter, stocked, "1")
+    assert (sale.amount_paid, sale.amount_due) == (D("0.000"), D("42.000"))
+
+    pay(organization, actor, walk_in, "42.000")
+
+    sale.refresh_from_db()
+    assert sale.amount_due == D("0.000")
 
 
 # ---- balance, ageing, history ----
@@ -349,7 +357,7 @@ def test_an_unknown_policy_is_refused(organization, actor):
 
 
 def issued_invoice(sale, actor, **choices):
-    return services.create_invoice(sale=sale, actor=actor, issue=True, **choices)
+    return services.create_invoice(apply_vat=True, sale=sale, actor=actor, issue=True, **choices)
 
 
 def test_an_issued_invoice_adds_vat_and_stamp_to_what_is_owed(organization, actor, customer, counter, stocked):
@@ -383,18 +391,19 @@ def test_a_full_credit_note_clears_the_receivable_and_a_payment_becomes_credit(
 
 
 def test_a_withholding_certificate_replaces_the_planned_withholding(organization, actor, customer, counter, stocked):
-    sale = make_sale(organization, actor, customer, counter, stocked, "5")
-    invoice = issued_invoice(sale, actor, withholding_applied=True, withholding_rate="1.5")
-    # (210.000 + 39.900) × 1.5 % = 3.749 withheld; 250.900 − 3.749 = 247.151 to pay.
+    sale = make_sale(organization, actor, customer, counter, stocked, "20")
+    invoice = issued_invoice(sale, actor, withholding_rate="1.5")
+    # 840.000 + 19 % = 159.600 + stamp 1.000 = 1 000.600 (over 1 000 DT); (840.000 + 159.600) × 1.5 % = 14.994
+    # withheld; 1 000.600 − 14.994 = 985.606 to pay.
     sale.refresh_from_db()
-    assert (invoice.withholding_amount, sale.amount_due) == (D("3.749"), D("247.151"))
+    assert (invoice.withholding_amount, sale.amount_due) == (D("14.994"), D("985.606"))
 
     certificate = services.record_withholding_certificate(
         invoice=invoice, actor=actor, number="RS-2026-77", issued_on=timezone.localdate(), amount="5.000"
     )
 
     sale.refresh_from_db()
-    assert sale.amount_due == D("245.900")
+    assert sale.amount_due == D("995.600")
     with pytest.raises(ValidationError):
         services.record_withholding_certificate(
             invoice=invoice, actor=actor, number="RS-2", issued_on=timezone.localdate(), amount="1.000"
@@ -402,7 +411,7 @@ def test_a_withholding_certificate_replaces_the_planned_withholding(organization
 
     services.void_withholding_certificate(certificate=certificate, actor=actor, reason="Mauvais montant")
     sale.refresh_from_db()
-    assert sale.amount_due == D("247.151")
+    assert sale.amount_due == D("985.606")
 
 
 def test_certificate_input_and_file(organization, actor, customer, counter, stocked, settings, tmp_path):
@@ -436,20 +445,17 @@ def test_certificate_input_and_file(organization, actor, customer, counter, stoc
 
 def test_certificate_totals_and_invoices_awaiting_one(organization, actor, customer, counter, stocked):
     today = timezone.localdate()
+    # Two 20 kg invoices of 1 000.600 DT each: over the fixture's 1 000 DT credit limit.
+    customer.credit_limit = D("100000.000")
+    customer.save(update_fields=["credit_limit"])
     planned = issued_invoice(
-        make_sale(organization, actor, customer, counter, stocked, "5"),
-        actor,
-        withholding_applied=True,
-        withholding_rate="1.5",
+        make_sale(organization, actor, customer, counter, stocked, "20"), actor, withholding_rate="1.5"
     )
     other = issued_invoice(
-        make_sale(organization, actor, customer, counter, stocked, "2"),
-        actor,
-        withholding_applied=True,
-        withholding_rate="1.5",
+        make_sale(organization, actor, customer, counter, stocked, "20"), actor, withholding_rate="1.5"
     )
     services.record_withholding_certificate(
-        invoice=planned, actor=actor, number="RS-1", issued_on=today, amount="3.749"
+        invoice=planned, actor=actor, number="RS-1", issued_on=today, amount="14.994"
     )
 
     certificates = payment_selectors.withholding_certificates_of(organization, date_from=today, date_to=today)

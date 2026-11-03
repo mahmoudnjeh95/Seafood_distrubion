@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { SupplierWriteOffLot } from './supplierWriteOffLot';
 
 /**
  * The trade balance with one supplier. A partner's capital and profit share are other balances (D-040).
@@ -16,6 +17,8 @@ export interface SupplierBalance {
   readonly paid: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly balance: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly written_off: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly outstanding: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
@@ -30,4 +33,5 @@ export interface SupplierBalance {
   readonly uninvoiced_receipts: number;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly uninvoiced_total: string;
+  readonly write_off_lots: readonly SupplierWriteOffLot[];
 }

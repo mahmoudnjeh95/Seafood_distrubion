@@ -27,6 +27,7 @@ ZERO = Decimal("0.000")
 # The ledger kinds the roll-forward shows, in the order of a stock account.
 LEDGER_ORDER = (
     "receipt",
+    "receipt_correction",
     "customer_return",
     "supplier_return",
     "sale",
@@ -102,7 +103,7 @@ def month_report(organization: Organization, *, month: dt.date) -> MonthReport:
     closing_rows = tuple(inventory.stock_valuation(organization, day=last))
     opening_value = sum((row.value for row in opening_rows), ZERO)
     closing_value = sum((row.value for row in closing_rows), ZERO)
-    purchases = sum((row.value for row in ledger if row.kind == "receipt"), ZERO)
+    purchases = sum((row.value for row in ledger if row.kind in ("receipt", "receipt_correction")), ZERO)
     rounding = closing_value - (opening_value + sum((row.value for row in ledger), ZERO))
     operating = spent.total + personnel
     shares = partner_costs.month_partner_cost_shares(organization, date_from=first, date_to=last)

@@ -33,3 +33,17 @@ class MarkReadSerializer(serializers.Serializer[Any]):
 
 class UnreadSerializer(serializers.Serializer[Any]):
     unread = serializers.IntegerField()
+
+
+class RecipientSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="user_id", read_only=True)
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, membership: Any) -> str:
+        user = membership.user
+        return f"{user.first_name} {user.last_name}".strip() or str(user.username)
+
+
+class PaymentOrderNoticeSerializer(serializers.Serializer[Any]):
+    # The person told: an owner or a manager (the people `listNoticeRecipients` gives).
+    recipient = serializers.IntegerField(min_value=1)

@@ -11,6 +11,7 @@
  * * `loss_deduction` - Part de perte déduite
  * * `loss_reversal` - Annulation de la déduction
  * * `return` - Remboursement
+ * * `advance` - Avance sur capital
  */
 export type CapitalEntryKindEnum = typeof CapitalEntryKindEnum[keyof typeof CapitalEntryKindEnum];
 
@@ -21,4 +22,5 @@ export const CapitalEntryKindEnum = {
   loss_deduction: 'loss_deduction',
   loss_reversal: 'loss_reversal',
   return: 'return',
+  advance: 'advance',
 } as const;

@@ -14,27 +14,30 @@ import {
   Icon,
   Input,
   PageHeader,
+  Pager,
   Pill,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SortTh,
   Table,
   Td,
   Th,
   toast,
+  useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { useDebounced } from "../lib/useDebounced";
 import { StockTabs } from "../lib/StockTabs";
 import { canRecordStockChecks, COUNT_TONES, refreshAfterStockCheck } from "../losses/shared";
 import { todayInTunis } from "../receipts/shared";
-
-const PAGE_SIZE = 50;
 
 /** Choose a place and a day: the server makes the count sheet from what the place holds. */
 function StartDialog({ onDone }: { onDone: () => void }) {
@@ -115,9 +118,14 @@ export function CountsPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordStockChecks(session);
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const [starting, setStarting] = useState(false);
-  const counts = useListCounts({ limit: PAGE_SIZE, offset }, { query: { placeholderData: keepPreviousData } });
+  const [search, setSearch] = useUrlState("q");
+  const query = useDebounced(search.trim());
+  const counts = useListCounts(
+    { ...table.params, ...(query ? { search: query } : {}) },
+    { query: { placeholderData: keepPreviousData } },
+  );
   const page = counts.data;
   const list = page?.results ?? [];
 
@@ -135,6 +143,17 @@ export function CountsPage() {
 
       {!canRecord && <p className="text-ink-2">{t("admin.counts.readOnly")}</p>}
 
+      <Input
+        value={search}
+        onChange={(event) => {
+          setSearch(event.target.value);
+          table.backToFirstPage();
+        }}
+        placeholder={t("admin.counts.search")}
+        aria-label={t("admin.counts.search")}
+        className="max-w-xs"
+      />
+
       {counts.isPending ? (
         <p className="text-ink-2">{t("common.loading")}</p>
       ) : counts.isError ? (
@@ -142,17 +161,27 @@ export function CountsPage() {
           {t("common.serverUnreachable")}
         </p>
       ) : list.length === 0 ? (
-        <EmptyState illustration="fridge" title={t("admin.counts.empty")}>
-          {t("admin.counts.emptyBody")}
-        </EmptyState>
+        query ? (
+          <p className="text-ink-2">{t("admin.counts.noMatch")}</p>
+        ) : (
+          <EmptyState illustration="fridge" title={t("admin.counts.empty")}>
+            {t("admin.counts.emptyBody")}
+          </EmptyState>
+        )
       ) : (
         <Card className="p-2">
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.counts.columns.number")}</Th>
-                <Th>{t("admin.counts.columns.date")}</Th>
-                <Th>{t("admin.counts.columns.location")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.counts.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.counts.columns.date")}
+                </SortTh>
+                <SortTh sortKey="location" {...table.sorting}>
+                  {t("admin.counts.columns.location")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.counts.columns.lines")}</Th>
                 <Th>{t("admin.counts.columns.differences")}</Th>
               </tr>
@@ -193,23 +222,7 @@ export function CountsPage() {
               })}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.counts.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.counts.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.counts.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
 

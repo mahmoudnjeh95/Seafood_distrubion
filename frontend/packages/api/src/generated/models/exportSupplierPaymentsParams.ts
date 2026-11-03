@@ -21,6 +21,10 @@ date_to?: string;
  */
 method?: ExportSupplierPaymentsMethod;
 /**
+ * Column to sort by; a leading `-` sorts descending.
+ */
+ordering?: string;
+/**
  * @maxLength 100
  */
 search?: string;

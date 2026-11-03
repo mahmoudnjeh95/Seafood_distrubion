@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CapitalEntryKindEnum } from './capitalEntryKindEnum';
+import type { PaymentMethodEnum } from './paymentMethodEnum';
 
 export interface CapitalEntry {
   readonly id: number;
@@ -13,6 +14,8 @@ export interface CapitalEntry {
   readonly amount: string;
   readonly entry_date: string;
   readonly note: string;
+  readonly method: PaymentMethodEnum;
+  readonly reference: string;
   /** @nullable */
   readonly lot_result_id: number | null;
   readonly created_at: string;

@@ -183,6 +183,17 @@ bordereau de versement, the états des factures); the flow and the rules stay ou
       (statements with running balance, Excel link) on the ribbon, over the P9-T05 accounts API (D-233).
 - Sidebar unchanged: the e2e spec lists the modules by name; the treasury is reached from its existing entries.
 
+### P9-T10 · BL paid before its invoice: the VAT and timbre gap (D-256) · M
+- [x] Backend: `services.estimate_invoice` (no-save simulation, same engine and VAT rule as `create_invoice`), `GET /invoices/estimate?sales=1,2`
+      (VAT per rate, stamp once, `extra` shared per BL), `estimated_extra` on the customer balance's open BL.
+- [x] Invoice `payment_state` (unpaid / partial / paid / none), `paid_total`, `extra_over_goods`; list filter `payment_state`.
+- [x] Office: "Reste estimé à l'émission" under a BL on Nouveau règlement; "Payée en partie" with the gap and a link to a
+      new règlement on the invoice's page; a payment filter and a pill on the invoice list. Tests: `test_invoice_gap.py`.
+- [x] "Régler TTC": a règlement on a BL not yet invoiced may go up to its estimated TTC (button "TTC" on the line); above stays refused.
+- [x] "Abandonner l'écart" on a partly paid invoice (owner only, reason, typed amount, lots of its BL picked by hand,
+      `CustomerBalanceWriteOff.invoice`, `POST /invoices/{id}/give-up-gap`).
+- [x] Line "BL réglé, facture non soldée" on the customer statement PDF and the estimate on the BL's screen.
+
 ## Defaults chosen without the owner (provisional, D-197)
 
 - Banks: the list of Tunisian banks is editable in Paramètres › Banques.

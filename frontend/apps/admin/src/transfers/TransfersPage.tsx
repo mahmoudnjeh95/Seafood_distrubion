@@ -1,15 +1,31 @@
 import { type TransferKindEnum, useListTransfers } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatQuantity, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+  useUrlState,
+} from "@frutti/ui";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
 import { canRecordTransfers, KIND_ICONS, STATUS_TONES } from "./shared";
 
-const PAGE_SIZE = 50;
 const KINDS: TransferKindEnum[] = ["load", "return", "internal"];
 
 export function TransfersPage() {
@@ -17,13 +33,13 @@ export function TransfersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordTransfers(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [kind, setKind] = useState<TransferKindEnum | "">("");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const transfers = useListTransfers(
-    { limit: PAGE_SIZE, offset, ...(kind ? { kind } : {}), ...(query ? { search: query } : {}) },
+    { ...table.params, ...(kind ? { kind } : {}), ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = transfers.data;
@@ -37,7 +53,7 @@ export function TransfersPage() {
       aria-pressed={kind === value}
       onClick={() => {
         setKind(value);
-        setOffset(0);
+        table.backToFirstPage();
       }}
       className={cn(
         "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -69,7 +85,7 @@ export function TransfersPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -105,9 +121,15 @@ export function TransfersPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.transfers.columns.number")}</Th>
-                <Th>{t("admin.transfers.columns.date")}</Th>
-                <Th>{t("admin.transfers.columns.kind")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.transfers.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.transfers.columns.date")}
+                </SortTh>
+                <SortTh sortKey="kind" {...table.sorting}>
+                  {t("admin.transfers.columns.kind")}
+                </SortTh>
                 <Th>{t("admin.transfers.columns.route")}</Th>
                 <Th className="max-[720px]:hidden">{t("admin.transfers.columns.lines")}</Th>
                 <Th numeric>{t("admin.transfers.columns.quantity")}</Th>
@@ -156,23 +178,7 @@ export function TransfersPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.transfers.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.transfers.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.transfers.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

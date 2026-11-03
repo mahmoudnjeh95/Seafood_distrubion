@@ -10,4 +10,9 @@ urlpatterns = [
         views.LotPartnershipCancelView.as_view(),
         name="partnership-cancel",
     ),
+    path(
+        "partnerships/<int:partnership_id>/advances",
+        views.LotPartnershipAdvanceView.as_view(),
+        name="partnership-advance",
+    ),
 ]

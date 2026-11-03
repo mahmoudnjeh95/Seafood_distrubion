@@ -4,6 +4,7 @@ from . import driver_payment_views, payment_views, views
 
 urlpatterns = [
     path("my-deliveries", views.MyDeliveriesView.as_view(), name="my-deliveries"),
+    path("my-deliveries/done", views.MyDeliveredView.as_view(), name="my-delivered"),
     path("my-deliveries/<int:sale_id>/deliver", views.MyDeliveryDeliverView.as_view(), name="my-delivery-deliver"),
     path(
         "my-deliveries/<int:sale_id>/not-delivered",
@@ -11,6 +12,8 @@ urlpatterns = [
         name="my-delivery-not-delivered",
     ),
     path("my-payments", driver_payment_views.MyPaymentsView.as_view(), name="my-payments"),
+    path("my-cash-limit", driver_payment_views.MyCashLimitView.as_view(), name="my-cash-limit"),
+    path("my-receipt-header", driver_payment_views.MyReceiptHeaderView.as_view(), name="my-receipt-header"),
     # P2-T03 · quotes
     path("quotes", views.QuoteListView.as_view(), name="quote-list"),
     path("quotes/<int:quote_id>", views.QuoteDetailView.as_view(), name="quote-detail"),
@@ -27,7 +30,9 @@ urlpatterns = [
     # P2-T05 · finance settings, invoices, credit notes
     path("finance-settings", views.FinanceSettingsView.as_view(), name="finance-settings"),
     path("invoices", views.InvoiceListView.as_view(), name="invoice-list"),
+    path("invoices/estimate", views.InvoiceEstimateView.as_view(), name="invoice-estimate"),
     path("invoices/<int:invoice_id>", views.InvoiceDetailView.as_view(), name="invoice-detail"),
+    path("invoices/<int:invoice_id>/give-up-gap", views.InvoiceGiveUpGapView.as_view(), name="invoice-give-up-gap"),
     path("invoices/<int:invoice_id>/issue", views.InvoiceIssueView.as_view(), name="invoice-issue"),
     path("invoices/<int:invoice_id>/credit-notes", views.InvoiceCreditNoteView.as_view(), name="invoice-credit-notes"),
     path("credit-notes", views.CreditNoteListView.as_view(), name="credit-note-list"),
@@ -40,6 +45,8 @@ urlpatterns = [
         name="customer-effet-unpaid",
     ),
     path("customer-payments/totals", payment_views.CustomerPaymentTotalsView.as_view(), name="customer-payment-totals"),
+    path("sales/export", views.SaleExportView.as_view(), name="sale-export"),
+    path("invoices/export", views.InvoiceExportView.as_view(), name="invoice-export"),
     path("customer-payments/export", payment_views.CustomerPaymentExportView.as_view(), name="customer-payment-export"),
     path(
         "customer-payments/<int:payment_id>",
@@ -57,6 +64,11 @@ urlpatterns = [
         name="customer-payment-void",
     ),
     path("customers/<int:customer_id>/balance", payment_views.CustomerBalanceView.as_view(), name="customer-balance"),
+    path(
+        "customers/<int:customer_id>/write-off",
+        payment_views.CustomerWriteOffView.as_view(),
+        name="customer-write-off",
+    ),
     path("receivables/ageing", payment_views.ReceivablesAgeingView.as_view(), name="receivables-ageing"),
     path(
         "invoices/<int:invoice_id>/withholding-certificate",

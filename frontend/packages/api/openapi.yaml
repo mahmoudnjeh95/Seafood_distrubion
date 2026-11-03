@@ -230,6 +230,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       tags:
       - boxes
       security:
@@ -475,6 +481,18 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
       - in: query
         name: status
         schema:
@@ -659,6 +677,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -787,6 +811,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -979,6 +1009,11 @@ paths:
           * `transfer` - Virement
           * `card` - Carte bancaire
           * `mixed` - Plusieurs moyens
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
       - in: query
         name: search
         schema:
@@ -1318,6 +1353,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/Customer'
           description: ''
+  /api/v1/customers/{customer_id}/write-off:
+    post:
+      operationId: writeOffCustomerBalance
+      description: |-
+        Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards.
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalance'
+          description: ''
   /api/v1/dashboard:
     get:
       operationId: getDashboard
@@ -1552,8 +1622,9 @@ paths:
   /api/v1/day-funds:
     get:
       operationId: listDayFunds
-      description: Every active driver with the cash set for them on a day (today
-        by default) and whether they started.
+      description: |-
+        Every active driver with the cash set for them on a day (today by default), whether they started and whether
+        their closing is sent.
       parameters:
       - in: query
         name: date
@@ -1575,8 +1646,9 @@ paths:
           description: ''
     put:
       operationId: setDayFund
-      description: Set the cash handed to a driver for a day (D-203); it changes until
-        the driver accepts it.
+      description: |-
+        Set the cash handed to a driver for a day (D-203). It changes until the driver accepts it; once started, only
+        the money for purchases changes, and only here (D-248).
       tags:
       - day-funds
       requestBody:
@@ -1863,6 +1935,109 @@ paths:
         required: true
       tags:
       - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/expenses/{expense_id}/decide:
+    post:
+      operationId: decideDayOverviewExpense
+      description: |-
+        Approve or refuse one expense the driver typed on the day (owner or manager). A refusal needs its `reason`.
+        A sent day whose figures move is corrected with a revision.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: expense_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayExpenseDecision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/purchases/{purchase_id}/validate:
+    post:
+      operationId: validateDayOverviewPurchase
+      description: |-
+        Validate a purchase the driver made on the day (owner or manager): its kilos enter the truck's stock. Refused
+        while the purchase is not complete (supplier, products, place).
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: purchase_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayOverviewDetail'
+          description: ''
+  /api/v1/day-overview/{day_id}/return-to-stock:
+    post:
+      operationId: returnDayOverviewToStock
+      description: |-
+        Give back what the truck still holds, kilos and boxes, to the cold room the office chooses (owner or
+        manager; `to_location_id` may be left out only when there is one active cold room). Works whether or not the
+        driver sent the day; only on the truck's latest day.
+      parameters:
+      - in: path
+        name: day_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - day-overview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayReturnToStock'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DayReturnToStock'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DayReturnToStock'
       security:
       - cookieAuth: []
       responses:
@@ -2506,6 +2681,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -2731,6 +2912,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExpenseDetail'
           description: ''
+  /api/v1/expenses/export:
+    get:
+      operationId: exportExpenses
+      description: The expenses of the same filters and sort as the list, every row,
+        as an Excel file.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: category
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending
+          - approved
+          - rejected
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `pending` - À approuver
+          * `approved` - Approuvée
+          * `rejected` - Refusée
+      - in: query
+        name: truck
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - expenses
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/expenses/totals:
     get:
       operationId: getExpenseTotals
@@ -2814,6 +3064,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -3185,6 +3441,25 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
+      - in: query
+        name: payment_state
+        schema:
+          enum:
+          - unpaid
+          - partial
+          - paid
+          type: string
+          minLength: 1
+        description: |-
+          * `unpaid` - unpaid
+          * `partial` - partial
+          * `paid` - paid
       - in: query
         name: sale
         schema:
@@ -3225,7 +3500,8 @@ paths:
       description: |-
         Prepare the invoice of a confirmed sale (a draft without number), or with `issue_now` issue it at
         once. VAT, stamp and withholding are proposed from the finance settings and each product's own rate;
-        `apply_vat` false makes an invoice without VAT, and every typed value is flagged and audited. Errors:
+        `apply_vat` false makes an invoice without VAT (empty: with VAT only for goods bought with VAT, D-246), and
+        every typed value is flagged and audited. Errors:
         `lines.<index>.vat_rate`, `vat_amounts.<rate>`, `fiscal_stamp`, `fees`, `withholding_rate`.
       tags:
       - invoices
@@ -3360,6 +3636,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/invoices/{invoice_id}/give-up-gap:
+    post:
+      operationId: giveUpInvoiceGap
+      description: |-
+        Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
+        amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
+        its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards.
+      parameters:
+      - in: path
+        name: invoice_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerWriteOffWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
   /api/v1/invoices/{invoice_id}/issue:
     post:
       operationId: issueInvoice
@@ -3419,6 +3731,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WithholdingCertificate'
+          description: ''
+  /api/v1/invoices/estimate:
+    get:
+      operationId: estimateInvoice
+      description: |-
+        What the invoice of these BL (`sales=1,2,3`, one customer) would ask, without saving it: VAT per rate,
+        stamp (once), withholding, net to pay, and `extra`, what it adds to the goods, shared per BL (D-256).
+      parameters:
+      - in: query
+        name: sales
+        schema:
+          type: string
+          minLength: 1
+        required: true
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceEstimate'
+          description: ''
+  /api/v1/invoices/export:
+    get:
+      operationId: exportInvoices
+      description: The invoices of the same filters and sort as the list, every row,
+        as an Excel file.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: payment_state
+        schema:
+          enum:
+          - unpaid
+          - partial
+          - paid
+          type: string
+          minLength: 1
+        description: |-
+          * `unpaid` - unpaid
+          * `partial` - partial
+          * `paid` - paid
+      - in: query
+        name: sale
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - issued
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `issued` - Émise
+          * `cancelled` - Annulée par avoir
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/locations:
     get:
@@ -3662,6 +4073,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -4710,6 +5127,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyBoxDay'
           description: ''
+  /api/v1/my-cash-limit:
+    get:
+      operationId: getMyCashLimit
+      description: |-
+        The amount from which a cash collection needs the driver's confirmation (D-273, D-280): the phone asks
+        before sending, and keeps the answer for when it has no connection.
+      tags:
+      - my-cash-limit
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashLimit'
+          description: ''
   /api/v1/my-customers:
     get:
       operationId: listMyCustomers
@@ -4923,26 +5357,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
           description: ''
-  /api/v1/my-day/purchase-float:
-    put:
-      operationId: setMyPurchaseFloat
+  /api/v1/my-day/purchase-change:
+    get:
+      operationId: getMyPurchaseChange
       description: |-
-        The money the office gave for purchases at the port today, typed again when it gives more (D-158).
-        404 before the day is started; refused once its closing is sent.
+        The money for purchases the office proposed on today's day, waiting for the driver's approval (D-260).
+        404: nothing waits.
       tags:
       - my-day
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PurchaseFloat'
-        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseFloatChange'
+          description: ''
+  /api/v1/my-day/purchase-change/approve:
+    post:
+      operationId: approveMyPurchaseChange
+      description: |-
+        The driver agrees on the phone to the money for purchases the office proposed (D-260): it takes effect at
+        once. 404 before the day is started.
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
+  /api/v1/my-day/resume:
+    post:
+      operationId: resumeMyDay
+      description: |-
+        The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+        day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today.
+      tags:
+      - my-day
       security:
       - cookieAuth: []
       responses:
@@ -5114,6 +5570,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/my-deliveries/done:
+    get:
+      operationId: listMyDelivered
+      description: |-
+        The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+        shows them again on the sale screen and prints their receipt again (D-281).
+      tags:
+      - my-deliveries
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaleDetail'
           description: ''
   /api/v1/my-expense-categories:
     get:
@@ -5377,6 +5852,24 @@ paths:
                 items:
                   $ref: '#/components/schemas/LastCost'
           description: ''
+  /api/v1/my-receipt-header:
+    get:
+      operationId: getMyReceiptHeader
+      description: |-
+        The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+        fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+        for printing without a connection.
+      tags:
+      - my-receipt-header
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptHeader'
+          description: ''
   /api/v1/my-return:
     post:
       operationId: returnMyStock
@@ -5498,6 +5991,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TruckDay'
+          description: ''
+  /api/v1/notifications/payment-orders/{plan_line_id}:
+    post:
+      operationId: notifyPaymentOrder
+      description: |-
+        Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
+        and it opens the supplier règlements.
+      parameters:
+      - in: path
+        name: plan_line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderNotice'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderNotice'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderNotice'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/notifications/recipients:
+    get:
+      operationId: listNoticeRecipients
+      description: 'The people a payment order can be sent to: the active owners and
+        managers (D-255).'
+      tags:
+      - notifications
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recipient'
           description: ''
   /api/v1/numbering:
     get:
@@ -5752,6 +6294,41 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedLotPartnershipUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotPartnershipDetail'
+          description: ''
+  /api/v1/partnerships/{partnership_id}/advances:
+    post:
+      operationId: advancePartnerCapital
+      description: |-
+        Pay the partner an advance from the capital they put in this lot (owner only). Up to the capital
+        still in; the settlement pays the rest.
+      parameters:
+      - in: path
+        name: partnership_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - partnerships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotPartnershipAdvance'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -6270,6 +6847,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -6436,6 +7019,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -6693,6 +7282,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: purchase_order
         schema:
@@ -6730,8 +7325,9 @@ paths:
       description: |-
         Record goods received from a supplier: one batch per line, its accepted net weight into stock.
         Errors of a line come back on `lines.<index>.<field>`. With `purchase_order`, it is a delivery
-        against that commande d'achat: only its products, and only the part that arrived (partial receipts). With
-        `invoice_now`, what is owed is recorded at once: a posted supplier invoice due by `terms` and `due_days`.
+        against that commande d'achat: only its products, and only the part that arrived (partial receipts). No
+        invoice is made here: the supplier's invoice is made afterwards from the receipt. `payments` given now are
+        kept as advances the invoice takes (D-268).
       tags:
       - receipts
       requestBody:
@@ -6766,6 +7362,42 @@ paths:
         required: true
       tags:
       - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/{receipt_id}/revise:
+    post:
+      operationId: reviseReceipt
+      description: |-
+        Change a goods receipt after it was saved: its supplier reference, notes and VAT flag, and every line's
+        invoiced and accepted weight, cost per kg and use-by date (all lines sent). Refused while an invoice carries
+        it, and when `revision` is not its current one. `reason` is required. Each change stays in its history.
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptRevisionWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptRevisionWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptRevisionWrite'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -7856,8 +8488,8 @@ paths:
     post:
       operationId: addSalaryPrime
       description: |-
-        Add a prime to an approved salary: a positive amount and its reason. It is due on top of the salary,
-        with no separate payment (D-234).
+        Add a prime to an approved salary: a positive amount, its reason, and how it is paid now (D-234, D-244).
+        It is due on top of the salary and its payment leaves the treasury on the day paid.
       parameters:
       - in: path
         name: record_id
@@ -7870,13 +8502,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AdjustmentWrite'
+              $ref: '#/components/schemas/PrimeWrite'
         required: true
       security:
       - cookieAuth: []
@@ -7997,6 +8629,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -8036,8 +8674,9 @@ paths:
       operationId: createSale
       description: |-
         Type a sale (a draft), or with `confirm_now` confirm it at once: the stock leaves oldest batch first
-        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale,
-        who pays everything). A line without `unit_price` takes the customer's price in force at `sold_at`.
+        and the customer owes what is not paid. Without `customer` it is the walk-in customer (counter sale).
+        The office types no payment: the money comes in through a règlement of the treasurer. A driver's phone says
+        what was paid. A line without `unit_price` takes the customer's price in force at `sold_at`.
         Errors of a line come back on `lines.<index>.<field>`. A driver sells only from their truck of the
         day. A driver's phone sends in `sold_at` when the sale was made: the sale takes that date and that
         day's price, also when it was kept without connection and sent later. Within 5 minutes of the
@@ -8194,6 +8833,88 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/export:
+    get:
+      operationId: exportSales
+      description: The sales of the same filters and sort as the list, every row,
+        as an Excel file.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: delivery_status
+        schema:
+          enum:
+          - to_deliver
+          - delivered
+          - partial
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `to_deliver` - À livrer
+          * `delivered` - Livré
+          * `partial` - Livré en partie
+          * `cancelled` - Non livré
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - confirmed
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Brouillon
+          * `confirmed` - Confirmée
+          * `cancelled` - Annulée
+      - in: query
+        name: uninvoiced
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/site-products:
     get:
@@ -8407,6 +9128,35 @@ paths:
                 items:
                   $ref: '#/components/schemas/LocationBatch'
           description: ''
+  /api/v1/stock/adjustments:
+    post:
+      operationId: adjustStock
+      description: |-
+        Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+        kilos keep the lot's cost. The answer is the product's stock again, with its new average price.
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStockDetail'
+          description: ''
   /api/v1/stock/movements:
     get:
       operationId: listMovements
@@ -8434,6 +9184,7 @@ paths:
         schema:
           enum:
           - receipt
+          - receipt_correction
           - transfer
           - sale
           - customer_return
@@ -8445,6 +9196,7 @@ paths:
           minLength: 1
         description: |-
           * `receipt` - Réception
+          * `receipt_correction` - Correction de réception
           * `transfer` - Transfert
           * `sale` - Vente
           * `customer_return` - Retour client
@@ -8469,6 +9221,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: product
         schema:
@@ -8538,6 +9296,41 @@ paths:
         required: true
       tags:
       - supplier-balances
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierBalance'
+          description: ''
+  /api/v1/supplier-balances/{supplier_id}/write-off:
+    post:
+      operationId: writeOffSupplierBalance
+      description: |-
+        Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
+        typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards.
+      parameters:
+      - in: path
+        name: supplier_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-balances
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BalanceWriteOff'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -8620,6 +9413,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: overdue
         schema:
@@ -8821,6 +9620,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierInvoice'
           description: ''
+  /api/v1/supplier-invoices/export:
+    get:
+      operationId: exportSupplierInvoices
+      description: The supplier invoices of the same filters and sort as the list,
+        every row, as an Excel file.
+      parameters:
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
+      - in: query
+        name: overdue
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - posted
+          - partly_paid
+          - paid
+          - open
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - draft
+          * `posted` - posted
+          * `partly_paid` - partly_paid
+          * `paid` - paid
+          * `open` - open
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - supplier-invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/supplier-payments:
     get:
       operationId: listSupplierPayments
@@ -8870,6 +9725,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -9068,6 +9929,11 @@ paths:
           * `bill` - Traite
           * `other` - Autre
           * `mixed` - Plusieurs moyens
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Column to sort by; a leading `-` sorts descending.
       - in: query
         name: search
         schema:
@@ -9502,6 +10368,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -9954,6 +10826,129 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/treasury/accounts/{account_id}/reconciliation:
+    get:
+      operationId: getReconciliationSummary
+      description: |-
+        The rapprochement of a bank account between two days (D-274): how many lines of the bank's statement are
+        matched, the money of those not matched yet, and our own movements the statement does not show (at most
+        200). It changes no balance.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationSummary'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/statement-lines:
+    get:
+      operationId: listStatementLines
+      description: |-
+        The lines imported on a bank account between two days (inclusive), oldest first, paginated. `state`
+        keeps only the matched lines, or only those not matched yet.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: state
+        schema:
+          enum:
+          - all
+          - matched
+          - unmatched
+          type: string
+          default: all
+          minLength: 1
+        description: |-
+          * `all` - all
+          * `matched` - matched
+          * `unmatched` - unmatched
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBankStatementLineList'
+          description: ''
+  /api/v1/treasury/accounts/{account_id}/statement/import:
+    post:
+      operationId: importBankStatement
+      description: |-
+        Add the lines of the bank's Excel statement (DATE, LIBELLE, DEBIT, CREDIT, SOLDE) to a bank account (owner
+        or manager). All or nothing: one unreadable row (listed with its row number) and nothing is saved. A line
+        already on the account is skipped, so the same file twice adds nothing.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementImport'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementImportReport'
+          description: ''
   /api/v1/treasury/banks:
     get:
       operationId: listBanks
@@ -10179,6 +11174,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Deposit'
+          description: ''
+  /api/v1/treasury/due-alerts:
+    get:
+      operationId: listDueAlerts
+      description: |-
+        The cheques and traites that need someone today (D-254), soonest due first: ours to cash or chase (due
+        today or before, not yet cashed), and ours to pay (a cheque from the day before it falls due, a traite from
+        15 days before, until the bank debits it). At most 200.
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
           description: ''
   /api/v1/treasury/instruments:
     get:
@@ -10475,6 +11490,192 @@ paths:
                 items:
                   $ref: '#/components/schemas/Instrument'
           description: ''
+  /api/v1/treasury/movements-of:
+    get:
+      operationId: listMovementsOf
+      description: |-
+        The treasury movements written by the given records of one source, each with the account it went through
+        (a règlement's lines, a sale, an expense, a partner's payout). Empty for a record with no money.
+      parameters:
+      - in: query
+        name: from_source
+        schema:
+          type: string
+          maxLength: 40
+          minLength: 1
+        required: true
+      - in: query
+        name: source_ids
+        schema:
+          type: string
+          maxLength: 2000
+          minLength: 1
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovementOf'
+          description: ''
+  /api/v1/treasury/party-documents:
+    get:
+      operationId: listPartyDocuments
+      description: |-
+        What each customer and supplier has on paper, for the lists of the règlement forms (D-211): a customer's
+        confirmed BL and issued invoices with their net to pay, a supplier's goods receipts (BR) and invoices (not
+        drafts) with their total. A party with no such document is not listed.
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyDocuments'
+          description: ''
+  /api/v1/treasury/statement-lines/{line_id}:
+    put:
+      operationId: setStatementLineParty
+      description: |-
+        Say whose line it is (owner or manager): a customer for a line at the debit, a supplier for one at the
+        credit. Both left empty clears it.
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatementLineParty'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+          description: ''
+    delete:
+      operationId: deleteStatementLine
+      description: 'Take a line off the statement (owner or manager): a wrong import.
+        It was only a copy of the bank''s file.'
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/treasury/statement-lines/{line_id}/candidates:
+    get:
+      operationId: listMatchCandidates
+      description: |-
+        The movements of our ledger a line of the bank's statement could be matched to (D-265): by default the
+        suggestions (same amount, within three days); with `by_hand`, every unmatched movement of the account within
+        a month. Nearest day first.
+      parameters:
+      - in: query
+        name: by_hand
+        schema:
+          type: boolean
+          default: false
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchCandidate'
+          description: ''
+  /api/v1/treasury/statement-lines/{line_id}/match:
+    post:
+      operationId: matchStatementLine
+      description: |-
+        The office confirms that a movement of our ledger is this line of the bank's statement (owner or manager).
+        The same account; neither already matched. It changes no balance.
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MatchWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MatchWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+          description: ''
+    delete:
+      operationId: unmatchStatementLine
+      description: 'Undo a match (owner or manager): the line and the movement are
+        free again.'
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - treasury
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/treasury/transfers:
     get:
       operationId: listAccountTransfers
@@ -10841,6 +12042,12 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Column to sort by; a leading `-` sorts descending.
+        schema:
+          type: string
       - in: query
         name: search
         schema:
@@ -11348,6 +12555,22 @@ components:
       - issued_on
       - number
       - withholding_amount
+    BalanceWriteOff:
+      type: object
+      properties:
+        expected_amount:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          maxLength: 255
+        lot_shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierWriteOffLotShare'
+      required:
+      - expected_amount
+      - reason
     Bank:
       type: object
       properties:
@@ -11376,6 +12599,60 @@ components:
       - is_active
       - name
       - swift
+    BankStatementLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        debit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/PartyRef'
+          readOnly: true
+          nullable: true
+        movement:
+          allOf:
+          - $ref: '#/components/schemas/MatchedMovement'
+          readOnly: true
+          nullable: true
+      required:
+      - balance
+      - credit
+      - customer
+      - day
+      - debit
+      - id
+      - label
+      - movement
+      - supplier
     BankWrite:
       type: object
       properties:
@@ -11842,6 +13119,13 @@ components:
         note:
           type: string
           readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
         lot_result_id:
           type: integer
           readOnly: true
@@ -11861,7 +13145,9 @@ components:
       - id
       - kind
       - lot_result_id
+      - method
       - note
+      - reference
     CapitalEntryKindEnum:
       enum:
       - contribution
@@ -11869,6 +13155,7 @@ components:
       - loss_deduction
       - loss_reversal
       - return
+      - advance
       type: string
       description: |-
         * `contribution` - Apport
@@ -11876,6 +13163,7 @@ components:
         * `loss_deduction` - Part de perte déduite
         * `loss_reversal` - Annulation de la déduction
         * `return` - Remboursement
+        * `advance` - Avance sur capital
     CashCount:
       type: object
       properties:
@@ -12016,6 +13304,16 @@ components:
         * `day` - day
         * `week` - week
         * `month` - month
+    CashLimit:
+      type: object
+      properties:
+        cash_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - cash_limit
     CashLine:
       type: object
       properties:
@@ -13079,6 +14377,21 @@ components:
           items:
             $ref: '#/components/schemas/HistoryEntry'
           readOnly: true
+        write_offs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerWriteOff'
+          readOnly: true
+        written_off_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        write_off_lots:
+          type: array
+          items:
+            $ref: '#/components/schemas/WriteOffLot'
+          readOnly: true
       required:
       - ageing
       - available_credit
@@ -13090,6 +14403,9 @@ components:
       - open_sales
       - open_total
       - overdue
+      - write_off_lots
+      - write_offs
+      - written_off_total
     CustomerBalances:
       type: object
       properties:
@@ -13320,6 +14636,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -13341,6 +14660,7 @@ components:
       required:
       - allocated_total
       - amount
+      - cash_limit_confirmed
       - created_at
       - created_by
       - customer
@@ -13441,6 +14761,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -13468,6 +14791,7 @@ components:
       - allocated_total
       - allocations
       - amount
+      - cash_limit_confirmed
       - created_at
       - created_by
       - customer
@@ -13680,6 +15004,9 @@ components:
           type: string
           default: ''
           maxLength: 120
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - customer
     CustomerWrite:
@@ -13739,6 +15066,51 @@ components:
             $ref: '#/components/schemas/CustomerContact'
       required:
       - name
+    CustomerWriteOff:
+      type: object
+      description: 'A balance written off (D-252): the loss on the customer, with
+        its reason.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        written_on:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - created_by
+      - id
+      - reason
+      - written_on
+    CustomerWriteOffWrite:
+      type: object
+      properties:
+        expected_amount:
+          type: string
+          maxLength: 30
+        reason:
+          type: string
+          maxLength: 255
+        lot_shares:
+          type: array
+          items:
+            $ref: '#/components/schemas/WriteOffLotShareWrite'
+      required:
+      - expected_amount
+      - reason
     Dashboard:
       type: object
       properties:
@@ -13866,6 +15238,33 @@ components:
       - sales
       - settlements_undefined_late
       - stock_value
+    DayBox:
+      type: object
+      description: |-
+        One box type of the truck (D-239): what it holds now, what the day left with clients and collected, and what
+        the day's purchases brought from suppliers.
+      properties:
+        box_type:
+          type: string
+          readOnly: true
+        on_truck:
+          type: integer
+          readOnly: true
+        left_at_clients:
+          type: integer
+          readOnly: true
+        collected:
+          type: integer
+          readOnly: true
+        from_suppliers:
+          type: integer
+          readOnly: true
+      required:
+      - box_type
+      - collected
+      - from_suppliers
+      - left_at_clients
+      - on_truck
     DayClosingApprove:
       type: object
       properties:
@@ -13919,6 +15318,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14007,10 +15409,16 @@ components:
         changed_since_sent:
           type: boolean
           readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
       - changed_since_sent
       - changes_since_sent
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14021,6 +15429,7 @@ components:
       - office_difference
       - office_purchase_difference
       - reopenings
+      - review_blockers
       - review_note
       - reviewed_at
       - reviewed_by_name
@@ -14035,6 +15444,9 @@ components:
         the driver''s note, and the office''s count.'
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14088,6 +15500,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - driver_note
       - expected_cash
@@ -14132,6 +15545,9 @@ components:
       type: object
       properties:
         id:
+          type: integer
+          readOnly: true
+        driver_day_id:
           type: integer
           readOnly: true
         date:
@@ -14182,6 +15598,7 @@ components:
           readOnly: true
       required:
       - date
+      - driver_day_id
       - driver_name
       - expected_cash
       - expected_purchase_cash
@@ -14254,6 +15671,31 @@ components:
         note:
           type: string
           default: ''
+    DayColdRoom:
+      type: object
+      description: An active cold room the office can give the truck's stock back
+        to (D-258).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    DayExpenseDecision:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - decision
     DayFund:
       type: object
       description: The cash the office set for a driver's day (D-203).
@@ -14313,10 +15755,27 @@ components:
         started:
           type: boolean
           readOnly: true
+        ended:
+          type: boolean
+          readOnly: true
+        pending_purchase_float:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        pending_proposed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
       required:
       - can_buy
       - driver
+      - ended
       - fund
+      - pending_proposed_at
+      - pending_purchase_float
       - started
     DayFundWrite:
       type: object
@@ -14676,10 +16135,35 @@ components:
           items:
             $ref: '#/components/schemas/DayOverviewPurchase'
           readOnly: true
+        owns_truck:
+          type: boolean
+          readOnly: true
+        stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayStock'
+          readOnly: true
+        boxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayBox'
+          readOnly: true
+        review_blockers:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        cold_rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayColdRoom'
+          readOnly: true
       required:
+      - boxes
       - cash_received
       - closing
       - closing_id
+      - cold_rooms
       - date
       - deliveries
       - deliveries_done
@@ -14697,6 +16181,7 @@ components:
       - opening_cash
       - other_payments
       - owed_to_driver
+      - owns_truck
       - payments
       - payments_cash
       - phase
@@ -14708,9 +16193,11 @@ components:
       - purchases_from_sales
       - purchases_other
       - purchases_total
+      - review_blockers
       - sales
       - sales_count
       - sales_total
+      - stock
       - truck_name
     DayOverviewDriver:
       type: object
@@ -14748,6 +16235,12 @@ components:
         payment_method:
           type: string
           readOnly: true
+        paid_by_driver:
+          type: boolean
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
         made_at:
           type: string
           format: date-time
@@ -14758,7 +16251,9 @@ components:
       - description
       - id
       - made_at
+      - paid_by_driver
       - payment_method
+      - rejection_reason
       - status
     DayOverviewPayment:
       type: object
@@ -15193,6 +16688,12 @@ components:
       - reviewed_by_name
       - status
       - submitted_at
+    DayReturnToStock:
+      type: object
+      properties:
+        to_location_id:
+          type: integer
+          nullable: true
     DayRoute:
       type: object
       description: The GPS route of one driver's day, in time order; `last` is where
@@ -15217,6 +16718,32 @@ components:
       - last
       - points
       - stops
+    DayStock:
+      type: object
+      description: 'One product on the truck, now (D-239): its kilos, and the kilos
+        of the day''s purchases not yet validated.'
+      properties:
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        on_truck:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        purchased_pending:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - on_truck
+      - product_id
+      - product_name
+      - purchased_pending
     DaySummary:
       type: object
       properties:
@@ -15366,6 +16893,14 @@ components:
       - sales_count
       - sales_total
       - truck_name
+    DecisionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
     Deliver:
       type: object
       description: The delivery of the BL of a truck load, from the driver's phone
@@ -15749,12 +17284,16 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        restart_pending:
+          type: boolean
+          readOnly: true
       required:
       - date
       - ended_at
       - id
       - opening_cash
       - purchase_float
+      - restart_pending
       - truck_name
     DriverRef:
       type: object
@@ -17207,6 +18746,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        cash_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         credit_policy:
           allOf:
           - $ref: '#/components/schemas/CreditPolicyEnum'
@@ -17235,6 +18779,7 @@ components:
           readOnly: true
       required:
       - address
+      - cash_limit
       - created_at
       - created_by
       - credit_policy
@@ -17284,6 +18829,8 @@ components:
           type: boolean
         withholding_rate:
           type: string
+        cash_limit:
+          type: string
         credit_policy:
           $ref: '#/components/schemas/CreditPolicyEnum'
         legal_name:
@@ -17311,6 +18858,24 @@ components:
       - prices_include_vat
       - vat_rate
       - withholding_rate
+    GapLot:
+      type: object
+      description: 'A lot the gap of an invoice can be charged to (D-256, D-257):
+        one of its BL''s lots, not settled.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - number
+      - product
     GeneralCost:
       type: object
       properties:
@@ -17442,6 +19007,33 @@ components:
       - created
       - month
       - records
+    GoodsReceiptRevision:
+      type: object
+      properties:
+        number:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptChange'
+          readOnly: true
+      required:
+      - changes
+      - created_at
+      - created_by
+      - number
+      - reason
     Health:
       type: object
       properties:
@@ -17485,12 +19077,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        note:
+          type: string
+          readOnly: true
       required:
       - amount
       - balance
       - day
       - kind
       - method
+      - note
       - number
       - object_id
       - voided
@@ -17500,12 +19096,14 @@ components:
       - on_spot
       - payment
       - unpaid
+      - writeoff
       type: string
       description: |-
         * `sale` - sale
         * `on_spot` - on_spot
         * `payment` - payment
         * `unpaid` - unpaid
+        * `writeoff` - writeoff
     IllustrationEnum:
       enum:
       - shrimp
@@ -18015,6 +19613,20 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payment_state:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStateEnum'
+          readOnly: true
+        paid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra_over_goods:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         created_by:
           type: string
           readOnly: true
@@ -18053,6 +19665,7 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - extra_over_goods
       - fees
       - fiscal_stamp
       - id
@@ -18062,6 +19675,8 @@ components:
       - line_count
       - net_to_pay
       - number
+      - paid_total
+      - payment_state
       - prices_include_vat
       - remaining_to_pay
       - sale
@@ -18137,7 +19752,7 @@ components:
       properties:
         apply_vat:
           type: boolean
-          default: true
+          nullable: true
         lines:
           type: array
           items:
@@ -18152,9 +19767,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -18171,7 +19783,7 @@ components:
       properties:
         apply_vat:
           type: boolean
-          default: true
+          nullable: true
         lines:
           type: array
           items:
@@ -18186,9 +19798,6 @@ components:
         fees:
           type: string
           nullable: true
-        withholding_applied:
-          type: boolean
-          default: false
         withholding_rate:
           type: string
           nullable: true
@@ -18314,6 +19923,20 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        payment_state:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStateEnum'
+          readOnly: true
+        paid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra_over_goods:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         created_by:
           type: string
           readOnly: true
@@ -18345,6 +19968,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/InvoiceCertificate'
           nullable: true
+          readOnly: true
+        gap_lots:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapLot'
           readOnly: true
         notes:
           type: string
@@ -18415,9 +20043,11 @@ components:
       - due_on
       - einvoice_reference
       - einvoice_status
+      - extra_over_goods
       - fees
       - fiscal_stamp
       - fiscal_stamp_overridden
+      - gap_lots
       - id
       - issued_at
       - issued_by
@@ -18427,6 +20057,8 @@ components:
       - net_to_pay
       - notes
       - number
+      - paid_total
+      - payment_state
       - prices_include_vat
       - remaining_to_pay
       - sale
@@ -18446,6 +20078,61 @@ components:
       - withholding_applied
       - withholding_rate
       - withholding_rate_overridden
+    InvoiceEstimate:
+      type: object
+      description: The invoice some BL would make, not saved (D-256).
+      properties:
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_by_rate:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        net_to_pay:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        extra_by_sale:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+      required:
+      - extra
+      - extra_by_sale
+      - fiscal_stamp
+      - net_to_pay
+      - total_excl_tax
+      - vat_by_rate
+      - vat_total
+      - withholding_amount
     InvoiceLine:
       type: object
       properties:
@@ -19595,6 +21282,27 @@ components:
       - profit_rate
       - status
       - terms_pending
+    LotPartnershipAdvance:
+      type: object
+      properties:
+        amount:
+          type: string
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        paid_on:
+          type: string
+          format: date
+        note:
+          type: string
+          default: ''
+          maxLength: 300
+      required:
+      - amount
+      - method
     LotPartnershipCancel:
       type: object
       properties:
@@ -19951,6 +21659,61 @@ components:
         all:
           type: boolean
           default: false
+    MatchCandidate:
+      type: object
+      properties:
+        movement:
+          allOf:
+          - $ref: '#/components/schemas/MatchedMovement'
+          readOnly: true
+        suggested:
+          type: boolean
+          readOnly: true
+      required:
+      - movement
+      - suggested
+    MatchWrite:
+      type: object
+      properties:
+        movement:
+          type: integer
+          minimum: 1
+      required:
+      - movement
+    MatchedMovement:
+      type: object
+      description: The movement of our ledger a statement line was matched to (rapprochement,
+        D-265).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+      required:
+      - amount
+      - day
+      - id
+      - kind
+      - label
+      - reference
     Member:
       type: object
       properties:
@@ -20543,6 +22306,39 @@ components:
         * `salary` - Salaire
         * `partner_settlement` - Règlement associé
         * `field_purchase` - Achat au port
+    MovementOf:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        source_id:
+          type: integer
+          readOnly: true
+        day:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/MovementKindEnum'
+          readOnly: true
+        account:
+          allOf:
+          - $ref: '#/components/schemas/AccountRef'
+          readOnly: true
+      required:
+      - account
+      - amount
+      - day
+      - id
+      - kind
+      - source_id
     MovementRow:
       type: object
       properties:
@@ -20906,12 +22702,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        product_name_ar:
+          type: string
+          readOnly: true
       required:
       - amount
       - declared_quantity
       - id
       - owed_quantity
       - product
+      - product_name_ar
       - proposed_product
       - received_quantity
       - unit_cost
@@ -21017,6 +22817,9 @@ components:
         product_name:
           type: string
           readOnly: true
+        product_name_ar:
+          type: string
+          readOnly: true
         quantity:
           type: string
           format: decimal
@@ -21036,6 +22839,7 @@ components:
       - photo_url
       - product_id
       - product_name
+      - product_name_ar
       - quantity
       - unit_price
     MySupplier:
@@ -21276,7 +23080,17 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        estimated_extra:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -21286,6 +23100,7 @@ components:
       - allocated
       - document_date
       - due_on
+      - estimated_extra
       - invoice_id
       - invoice_number
       - is_overdue
@@ -21295,6 +23110,7 @@ components:
       - owed
       - sale_id
       - sold_at
+      - written_off
     Order:
       type: object
       properties:
@@ -21540,6 +23356,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AccountTransfer'
+    PaginatedBankStatementLineList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankStatementLine'
     PaginatedBatchList:
       type: object
       required:
@@ -22356,6 +24195,46 @@ components:
       - phone
       - tax_id
       - trade_register
+    PartyDocumentRow:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        deliveries:
+          type: integer
+          readOnly: true
+        invoices:
+          type: integer
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - deliveries
+      - id
+      - invoices
+      - total
+    PartyDocuments:
+      type: object
+      description: 'Per customer: its BL, invoices and net to pay. Per supplier: its
+        BR, invoices and invoiced total (D-211).'
+      properties:
+        customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartyDocumentRow'
+          readOnly: true
+        suppliers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartyDocumentRow'
+          readOnly: true
+      required:
+      - customers
+      - suppliers
     PartyRef:
       type: object
       properties:
@@ -22766,6 +24645,14 @@ components:
         * `transfer` - Virement
         * `bill` - Traite
         * `other` - Autre
+    PaymentOrderNotice:
+      type: object
+      properties:
+        recipient:
+          type: integer
+          minimum: 1
+      required:
+      - recipient
     PaymentRef:
       type: object
       properties:
@@ -22792,6 +24679,18 @@ components:
       - number
       - paid_on
       - reference
+    PaymentStateEnum:
+      enum:
+      - none
+      - unpaid
+      - partial
+      - paid
+      type: string
+      description: |-
+        * `none` - none
+        * `unpaid` - unpaid
+        * `partial` - partial
+        * `paid` - paid
     PaymentTermsEnum:
       enum:
       - cash
@@ -23256,6 +25155,24 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PrimeWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+        method:
+          $ref: '#/components/schemas/SalaryPaymentMethodEnum'
+        paid_on:
+          type: string
+          format: date
+      required:
+      - amount
+      - method
+      - paid_on
+      - reason
     Product:
       type: object
       description: A product as the screens show it, with the sale price in force
@@ -23666,15 +25583,29 @@ components:
         * `uncovered_loss` - Perte au-delà de l'apport
         * `late_adjustment` - Régularisation après clôture
         * `payment` - Paiement
-    PurchaseFloat:
+    PurchaseFloatChange:
       type: object
+      description: The money for purchases the office proposed on the phone's day,
+        waiting for the driver's approval (D-260).
       properties:
-        purchase_float:
+        amount:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        previous_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
-      - purchase_float
+      - amount
+      - created_at
+      - previous_amount
     PurchaseOrderStatusEnum:
       enum:
       - open
@@ -24166,9 +26097,13 @@ components:
         name:
           type: string
           readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
       required:
       - id
       - name
+      - name_ar
       - reference
     QuoteRef:
       type: object
@@ -24303,10 +26238,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+        revision:
+          type: integer
+          readOnly: true
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoodsReceiptRevision'
+          readOnly: true
+        editable:
+          type: boolean
+          readOnly: true
       required:
       - accepted_total
       - created_at
       - created_by
+      - editable
       - has_differences
       - id
       - invoice
@@ -24317,6 +26264,8 @@ components:
       - number
       - purchase_order
       - received_on
+      - revision
+      - revisions
       - supplier
       - supplier_reference
       - with_vat
@@ -24338,6 +26287,51 @@ components:
       - id
       - number
       - use_by
+    ReceiptChange:
+      type: object
+      properties:
+        field:
+          type: string
+          readOnly: true
+        line:
+          type: integer
+          readOnly: true
+          nullable: true
+        before:
+          type: string
+          readOnly: true
+          nullable: true
+        after:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - after
+      - before
+      - field
+      - line
+    ReceiptHeader:
+      type: object
+      description: The seller printed at the top of the driver's receipts (D-281),
+        from the finance settings in force.
+      properties:
+        name:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - name
+      - phone
+      - tax_id
     ReceiptLine:
       type: object
       properties:
@@ -24459,6 +26453,54 @@ components:
       - number
       - received_on
       - supplier
+    ReceiptRevisionLineWrite:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        invoiced_quantity:
+          type: string
+        accepted_quantity:
+          type: string
+        unit_cost:
+          type: string
+        use_by:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - accepted_quantity
+      - id
+      - invoiced_quantity
+      - unit_cost
+    ReceiptRevisionWrite:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 0
+        reason:
+          type: string
+          maxLength: 300
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        notes:
+          type: string
+          default: ''
+        with_vat:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptRevisionLineWrite'
+      required:
+      - lines
+      - reason
+      - revision
+      - with_vat
     ReceiptWrite:
       type: object
       properties:
@@ -24494,22 +26536,13 @@ components:
           additionalProperties:
             type: integer
             minimum: 0
-        invoice_now:
-          type: boolean
-          default: false
-        terms:
-          allOf:
-          - $ref: '#/components/schemas/PaymentTermsEnum'
-          default: days
-        due_days:
-          type: integer
-          maximum: 365
-          minimum: 0
-          default: 30
         payments:
           type: array
           items:
             $ref: '#/components/schemas/FieldPurchasePaymentWrite'
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - lines
       - location
@@ -24578,6 +26611,58 @@ components:
       - happened_on
       - note
       - to_status
+    Recipient:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    ReconciliationSummary:
+      type: object
+      properties:
+        lines:
+          type: integer
+          readOnly: true
+        matched:
+          type: integer
+          readOnly: true
+        unmatched:
+          type: integer
+          readOnly: true
+        unmatched_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unmatched_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        movements:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchedMovement'
+          readOnly: true
+        movements_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - lines
+      - matched
+      - movements
+      - movements_total
+      - unmatched
+      - unmatched_in
+      - unmatched_out
     RecordPayment:
       type: object
       description: The part of one payment that settled the salary.
@@ -25278,6 +27363,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - amount
       - customer
@@ -25562,10 +27650,12 @@ components:
       enum:
       - salary
       - advance
+      - prime
       type: string
       description: |-
         * `salary` - Salaire
         * `advance` - Avance sur salaire
+        * `prime` - Prime
     SalaryPaymentMethodEnum:
       enum:
       - cash
@@ -26294,6 +28384,11 @@ components:
           items:
             $ref: '#/components/schemas/SaleRevision'
           readOnly: true
+        estimated_extra:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - amount_due
       - amount_excl_tax
@@ -26318,6 +28413,7 @@ components:
       - delivery_note
       - delivery_status
       - discount_total
+      - estimated_extra
       - id
       - invoice
       - issued_at
@@ -27567,6 +29663,55 @@ components:
       - rows
       - total_quantity
       - total_value
+    StatementImport:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    StatementImportReport:
+      type: object
+      properties:
+        created:
+          type: integer
+          readOnly: true
+        skipped:
+          type: integer
+          readOnly: true
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementRowError'
+          readOnly: true
+      required:
+      - created
+      - problems
+      - skipped
+    StatementLineParty:
+      type: object
+      properties:
+        customer:
+          type: integer
+          minimum: 1
+          nullable: true
+        supplier:
+          type: integer
+          minimum: 1
+          nullable: true
+    StatementRowError:
+      type: object
+      properties:
+        row:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - message
+      - row
     StatusTotal:
       type: object
       properties:
@@ -27581,6 +29726,36 @@ components:
       required:
       - count
       - total
+    StockAdjustmentWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        batch:
+          type: integer
+          minimum: 1
+        direction:
+          $ref: '#/components/schemas/StockAdjustmentWriteDirectionEnum'
+        quantity:
+          type: string
+        reason:
+          type: string
+          maxLength: 200
+      required:
+      - batch
+      - direction
+      - location
+      - quantity
+      - reason
+    StockAdjustmentWriteDirectionEnum:
+      enum:
+      - add
+      - remove
+      type: string
+      description: |-
+        * `add` - add
+        * `remove` - remove
     StockCheckHealth:
       type: object
       properties:
@@ -27726,6 +29901,7 @@ components:
     StockMovementKindEnum:
       enum:
       - receipt
+      - receipt_correction
       - transfer
       - sale
       - customer_return
@@ -27736,6 +29912,7 @@ components:
       type: string
       description: |-
         * `receipt` - Réception
+        * `receipt_correction` - Correction de réception
         * `transfer` - Transfert
         * `sale` - Vente
         * `customer_return` - Retour client
@@ -27904,6 +30081,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
           type: string
           format: decimal
@@ -27941,6 +30123,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        write_off_lots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierWriteOffLot'
+          readOnly: true
       required:
       - balance
       - draft_invoices
@@ -27955,6 +30142,8 @@ components:
       - unallocated
       - uninvoiced_receipts
       - uninvoiced_total
+      - write_off_lots
+      - written_off
     SupplierBalances:
       type: object
       properties:
@@ -28385,6 +30574,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -28400,6 +30592,7 @@ components:
       - allocated_amount
       - allocations
       - amount
+      - cash_limit_confirmed
       - cash_on
       - created_at
       - created_by
@@ -28488,6 +30681,9 @@ components:
         is_voided:
           type: boolean
           readOnly: true
+        cash_limit_confirmed:
+          type: boolean
+          readOnly: true
         voided_at:
           type: string
           format: date-time
@@ -28503,6 +30699,7 @@ components:
       - allocated_amount
       - allocations
       - amount
+      - cash_limit_confirmed
       - cash_on
       - created_at
       - created_by
@@ -28682,6 +30879,9 @@ components:
           items:
             type: integer
             minimum: 1
+        confirm_cash_limit:
+          type: boolean
+          default: false
       required:
       - paid_on
       - supplier
@@ -28728,6 +30928,38 @@ components:
             $ref: '#/components/schemas/SupplierContact'
       required:
       - name
+    SupplierWriteOffLot:
+      type: object
+      description: 'A lot a supplier balance write-off can be credited to (D-257):
+        one they sold us, not settled.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - number
+      - product
+    SupplierWriteOffLotShare:
+      type: object
+      description: The part of a supplier balance write-off credited to one lot, picked
+        by hand (D-257).
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+          maxLength: 30
+      required:
+      - amount
+      - batch
     SyncProblem:
       type: object
       properties:
@@ -30120,6 +32352,38 @@ components:
         * `store` - Magasin
         * `cleaning` - Nettoyage
         * `other` - Autre
+    WriteOffLot:
+      type: object
+      description: 'A lot a balance write-off can be charged to (D-257): one the party
+        bought or sold, not settled.'
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          type: string
+          readOnly: true
+      required:
+      - batch_id
+      - number
+      - product
+    WriteOffLotShareWrite:
+      type: object
+      description: The part of a balance write-off charged to one lot, picked by hand
+        (D-257).
+      properties:
+        batch:
+          type: integer
+          minimum: 1
+        amount:
+          type: string
+          maxLength: 30
+      required:
+      - amount
+      - batch
   securitySchemes:
     cookieAuth:
       type: apiKey

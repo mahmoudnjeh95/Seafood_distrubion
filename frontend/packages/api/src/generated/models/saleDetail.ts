@@ -90,4 +90,6 @@ export interface SaleDetail {
   readonly lines: readonly SaleLine[];
   readonly boxes: SaleDetailBoxes;
   readonly revisions: readonly SaleRevision[];
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly estimated_extra: string;
 }

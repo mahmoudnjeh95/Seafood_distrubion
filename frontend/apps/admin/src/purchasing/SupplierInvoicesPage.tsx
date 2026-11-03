@@ -1,17 +1,40 @@
-import { type ListSupplierInvoicesStatus, useGetSupplier, useListSupplierInvoices } from "@frutti/api";
+import {
+  getExportSupplierInvoicesUrl,
+  type ListSupplierInvoicesStatus,
+  useGetSupplier,
+  useListSupplierInvoices,
+} from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  TotalsRow,
+  useServerTable,
+  useUrlState,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { useDebounced } from "../lib/useDebounced";
+import { totalOf } from "../lib/totals";
 import { canRecordReceipts } from "../receipts/shared";
 import { PurchasingTabs } from "./PurchasingTabs";
 import { idFrom, STATUS_TONE } from "./shared";
+import { ExportButton } from "../lib/ExportButton";
 
-const PAGE_SIZE = 50;
 const FILTERS = ["open", "draft", "paid", "all"] as const;
 type Filter = (typeof FILTERS)[number];
 
@@ -25,22 +48,21 @@ export function SupplierInvoicesPage() {
   // `?fournisseur=3` (from the supplier page) shows one supplier's invoices.
   const supplierId = idFrom(params.get("fournisseur"));
   const supplier = useGetSupplier(supplierId ?? 0, { query: { enabled: supplierId !== null } });
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("all");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const status: ListSupplierInvoicesStatus | undefined = filter === "all" ? undefined : filter;
+  const filters = {
+    overdue: onlyOverdue,
+    ...(status ? { status } : {}),
+    ...(query ? { search: query } : {}),
+    ...(supplierId ? { supplier: supplierId } : {}),
+  };
   const invoices = useListSupplierInvoices(
-    {
-      limit: PAGE_SIZE,
-      offset,
-      overdue: onlyOverdue,
-      ...(status ? { status } : {}),
-      ...(query ? { search: query } : {}),
-      ...(supplierId ? { supplier: supplierId } : {}),
-    },
+    { ...table.params, ...filters },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = invoices.data;
@@ -59,6 +81,7 @@ export function SupplierInvoicesPage() {
             {t("admin.supplierInvoices.add")}
           </Button>
         )}
+        <ExportButton href={getExportSupplierInvoicesUrl({ ...table.ordering, ...filters })} />
       </PageHeader>
 
       <PurchasingTabs />
@@ -73,7 +96,7 @@ export function SupplierInvoicesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -89,7 +112,7 @@ export function SupplierInvoicesPage() {
               aria-pressed={filter === choice}
               onClick={() => {
                 setFilter(choice);
-                setOffset(0);
+                table.backToFirstPage();
               }}
               className={cn(
                 "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -107,7 +130,7 @@ export function SupplierInvoicesPage() {
             checked={onlyOverdue}
             onChange={(event) => {
               setOnlyOverdue(event.target.checked);
-              setOffset(0);
+              table.backToFirstPage();
             }}
             className="size-4 accent-coral"
           />
@@ -121,7 +144,7 @@ export function SupplierInvoicesPage() {
               className="font-semibold text-sea hover:underline"
               onClick={() => {
                 setParams({});
-                setOffset(0);
+                table.backToFirstPage();
               }}
             >
               {t("admin.supplierInvoices.clearSupplier")}
@@ -152,9 +175,15 @@ export function SupplierInvoicesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.supplierInvoices.columns.number")}</Th>
-                <Th>{t("admin.supplierInvoices.columns.date")}</Th>
-                <Th>{t("admin.supplierInvoices.columns.supplier")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.supplierInvoices.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.supplierInvoices.columns.date")}
+                </SortTh>
+                <SortTh sortKey="supplier" {...table.sorting}>
+                  {t("admin.supplierInvoices.columns.supplier")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.supplierInvoices.columns.due")}</Th>
                 <Th numeric className="max-[720px]:hidden">
                   {t("admin.supplierInvoices.columns.total")}
@@ -208,24 +237,20 @@ export function SupplierInvoicesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={4}
+              cells={[
+                { value: totalOf(list, (i) => i.total), phoneHidden: true },
+                {
+                  value: totalOf(
+                    list.filter((i) => i.status !== "draft"),
+                    (i) => i.outstanding,
+                  ),
+                },
+              ]}
+            />
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.supplierInvoices.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.supplierInvoices.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.supplierInvoices.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

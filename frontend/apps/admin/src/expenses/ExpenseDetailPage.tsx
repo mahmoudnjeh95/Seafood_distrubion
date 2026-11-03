@@ -27,6 +27,7 @@ import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { sum } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
+import { TreasuryTrace } from "../treasury/TreasuryTrace";
 import { canWriteExpenses, EXPENSE_TONES, isOpen, refreshExpenses } from "./shared";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
@@ -158,6 +159,7 @@ export function ExpenseDetailPage() {
           </>
         )}
       </PageHeader>
+      <TreasuryTrace source="expenses.expense" ids={[data.id]} />
 
       {data.status === "pending" && (
         <div role="note" className="flex items-start gap-3 rounded-card border border-line bg-warn-soft p-3">

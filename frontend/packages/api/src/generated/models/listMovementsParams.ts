@@ -15,6 +15,7 @@ date_from?: string;
 date_to?: string;
 /**
  * * `receipt` - Réception
+ * * `receipt_correction` - Correction de réception
  * * `transfer` - Transfert
  * * `sale` - Vente
  * * `customer_return` - Retour client
@@ -37,6 +38,10 @@ location?: number;
  * L'index initial depuis lequel retourner les résultats.
  */
 offset?: number;
+/**
+ * Column to sort by; a leading `-` sorts descending.
+ */
+ordering?: string;
 /**
  * @minimum 1
  */

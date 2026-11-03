@@ -1,4 +1,5 @@
 import datetime as dt
+import uuid
 from decimal import Decimal
 
 import pytest
@@ -17,7 +18,7 @@ from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners import services as partners
 from apps.partners.tests.factories import CustomerFactory
 from apps.sales import services
-from apps.sales.models import Sale, SaleStatus
+from apps.sales.models import FinanceSettings, Sale, SaleStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -96,8 +97,6 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
         counter,
         [{"product": crevette.pk, "quantity": "5"}],
         customer=customer.pk,
-        amount_paid="100.000",
-        payment_method="cash",
         confirm_now=True,
     )
 
@@ -107,7 +106,7 @@ def test_the_office_sells_and_confirms_at_once_and_reads_the_lots_back(api, orga
         FIRST_BL,
         "confirmed",
         "210.000",
-        "110.000",
+        "210.000",
     )
     assert (body["cost_total"], body["margin"], body["tax_amount"]) == ("100.000", "110.000", None)
     assert body["location"] == {"id": counter.pk, "name": "Chambre froide 1", "kind": "cold_room"}
@@ -152,7 +151,7 @@ def test_a_counter_sale_without_customer_goes_to_the_walk_in_customer(api, organ
     receive(organization, crevette, counter, "10")
 
     unpaid = create(api, counter, [{"product": crevette.pk, "quantity": "1"}], confirm_now=True)
-    paid = create(
+    typed = create(
         api,
         counter,
         [{"product": crevette.pk, "quantity": "1"}],
@@ -161,11 +160,13 @@ def test_a_counter_sale_without_customer_goes_to_the_walk_in_customer(api, organ
         confirm_now=True,
     )
 
-    assert unpaid.status_code == 400
-    assert "amount_paid" in unpaid.json()
-    assert paid.status_code == 201
-    assert paid.json()["customer"]["is_walk_in"] is True
-    assert paid.json()["amount_paid"] == "42.000"
+    # The office's counter sale is left unpaid: the treasurer takes the money in Règlements clients (D-245).
+    assert unpaid.status_code == 201
+    assert unpaid.json()["customer"]["is_walk_in"] is True
+    assert (unpaid.json()["amount_paid"], unpaid.json()["amount_due"]) == ("0.000", "42.000")
+    # A payment typed at the office is refused, not dropped.
+    assert typed.status_code == 400
+    assert "detail" in typed.json()
 
 
 def test_line_errors_come_back_on_their_own_keys(api, organization, customer, counter, crevette):
@@ -449,6 +450,30 @@ def test_a_customer_price_list_wins_over_the_price_the_phone_showed(
     assert (line["unit_price"], line["price_source"]) == ("40.000", "price_list")
 
 
+def test_the_driver_reads_the_seller_printed_on_receipts(manager, organization, driver_with_truck):
+    """D-281: the name, address, phone and matricule fiscal of the finance settings, the company name by default."""
+    driver, _ = driver_with_truck
+    phone = client_for(driver)
+    assert phone.get(reverse("my-receipt-header")).json() == {
+        "name": organization.name,
+        "address": "",
+        "phone": "",
+        "tax_id": "",
+    }
+    services.ensure_finance_settings(organization=organization)
+    FinanceSettings.objects.filter(organization=organization).update(
+        legal_name="Frutti Del Mare SARL", address="Sakiet Ezzit, Sfax", phone="74 000 000", tax_id="1234567A"
+    )
+
+    assert phone.get(reverse("my-receipt-header")).json() == {
+        "name": "Frutti Del Mare SARL",
+        "address": "Sakiet Ezzit, Sfax",
+        "phone": "74 000 000",
+        "tax_id": "1234567A",
+    }
+    assert client_for(manager).get(reverse("my-receipt-header")).status_code == 403
+
+
 def test_a_driver_sees_and_delivers_the_bl_prepared_with_their_load(
     manager, organization, customer, crevette, driver_with_truck
 ):
@@ -475,6 +500,42 @@ def test_a_driver_sees_and_delivers_the_bl_prepared_with_their_load(
     assert confirmed.status_code == 200
     assert confirmed.json()["status"] == "confirmed"
     assert phone.get(reverse("my-deliveries")).json() == []
+
+
+def test_a_bl_the_driver_delivered_today_is_listed_again_with_what_was_delivered(
+    manager, organization, customer, crevette, driver_with_truck
+):
+    """The sale screen shows a delivered client's BL again, to print its receipt again (D-281)."""
+    driver, truck_place = driver_with_truck
+    cold_room = StockLocationFactory.create(organization=organization, name="Chambre froide 1")
+    receive(organization, crevette, cold_room, "20")
+    stock.create_transfer(
+        organization=organization,
+        actor=manager.user,
+        from_location=cold_room,
+        to_location=truck_place,
+        transferred_on=timezone.localdate(),
+        lines=[],
+        deliveries=[{"customer": customer, "lines": [{"product": crevette, "quantity": "5"}]}],
+        validate=True,
+    )
+    phone = client_for(driver)
+    (bl,) = phone.get(reverse("my-deliveries")).json()
+    assert phone.get(reverse("my-delivered")).json() == []
+
+    delivered = phone.post(
+        reverse("my-delivery-deliver", args=[bl["id"]]),
+        {"lines": [{"line": bl["lines"][0]["id"], "quantity": "4"}], "client_uuid": str(uuid.uuid4())},
+        format="json",
+    )
+
+    assert delivered.status_code == 200, delivered.json()
+    (again,) = phone.get(reverse("my-delivered")).json()
+    assert (again["id"], again["delivery_status"], again["lines"][0]["quantity"]) == (bl["id"], "partial", "4.000")
+    assert again["lines"][0]["product"]["name_ar"] == crevette.name_ar  # printed under the French name (D-282)
+    # Another driver does not see it.
+    other = MembershipFactory.create(organization=organization, role=Role.DRIVER)
+    assert client_for(other).get(reverse("my-delivered")).json() == []
 
 
 def test_a_driver_loaded_for_clients_is_offered_only_those_clients_and_the_walk_in_one(

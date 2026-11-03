@@ -15,6 +15,7 @@ from apps.expenses import selectors as expenses
 from apps.hr import selectors as hr
 from apps.inventory import selectors as inventory
 from apps.partnerships import selectors as partnerships
+from apps.purchasing import selectors as purchasing
 from apps.sales import selectors as sales
 
 from . import engine
@@ -25,6 +26,8 @@ ZERO = Decimal("0.000")
 # Movement kinds (inventory.MovementKind values) that write kg of a lot off or back on: the spoilage step.
 WRITE_OFF_KINDS = frozenset({"loss", "count_correction", "adjustment"})
 RECEIPT = "receipt"
+# A correction of what a goods receipt received (D-270): kg received, never written off.
+RECEIPT_CORRECTION = "receipt_correction"
 SUPPLIER_RETURN = "supplier_return"
 
 # Customer payments exist since P2-T06 (D-062): a lot with a sale still owed money cannot be closed (Q19).
@@ -69,6 +72,8 @@ def _stock(organization: Organization, batch_id: int) -> _Stock:
         enters = movement.to_location_id is not None and movement.from_location_id is None
         if movement.kind == RECEIPT and enters:
             received += movement.quantity
+        elif movement.kind == RECEIPT_CORRECTION and (leaves or enters):
+            received += -movement.quantity if leaves else movement.quantity
         elif movement.kind == SUPPLIER_RETURN and leaves:
             returned += movement.quantity
         elif movement.kind in WRITE_OFF_KINDS and (leaves or enters):
@@ -138,6 +143,36 @@ def _cost_rows(organization: Organization, batch_id: int) -> tuple[engine.CostRo
     return tuple(rows)
 
 
+def _write_off_rows(organization: Organization, batch_id: int) -> tuple[engine.CostRow, ...]:
+    """The balance write-offs the owner charged to the lot (D-257): a customer's loss as a cost, a supplier's gain
+    as a negative cost. Kept out of `cost_rows_for_batch`: they are not costs a partner shares by category."""
+    rows = [
+        engine.CostRow(
+            kind="customer_write_off",
+            on=share.write_off.written_on,
+            title=share.write_off.customer.name,
+            amount=share.amount,
+            description=share.write_off.reason,
+            source_type="customer",
+            source_id=share.write_off.customer_id,
+        )
+        for share in sales.write_off_shares_of_batch(organization, batch_id=batch_id)
+    ]
+    rows += [
+        engine.CostRow(
+            kind="supplier_write_off",
+            on=share.write_off.written_on,
+            title=share.write_off.supplier.name,
+            amount=-share.amount,
+            description=share.write_off.reason,
+            source_type="supplier",
+            source_id=share.write_off.supplier_id,
+        )
+        for share in purchasing.write_off_shares_of_batch(organization, batch_id=batch_id)
+    ]
+    return tuple(rows)
+
+
 def cost_rows_for_batch(
     organization: Organization, *, batch_id: int, date_from: dt.date, date_to: dt.date
 ) -> tuple[engine.CostRow, ...]:
@@ -178,7 +213,7 @@ def lot_snapshot(organization: Organization, *, batch_id: int) -> engine.LotSnap
         on_hand_quantity=inventory.quantity_on_hand(organization, batch_id=batch_id),
         sales=_sale_rows(organization, batch_id),
         stock_rows=stock.rows,
-        costs=_cost_rows(organization, batch_id),
+        costs=_cost_rows(organization, batch_id) + _write_off_rows(organization, batch_id),
         partnership=_terms(organization, batch_id),
     )
 

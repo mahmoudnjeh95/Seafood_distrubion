@@ -35,3 +35,37 @@ export function Td({ className, numeric = false, ...props }: ComponentProps<"td"
     />
   );
 }
+
+/** A header the user can click to sort by its column: ▲ ascending, ▼ descending, a second click reverses, a third
+ * restores the original order. Pair it with `useTableView`. */
+export function SortTh({
+  sortKey,
+  sort,
+  onSort,
+  children,
+  className,
+  numeric = false,
+  ...props
+}: Omit<ComponentProps<"th">, "onClick"> & {
+  sortKey: string;
+  sort: { key: string; direction: "asc" | "desc" } | null;
+  onSort: (key: string) => void;
+  numeric?: boolean;
+}) {
+  const active = sort?.key === sortKey ? sort.direction : null;
+  return (
+    <Th
+      numeric={numeric}
+      aria-sort={active === "asc" ? "ascending" : active === "desc" ? "descending" : "none"}
+      className={cn("cursor-pointer select-none hover:text-ink", className)}
+      {...props}
+    >
+      <button type="button" className="inline-flex items-center gap-1 uppercase" onClick={() => onSort(sortKey)}>
+        {children}
+        <span aria-hidden className={cn("text-[0.6rem]", active ? "text-sea" : "opacity-30")}>
+          {active === "desc" ? "▼" : "▲"}
+        </span>
+      </button>
+    </Th>
+  );
+}

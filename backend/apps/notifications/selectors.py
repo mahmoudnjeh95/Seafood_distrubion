@@ -2,10 +2,10 @@
 
 import datetime as dt
 
-from django.db.models import Exists, OuterRef, QuerySet
+from django.db.models import Exists, OuterRef, Q, QuerySet
 from django.utils import timezone
 
-from apps.core.models import Membership, Role
+from apps.core.models import Membership, Organization, Role
 
 from .models import Audience, Notification, NotificationRead
 
@@ -22,7 +22,8 @@ def visible_to(membership: Membership) -> QuerySet[Notification]:
     since = timezone.now() - dt.timedelta(days=KEPT_DAYS)
     rows = Notification.objects.for_organization(membership.organization).filter(created_at__gte=since)
     if membership.role in OFFICE_READERS:
-        rows = rows.filter(audience=Audience.OFFICE)
+        # The whole office's, or one addressed to this person (a payment order sent to them, D-255).
+        rows = rows.filter(Q(recipient__isnull=True) | Q(recipient_id=membership.user_id), audience=Audience.OFFICE)
     elif membership.role == Role.DRIVER:
         rows = rows.filter(audience=Audience.DRIVER, recipient_id=membership.user_id)
     else:
@@ -44,3 +45,12 @@ def latest_for(membership: Membership) -> list[Notification]:
 
 def unread_count(membership: Membership) -> int:
     return unread_of(membership).count()
+
+
+def office_recipients(organization: Organization) -> QuerySet[Membership]:
+    """The people a payment order can be sent to: the active owners and managers, by name."""
+    return (
+        Membership.objects.filter(organization=organization, is_active=True, role__in=OFFICE_READERS)
+        .select_related("user")
+        .order_by("user__first_name", "user__username")
+    )

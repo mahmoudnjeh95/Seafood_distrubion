@@ -1,9 +1,26 @@
 import { type ListPurchaseOrdersStatus, useListPurchaseOrders } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
-import { Button, Card, cn, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
-import { keepPreviousData } from "@tanstack/react-query";
+import {
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  Th,
+  useServerTable,
+  useUrlState,
+} from "@frutti/ui";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { sum } from "../lib/decimal";
@@ -12,7 +29,6 @@ import { PurchasingTabs } from "../purchasing/PurchasingTabs";
 import { canRecordReceipts } from "../receipts/shared";
 import { ORDER_TONE } from "./shared";
 
-const PAGE_SIZE = 50;
 const FILTERS = ["pending", "received", "closed", "all"] as const;
 type Filter = (typeof FILTERS)[number];
 
@@ -21,14 +37,14 @@ export function PurchaseOrdersPage() {
   const session = useOutletContext<Session>();
   const navigate = useNavigate();
   const canRecord = canRecordReceipts(session);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [filter, setFilter] = useState<Filter>("pending");
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const status: ListPurchaseOrdersStatus | undefined = filter === "all" ? undefined : filter;
   const orders = useListPurchaseOrders(
-    { limit: PAGE_SIZE, offset, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
+    { ...table.params, ...(status ? { status } : {}), ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = orders.data;
@@ -58,7 +74,7 @@ export function PurchaseOrdersPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -70,7 +86,7 @@ export function PurchaseOrdersPage() {
               aria-pressed={filter === choice}
               onClick={() => {
                 setFilter(choice);
-                setOffset(0);
+                table.backToFirstPage();
               }}
               className={cn(
                 "rounded-[7px] px-3 py-1.5 text-[0.85rem] font-semibold text-ink-2",
@@ -105,9 +121,15 @@ export function PurchaseOrdersPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.purchaseOrders.columns.number")}</Th>
-                <Th>{t("admin.purchaseOrders.columns.date")}</Th>
-                <Th>{t("admin.purchaseOrders.columns.supplier")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.purchaseOrders.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.purchaseOrders.columns.date")}
+                </SortTh>
+                <SortTh sortKey="supplier" {...table.sorting}>
+                  {t("admin.purchaseOrders.columns.supplier")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.purchaseOrders.columns.expected")}</Th>
                 <Th numeric>{t("admin.purchaseOrders.columns.progress")}</Th>
                 <Th numeric className="max-[720px]:hidden">
@@ -153,23 +175,7 @@ export function PurchaseOrdersPage() {
               ))}
             </tbody>
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.purchaseOrders.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.purchaseOrders.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.purchaseOrders.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
     </>

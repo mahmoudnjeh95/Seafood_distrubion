@@ -1,7 +1,6 @@
 import {
   createSale,
   type SaleDetail,
-  type SalePaymentMethodEnum,
   type SaleWrite,
   useListCustomers,
   useListLocations,
@@ -14,7 +13,6 @@ import {
   Button,
   Card,
   CardTitle,
-  cn,
   Field,
   Icon,
   PageHeader,
@@ -38,7 +36,7 @@ import { LinesGrid } from "../lib/LinesGrid";
 import { choosePlace, needsOf, placesOf, totalsOf, usePlacesStock } from "../lib/placeStock";
 import { usePartnerProducts } from "../partnerships/usePartnerProducts";
 import { type ReactNode } from "react";
-import { canSell, PAYMENT_METHODS, refreshAfterSale } from "./shared";
+import { canSell, refreshAfterSale } from "./shared";
 
 // Radix Select has no empty choice: this value stands for the walk-in customer ("Client de passage").
 const WALK_IN = "walk-in";
@@ -63,7 +61,6 @@ export function CounterSalePage() {
   const rooms = (locations.data ?? []).filter((location) => location.counter_sales);
 
   const [customer, setCustomer] = useState(WALK_IN);
-  const [method, setMethod] = useState<SalePaymentMethodEnum>("cash");
   const [basket, setBasket] = useState<Line[]>(() => [newLine()]);
   // Counts the baskets started: a new one is a new grid, with the cursor back in its first cell.
   const [baskets, setBaskets] = useState(0);
@@ -167,8 +164,6 @@ export function CounterSalePage() {
       customer: realCustomer ? Number(customer) : null,
       location: room,
       lines,
-      paid_in_full: true,
-      payment_method: method,
       confirm_now: true,
     });
   }
@@ -246,22 +241,7 @@ export function CounterSalePage() {
           </Card>
 
           <Card className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
-            <div role="group" aria-label={t("admin.sales.counterSale.method")} className="flex flex-wrap gap-2">
-              {PAYMENT_METHODS.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={method === value}
-                  onClick={() => setMethod(value)}
-                  className={cn(
-                    "rounded-control border border-line px-3 py-2 text-[0.9rem] font-semibold text-ink-2",
-                    method === value && "border-sea bg-sea-soft text-sea",
-                  )}
-                >
-                  {t(`admin.sales.methods.${value}`)}
-                </button>
-              ))}
-            </div>
+            <p className="text-[0.85rem] text-ink-2">{t("admin.sales.form.paidLater")}</p>
             <div className="ms-auto flex flex-wrap items-center gap-x-6 gap-y-3">
               <p className="flex items-baseline gap-3">
                 <span className="font-semibold">{t("admin.sales.counterSale.total")}</span>

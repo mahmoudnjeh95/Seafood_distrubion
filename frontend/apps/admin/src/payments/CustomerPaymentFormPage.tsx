@@ -6,6 +6,7 @@ import {
   useListBanks,
   useListCustomers,
   useListInstruments,
+  useListPartyDocuments,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -29,10 +30,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
-import { subtract, sum } from "../lib/decimal";
+import { subtract, sum, toThousandths } from "../lib/decimal";
 import { fieldErrors } from "../lib/errors";
 import { asTyped, compare, spread } from "../purchasing/allocation";
 import { FormPanel } from "../treasury/FormPanel";
+import { CashLimitNotice } from "./CashLimitNotice";
 import { ConfirmPaymentDialog } from "./ConfirmPaymentDialog";
 import { Figure } from "./Figure";
 import {
@@ -46,6 +48,8 @@ import {
   type PaymentLine,
 } from "./lines";
 import { type OpenItem, openItems } from "./openItems";
+import { PartyDocumentCounts } from "./PartyDocumentCounts";
+import { countsOf } from "./partyCounts";
 import { PaymentLinesEditor } from "./PaymentLinesEditor";
 import { canCollect, CUSTOMER_PAYMENT_METHODS, refreshAfterPayment, todayInput } from "./shared";
 import { TotalsBar } from "./TotalsBar";
@@ -64,6 +68,7 @@ export function CustomerPaymentFormPage() {
   const [params] = useSearchParams();
   const customers = useListCustomers({ status: "all" });
   const banks = useListBanks();
+  const documents = useListPartyDocuments();
   const [customer, setCustomer] = useState(params.get("client") ?? "");
   const [receivedOn, setReceivedOn] = useState(todayInput);
   const [lines, setLines] = useState<Line[]>(() => [newLine<CustomerPaymentMethodEnum>("cash")]);
@@ -75,6 +80,8 @@ export function CustomerPaymentFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverLineErrors, setServerLineErrors] = useState<Record<number, Record<string, string>>>({});
   const [confirming, setConfirming] = useState<CustomerPaymentWrite | null>(null);
+  // A cash line at or above the cash limit, refused until confirmed (D-273): its message and the payment to resend.
+  const [cashWarning, setCashWarning] = useState<{ message: string; payload: CustomerPaymentWrite } | null>(null);
 
   const customerId = Number(customer) || 0;
   const balance = useGetCustomerBalance(customerId, { query: { enabled: customerId > 0 } });
@@ -88,14 +95,18 @@ export function CustomerPaymentFormPage() {
 
   const total = linesTotal(lines);
   const typed = items.map((item) => ({ item, value: parseDecimalInput((allocations[item.key] ?? "").trim(), 3) }));
+  // A BL on no invoice may be paid up to its estimated TTC: its goods plus the VAT and stamp to come (D-256).
+  const hasExtra = (item: OpenItem): boolean => item.kind === "sale" && toThousandths(item.estimatedExtra) > 0n;
+  const maxFor = (item: OpenItem): string =>
+    hasExtra(item) ? sum([item.outstanding, item.estimatedExtra]) : item.outstanding;
   const itemProblem = (item: OpenItem): string | null => {
     const raw = (allocations[item.key] ?? "").trim();
     if (raw === "") return null;
     const value = parseDecimalInput(raw, 3);
     if (value === null || value.startsWith("-")) return t("admin.supplierPayments.form.money");
     if (compare(value, "0") === 0) return t("admin.supplierPayments.form.positive");
-    if (compare(value, item.outstanding) > 0)
-      return t("admin.supplierPayments.form.tooMuch", { amount: formatMoney(item.outstanding) });
+    if (compare(value, maxFor(item)) > 0)
+      return t("admin.supplierPayments.form.tooMuch", { amount: formatMoney(maxFor(item)) });
     return null;
   };
   const allocated = sum(typed.flatMap(({ value }) => (value !== null && !value.startsWith("-") ? [value] : [])));
@@ -124,9 +135,13 @@ export function CustomerPaymentFormPage() {
       await refreshAfterPayment(queryClient);
       void navigate(`/clients/${customer}`);
     },
-    onError: (failure) => {
+    onError: (failure, payload) => {
       setConfirming(null);
       const fromServer = fieldErrors(failure);
+      if (fromServer.cash_limit) {
+        setCashWarning({ message: fromServer.cash_limit, payload });
+        return;
+      }
       const { lines: byLine, rest } = errorsByLine(fromServer);
       setServerLineErrors(byLine);
       setErrors(Object.keys(fromServer).length > 0 ? rest : { detail: t("admin.payments.dialog.error") });
@@ -144,6 +159,7 @@ export function CustomerPaymentFormPage() {
     setErrors(found);
     setChecked(true);
     setServerLineErrors({});
+    setCashWarning(null);
     if (Object.keys(found).length > 0 || Object.keys(problems).length > 0 || refused || overAllocated) return;
     setConfirming({
       customer: customerId,
@@ -182,6 +198,8 @@ export function CustomerPaymentFormPage() {
               <Input
                 id={id("day")}
                 type="date"
+                required
+                className="border-bad/60"
                 max={todayInput()}
                 value={receivedOn}
                 onChange={(event) => setReceivedOn(event.target.value)}
@@ -192,14 +210,28 @@ export function CustomerPaymentFormPage() {
             <Field label={t("admin.treasury.form.customer")} htmlFor={id("customer")} error={errors.customer}>
               <Combobox
                 id={id("customer")}
+                required
+                className="border-bad/60"
                 value={customer}
                 onValueChange={(value) => {
                   setCustomer(value);
                   setAllocations({});
                 }}
                 options={(customers.data ?? [])
-                  .filter((one) => !one.is_walk_in && (one.is_active || String(one.id) === customer))
-                  .map((one) => ({ value: String(one.id), label: `${one.name} · ${one.reference}` }))}
+                  .filter((one) => one.is_active || String(one.id) === customer)
+                  .map((one) => {
+                    const label = `${one.name} · ${one.reference}`;
+                    return {
+                      value: String(one.id),
+                      label,
+                      detail: (
+                        <span className="flex items-center gap-3">
+                          {label}
+                          <PartyDocumentCounts counts={countsOf(documents.data?.customers, one.id)} side="customer" />
+                        </span>
+                      ),
+                    };
+                  })}
                 empty={t("admin.treasury.form.noCustomer")}
                 aria-invalid={errors.customer ? true : undefined}
               />
@@ -342,6 +374,11 @@ export function CustomerPaymentFormPage() {
                         {item.kind === "invoice" && (
                           <div className="text-[0.8rem] text-ink-2">{item.sales.join(", ")}</div>
                         )}
+                        {item.kind === "sale" && toThousandths(item.estimatedExtra) !== 0n && (
+                          <div className="text-[0.8rem] font-normal text-ink-2">
+                            {t("admin.treasury.form.estimatedExtra", { amount: formatMoney(item.estimatedExtra) })}
+                          </div>
+                        )}
                       </Td>
                       <Td className="num whitespace-nowrap max-[720px]:hidden">{formatDate(item.day)}</Td>
                       <Td className="num whitespace-nowrap">
@@ -379,6 +416,19 @@ export function CustomerPaymentFormPage() {
                           >
                             =
                           </Button>
+                          {hasExtra(item) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t("admin.treasury.form.payTtc", { number: item.number })}
+                              title={t("admin.treasury.form.payTtcHint", { amount: formatMoney(maxFor(item)) })}
+                              onClick={() =>
+                                setAllocations((current) => ({ ...current, [item.key]: asTyped(maxFor(item)) }))
+                              }
+                            >
+                              TTC
+                            </Button>
+                          )}
                         </div>
                         {problem && <p className="mt-1 text-start text-[0.78rem] font-semibold text-bad">{problem}</p>}
                       </Td>
@@ -405,6 +455,18 @@ export function CustomerPaymentFormPage() {
             />
           </Field>
         </Card>
+
+        {cashWarning && (
+          <CashLimitNotice
+            message={cashWarning.message}
+            pending={save.isPending}
+            onConfirm={() => {
+              const payload = cashWarning.payload;
+              setCashWarning(null);
+              save.mutate({ ...payload, confirm_cash_limit: true });
+            }}
+          />
+        )}
 
         {errors.detail && (
           <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">

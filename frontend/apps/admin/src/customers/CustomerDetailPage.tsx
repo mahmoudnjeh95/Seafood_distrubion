@@ -161,7 +161,11 @@ export function CustomerDetailPage() {
         </div>
 
         {!data.is_walk_in && (
-          <BalanceCard customer={{ id: data.id, name: data.name }} canCollect={canCollect(session)} />
+          <BalanceCard
+            customer={{ id: data.id, name: data.name }}
+            canCollect={canCollect(session)}
+            canClear={session.role === "owner"}
+          />
         )}
         {!data.is_walk_in && <CustomerBoxesCard customerName={data.name} />}
       </div>

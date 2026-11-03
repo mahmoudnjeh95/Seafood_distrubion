@@ -72,6 +72,27 @@ def tell_office_from_site(
     )
 
 
+def tell_person(
+    *,
+    organization: Organization,
+    actor: User | None,
+    recipient: User,
+    kind: str,
+    params: dict[str, Any],
+    link: str = "",
+) -> Notification:
+    """Something one office person must see (a payment order sent to them, D-255): only they read it."""
+    return Notification.objects.create(
+        organization=organization,
+        audience=Audience.OFFICE,
+        recipient=recipient,
+        actor=actor,
+        kind=kind,
+        params=params,
+        link=link,
+    )
+
+
 @transaction.atomic
 def mark_read(*, membership: Membership, ids: Sequence[int] | None) -> int:
     """The member has seen these notifications (`None`: all they are shown). Only their own; the others' reads

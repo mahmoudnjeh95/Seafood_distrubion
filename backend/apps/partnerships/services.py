@@ -15,6 +15,7 @@ from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, display_money
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales
+from apps.treasury import services as treasury
 
 from . import selectors
 from .models import (
@@ -36,6 +37,47 @@ if TYPE_CHECKING:
 RATE_STEP = Decimal("0.01")
 HUNDRED = Decimal("100")
 ZERO = Decimal("0.000")
+
+
+def checked_write_off_lot_shares(
+    organization: Organization, *, total: Decimal, shares: list[dict[str, Any]], candidates: list[dict[str, Any]]
+) -> list[tuple[int, Decimal]]:
+    """The lots a balance write-off is charged to, picked by hand (D-257): `(batch_id, amount)` pairs that add up
+    to `total`. `candidates` are the lots the customer bought from, or the supplier sold us; those whose
+    partnership is settled are left out (their sharing is final). A share outside the rest, a lot named twice or
+    an amount not above zero is refused. Without any lot left, nothing is charged and no share is asked for."""
+    lots = {lot["batch_id"]: lot["number"] for lot in selectors.open_write_off_lots(organization, candidates)}
+    if not lots and not shares:
+        return []
+    if not shares:
+        raise ValidationError({"lot_shares": _("Indiquez sur quels lots porter ce montant.")})
+    checked: list[tuple[int, Decimal]] = []
+    for share in shares:
+        batch_id = share.get("batch")
+        if not isinstance(batch_id, int) or batch_id not in lots:
+            raise ValidationError(
+                {"lot_shares": _("Ce lot n'est pas proposé : il n'a rien à voir avec ce compte, ou il est déjà réglé.")}
+            )
+        if any(seen == batch_id for seen, _amount in checked):
+            raise ValidationError({"lot_shares": _("Le lot %(lot)s est indiqué deux fois.") % {"lot": lots[batch_id]}})
+        try:
+            amount = checked_amount(share.get("amount", ""))
+        except (ValueError, TypeError) as error:
+            raise ValidationError({"lot_shares": str(error)}) from None
+        if amount <= 0:
+            raise ValidationError(
+                {"lot_shares": _("Le montant du lot %(lot)s doit être positif.") % {"lot": lots[batch_id]}}
+            )
+        checked.append((batch_id, amount))
+    spread = sum((amount for _batch, amount in checked), ZERO)
+    if spread != total:
+        raise ValidationError(
+            {
+                "lot_shares": _("Les lots totalisent %(spread)s DT, il faut %(total)s DT.")
+                % {"spread": display_money(spread), "total": display_money(total)}
+            }
+        )
+    return checked
 
 
 def _checked_rate(value: Any) -> Decimal | None:
@@ -256,6 +298,10 @@ def update_partnership(
     partnership.save()
     difference = partnership.partner_capital - old_capital
     if difference:
+        if selectors.capital_balance(partnership) + difference < 0:
+            raise ValidationError(
+                {"partner_capital": _("Le capital ne peut pas passer sous ce qui a déjà été avancé au partenaire.")}
+            )
         _post_entry(
             partnership,
             actor=actor,
@@ -271,6 +317,78 @@ def update_partnership(
         after=_snapshot(partnership),
     )
     return partnership
+
+
+@transaction.atomic
+def advance_capital(
+    *,
+    partnership: LotPartnership,
+    actor: User | None,
+    amount: Number,
+    method: str,
+    reference: str = "",
+    paid_on: dt.date | None = None,
+    note: str = "",
+) -> CapitalEntry:
+    """Pay the partner part of their capital in this lot before the settlement: an advance, taken from the
+    capital they put in (`advance` entry, −). Only up to the capital still in, so it never goes negative
+    (D-031); the settlement later pays what is left. Allowed while the lot is open or closed."""
+    partnership = _locked(partnership)
+    organization = partnership.organization
+    if partnership.status not in (PartnershipStatus.OPEN, PartnershipStatus.CLOSED):
+        raise ValidationError(_("Une avance ne se donne que sur un partenariat en cours ou clôturé."))
+    try:
+        value = checked_amount(amount)
+    except (ValueError, TypeError) as error:
+        raise ValidationError({"amount": str(error)}) from None
+    if value <= 0:
+        raise ValidationError({"amount": _("Une avance doit être supérieure à zéro.")})
+    if method not in SettlementPaymentMethod.values:
+        raise ValidationError({"method": _("Mode de paiement inconnu.")})
+    capital = selectors.capital_balance(partnership)
+    if value > capital:
+        raise ValidationError(
+            {
+                "amount": _("L'avance (%(amount)s DT) dépasse le capital encore dans le lot (%(capital)s DT).")
+                % {"amount": display_money(value), "capital": display_money(capital)}
+            }
+        )
+    entry = CapitalEntry.objects.create(
+        organization=organization,
+        partnership=partnership,
+        kind=CapitalEntryKind.ADVANCE,
+        amount=-value,
+        entry_date=paid_on or timezone.localdate(),
+        note=(note.strip() or _("Avance sur capital"))[:300],
+        method=method,
+        reference=reference.strip()[:50],
+        created_by=actor,
+    )
+    treasury.post_movement(
+        organization=organization,
+        account=treasury.line_account(organization, method, None),
+        day=entry.entry_date,
+        amount=-value,
+        kind="partner_settlement",
+        label=f"Avance · {partnership.partner.name} · {partnership.batch.number}",
+        reference=entry.reference or partnership.batch.number,
+        source=ADVANCE_SOURCE,
+        source_id=entry.pk,
+        actor=actor,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="partnership.advanced",
+        target=partnership,
+        after={
+            "amount": str(value),
+            "method": method,
+            "reference": entry.reference,
+            "capital_left": str(capital - value),
+        },
+    )
+    return entry
 
 
 @transaction.atomic
@@ -537,7 +655,8 @@ def settle_partnership(
             on=on,
         )
     for payment in checked:
-        SettlementPayment.objects.create(organization=organization, settlement=settlement, **payment)
+        row = SettlementPayment.objects.create(organization=organization, settlement=settlement, **payment)
+        _post_settlement_money(row, settlement=settlement, actor=actor)
     partnership.status = PartnershipStatus.SETTLED
     partnership.save(update_fields=["status", "updated_at"])
     audit.record(
@@ -558,3 +677,52 @@ def settle_partnership(
         },
     )
     return settlement
+
+
+# The money paid to a partner leaves our accounts the day it was paid, by the method it was paid with (P9-T05b, D-240).
+SETTLEMENT_PAYMENT_SOURCE = "partnerships.settlement_payment"
+ADVANCE_SOURCE = "partnerships.capital_advance"
+_EFFET_METHODS = (SettlementPaymentMethod.CHEQUE, SettlementPaymentMethod.BILL)
+
+
+def _post_settlement_money(payment: SettlementPayment, *, settlement: PartnerSettlement, actor: User | None) -> None:
+    if payment.method in _EFFET_METHODS:
+        # A cheque or a traite given to the partner is an effet issued (D-264): the money leaves when the bank debits
+        # it, and the office completes its bank and day in the Portefeuille.
+        treasury.register_instrument(
+            organization=payment.organization,
+            actor=actor,
+            direction="issued",
+            kind=payment.method,
+            number=payment.reference or settlement.partnership.batch.number,
+            bank=None,
+            amount=payment.amount,
+            issued_on=payment.paid_on,
+            due_on=None,
+            supplier=settlement.partnership.partner,
+            source_number=settlement.partnership.batch.number,
+            partial=True,
+        )
+        return
+    treasury.post_movement(
+        organization=payment.organization,
+        account=treasury.line_account(payment.organization, payment.method, None),
+        day=payment.paid_on,
+        amount=-payment.amount,
+        kind="partner_settlement",
+        label=f"{settlement.partnership.partner.name} · {settlement.partnership.batch.number}",
+        reference=payment.reference or settlement.partnership.batch.number,
+        source=SETTLEMENT_PAYMENT_SOURCE,
+        source_id=payment.pk,
+        actor=actor,
+    )
+
+
+def post_treasury_history(*, organization: Organization) -> None:
+    """Write the money of the partner settlements paid before the ledger existed. Safe to run again."""
+    payments = SettlementPayment.objects.filter(organization=organization).select_related(
+        "organization", "settlement__partnership__partner", "settlement__partnership__batch"
+    )
+    for payment in payments:
+        if payment.method not in _EFFET_METHODS:  # an effet is written once, when the settlement is recorded
+            _post_settlement_money(payment, settlement=payment.settlement, actor=None)

@@ -264,6 +264,12 @@ class AdjustmentWriteSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(max_length=200, allow_blank=True)
 
 
+class PrimeWriteSerializer(AdjustmentWriteSerializer):
+    # Paid when it is added (D-244): the method picks the account it leaves, the date is the day it leaves.
+    method = serializers.ChoiceField(choices=SalaryPaymentMethod.choices)
+    paid_on = serializers.DateField()
+
+
 class PayrollSummarySerializer(serializers.Serializer[Any]):
     month = serializers.DateField()
     records = serializers.IntegerField()

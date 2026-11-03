@@ -1,12 +1,29 @@
 import { useListEmployees } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatMoney, useTranslation } from "@frutti/i18n";
-import { Button, Card, Dialog, EmptyState, Icon, Input, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
+import {
+  Button,
+  Card,
+  Dialog,
+  EmptyState,
+  Icon,
+  Input,
+  PageHeader,
+  Pager,
+  Pill,
+  SortTh,
+  Table,
+  Td,
+  TotalsRow,
+  useTableView,
+  useUrlState,
+} from "@frutti/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router";
 
 import { type Status, StatusFilter } from "../lib/StatusFilter";
+import { totalOf } from "../lib/totals";
 import { useDebounced } from "../lib/useDebounced";
 import { EmployeeDialog } from "./EmployeeDialog";
 import { HrTabs } from "./HrTabs";
@@ -22,7 +39,7 @@ export function EmployeesPage() {
 function Employees({ canEdit }: { canEdit: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [status, setStatus] = useState<Status>("active");
   const [creating, setCreating] = useState(false);
   const query = useDebounced(search.trim());
@@ -33,6 +50,15 @@ function Employees({ canEdit }: { canEdit: boolean }) {
   );
   const list = employees.data ?? [];
   const filtering = query !== "" || status !== "active";
+
+  const view = useTableView(list, {
+    reference: (employee) => employee.reference,
+    name: (employee) => employee.name,
+    phone: (employee) => employee.phone,
+    salary: (employee) => Number(employee.monthly_salary),
+    unpaid: (employee) => Number(employee.unpaid),
+  });
+  const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (
     <>
@@ -91,15 +117,25 @@ function Employees({ canEdit }: { canEdit: boolean }) {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.hr.employees.columns.reference")}</Th>
-                <Th>{t("admin.hr.employees.columns.name")}</Th>
-                <Th className="max-[720px]:hidden">{t("admin.hr.employees.columns.phone")}</Th>
-                <Th className="text-end">{t("admin.hr.employees.columns.salary")}</Th>
-                <Th className="text-end">{t("admin.hr.employees.columns.unpaid")}</Th>
+                <SortTh sortKey="reference" {...sorting}>
+                  {t("admin.hr.employees.columns.reference")}
+                </SortTh>
+                <SortTh sortKey="name" {...sorting}>
+                  {t("admin.hr.employees.columns.name")}
+                </SortTh>
+                <SortTh sortKey="phone" {...sorting} className="max-[720px]:hidden">
+                  {t("admin.hr.employees.columns.phone")}
+                </SortTh>
+                <SortTh numeric sortKey="salary" {...sorting}>
+                  {t("admin.hr.employees.columns.salary")}
+                </SortTh>
+                <SortTh numeric sortKey="unpaid" {...sorting}>
+                  {t("admin.hr.employees.columns.unpaid")}
+                </SortTh>
               </tr>
             </thead>
             <tbody>
-              {list.map((employee) => (
+              {view.rows.map((employee) => (
                 <tr
                   key={employee.id}
                   onClick={() => void navigate(`/salaires/employes/${employee.id}`)}
@@ -133,7 +169,15 @@ function Employees({ canEdit }: { canEdit: boolean }) {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={3}
+              cells={[
+                { value: totalOf(view.rows, (e) => e.monthly_salary) },
+                { value: totalOf(view.rows, (e) => e.unpaid) },
+              ]}
+            />
           </Table>
+          <Pager {...view.pager} />
         </Card>
       )}
 

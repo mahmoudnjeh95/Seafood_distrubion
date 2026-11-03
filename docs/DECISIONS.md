@@ -2381,6 +2381,7 @@ withholdings (Q26); a payslip PDF does not exist yet (nothing to update there); 
   the office has not decided; joined only if none once decided. The office sees it on the check page
   (`/field-purchases/<id>/paper`, read by an `<img>`, kept out of the API contract).
 
+- Superseded for the office receipt form by D-268 (2026-11-02): a receipt is no longer invoiced at once, so "Dû dès la réception" and its deal fields are gone; the invoice is made from the receipt. The driver's port purchase (D-176) keeps its own deal.
 **D-160 · A truck load is split by client: one draft BL per client, with its own delivery address (P2-T13)** · accepted · 2026-10-16
 Asked by the owner: for a transfer from the cold room to a truck, the client is known from the start, so a BL is printed
 for each client with what they will buy, the small/big boxes are tracked, and the delivery address starts from the
@@ -3407,10 +3408,483 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Expense side unchanged:** the month's expense is still the approved salary (gross, employer CNSS, adjustments). An
   advance is a payment against that salary, not an extra expense.
 - **Provisional:** (1) an advance paid in cash goes to the Caisse; (2) a prime needs no separate payment; (3) an advance
-  above the month's due needs the confirmation flag; (4) a prime does not recompute the CNSS, as an adjustment does
-  (D-228): the accountant to confirm whether primes are subject to CNSS; (5) the code `advance` (not `avance`) is a
+  above the month's due needs the confirmation flag; (4) primes are not subject to CNSS (owner, D-263): a prime
+  and an adjustment change neither the employer nor the employee contribution; (5) the code `advance` (not `avance`) is a
   naming choice.
 - **Built with:** migration `hr.0006_salary_payment_kinds_and_primes` (`kind` on payments and adjustments); API
   `POST salary-records/<id>/primes` (`addSalaryPrime`), `kind` and `confirm_overpay` on `POST salary-payments`, and
   `kind`, `treasury_debit` on payments and salary lines. The only change to the treasury app is one read selector,
   `movement_of_source`; no model or service changed.
+
+**D-235 · The règlement lists show each customer's and supplier's documents: BL or BR, invoices and total (owner request, 2026-11-01)** · accepted (total provisional) · 2026-11-01
+- "Nouveau règlement client" (client list) and "Nouveau paiement fournisseur" (supplier list) show, beside each name,
+  how many BL (customers) or BR (suppliers), how many invoices, and their total. Zeros are shown too. The owner's
+  "in bank" was read as these règlement pages, where the lists are.
+- Counted: a customer's confirmed BL and issued invoices; a supplier's goods receipts (all) and its invoices (not
+  drafts). Cancelled documents and drafts are not counted.
+- Total (provisional): a customer's invoices' net to pay, as on the Documents page; a supplier's invoices' total. The
+  BL are not added on top, since they are invoiced. What is owed stays on the balance and the encours.
+- `GET /api/v1/treasury/party-documents` (`listPartyDocuments`): owner, manager and accountant; a party with no document
+  is not listed (the screens show zeros). The counts do not move with payments, only with new BL, receipts or invoices.
+
+**D-237 · The mandatory fields of the payment forms show a red outline (Phase 9, P9-T09b)** · accepted · 2026-11-01
+- The date and the party of an encaissement or a décaissement are outlined in red, as the Perfaxis forms mark them
+  (`required` on the input, the outline class on the field). The lines' fields are not outlined yet.
+- Provisional: the outline shows from the start, not after a failed save.
+
+**D-238 · Every approved expense is a treasury movement the day it was spent (Phase 9, P9-T05b)** · accepted · 2026-11-01
+- An approved expense leaves an account on its spent-on day: the driver's cash when the driver paid in cash, else the
+  Caisse for cash, else the main bank account. Nothing is written before approval; a refused or waiting expense moves
+  no money.
+- The approved expenses from before the ledger are written by `backfill_treasury` (once; safe to run again).
+- Provisional: a cheque or a traite paid as an expense is counted at the main bank account on approval, not when the
+  bank debits it, until the office decides how expense cheques are followed.
+
+**D-239 · The money paid at the sale is a treasury movement the day of the sale (Phase 9, P9-T05b)** · accepted · 2026-11-02
+- When a sale is confirmed, the amount paid at it goes in: the driver's cash when the delivering user is a driver and
+  paid in cash, else the Caisse for cash, else the main bank account for a transfer or a card. Written once, dated the
+  sale's day; a sale with nothing paid moves no money.
+- A sale cancelled later keeps its money: what was paid becomes the customer's credit (the P2-T06 hook), so nothing is
+  reversed. The customer's credit itself is not a movement yet.
+- The sales confirmed before the ledger are written by `backfill_treasury`.
+- Provisional: a cheque paid at the sale is counted at the main bank account on the sale's day; it is not followed as
+  an effet until the office decides how cheques given at the door are tracked.
+
+**D-240 · The money paid to a partner at a settlement leaves our accounts the day it is paid (Phase 9, P9-T05b)** · accepted · 2026-11-02
+- Each payment of a partner settlement is a treasury movement, out of the account its method goes to: the Caisse for
+  cash, the main bank account for a transfer, a cheque, a traite or another way. The three balances (capital, profit
+  share, payables) are unchanged: only the money moves here.
+- The settlements paid before the ledger are written by `backfill_treasury`.
+- Provisional: a cheque or traite given to a partner is counted at the main bank account on its day, not followed as an
+  effet issued (the office decides how these are tracked, as for supplier cheques).
+- Not covered by a test yet: building a closed partnership lot in the test set-up is still to do.
+
+**D-252 · Clearing a balance to zero: the rest is given up, as a loss on a customer or a gain on a supplier** · accepted · 2026-11-02
+- Owner request: a customer owed 10 080 DT, paid 10 000 and the 80 DT left are never coming. The owner clears the
+  customer's balance to zero; the amount is recorded as a loss on that customer (a `CustomerBalanceWriteOff`, shown on
+  the customer's account with its reason and who did it). The same for a supplier we owe: the rest we no longer pay is
+  a gain on that supplier.
+- Two steps before anything is written: the reason (required), then the exact balance typed again. The server checks
+  the typed amount against the balance at that moment and refuses a balance that moved, a balance that is not positive
+  (nothing to clear, or credit held) and an empty reason.
+- The amount is spread over the open sales (customers) or invoices (suppliers), oldest first, so those read as settled
+  by it, and the balance (customer or supplier) falls by it. Records are never edited or deleted: a wrong clearance is
+  to be corrected by a new record, not undone (not built yet).
+- Owner only, enforced on the server (customers and suppliers).
+- Provisional: the loss is kept on the customer and the gain on the supplier, but does NOT yet change the profit per lot
+  or the profit shares (open question for the owner: should an uncollected balance reduce the lot's profit?). The
+  supplier gain is not a treasury movement (no money moves).
+- Provisional: the customer's clearance counts toward the credit-limit and encours figures as a settled amount (the
+  balance falls, so the room to sell goes back up).
+
+**D-251 · Each payment, sale and expense shows the account its money went through, linked to that account's journal (Phase 9, P9-T09c)** · accepted · 2026-11-02
+- The payment, sale, expense and partner-payout screens show "Où est passé l'argent": one line per treasury movement the
+  record wrote, with the account (Caisse, bank account or a driver's cash) and the day, linked to that account's journal.
+  The journal opens on that account (`?compte=`).
+- The account is read from the ledger (the movements of the record), not stored on the payment line: a line does not
+  say which account it went through, the movement does.
+- Provisional: the driver's cash has no journal page yet, so it is shown without a link.
+**D-241 · One "Trésorier" entry in the side menu; the règlement and portfolio entries go into the treasury ribbon (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The side menu no longer lists Règlements clients, Règlements fournisseurs, Portefeuille or Banques. A single **Trésorier** entry (Finance group, where Banques was) opens the treasury at its first screen, Encaissement (`/reglements`); the treasury ribbon links every other screen (Décaissement, Portefeuille, Banque, Bordereau, Ordre de paiement, …).
+
+- Only the menu entries move: the routes and pages stay, and the ribbon and the links in the pages still reach them. The Banks page keeps its name, "Banques", since it lists the banks; the ribbon button stays "Banque".
+
+- Provisional: Trésorier lands on Encaissement; the menu item is lit on `/reglements` pages only (the menu lights the longest entry the path is under). If the owner wants a treasury landing page or the item lit on every treasury screen, that is a follow-up.
+
+**D-242 · Sending the closing resets that driver's "Fonds de caisse" and "Argent pour les achats" to zero (owner request, 2026-11-02)** · provisional · 2026-11-02
+- Changed by D-259: the reset happens when the office approves the day, not when the driver sends it. The rest stands.
+- Sending the closing ends the day (D-134). At that moment the office's `DayFund` for that driver and date is set to 0
+  for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`, so the office still sees the day
+  was started. Only that driver's row is touched.
+- The day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing are not changed: the closing
+  keeps the start the driver had.
+- A new load that reopens the sent day (D-134) does not bring the amounts back; the day runs on its own figures.
+- Provisional: "day ends" is read as the closing being sent. If the owner means the office's approval, which comes
+  later, the reset moves to `approve_day_closing`. The owner's peer PM confirmed this reading on 2026-11-02 (take the
+  recommended option); the provisional status stays so the owner can move it.
+**D-247 · Stock adjustment by hand: add or remove kilos of a lot; the average price is worked out again (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- An office adjustment is an `adjustment` movement (the existing kind, reason required) posted by `services.adjust_stock`:
+  `POST /api/v1/stock/adjustments` (`adjustStock`) with a place, a lot, `add` or `remove`, kilos and the reason. Owners and
+  managers only; the answer is the product's stock with its new average price. Screen: "Ajuster le stock" on the product
+  page (`/stock/produits/:id`).
+- The kilos added keep the lot's cost. The average purchase price is not stored: it is weighted by the kilos on hand, so it
+  is worked out again from the ledger as soon as the adjustment is saved (no step to run). A removal is refused past what
+  the place holds, like any movement.
+- Provisional: the lots offered are those still on hand (a sold-out lot cannot be topped up: a receipt does that); no new
+  cost is typed on an addition (the lot's cost is used, a different cost is a receipt); no owner approval step (unlike a
+  loss above the threshold, D-045); the monthly closing counts an adjustment as spoilage, like a count correction.
+
+**D-245 · The office types no payment on a sale: the money comes in through a règlement of the treasurer (owner request, 2026-11-02, P9-T09c)** · accepted (provisional parts marked) · 2026-11-02
+- Owner request: "remove payment surface in vente as everything should pass by trésorier". The sale form, the "Vente comptoir" and the "Convertir en vente" window (from a quote) show no payment block any more.
+- Server: an office create or conversion that carries a payment (`paid_in_full`, `amount_paid`, `payment_method`) is refused (400 on `detail`), so the sale is unpaid. An office edit of a draft keeps what the draft already says (a driver's phone may have recorded it).
+- The sale detail shows "Encaisser au trésorier" while something is still owed; it opens `/reglements/nouveau?client=<id>`.
+- The driver's phone is unchanged: cash in hand is recorded on the phone (D-133), a BL delivered there keeps its payment (D-047, D-239).
+- **Provisional, changes D-047 for the office:** the walk-in customer ("Client de passage") can owe at the office. A counter sale is confirmed unpaid and the treasurer settles it with a règlement for "Client de passage", allocated to the oldest sale. The walk-in is in the règlement customer picker, and the refusal of a walk-in règlement and the "pays on the spot" check are lifted for the office. A walk-in sale a driver made still must be paid on the spot.
+- Unchanged: a règlement posts its money the day it is received (D-219); a sale's money at confirmation is still the driver's (D-239).
+- Tests: the office API and service tests now expect the unpaid counter sale and the refused payment; a walk-in payment test and a driver walk-in test were added. The e2e counter and quote specs follow the new labels ("Enregistrer la vente").
+
+**D-243 · An advance to the partner from the capital they put in a lot (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- The owner pays the partner an advance from the capital they put in a lot, from the lot's "Partenariat" section ("Donner une avance"). The request says "beneficiary": read as the partner, not the free-text payee of an expense.
+- A `CapitalEntryKind.ADVANCE` entry (−) on the partner's capital ledger, with the means of payment and a reference (`method`, `reference`, the entry's date = the day paid). `services.advance_capital`, `POST /partnerships/{id}/advances` (`advancePartnerCapital`). Owner only, like every partnership write.
+- Up to the capital still in: an advance never takes the capital below zero (D-031). Allowed while the lot is open or closed; refused once settled or cancelled.
+- The settlement pays what is left: its `capital_returned` is the capital balance, already net of the advances, so the total paid is unchanged. The partner's period flows count an advance as capital returned.
+- A capital correction (`update_partnership`) cannot take the capital below what was already advanced.
+- Provisional: an advance on an open lot leaves less capital to cover a loss; the uncovered part is then owed by the partner (D-031). To confirm with the client.
+- The money leaves our accounts the day it is paid, as a settlement payment does (D-240): a treasury movement out of the account its means goes to, kind `partner_settlement`, labelled "Avance". Provisional: the kind is shared with the settlements.
+
+**D-253 · The bank's statement is imported from Excel as a copy, line by line, each line given to a customer or a supplier (Phase 9, P9-T09d)** · accepted · 2026-11-02
+- On the Journal des banques, a bank account takes the bank's Excel file (columns DATE, LIBELLE, DEBIT, CREDIT and,
+  optionally, SOLDE; a date is an Excel date or text like "03-janv-24"; amounts may have a decimal comma). All or
+  nothing: one unreadable row, listed with its row number, and nothing is saved.
+- A line already on the account (same day, label, debit, credit and balance) is skipped, so the same file twice adds
+  nothing; two identical lines inside one new file are both kept.
+- The lines are a copy of what the bank says (`BankStatementLine`): they move no money and change no balance of ours.
+  The matching of a line with our own movements (rapprochement bancaire) is still to be decided with the accountant.
+- A line at the debit takes a customer, a line at the credit a supplier (Perfaxis' "Tiers"); both can be cleared. A
+  wrong import is fixed by removing lines (audited).
+- Limits: 5 MB and 5 000 rows a file, as for the other imports.
+**D-248 · The purchase money is set by the office only; the driver approves it when starting the day (owner request, 2026-11-02)** · accepted · 2026-11-02
+- The money for purchases at the port (`DriverDay.purchase_float`) is typed by the office in "Camions du jour › Fonds de caisse"
+  (`PUT /day-funds`). The driver approves it with the cash when starting the day (D-203, `POST /my-day`), then cannot change it.
+- Removed: the driver's `PUT /my-day/purchase-float` (D-158's "typed again while the day runs"). The phone shows the amount
+  with "Seul le bureau peut le modifier." and no edit control.
+- The office changes the purchase money of a running day with `PUT /day-funds`. **Changed by D-260:** the change is a
+  proposal the driver approves on the phone; it no longer takes effect at once. The accepted opening cash stays locked.
+- Once the driver's closing is sent, the purchase money is locked for the office too (the day is kept as sent, D-134).
+  The fund list reports `ended` for each row so the office screen locks the field.
+- Provisional, superseded by D-260: the driver did not approve a change of the office during the day. D-260 now requires it.
+
+**D-244 · A prime is paid when it is added, and its payment is a treasury movement (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- **Why:** a prime (D-234) raised what is due but was never paid by itself, so the treasurer's journal did not show it.
+  The owner wants a payment method on the prime, and the money to leave the treasury like any salary payment.
+- **Supersedes** D-234 provisional (2) "a prime needs no separate payment".
+- **On the screen:** "Ajouter une prime" asks for the amount, the reason, the payment method (espèces, chèque, virement,
+  autre; default espèces) and the payment date (default today). Saving adds the prime and pays it at once, in full.
+- **Treasury:** the prime's payment is a `SalaryPayment` of kind `prime` (migration `hr.0007`), allocated in full to the
+  salary the prime was added to, and writes one outgoing movement the same day: the Caisse for cash, the main bank
+  account for a transfer, a cheque or another means. Label "Prime : <name>", kind "salary", reference = the PS number.
+  The journal and the cash-flow report count it through the salary payment.
+- **API:** `POST salary-records/<id>/primes` now takes `method` and `paid_on` (`PrimeWrite`, `addSalaryPrime`). A refused
+  method, date or amount adds nothing: the prime and its payment are one transaction.
+- **Treasury screens** refresh with the payroll screens after a prime or a salary payment.
+- **Provisional:** (1) a prime paid by cheque or traite is counted at the main bank account on its day, not followed as
+  an effet (as for salary cheques); (2) primes added before this change have no payment and stay out of the treasury:
+  the office pays them through a salary payment, or the owner decides how to record them.
+- Not subject to CNSS: the owner's answer of 2026-11-02 (D-263).
+
+**D-250 · The withholding is taken on every invoice of 1 000 DT and more, and on none below (owner rule, 2026-11-02)** · provisional · 2026-11-02
+- The server decides: an invoice whose **total TTC** (HT + VAT + stamp + fees) reaches 1 000,000 DT carries the
+  retenue à la source at the rate in force; below it, none, whatever the rate typed. The "withholding" checkbox is
+  gone from the invoice form (the API input `withholding_applied` too; the output still says whether one applies).
+- The withholding base is unchanged: (HT + VAT) × rate, stamp and fees left out (D-057). The fees can take an invoice
+  over 1 000 DT without entering the base.
+- Provisional: the base of the threshold is the total with tax as printed (stamp and fees in). The accountant confirms
+  whether the threshold is on the total with VAT only, which would exclude the stamp and fees.
+- The rate stays in Paramètres financiers (0 by default): with a rate at 0, a 1 000 DT invoice shows no line. The
+  owner sets the rate.
+- Issued invoices keep what they had (D-057); a draft takes the rule when it is next saved.
+
+**D-249 · The office checks a driver's day before approving it: expenses, purchases, the truck's stock and boxes (owner list 2026-11-02, items 1 to 4)** · provisional · 2026-11-02
+- **Where:** the day's check sits in the closing window ("Clôtures à vérifier") and in "Suivi des chauffeurs", as the
+  component `DayReview`. It reads `GET /day-overview/<id>` (new `owns_truck`, `stock`, `boxes`, `review_blockers`).
+- **Expenses (item 1):** each driver expense of the day is approved or refused from there
+  (`POST /day-overview/<id>/expenses/<expense>/decide`, a refusal needs its reason). Only the day's own expenses (typed by
+  its driver, dated in its window).
+- **Purchases (item 3):** a purchase made on the day is counted on the truck as bought ("Acheté, à valider" kilos in the
+  stock table). The office validates it with one button (`POST …/purchases/<purchase>/validate`, the same validation as
+  the purchase page: its kilos enter the truck's stock). A purchase missing its supplier, product or place is refused
+  with the reason; the office completes it on the purchase page.
+- **Stock and boxes back to the cold room (items 2 and 4):** one button, "Remettre le camion en stock", posts a return
+  transfer of everything the truck holds (kilos and boxes) to the first active cold room, validated at once
+  (`POST …/return-to-stock`). It works whether or not the driver sent the day. Provisional: the cold room is the first
+  active one by id (no choice on the button yet).
+- **Only the truck's latest day owns its stock:** `fleet.latest_day_on_truck`. On an earlier day the stock and boxes are
+  not shown and cannot be returned (they belong to a later day), and they do not block its approval.
+- **Approval is refused** while the day still has an expense to approve or refuse, a purchase to validate or refuse, or
+  (on the truck's latest day) kilos or boxes in the truck. The reason shows on the closing (`review_blockers`).
+- **A sent day moved by the office's decision is corrected, not re-sent:** refusing an expense or validating/refusing a
+  purchase that changes the figures calls the existing correction (D-220) with the reason, so the revision shows who and
+  why. A return changes no figure of the day (it happens after the send), so it creates no revision.
+- Also: a transfer may carry only boxes (no product line), needed for the truck that gives back its boxes alone.
+- Not done: the "Caisses" supplier side is the boxes the day's purchases brought (a count, not an owed balance per supplier);
+  choosing the cold room for the return; the owner may prefer approval to ask for a reason instead of blocking.
+- Migration: none. Tests: `dayclose/tests/test_day_review.py`.
+**D-246 · The invoice's "Facture avec TVA" is checked only for goods bought with VAT (owner request 2026-11-02)** · provisional · 2026-11-02
+- A new invoice from BL takes VAT only when one of its BL took kilos from a lot bought with VAT (D-202); for every other
+  product the box starts unchecked. Before, every invoice started with VAT.
+- The default is decided by the server (`apply_vat` left empty on `POST /invoices`; the same rule when a draft is changed
+  without the box sent keeps the draft's own choice). The box can still be checked or unchecked by hand on the draft.
+- The refusal of an invoice without VAT on VAT-bought goods (D-202) is unchanged.
+- The "Achat avec TVA" box on a receipt (D-202) already starts unchecked and is not changed.
+- Provisional: the rule is read from the lots, so a mixed BL with one VAT-bought product is invoiced with VAT as a whole.
+
+**D-254 · The dashboard lists the cheques and traites that need someone today (Phase 9, P9-T09e)** · accepted · 2026-11-02
+- Nothing told the office about a due date: the notifications come from actions (D-175), not from the calendar. The
+  dashboard now lists the effets to follow, worked out when it is read (no scheduler, nothing to miss or repeat):
+  a cheque or traite we received and still hold or have at the bank, from its due day; a cheque of ours from the day
+  before it falls due; a traite of ours from 15 days before; each until it is cashed or debited. Red once due.
+- The rules are the Perfaxis ones (cheque the day of or after the due day, traite 15 days away), applied from the due
+  day for what we receive, so that no due day goes by unseen. Provisional: the days are constants in
+  `treasury.selectors`.
+- Not in the bell: the bell keeps telling what drivers and the office did. A bell reminder is a later step if wanted.
+**D-256 · A BL paid before it is invoiced: the VAT and timbre still to come are shown, then collected or given up (owner request 2026-11-02, P9-T10)** · provisional · 2026-11-02
+- Problem: a BL holds only its goods (HT); the VAT, timbre and withholding live on the invoice (D-057), shared back over the BL when
+  it is issued (D-101). A BL paid at HT therefore turned unpaid again for the VAT and timbre, and nothing said so.
+- **Estimate before invoicing.** A BL's règlement line shows "Reste estimé à l'émission": VAT per line and the timbre. It uses the
+  invoice's own engine in a no-save simulation, so it follows the same rules (the VAT only on goods bought with VAT, D-202/D-246;
+  a product or lot without VAT gives a timbre-only estimate; each rate on its own row). The timbre is once per invoice, so on a BL
+  it reads "une seule fois par facture" and is never added once per BL.
+- **"Régler TTC"** box on the règlement line (off by default): sizes the amount on HT + estimated VAT + timbre.
+- **At issue.** The invoice is "Payée" only when what is allocated on all its BL equals its net to pay. Otherwise it reads "Payée
+  en partie: reste X DT (TVA a, timbre b)". Several BL: one comparison per invoice; an overpayment on one BL covers a shortfall on
+  another, and the gap is shown once. A mixed group (some BL paid, some not) only warns, it is never refused.
+- **The gap is collected by default**: one new règlement for the difference, allocated by BL share. **Giving it up** reuses D-252
+  (the rest cleared to zero as a loss), owner only, with a reason; it is recorded, nothing is edited.
+- **Seen afterwards**: "Écart de facturation" on the invoice and BL (goods, VAT, timbre paid or missing); a "BL payé, facture non
+  soldée" filter on Ventes and a line on the customer statement. All in the audit trail.
+- **Not done / open**: a "no timbre" flag per customer (no rule known; ask the accountant); the BL's own receivable stays HT.
+- Provisional: collect by default, give up only by the owner; warn, never refuse, a mixed group.
+- D-256 built (2026-11-02, P9-T10, first slice): estimate (`estimate_invoice`, `GET /invoices/estimate`), `estimated_extra` on
+  open BL, invoice `payment_state` / `paid_total` / `extra_over_goods`, `payment_state` filter, gap banner. "Régler TTC" and the
+  per-invoice give-up are not built (a règlement above a BL's goods is refused today; D-252 clears a whole balance).
+- D-256 finished (PM decisions): **Régler TTC**: an allocation on a BL not yet invoiced may exceed its goods up to its
+  estimated extra (`estimated_extras`: VAT by the D-202/D-246 rule plus the stamp, as if invoiced alone; a BL invoiced with
+  others shares one stamp, so any excess then reads as credit). The extra waits on the BL and settles the invoice's gap at issue.
+  **Abandonner l'écart**: owner only, `write_off_invoice_gap` reuses the D-252/D-257 routine limited to one issued invoice:
+  reason, the gap typed again, lots of that invoice's BL picked by hand adding up to it; recorded with the invoice
+  (`CustomerBalanceWriteOff.invoice`), never edited. The statement PDF flags "BL réglé, facture non soldée"; the BL screen
+  shows its estimate (`estimated_extra`).
+
+**D-259 · The driver's "Fonds de caisse" and "Argent pour les achats" go back to zero when the office approves the day (owner answer, 2026-11-02; changes D-242)** · provisional · 2026-11-02
+- `dayclose.approve_day_closing` calls `fleet.services.reset_day_fund`, which sets the office's `DayFund` for that driver
+  and date to 0 for both amounts, audited as `day_fund.reset`. The row stays with its `accepted_at`. Only that driver's row
+  is touched.
+- Sending the closing no longer touches the fund: until the office approves, the phone and the office list keep the amounts.
+- Unchanged: the day's own figures (`DriverDay.opening_cash`, `purchase_float`) and the sent closing. A new load that
+  reopens an approved day (D-134) does not bring the amounts back.
+- Provisional: the owner's answer came relayed by the PM session. The owner can move it back to sending if needed.
+**D-260 · A change of the purchase money during the day waits for the driver's approval on the phone (owner answer, 2026-11-02; changes D-248)** · accepted (provisional parts marked) · 2026-11-02
+- The office changes the money for purchases of a running day in "Camions du jour › Fonds de caisse" as before. It becomes a
+  proposal (`fleet.PurchaseFloatChange`, pending) and does not change the amount in force. The office list shows
+  "En attente du chauffeur : X".
+- The driver sees the proposal on the phone's day, with the amount in force and the new amount, and approves it with
+  "J'accepte ce montant" (`POST /my-day/purchase-change/approve`). Only approval; the driver cannot edit the amount
+  (no PUT, no field). A driver who disagrees calls the office, as before (D-203).
+- **The record:** the proposal keeps the amount before and the amount proposed, who proposed it, and, once approved, who
+  agreed and when (`decided_by`, `decided_at`), with its status: pending, approved, replaced, or expired. The audit log keeps
+  `driver_day.purchase_float_proposed`, `…_withdrawn` and `…_approved`.
+- A new proposal replaces the pending one, which stays as "replaced". Proposing the amount in force again withdraws the
+  pending proposal. One pending proposal per day (database constraint).
+- **What the driver can spend until they approve (recommended, provisional):** the amount in force. A raised amount cannot
+  be spent until approved, and a lowered amount does not apply until approved either, so the driver is never cut off in the
+  middle of the day without agreeing. Purchases and the cash split (D-158, D-182) use the amount in force only.
+- Sending the closing before the driver approves expires the proposal ("Non approuvé avant la clôture"); the day keeps the
+  amount in force, as sent (D-134). After the closing, the office cannot change the money for purchases of that day.
+- Approval changes the amount in force and the day's fund figure at once, and the treasury follows it then (the Caisse and
+  the driver's cash move by the difference, D-262), not when the office proposes. The phone refreshes the proposal every minute,
+  and only on the day screen; the purchase notice on every screen (D-158) is for validated purchases only.
+  Provisional: the owner may want a notice on every screen, or a refusal button.
+
+**D-263 · Primes are not subject to CNSS (owner answer, 2026-11-02)** · accepted · 2026-11-02
+- The owner answered the open question of D-234: a prime is not subject to CNSS, neither the employer's contribution
+  nor the employee's withholding.
+- The code already does this, so nothing changes in it: the contributions are computed on the gross salary at
+  generation and on a draft's edit (base, bonus, overtime). A `SalaryAdjustment`, prime or not, is added to what is due
+  and to the month's expense, and never recomputes `employer_cnss` or `employee_cnss`.
+- No payslip exists yet, so nothing shows a CNSS line for a prime. The CNSS declaration, when built, takes the gross
+  salary only.
+- Older primes need nothing: the app is still in testing with no real data (owner).
+
+**D-266 · The retenue à la source defaults to 1 % (owner, 2026-11) · provisional until the accountant confirms** · provisional · 2026-11-02
+- A new organization's first finance settings version takes 1 % (was 0 %). The rate stays editable in Paramètres financiers.
+- Migration `0028_withholding_rate_one_percent`: organizations still at 0 % take 1 % in the version in force today and in any version dated later. Earlier versions keep 0 %, so the history of rates stays true. Issued invoices keep the rate they were issued with (D-057).
+- The withholding still applies only from 1 000 DT TTC (D-241), so a small invoice shows no line whatever the default.
+
+**D-262 · The driver's cash is in the ledger: the fund out of the Caisse, the counted cash back at approval, the port purchases from it (Phase 9, P9-T09f; owner answer)** · accepted · 2026-11-02
+- The cash the office gives a driver for a day (the fund and the money for buying at the port) leaves the Caisse for that
+  driver's cash when the day starts. When the office changes the money for purchases on a running day, only the
+  difference moves.
+- At the office's approval of the day, the cash it counted (the driver's cash and what is left of the purchase money)
+  goes from the driver's cash to the Caisse, dated the approval day. A new load that opens the day again leaves it in
+  the Caisse (D-134); the next approval moves what is counted then. A gap stays on the driver's cash until it is settled.
+- Cash paid at the port leaves the driver's cash the day of the purchase, written when the office validates the
+  purchase in the day's check, not when the driver enters it. A transfer or a card goes to the bank account; a
+  cheque or traite is an effet (D-264).
+- The reset of the fund at the office's approval (D-259) is another change and does not touch this.
+- The app is still in testing with no real data: no backfill.
+
+## D-267 Sortable headers and page-by-page tables (2026-11-02)
+
+- Owner request: long tables must not scroll forever; the user picks the rows per page (25, 50, 100, 200; 50 by
+  default) and clicks a column header to sort ascending, then descending, then back to the original order.
+- Shared pieces in `@frutti/ui`: `useTableView` (sort and page rows already in the browser), `SortTh`, `Pager`.
+- First user: Journal des banques / des caisses. Lists the server already pages (`PagedList`) still need an
+  `ordering` parameter before they can sort the whole list; sorting only the visible page would mislead. Follow-up.
+
+
+**D-264 · A cheque or traite taken at a sale, paid for an expense or given to a partner is an effet, followed like a règlement's (Phase 9, P9-T09g; owner answer)** · accepted · 2026-11-02
+- Before, these were counted at the main bank account on the day. Now a cheque taken at a sale is an effet received
+  from the customer (in the portfolio, then cashed or unpaid); a cheque or traite for an approved expense, or given to a
+  partner at a settlement, is an effet issued (debited, or rejected). Money moves only when the bank does.
+- Written without its bank and due day (the screens that record them do not ask): the office completes them in the
+  Portefeuille, as for a port purchase. The sale's cheque number is its payment reference.
+- The app is in testing with no real data: no backfill; the history functions skip these methods.
+**D-261 · Trésorier stays lit on every treasury screen (Phase 9, P9-T08)** · accepted · 2026-11-02
+
+- The owner's answer on D-241: the side menu's Trésorier is highlighted on every treasury ribbon screen (Encaissement, Décaissement, Banque, Agences, Caisses, Portefeuille, Bordereau, Ordre de paiement, the journals and états), not only on `/reglements`.
+
+- The menu entry can own more paths: an optional `owns` list on a nav item (`AdminShell`). The active entry is the longest path the page is under, its own or an owned one, so the Trésorier entry owns `/tresorerie`, `/achats/paiements` and `/achats/reglements`, and `Achats` no longer lights up on the supplier payment screens.
+
+**D-255 · "Notifier" on an ordre de paiement tells one person of the office (Phase 9, P9-T09h)** · accepted · 2026-11-02
+- On a planned supplier payment (D-192), "Notifier" picks an owner or a manager and sends them the order: it appears in
+  their bell ("Untel vous envoie un ordre de paiement : fournisseur, facture, montant") and opens the supplier règlements.
+- A notification can now be addressed to one office person (`recipient` on an office notification): only they read it.
+  The whole office's notifications stay as they were.
+- Only owners and managers are offered: the accountant reads the books and is not told.
+**D-258 · The office chooses the cold room that takes the truck's stock back (owner request, 2026-11-02; updates D-249)** · accepted · 2026-11-02
+- The owner's answer to D-249's provisional points: the approval stays blocked while the truck holds stock or boxes, and
+  the return no longer goes to the first active cold room by itself. "Remettre le camion en stock" asks for the cold
+  room each time, among the active ones; with one active room it is preselected.
+- `POST /day-overview/<id>/return-to-stock` takes `to_location_id` (optional body). Without it the server refuses when
+  there are several active cold rooms ("Choisissez la chambre froide qui reçoit le stock."), and takes the only one when
+  there is one; an id that is not an active cold room is refused. The day's detail lists `cold_rooms` (`id`, `name`).
+- The review's button shows a "Chambre froide qui reçoit le stock" choice, and a message when there is no active cold room.
+- Test: `dayclose/tests/test_day_review.py` (two cold rooms: refused without a choice, the kilos go to the room named).
+- No migration.
+
+**D-265 · Bank reconciliation: the system suggests, the office confirms; nothing changes a balance (Phase 9, P9-T09i; owner answer, provisional)** · accepted · 2026-11-02
+- On the Journal des banques, each line of the imported statement (D-253) can be matched to a movement of our ledger on
+  the same account. The system suggests the movements with the same amount within three days (a debit of the file is
+  money in, a credit money out); the office confirms one, or picks by hand any unmatched movement of the account within a
+  month. A movement is matched to one line at most, and a match can be undone.
+- Matching links two records and changes no balance, no movement and no statement line's figures. An amount gap (bank
+  charges) is shown and allowed when matching by hand.
+- Provisional: no automatic matching, no "unmatched" report yet, and a movement is offered for the same account only
+  (a transfer between our accounts shows on both).
+**D-257 · A balance cleared to zero is charged to the lots the owner picks, so it changes their result and the partner's share** · accepted · 2026-11-02
+
+- Owner's answer on D-252: when a customer's or supplier's balance is cleared to zero, the amount given up changes the
+  profit per lot and the partner shares. The owner picks the lots and the amount on each, by hand, every time.
+- The write-off dialog gets a step between the reason and the typed amount: "Sur quels lots ?". The lots offered are the
+  ones the customer bought from (confirmed sales), or the ones the supplier sold us, newest first, less the lots whose
+  partnership is settled. The amounts must add up to the balance cleared, each lot once and above zero.
+- A customer's loss is a cost of kind `customer_write_off` on each lot picked (`CustomerWriteOffLotShare`); a
+  supplier's gain is a negative cost of kind `supplier_write_off` (`SupplierWriteOffLotShare`). They show last in the
+  lot result's costs, with the party and the reason. They are kept out of the month's partner cost participation by
+  category, which is not about balances.
+- An open lot's result counts it at once. A closed lot takes it as a late change, carried to the partner's next
+  settlement like any late cost (D-066), never by editing the frozen result. A settled lot is not offered: its
+  sharing is final.
+- When every lot of that customer or supplier is settled, or there is none, no lot is asked for and the amount stays
+  on the account only, as before.
+- Server-side: the shares are checked in `partnerships.services.checked_write_off_lot_shares`, inside the write-off's
+  transaction; the API refuses a share on a lot that was not offered.
+
+**D-269 · A goods receipt (BR) can be changed after saving; every change is kept as a revision (owner request, 2026-11-02)** · accepted (provisional parts marked) · 2026-11-02
+- **Who and when:** the owner and the manager, enforced on the server. A receipt changes while no supplier invoice carries it. Once any invoice carries it, the change is refused: a draft invoice must be deleted first, a posted one is corrected through the invoice or a supplier return (provisional: the draft is not updated with the new figures; refusing is simpler and safe).
+- **What changes:** the supplier reference, the notes, the VAT flag, and for each line the invoiced weight, the accepted weight, the cost per kg and the use-by date. Every line is sent, by id; lines are not added or removed (a new BR does that).
+- **Stock stays an append-only ledger:** a changed accepted weight posts an `adjustment` movement on the lot, from or to the receipt's place, with the reason "Correction du bon BR-…", its source the receipt line. The original receipt movement is never edited. It is refused when it would leave the lot below what already left it (accepted weight minus what is on hand). Provisional: the monthly closing counts this correction as spoilage, like an adjustment or a count correction.
+- **Cost and VAT:** the lot's cost per kg and its VAT flag change only while nothing valued has left the lot: no sale, loss, return, count or adjustment (other than the receipt's own weight corrections). A transfer to a truck does not lock them. Provisional: the use-by date always changes freely.
+- **Revisions:** `GoodsReceiptRevision` keeps the number of the change, who, when, a required reason, and the snapshot before and after. A change must name the revision it changes (`GoodsReceipt.revision`), so two people never overwrite each other. The detail page shows "Modifier" and the history of changes; each change is also audited (`receipt.edited`).
+- The purchase order's status follows a changed accepted weight, as it does for a receipt.
+- Endpoint: `POST /api/v1/receipts/{id}/revise` (`reviseReceipt`).
+**D-268 · A receipt makes no supplier invoice; the office makes it from the receipt (owner request 2026-11-02)** · provisional · 2026-11-02
+- The office receipt form has no "Dû dès la réception" box and no deal fields (terms, days). Saving a BR makes the
+  receipt only: its batches, stock and boxes. The supplier's invoice (FF) is made afterwards from the BR through the
+  existing invoice flow; the BR detail page links "Créer la facture" to it, with that BR preselected
+  (`/achats/factures/nouvelle?fournisseur=…&reception=…`).
+- What is given at the reception (D-192) is still allowed. It is recorded as a supplier payment not yet allocated to
+  an invoice, an advance; the invoice made from the BR takes it (`apply_advances`, on by default in the invoice form).
+  More than the receipt's value is refused (D-181).
+- Replaces D-159 for the office receipt form. The driver's port purchase (D-176) is unchanged. Existing invoices are
+  left alone.
+- Provisional: the deal (terms and days) is set on the invoice, not on the receipt.
+
+**D-270 · A goods receipt's correction is not spoilage: its own movement kind `receipt_correction` (owner's PM decision, 2026-11-02, follow-up to D-269)** · accepted · 2026-11-02
+- A change of an accepted weight on a receipt (D-269) posts a `receipt_correction` movement, instead of an `adjustment`. It is a correction of what was received, so the lot result counts it in the kg received (signed: in +, out −), and the monthly closing counts it in purchases. It never counts as spoilage or written-off kilos.
+- Lot result: 100 kg corrected to 90 kg shows 90 kg received, no spoilage, and a purchase cost on 90 kg.
+- Monthly closing: the purchases include receipt corrections; the roll-forward shows them on their own line ("Corrections de réceptions"). Spoilage is unchanged.
+- Hand-made stock adjustments (D-247) keep the `adjustment` kind: they still count as spoilage and still lock the cost and VAT of a lot.
+- A receipt correction does not lock the lot's cost or VAT (the cost lock only watches sales, losses, returns, counts and hand adjustments).
+- Migration `inventory.0013_receipt_correction_kind` (choices only; no data changes). The ledger stays append-only: corrections already posted before this change (since D-269 was deployed) keep the `adjustment` kind and so still count as spoilage. They can be identified by their source (the receipt line). Reclassifying them would mean rewriting movements, which the ledger does not allow; the owner decides whether to leave them or record a separate correction.
+
+## D-271 Sorting and paging on every long list (2026-11-02)
+
+- Server-paged lists (`PagedList`) take `?ordering=key` or `-key`; each view lists its sortable columns in
+  `ordering_columns`. Only stored columns sort (number, date, partner name, kind...); computed amounts
+  (totals, remaining) are not sortable there yet. Ties fall back to `-pk`.
+- `useServerTable` (limit, offset, ordering) and `Pager` replace the old Précédent/Suivant strips on the 16 lists.
+- Lists loaded whole (customers, suppliers, employees, labourers, recurring costs, partnerships, flat document list)
+  use `useTableView`. The document tree keeps its order; only the flat view sorts.
+- The rows-per-page choice (25/50/100/200) is remembered in the browser for all lists (`frutti.pageSize`).
+
+## D-276 Excel file of the filtered and sorted list (2026-11-02)
+
+- Lists: sales, invoices, supplier invoices, expenses (new `…/export` endpoints, reusing the list view's filters via
+  `ListExport`), and the two payment lists (already had a file, now sorted too). `?ordering=` is honoured, up to
+  5000 rows, with a totals line. Cancelled, voided, rejected and draft amounts are left out of the totals.
+- The journals already export their statement. The file is read-only (GET only).
+**D-275 · A bank account's IBAN: the 24-character Tunisian one, checked, and the 15-character form (Phase 9, P9-T09j; owner answer)** · accepted · 2026-11-02
+- Replaces the provisional note of D-236. The IBAN of a bank account is accepted in two forms: the real Tunisian IBAN
+  (`TN`, two check digits, the 20 digits of the RIB: 24 characters), whose check digits are verified (ISO 7064 mod 97), and
+  the 15-character form the office's spec shows, which has no check to verify.
+- A Tunisian IBAN with wrong check digits is refused with a clear message. Spaces are dropped; each IBAN still belongs to
+  one account of the organization.
+
+**D-273 · A cash line of 5 000 DT or more on a payment needs an explicit confirmation (Phase 9, P9-T09k; owner answer)** · accepted · 2026-11-02
+- The owner's rule: the legal cash limit is 5 000 DT. A customer or a supplier payment with a cash line at or above the
+  limit is refused by the server until the person recording it confirms ("Paiement en espèces au-delà du plafond légal",
+  button "Confirmer le paiement en espèces"). The confirmation is kept on the payment (`cash_limit_confirmed`) and in its
+  audit entry. Other means (transfer, card, cheque, traite) are not concerned. The test is per line, not per payment.
+- The limit is a finance setting (Paramètres financiers), versioned like the others, 5 000 DT by default; it must stay
+  above zero.
+- A port purchase paid in cash by a driver and validated by the office is recorded as confirmed (no screen to confirm on).
+- Every door has its confirmation (D-280): the driver's phone, the money given at reception, and paying a plan line.
+**D-278 · Driver receipts printed on a small thermal printer, first step: Android over Bluetooth LE (P3-T10)** · accepted (provisional parts marked) · 2026-11-02
+- Owner bought a Digipos DPP-58 (the data sheet says 58 mm paper, 203 dpi). **Paper width is a phone setting**: 32 (default, 58 mm), 42 or 48 characters per line, with a test page that prints a ruler.
+- The receipt is laid out as text rows (`truck/src/printing/receipt.ts`), then turned into ESC/POS bytes (`escpos.ts`, code page 858 for the French accents; setting to drop accents). In French, whatever the app language (Q13). Works offline: it uses only the sale or purchase already on the phone.
+- Buttons: "Imprimer le reçu" on the sale receipt screen and on each purchase in "Mes achats". **Added 2026-11-02 (owner request):** also on the confirmation right after a purchase is sent or changed (the purchase screen now stays on a summary instead of jumping to "Mes achats"), and on a sale or purchase kept on the phone without signal, printed as "Provisoire" with a note that the number comes when it is sent (a kept sale has no unit price, so its lines show the kilos and the amount). Customer or supplier copy, then a "Copie bureau" with a signature line (provisional: on by default, switchable).
+- Connection is Web Bluetooth (BLE). **Limit found 2026-11-02:** the owner's printer did not appear in an iPhone BLE scanner, so it is probably classic Bluetooth (SPP). Then Chrome cannot reach it either, and both Android and iPhone need the Capacitor wrapper (or a different, BLE or MFi printer). The spike P3-T10 stays open until a real print works.
+## D-272 "Total de la page" row, set in the display settings (2026-11-02)
+
+- Money tables end with a "Total de la page" row: the sum of what the page shows, exact to the millime (`totalOf`).
+  Cancelled, voided, refused or rejected documents and unissued amounts are left out of the sum.
+- On for: customer and supplier payments, invoices, credit notes, sales, quotes, supplier invoices, expenses, field
+  purchases, employees and the two journals.
+- Whether the row shows is a display choice kept in the browser (`frutti.showTotals`), edited in Paramètres and in
+  Mon profil under "Affichage des listes", with the default rows per page. It is per person and device, not per company.
+- Not done, by choice: CSV export of the sorted view (the server exports already cover the main lists), hiding
+  columns, filters in the URL. They add screens and state for little gain at this stage.
+
+## D-277 Sort, page and search kept in the address (2026-11-02)
+
+- On every server-paged list the sort (`?tri=-date`), the page (`?page=3`) and the search (`?q=`) live in the URL
+  (`useServerTable`, `useUrlState`): a refresh keeps the view and the link can be shared. Rows per page stay a
+  per-device choice. Status chips and date filters are not in the URL yet.
+- Several address changes in one event are composed (`changeParams`), because React Router drops the first one.
+- Inventaires got a search (number, place); the box history and the movements already filter by place and product.
+
+**D-274 · Unmatched bank lines: a filter and a two-sided report on the Journal des banques (Phase 9)** · accepted · 2026-11-02
+- The statement lines list takes `state` (`all` default, `matched`, `unmatched`); the Journal des banques shows it as three buttons.
+- `GET treasury/accounts/<id>/reconciliation?date_from&date_to` gives both sides of the rapprochement over the period: the lines matched and not matched, the money of the unmatched lines (debits in, credits out), and our own movements the bank's file does not show (at most 200, with their total).
+- Read only: it changes no balance and posts nothing.
+
+**D-280 · The cash limit confirmation reaches the driver phone, the reception form and the plan lines (Phase 9, P9-T09k)** · accepted · 2026-11-02
+- D-273 was "confirm to proceed", never a block, so no door refuses without a way to confirm.
+- Driver phone: `GET my-cash-limit` gives the limit; the phone keeps it, so it still asks with no connection (5 000 DT until it has heard once). At or above it, the collection screen shows a warning and a "Plafond des espèces" row in the confirmation, and the payment is sent with `confirm_cash_limit`. The queued item carries the flag, so the retry path is unchanged. The server still decides: it records `cash_limit_confirmed` and refuses a cash line over the limit sent without the flag.
+- Reception (BR): the form takes `confirm_cash_limit`; refused, it shows the same notice and a confirm button, and the whole receipt is saved only then.
+- A payment plan is not a payment: planning a cash line of any size never asks. The question comes when the line is paid, on the règlement form (the same notice).
+
+**D-281 · Driver receipts: one copy per tap, a fuller layout, a delivered BL prints too; a new load waits for the driver's confirmation (P3-T10, P3-T06)** · accepted (owner request 2026-11-03) · 2026-11-03
+- **One copy per tap** (changes D-278's "both copies in one job"): the first tap prints the customer's or supplier's receipt, the next the office copy ("** COPIE BUREAU **" at the top, the signature line at the bottom); then either can be printed again. The "Imprimer aussi la copie bureau" setting is gone. A folded "Voir le reçu" shows the paper on screen, also on a phone that cannot print.
+- **Layout** (owner's sample receipt): the seller's name, address, phone and matricule fiscal from the finance settings in force (`GET my-receipt-header`, kept by the phone for printing offline; the company name when no legal name is set); date and time on two rows; a goods table with "Qté kg", "Prix", "Montant" columns (on 58 mm the product name has its own row above its numbers; from 75 mm it shares the row); "Préparé par" with the driver's first name at the bottom. A number too long for its column falls back to the old two-row line.
+- **A delivered BL** stays on screen with its receipt and the print button (Mes livraisons and the sale screen) instead of going back to the list. `GET my-deliveries/done` lists the BL this driver delivered today (in full or in part); "Mes livraisons" shows them under "Livrés aujourd'hui" and the sale screen shows them when the client is picked again, each printable again. A BL delivered without signal prints from what was typed at the door, with a "Pas encore envoyé au bureau" line.
+- **A new load on a sent day waits for the driver** (adds to D-134): the reopening sets `DriverDay.restart_pending_since`; until the driver taps "Je confirme la reprise de ma journée" on Ma journée (`POST my-day/resume`, audited `driver_day.resumed`), the phone greys out every tab and tile but Ma journée, and the server refuses a sale, delivery, payment, expense, loss, return, purchase, box pickup or closing made from that moment (403, or 400 for the closing). A load on a day that runs changes nothing, as before. The phone reads its day every minute, so the lock shows within a minute of the load.
+
+**D-282 · Receipt printed as a picture with the logo and the Arabic product names; the driver app's Arabic is Tunisian (P3-T10, P3-T09)** · accepted (owner request 2026-11-03), provisional on the real printer · 2026-11-03
+- **Picture mode (default):** the phone draws each copy on a canvas as wide as the paper's dots (58 mm = 384, 75 mm = 512, 80 mm = 576) and sends it as ESC/POS raster (`GS v 0`, bands of 128 rows). The printer's own characters have no Arabic and no images; the canvas writes Arabic right to left with joined letters. The setting "Imprimer en image" off goes back to the text mode of D-278 (no logo, no Arabic, accents setting).
+- **Logo** at the top: the copy the phone keeps for the login screen (`companyLogo.ts`, D-125), at most 70 % of the width and 160 dots high. No logo set: none printed. **Changed 2026-11-03 (owner: "logo not well generated"):** each dot is black or white at the level that best splits ink from paper (Otsu), no dot pattern; a logo on a dark background is turned over. The server kept a palette PNG's transparent colour as black (a black box on the paper): fixed in `reencoded_photo`; a logo uploaded before must be uploaded again. **Then (owner's logo, wide with white margins):** the logo is cut to its ink (no white margins), up to 94 % of the paper's width and 200 dots high, thin strokes kept a little above the split level; under a logo the company name prints at normal size, since the logo already says it. A printer setting "Imprimer le logo" (on by default) leaves the logo out: then only the company name, printed big (owner: "like the logo, or only the name").
+- **Product names**: the French name, then the product's Arabic name (`Product.name_ar`, now in the driver's sale lines `product.name_ar`, `my-stock` `product_name_ar` and the purchase lines `product_name_ar`) on its own row; a product without one prints the French name only. Everything else on the paper stays in French (Q13).
+- **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
+- A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.

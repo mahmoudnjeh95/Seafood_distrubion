@@ -19,6 +19,7 @@ from apps.purchasing.models import (
     FieldPurchaseStatus,
     GoodsReceipt,
     GoodsReceiptLine,
+    GoodsReceiptRevision,
     PaymentMethod,
     PaymentTerms,
     PlanLineStatus,
@@ -102,6 +103,35 @@ class OrderRefSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=PurchaseOrderStatus.choices, read_only=True)
 
 
+class ReceiptChangeSerializer(serializers.Serializer[Any]):
+    # A header field (supplier_reference, notes, with_vat) or a line's (invoiced_quantity, accepted_quantity,
+    # unit_cost, use_by).
+    field = serializers.CharField(read_only=True)
+    # The position (from 0) of the line, for its fields; null for the header.
+    line = serializers.IntegerField(read_only=True, allow_null=True)
+    before = serializers.CharField(read_only=True, allow_null=True)
+    after = serializers.CharField(read_only=True, allow_null=True)
+
+
+class GoodsReceiptRevisionSerializer(serializers.ModelSerializer[GoodsReceiptRevision]):
+    created_by = serializers.SerializerMethodField()
+    # What this change changed, as it read before and after.
+    changes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GoodsReceiptRevision
+        fields = ("number", "created_at", "created_by", "reason", "changes")
+        read_only_fields = fields
+
+    def get_created_by(self, revision: GoodsReceiptRevision) -> str:
+        return _name_of(revision.created_by)
+
+    @extend_schema_field(ReceiptChangeSerializer(many=True))
+    def get_changes(self, revision: GoodsReceiptRevision) -> list[dict[str, Any]]:
+        changes = selectors.receipt_changes(revision.before, revision.after)
+        return [dict(ReceiptChangeSerializer(change).data) for change in changes]
+
+
 class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     supplier = RefSerializer(read_only=True)
     # The commande d'achat this delivery is against, or null for goods that came without one.
@@ -114,6 +144,10 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     # The supplier invoice it is on (draft or posted), or null while not invoiced.
     invoice = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
+    # Every change made after saving, oldest first (D-269); `revision` is the number of the last one.
+    revisions = GoodsReceiptRevisionSerializer(many=True, read_only=True)
+    # Changeable while no supplier invoice carries it (D-269).
+    editable = serializers.SerializerMethodField()
 
     class Meta:
         model = GoodsReceipt
@@ -134,6 +168,9 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
             "invoice",
             "created_by",
             "created_at",
+            "revision",
+            "revisions",
+            "editable",
         )
         read_only_fields = fields
 
@@ -149,6 +186,10 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     def get_invoice(self, receipt: GoodsReceipt) -> dict[str, Any] | None:
         link = getattr(receipt, "invoice_link", None)
         return None if link is None else dict(InvoiceRefSerializer(link.invoice).data)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_editable(self, receipt: GoodsReceipt) -> bool:
+        return getattr(receipt, "invoice_link", None) is None
 
     def get_created_by(self, receipt: GoodsReceipt) -> str:
         user = receipt.created_by
@@ -191,12 +232,31 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     lines = ReceiptLineWriteSerializer(many=True, allow_empty=True)
     # Returnable boxes that came with the delivery, per box type ("small", "big"): a count, never kg (D-122).
     boxes = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False, default=dict)
-    # Owed at once (D-159): a posted supplier invoice for this receipt, due by the deal made for the delivery.
-    invoice_now = serializers.BooleanField(required=False, default=False)
-    terms = serializers.ChoiceField(choices=PaymentTerms.choices, required=False, default=PaymentTerms.DAYS)
-    due_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=30)
-    # Given now (D-192): only with `invoice_now`; recorded and allocated to the invoice of this receipt.
+    # Given now (D-192): kept as an advance that the supplier's invoice made from this receipt takes (D-268).
     payments = FieldPurchasePaymentWriteSerializer(many=True, required=False, default=list)
+    # The office confirmed a cash payment at or above the cash limit (D-273, D-280).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
+
+
+class ReceiptRevisionLineWriteSerializer(serializers.Serializer[Any]):
+    # The line's id: every line of the receipt is sent, each one as it stands with the change.
+    id = serializers.IntegerField(min_value=1)
+    # Weights and cost travel as strings ("62.000") and are checked by the service.
+    invoiced_quantity = serializers.CharField(allow_blank=True)
+    accepted_quantity = serializers.CharField(allow_blank=True)
+    unit_cost = serializers.CharField(allow_blank=True)
+    use_by = serializers.DateField(required=False, allow_null=True, default=None)
+
+
+class ReceiptRevisionWriteSerializer(serializers.Serializer[Any]):
+    # The version the person read: a change on an older one is refused, so nobody overwrites another's change.
+    revision = serializers.IntegerField(min_value=0)
+    # Why it changed: required (checked by the service).
+    reason = serializers.CharField(allow_blank=True, max_length=300)
+    supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    with_vat = serializers.BooleanField()
+    lines = ReceiptRevisionLineWriteSerializer(many=True)
 
 
 class ReceiptFilterSerializer(serializers.Serializer[Any]):
@@ -570,6 +630,7 @@ class SupplierPaymentSerializer(serializers.ModelSerializer[SupplierPayment]):
             "created_by",
             "created_at",
             "is_voided",
+            "cash_limit_confirmed",
             "voided_at",
             "voided_by",
             "void_reason",
@@ -637,6 +698,8 @@ class SupplierPaymentWriteSerializer(serializers.Serializer[Any]):
     plan_line = serializers.IntegerField(required=False, allow_null=True, min_value=1, default=None)
     # Several open plan lines paid by this one règlement (D-208).
     plan_lines = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
+    # True: a cash line at or above the cash limit is confirmed by the person recording the payment (D-273).
+    confirm_cash_limit = serializers.BooleanField(required=False, default=False)
 
 
 class PaymentAllocateSerializer(serializers.Serializer[Any]):
@@ -673,14 +736,39 @@ class PaymentVoidSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
 
 
+class SupplierWriteOffLotShareSerializer(serializers.Serializer[Any]):
+    """The part of a supplier balance write-off credited to one lot, picked by hand (D-257)."""
+
+    batch = serializers.IntegerField(min_value=1)
+    amount = serializers.CharField(max_length=30)
+
+
+class SupplierWriteOffLotSerializer(serializers.Serializer[Any]):
+    """A lot a supplier balance write-off can be credited to (D-257): one they sold us, not settled."""
+
+    batch_id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = serializers.CharField(read_only=True)
+
+
+class BalanceWriteOffSerializer(serializers.Serializer[Any]):
+    # The balance as shown on screen, typed again: the write-off is refused when it moved (D-252).
+    expected_amount = serializers.CharField(max_length=30)
+    reason = serializers.CharField(allow_blank=True, max_length=255)
+    # The lots the gain is credited to, adding up to the balance (D-257); asked for only when a lot is offered.
+    lot_shares = SupplierWriteOffLotShareSerializer(many=True, required=False)
+
+
 class SupplierBalanceSerializer(serializers.Serializer[Any]):
     """The trade balance with one supplier. A partner's capital and profit share are other balances (D-040)."""
 
     supplier_id = serializers.IntegerField(read_only=True)
     invoiced = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     paid = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
-    # Posted invoices − payments: what is owed; negative when the supplier holds an advance.
+    # Posted invoices − payments − what was written off: what is owed; negative when the supplier holds an advance.
     balance = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # What the balance write-offs gave up (D-252): a gain on this supplier, not paid.
+    written_off = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     unallocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     overdue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
@@ -691,6 +779,8 @@ class SupplierBalanceSerializer(serializers.Serializer[Any]):
     # Received but on no invoice yet: not owed until the supplier's invoice is recorded.
     uninvoiced_receipts = serializers.IntegerField(read_only=True)
     uninvoiced_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # The lots a write-off of this balance can be credited to (D-257), newest first.
+    write_off_lots = SupplierWriteOffLotSerializer(many=True, read_only=True)
 
 
 # ---- Buying at the port, the "achat terrain" (P3-T12, D-176) ----
@@ -941,9 +1031,18 @@ class FieldPurchaseFilterSerializer(serializers.Serializer[Any]):
 class MyFieldPurchaseLineSerializer(FieldPurchaseLineSerializer):
     """A line as the driver sees it: no partner (the owner's business, D-060)."""
 
+    # The product's Arabic name, printed under the French one on the receipt (D-282); empty when none.
+    product_name_ar = serializers.SerializerMethodField()
+
     class Meta(FieldPurchaseLineSerializer.Meta):
-        fields = tuple(field for field in FieldPurchaseLineSerializer.Meta.fields if field != "partner")
+        fields = (
+            *(field for field in FieldPurchaseLineSerializer.Meta.fields if field != "partner"),
+            "product_name_ar",
+        )
         read_only_fields = fields
+
+    def get_product_name_ar(self, line: FieldPurchaseLine) -> str:
+        return line.product.name_ar if line.product is not None else ""
 
 
 class MyFieldPurchasePaymentSerializer(FieldPurchasePaymentSerializer):

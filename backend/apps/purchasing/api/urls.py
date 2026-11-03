@@ -7,6 +7,7 @@ urlpatterns = [
     path("receipts/differences", views.ReceiptDifferenceListView.as_view(), name="receipt-differences"),
     path("receipts/last-costs", views.LastCostListView.as_view(), name="receipt-last-costs"),
     path("receipts/<int:receipt_id>", views.ReceiptDetailView.as_view(), name="receipt-detail"),
+    path("receipts/<int:receipt_id>/revise", views.ReceiptReviseView.as_view(), name="receipt-revise"),
     path("purchase-orders", views.OrderListView.as_view(), name="purchase-order-list"),
     path("purchase-orders/<int:order_id>", views.OrderDetailView.as_view(), name="purchase-order-detail"),
     path("purchase-orders/<int:order_id>/cancel", views.OrderCancelView.as_view(), name="purchase-order-cancel"),
@@ -30,6 +31,7 @@ urlpatterns = [
         name="supplier-effet-reject",
     ),
     path("supplier-payments/totals", views.SupplierPaymentTotalsView.as_view(), name="supplier-payment-totals"),
+    path("supplier-invoices/export", views.SupplierInvoiceExportView.as_view(), name="supplier-invoice-export"),
     path("supplier-payments/export", views.SupplierPaymentExportView.as_view(), name="supplier-payment-export"),
     path(
         "supplier-payments/<int:payment_id>", views.SupplierPaymentDetailView.as_view(), name="supplier-payment-detail"
@@ -43,6 +45,11 @@ urlpatterns = [
         "supplier-payments/<int:payment_id>/void", views.SupplierPaymentVoidView.as_view(), name="supplier-payment-void"
     ),
     path("supplier-balances/<int:supplier_id>", views.SupplierBalanceView.as_view(), name="supplier-balance"),
+    path(
+        "supplier-balances/<int:supplier_id>/write-off",
+        views.SupplierBalanceWriteOffView.as_view(),
+        name="supplier-balance-write-off",
+    ),
     path("field-purchases", views.FieldPurchaseListView.as_view(), name="field-purchase-list"),
     path("field-purchases/<int:purchase_id>", views.FieldPurchaseDetailView.as_view(), name="field-purchase-detail"),
     path("my-field-purchases", driver_views.MyFieldPurchasesView.as_view(), name="my-field-purchases"),

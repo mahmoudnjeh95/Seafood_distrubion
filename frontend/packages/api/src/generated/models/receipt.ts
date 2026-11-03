@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { GoodsReceiptRevision } from './goodsReceiptRevision';
 import type { InvoiceRef } from './invoiceRef';
 import type { OrderRef } from './orderRef';
 import type { ReceiptLine } from './receiptLine';
@@ -29,4 +30,7 @@ export interface Receipt {
   readonly invoice: InvoiceRef | null;
   readonly created_by: string;
   readonly created_at: string;
+  readonly revision: number;
+  readonly revisions: readonly GoodsReceiptRevision[];
+  readonly editable: boolean;
 }

@@ -2,6 +2,7 @@ import {
   ApiError,
   type CreditNote,
   deleteInvoice,
+  giveUpInvoiceGap,
   type InvoiceDetail,
   type InvoiceLine,
   updateInvoice,
@@ -46,6 +47,7 @@ import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
 import { formatRate } from "../quotes/shared";
+import { BalanceWriteOffDialog } from "../payments/BalanceWriteOffDialog";
 import { CertificateCard } from "./CertificateCard";
 import { CreditNoteDialog } from "./CreditNoteDialog";
 import { canInvoice, isZero, plainRate, refreshAfterInvoice, STATUS_TONES, toInput } from "./shared";
@@ -93,7 +95,6 @@ type DraftValues = {
   amounts: Record<string, string>;
   stamp: string;
   fees: string;
-  withholdingApplied: boolean;
   withholdingRate: string;
   notes: string;
 };
@@ -107,7 +108,6 @@ function draftOf(invoice: InvoiceDetail): DraftValues {
     ),
     stamp: invoice.fiscal_stamp_overridden ? toInput(invoice.fiscal_stamp) : "",
     fees: isZero(invoice.fees) ? "" : toInput(invoice.fees),
-    withholdingApplied: invoice.withholding_applied,
     withholdingRate: invoice.withholding_rate_overridden ? toInput(invoice.withholding_rate) : "",
     notes: invoice.notes,
   };
@@ -161,7 +161,7 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
       : [];
     const stamp = values.stamp.trim() === "" ? null : money(values.stamp, "fiscal_stamp");
     const fees = values.fees.trim() === "" ? null : money(values.fees, "fees");
-    const withholdingRate = values.withholdingApplied ? percent(values.withholdingRate, "withholding_rate") : null;
+    const withholdingRate = percent(values.withholdingRate, "withholding_rate");
     return {
       found,
       payload: {
@@ -170,7 +170,6 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         vat_amounts: vatAmounts,
         fiscal_stamp: stamp,
         fees,
-        withholding_applied: values.withholdingApplied,
         withholding_rate: withholdingRate,
         notes: values.notes.trim(),
         issue_now: issueNow,
@@ -324,31 +323,22 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
         </Field>
 
         <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2.5 font-semibold">
-            <input
-              type="checkbox"
-              className="size-4 accent-sea"
-              checked={values.withholdingApplied}
-              onChange={(event) => set({ withholdingApplied: event.target.checked })}
+          <span className="font-semibold">{t("admin.invoices.form.withholding")}</span>
+          <p className="text-[0.78rem] text-ink-2">{t("admin.invoices.form.withholdingRule")}</p>
+          <Field
+            label={t("admin.invoices.form.withholdingRate")}
+            htmlFor={`${formId}-withholding`}
+            error={errors.withholding_rate}
+          >
+            <Input
+              id={`${formId}-withholding`}
+              inputMode="decimal"
+              value={values.withholdingRate}
+              placeholder={toInput(invoice.settings_withholding_rate ?? invoice.withholding_rate)}
+              onChange={(event) => set({ withholdingRate: event.target.value })}
+              aria-invalid={errors.withholding_rate ? true : undefined}
             />
-            {t("admin.invoices.form.withholding")}
-          </label>
-          {values.withholdingApplied && (
-            <Field
-              label={t("admin.invoices.form.withholdingRate")}
-              htmlFor={`${formId}-withholding`}
-              error={errors.withholding_rate}
-            >
-              <Input
-                id={`${formId}-withholding`}
-                inputMode="decimal"
-                value={values.withholdingRate}
-                placeholder={toInput(invoice.settings_withholding_rate ?? invoice.withholding_rate)}
-                onChange={(event) => set({ withholdingRate: event.target.value })}
-                aria-invalid={errors.withholding_rate ? true : undefined}
-              />
-            </Field>
-          )}
+          </Field>
         </div>
 
         <Field label={t("admin.invoices.form.notes")} htmlFor={`${formId}-notes`}>
@@ -456,70 +446,120 @@ function LinesTable({ invoice }: { invoice: InvoiceDetail }) {
   );
 }
 
-function Totals({ invoice }: { invoice: InvoiceDetail }) {
+function Totals({ invoice, owner }: { invoice: InvoiceDetail; owner: boolean }) {
   const { t } = useTranslation();
   const stamp = !isZero(invoice.fiscal_stamp);
   const showWithholding = invoice.withholding_applied && !isZero(invoice.withholding_rate);
   return (
-    <dl
-      className="ms-auto mt-3.5 flex w-[min(360px,100%)] flex-col gap-1"
-      aria-label={t("admin.invoices.document.totals")}
-    >
-      {!isZero(invoice.discount_total) && (
-        <>
-          <TotalRow label={t("admin.invoices.document.subtotal")}>{formatMoney(invoice.subtotal)}</TotalRow>
-          <TotalRow label={t("admin.invoices.document.discount")}>−{formatMoney(invoice.discount_total)}</TotalRow>
-        </>
-      )}
-      {invoice.apply_vat ? (
-        <>
-          <TotalRow label={t("admin.invoices.document.totalExcl")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
-          {invoice.vat_lines.map((row) => (
-            <TotalRow
-              key={row.rate}
-              label={
-                isZero(row.rate)
-                  ? t("admin.invoices.document.vatExempt")
-                  : t("admin.invoices.document.vatAt", { rate: plainRate(row.rate) })
-              }
-              note={
-                row.amount_overridden
-                  ? t("admin.invoices.document.vatTyped", { computed: formatMoney(row.computed_amount) })
-                  : undefined
-              }
-            >
-              {formatMoney(row.amount)}
-            </TotalRow>
-          ))}
-        </>
-      ) : (
-        <TotalRow label={t("admin.invoices.document.totalNoVat")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
-      )}
-      {stamp && <TotalRow label={t("admin.invoices.document.stamp")}>{formatMoney(invoice.fiscal_stamp)}</TotalRow>}
-      {!isZero(invoice.fees) && (
-        <TotalRow label={t("admin.invoices.document.fees")}>{formatMoney(invoice.fees)}</TotalRow>
-      )}
-      <TotalRow
-        label={invoice.apply_vat ? t("admin.invoices.document.totalIncl") : t("admin.invoices.document.total")}
-        grand
+    <>
+      <dl
+        className="ms-auto mt-3.5 flex w-[min(360px,100%)] flex-col gap-1"
+        aria-label={t("admin.invoices.document.totals")}
       >
-        {formatMoney(invoice.total_incl_tax)}
-      </TotalRow>
-      {showWithholding && (
-        <>
-          <TotalRow label={t("admin.invoices.document.withholding", { rate: plainRate(invoice.withholding_rate) })}>
-            −{formatMoney(invoice.withholding_amount)}
-          </TotalRow>
-          <TotalRow label={t("admin.invoices.document.netToPay")}>{formatMoney(invoice.net_to_pay)}</TotalRow>
-        </>
-      )}
-      {!isZero(invoice.credited_total) && (
-        <>
+        {!isZero(invoice.discount_total) && (
+          <>
+            <TotalRow label={t("admin.invoices.document.subtotal")}>{formatMoney(invoice.subtotal)}</TotalRow>
+            <TotalRow label={t("admin.invoices.document.discount")}>−{formatMoney(invoice.discount_total)}</TotalRow>
+          </>
+        )}
+        {invoice.apply_vat ? (
+          <>
+            <TotalRow label={t("admin.invoices.document.totalExcl")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
+            {invoice.vat_lines.map((row) => (
+              <TotalRow
+                key={row.rate}
+                label={
+                  isZero(row.rate)
+                    ? t("admin.invoices.document.vatExempt")
+                    : t("admin.invoices.document.vatAt", { rate: plainRate(row.rate) })
+                }
+                note={
+                  row.amount_overridden
+                    ? t("admin.invoices.document.vatTyped", { computed: formatMoney(row.computed_amount) })
+                    : undefined
+                }
+              >
+                {formatMoney(row.amount)}
+              </TotalRow>
+            ))}
+          </>
+        ) : (
+          <TotalRow label={t("admin.invoices.document.totalNoVat")}>{formatMoney(invoice.total_excl_tax)}</TotalRow>
+        )}
+        {stamp && <TotalRow label={t("admin.invoices.document.stamp")}>{formatMoney(invoice.fiscal_stamp)}</TotalRow>}
+        {!isZero(invoice.fees) && (
+          <TotalRow label={t("admin.invoices.document.fees")}>{formatMoney(invoice.fees)}</TotalRow>
+        )}
+        <TotalRow
+          label={invoice.apply_vat ? t("admin.invoices.document.totalIncl") : t("admin.invoices.document.total")}
+          grand
+        >
+          {formatMoney(invoice.total_incl_tax)}
+        </TotalRow>
+        {showWithholding && (
+          <>
+            <TotalRow label={t("admin.invoices.document.withholding", { rate: plainRate(invoice.withholding_rate) })}>
+              −{formatMoney(invoice.withholding_amount)}
+            </TotalRow>
+            <TotalRow label={t("admin.invoices.document.netToPay")}>{formatMoney(invoice.net_to_pay)}</TotalRow>
+          </>
+        )}
+        {!isZero(invoice.credited_total) && (
           <TotalRow label={t("admin.invoices.document.credited")}>−{formatMoney(invoice.credited_total)}</TotalRow>
+        )}
+        {invoice.status === "issued" && !isZero(invoice.paid_total) && (
+          <TotalRow label={t("admin.invoices.document.paid")}>−{formatMoney(invoice.paid_total)}</TotalRow>
+        )}
+        {(!isZero(invoice.credited_total) || (invoice.status === "issued" && !isZero(invoice.paid_total))) && (
           <TotalRow label={t("admin.invoices.document.remaining")}>{formatMoney(invoice.remaining_to_pay)}</TotalRow>
+        )}
+      </dl>
+      <PaymentGap invoice={invoice} owner={owner} />
+    </>
+  );
+}
+
+/** An invoice paid in part: what is left, and how much of it is VAT and stamp the earlier règlement did not cover
+ * (D-256). The rest is collected in a new règlement on this invoice. Not printed. */
+function PaymentGap({ invoice, owner }: { invoice: InvoiceDetail; owner: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [giving, setGiving] = useState(false);
+  if (invoice.payment_state !== "partial") return null;
+  const extra = isZero(invoice.extra_over_goods) ? null : formatMoney(invoice.extra_over_goods);
+  return (
+    <div role="status" className="mt-3 rounded-control bg-warn-soft p-3 text-[0.9rem] print:hidden">
+      <p className="font-semibold">
+        {t("admin.invoices.gap.title", { amount: formatMoney(invoice.remaining_to_pay) })}
+      </p>
+      {extra && <p className="text-ink-2">{t("admin.invoices.gap.extra", { amount: extra })}</p>}
+      <Link
+        to={`/reglements/nouveau?client=${invoice.customer.id}`}
+        className="mt-1 inline-block font-semibold text-sea hover:underline"
+      >
+        {t("admin.invoices.gap.collect")}
+      </Link>
+      {owner && (
+        <>
+          <Button variant="danger" className="ms-3" onClick={() => setGiving(true)}>
+            {t("admin.invoices.gap.giveUp")}
+          </Button>
+          <Dialog open={giving} onOpenChange={setGiving}>
+            <BalanceWriteOffDialog
+              kind="invoice"
+              party={invoice.number}
+              owed={invoice.remaining_to_pay}
+              lots={invoice.gap_lots}
+              onWrite={(body) => giveUpInvoiceGap(invoice.id, body)}
+              onDone={() => {
+                setGiving(false);
+                void queryClient.invalidateQueries();
+              }}
+            />
+          </Dialog>
         </>
       )}
-    </dl>
+    </div>
   );
 }
 
@@ -636,7 +676,7 @@ export function InvoicePage() {
             }
           />
           <LinesTable invoice={invoice} />
-          <Totals invoice={invoice} />
+          <Totals invoice={invoice} owner={session.role === "owner"} />
           {invoice.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{invoice.notes}</p>
           )}

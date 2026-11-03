@@ -546,8 +546,10 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp = MoneyField(default=Decimal("1.000"))
     # True: the sale prices already contain VAT, the invoice takes it out. False: VAT comes on top.
     prices_include_vat = models.BooleanField(default=False)
-    # Percent, 2 decimals: the withholding tax (retenue à la source) some customers apply; 0 = never shown.
-    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    # Percent, 2 decimals: the withholding tax (retenue à la source) on invoices of 1 000 DT and more; 0 = never shown.
+    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    # A cash line of this amount or more on a payment needs the office's explicit confirmation (D-273, owner: 5 000 DT).
+    cash_limit = MoneyField(default=Decimal("5000.000"))
     # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.
     credit_policy = models.CharField(max_length=20, choices=CreditPolicy.choices, default=CreditPolicy.BLOCK)
     # Who issues the invoices, as printed on them (article 18 of the VAT code).
@@ -988,6 +990,8 @@ class CustomerPayment(OrganizationScopedModel, TimeStampedModel):
     void_reason = models.CharField(max_length=255, blank=True)
     # Sent by the driver app, which may retry: the same value never records a payment twice (P3-T11).
     client_uuid = models.UUIDField(null=True, blank=True)
+    # A cash line at or above the cash limit was confirmed by the person who recorded it (D-273).
+    cash_limit_confirmed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-received_on", "-id"]
@@ -1052,6 +1056,75 @@ class PaymentAllocation(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.payment} -> {self.sale} · {self.amount}"
+
+
+class CustomerBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
+    """The rest of a customer's balance given up (D-252): the customer paid less than what was owed and we clear
+    the balance to zero. It is a loss on that customer, kept as it is: never edited, never deleted.
+
+    Its amount is shared over the customer's open sales, oldest first (`CustomerWriteOffAllocation`), so each sale
+    reads as settled by it. Lowers the customer's balance like a payment does.
+    """
+
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="balance_write_offs")
+    # Set when only the unpaid gap of one issued invoice was given up (D-256); empty for a whole balance (D-252).
+    invoice = models.ForeignKey(
+        "sales.Invoice", null=True, blank=True, on_delete=models.PROTECT, related_name="gap_write_offs"
+    )
+    written_on = models.DateField()
+    amount = MoneyField()
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-written_on", "-id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_write_off_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.customer} · {self.amount}"
+
+
+class CustomerWriteOffAllocation(OrganizationScopedModel):
+    """The part of a balance write-off that settles one sale. Written once with its write-off."""
+
+    write_off = models.ForeignKey(CustomerBalanceWriteOff, on_delete=models.PROTECT, related_name="allocations")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="write_off_allocations")
+    amount = MoneyField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="write_off_allocation_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} -> {self.sale} · {self.amount}"
+
+
+class CustomerWriteOffLotShare(OrganizationScopedModel):
+    """The part of a balance write-off charged to one lot (D-257): a loss that lowers that lot's net result, so
+    its partner shares the loss. The owner picks the lots and amounts by hand; the shares add up to the write-off.
+    Written once with its write-off."""
+
+    write_off = models.ForeignKey(CustomerBalanceWriteOff, on_delete=models.PROTECT, related_name="lot_shares")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    amount = MoneyField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["write_off", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_write_off_lot_share_positive"),
+            models.UniqueConstraint(fields=["write_off", "batch"], name="customer_write_off_lot_share_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.write_off} -> {self.batch_id} · {self.amount}"
 
 
 class UnpaidEffet(OrganizationScopedModel):

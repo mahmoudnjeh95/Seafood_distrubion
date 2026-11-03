@@ -22,6 +22,8 @@ export function refreshHr(queryClient: QueryClient) {
     "/api/v1/salary-payments",
     "/api/v1/payroll-summary",
     "/api/v1/lot-work-days",
+    // A payment or a prime writes a treasury movement (D-234, D-244): the treasurer's journal shows it at once.
+    "/api/v1/treasury",
   ];
   return queryClient.invalidateQueries({
     predicate: (query) =>

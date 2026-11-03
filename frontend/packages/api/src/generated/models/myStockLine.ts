@@ -11,6 +11,7 @@
 export interface MyStockLine {
   readonly product_id: number;
   readonly product_name: string;
+  readonly product_name_ar: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly quantity: string;
   /**

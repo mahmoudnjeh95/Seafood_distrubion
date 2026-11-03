@@ -1,4 +1,5 @@
 import {
+  getExportExpensesUrl,
   type ExpenseCategory,
   type ExpenseStatusEnum,
   createExpenseCategory,
@@ -24,29 +25,35 @@ import {
   Icon,
   Input,
   PageHeader,
+  Pager,
   Pill,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SortTh,
   Table,
   Td,
   Th,
   toast,
+  TotalsRow,
+  useServerTable,
+  useUrlState,
 } from "@frutti/ui";
 import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router";
 
 import { currentMonth, monthLabel, shiftMonth } from "../hr/shared";
+import { totalOf } from "../lib/totals";
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
 import { ExpensesTabs } from "./ExpensesTabs";
 import { asMonth, asPeriod, openingPeriod, type Period, periodDates } from "./period";
 import { canManageCategories, canWriteExpenses, EXPENSE_STATUSES, EXPENSE_TONES, refreshExpenses } from "./shared";
+import { ExportButton } from "../lib/ExportButton";
 
-const PAGE_SIZE = 50;
 const ALL = "all";
 
 /** One category of the owner's dialog: rename it, offer it on the drivers' phones, archive or restore it, or remove
@@ -198,13 +205,13 @@ export function ExpensesPage() {
   // The month closing's cost lines link here with a category and a date range pre-set (D-122); without a
   // link the list opens on this month.
   const [searchParams] = useSearchParams();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q");
   const [statusFilter, setStatusFilter] = useState<ExpenseStatusEnum | "">("");
   const [category, setCategory] = useState(searchParams.get("category") ?? ALL);
   const [period, setPeriod] = useState<Period>(() =>
     openingPeriod(searchParams.get("date_from"), searchParams.get("date_to"), thisMonth),
   );
-  const [offset, setOffset] = useState(0);
+  const table = useServerTable();
   const [managing, setManaging] = useState(false);
   const query = useDebounced(search.trim());
 
@@ -215,10 +222,7 @@ export function ExpensesPage() {
     ...periodDates(period),
     ...(query ? { search: query } : {}),
   };
-  const expenses = useListExpenses(
-    { limit: PAGE_SIZE, offset, ...filters },
-    { query: { placeholderData: keepPreviousData } },
-  );
+  const expenses = useListExpenses({ ...table.params, ...filters }, { query: { placeholderData: keepPreviousData } });
   const totals = useGetExpenseTotals(filters, { query: { placeholderData: keepPreviousData } });
   const page = expenses.data;
   const list = page?.results ?? [];
@@ -232,7 +236,7 @@ export function ExpensesPage() {
 
   const showPeriod = (next: Period) => {
     setPeriod(next);
-    setOffset(0);
+    table.backToFirstPage();
   };
 
   const segment = (key: string, label: string, pressed: boolean, onClick: () => void) => (
@@ -252,7 +256,7 @@ export function ExpensesPage() {
   const statusButton = (value: ExpenseStatusEnum | "", label: string) =>
     segment(value || "all", label, statusFilter === value, () => {
       setStatusFilter(value);
-      setOffset(0);
+      table.backToFirstPage();
     });
 
   return (
@@ -267,6 +271,7 @@ export function ExpensesPage() {
             {t("admin.expenses.add")}
           </Button>
         )}
+        <ExportButton href={getExportExpensesUrl({ ...table.ordering, ...filters })} />
       </PageHeader>
       <ExpensesTabs />
 
@@ -280,7 +285,7 @@ export function ExpensesPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
           className="min-w-52 flex-[2_1_14rem]"
         />
@@ -296,7 +301,7 @@ export function ExpensesPage() {
           value={category}
           onValueChange={(value) => {
             setCategory(value);
-            setOffset(0);
+            table.backToFirstPage();
           }}
         >
           <SelectTrigger aria-label={t("admin.expenses.categoryFilter")} className="w-56">
@@ -408,9 +413,15 @@ export function ExpensesPage() {
           <Table>
             <thead>
               <tr>
-                <Th>{t("admin.expenses.columns.number")}</Th>
-                <Th>{t("admin.expenses.columns.date")}</Th>
-                <Th>{t("admin.expenses.columns.category")}</Th>
+                <SortTh sortKey="number" {...table.sorting}>
+                  {t("admin.expenses.columns.number")}
+                </SortTh>
+                <SortTh sortKey="date" {...table.sorting}>
+                  {t("admin.expenses.columns.date")}
+                </SortTh>
+                <SortTh sortKey="category" {...table.sorting}>
+                  {t("admin.expenses.columns.category")}
+                </SortTh>
                 <Th className="max-[720px]:hidden">{t("admin.expenses.columns.charged")}</Th>
                 <Th numeric>{t("admin.expenses.columns.amount")}</Th>
               </tr>
@@ -454,24 +465,19 @@ export function ExpensesPage() {
                 </tr>
               ))}
             </tbody>
+            <TotalsRow
+              span={4}
+              cells={[
+                {
+                  value: totalOf(
+                    list.filter((e) => e.status !== "rejected"),
+                    (e) => e.amount,
+                  ),
+                },
+              ]}
+            />
           </Table>
-          {page && page.count > PAGE_SIZE && (
-            <div className="flex items-center justify-end gap-2 p-2">
-              <span className="me-auto text-[0.85rem] text-ink-2">
-                {t("admin.expenses.page", {
-                  from: offset + 1,
-                  to: Math.min(offset + PAGE_SIZE, page.count),
-                  count: page.count,
-                })}
-              </span>
-              <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                {t("admin.expenses.previous")}
-              </Button>
-              <Button disabled={!page.next} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                {t("admin.expenses.next")}
-              </Button>
-            </div>
-          )}
+          {page && <Pager {...table.pager(page.count)} />}
         </Card>
       )}
 

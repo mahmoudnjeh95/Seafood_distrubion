@@ -48,6 +48,7 @@ from .serializers import (
     RoadLossSerializer,
     RoadLossWriteSerializer,
     RoadReturnSerializer,
+    StockAdjustmentWriteSerializer,
     StockLocationCreateSerializer,
     StockLocationFilterSerializer,
     StockLocationSerializer,
@@ -301,6 +302,11 @@ class TransferView(OfficeView):
 class TransferListView(TransferView, ListAPIView[Transfer]):
     serializer_class = TransferSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("transferred_on",),
+        "kind": ("kind",),
+    }
 
     def get_queryset(self) -> QuerySet[Transfer]:
         filters = TransferFilterSerializer(data=self.request.query_params)
@@ -447,6 +453,7 @@ class MyStockView(APIView):
                 {
                     "product_id": row["product_id"],
                     "product_name": row["product__name"],
+                    "product_name_ar": product.name_ar,
                     "quantity": row["quantity"],
                     "unit_price": None if price is None else price.price,
                     "photo_url": _photo_url(product),
@@ -583,6 +590,12 @@ class LossView(OfficeView):
 class LossListView(LossView, ListAPIView[StockLoss]):
     serializer_class = LossSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("lost_on",),
+        "product": ("product__name",),
+        "location": ("location__name",),
+    }
 
     def get_queryset(self) -> QuerySet[StockLoss]:
         filters = LossFilterSerializer(data=self.request.query_params)
@@ -699,6 +712,11 @@ class CountView(OfficeView):
 class CountListView(CountView, ListAPIView[StockCount]):
     serializer_class = CountSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "number": ("number",),
+        "date": ("counted_on",),
+        "location": ("location__name",),
+    }
 
     def get_queryset(self) -> QuerySet[StockCount]:
         filters = CountFilterSerializer(data=self.request.query_params)
@@ -707,6 +725,7 @@ class CountListView(CountView, ListAPIView[StockCount]):
             self.organization,
             status=filters.validated_data.get("status"),
             location_id=filters.validated_data.get("location"),
+            search=filters.validated_data["search"],
         )
 
     @extend_schema(operation_id="listCounts", parameters=[CountFilterSerializer])
@@ -803,9 +822,52 @@ class ProductStockView(OfficeView):
         return Response(ProductStockDetailSerializer(_StockWithBatches(stock, batches)).data)
 
 
+class StockAdjustmentView(OfficeView):
+    @extend_schema(
+        operation_id="adjustStock",
+        request=StockAdjustmentWriteSerializer,
+        responses={201: ProductStockDetailSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Add kilos of one lot to a place, or take them out, by hand (an adjustment, reason required). The
+        kilos keep the lot's cost. The answer is the product's stock again, with its new average price."""
+        serializer = StockAdjustmentWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        errors: dict[str, str] = {}
+        try:
+            location = selectors.location_of(self.organization, data["location"])
+        except StockLocation.DoesNotExist:
+            errors["location"] = _("Emplacement inconnu.")
+        try:
+            batch = selectors.batch_of(self.organization, data["batch"])
+        except Batch.DoesNotExist:
+            errors["batch"] = _("Lot inconnu.")
+        if errors:
+            raise ValidationError(errors)
+        services.adjust_stock(
+            organization=self.organization,
+            actor=self.membership.user,
+            location=location,
+            batch=batch,
+            add=data["direction"] == "add",
+            quantity=data["quantity"],
+            reason=data["reason"],
+        )
+        stock = selectors.product_stock(self.organization, batch.product_id)
+        batches = selectors.batch_holdings(self.organization, product_id=batch.product_id)
+        answer = ProductStockDetailSerializer(_StockWithBatches(stock, batches)).data
+        return Response(answer, status=status.HTTP_201_CREATED)
+
+
 class MovementListView(OfficeView, ListAPIView[Any]):
     serializer_class = StockMovementSerializer
     pagination_class = PagedList
+    ordering_columns = {
+        "when": ("occurred_at",),
+        "kind": ("kind",),
+        "product": ("product__name",),
+    }
 
     def get_queryset(self) -> QuerySet[Any]:
         filters = StockMovementFilterSerializer(data=self.request.query_params)

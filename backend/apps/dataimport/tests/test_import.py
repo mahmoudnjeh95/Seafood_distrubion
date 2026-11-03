@@ -456,7 +456,7 @@ def test_an_opening_receivable_is_never_invoiced_nor_counted_as_a_sale(organizat
     assert sale.is_opening
     assert not list(selectors.sales_of(organization, uninvoiced=True))
     with pytest.raises(ValidationError, match="ouverture"):
-        sales.create_invoice(sale=sale, actor=owner.user)
+        sales.create_invoice(apply_vat=True, sale=sale, actor=owner.user)
 
 
 def test_customer_debts_sent_twice_are_skipped_and_unknown_customers_reported(organization, owner):

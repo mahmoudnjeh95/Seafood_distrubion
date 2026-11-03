@@ -103,7 +103,7 @@
       {% for row in ledger %}
       <tr>
         <td class="num">{{ row.entry.day|day }}</td>
-        <td>{% if row.entry.kind == "invoice" %}Facture{% elif row.entry.kind == "rejected" %}Effet rejeté{% else %}Paiement{% endif %}{% if row.entry.reference %} · {{ row.entry.reference }}{% endif %}</td>
+        <td>{% if row.entry.kind == "invoice" %}Facture{% elif row.entry.kind == "rejected" %}Effet rejeté{% elif row.entry.kind == "written_off" %}Solde remis à zéro{% else %}Paiement{% endif %}{% if row.entry.reference %} · {{ row.entry.reference }}{% endif %}</td>
         <td class="num">{{ row.entry.number }}</td>
         <td class="r num">{{ row.debit|money }}</td>
         <td class="r num">{{ row.credit|money }}</td>

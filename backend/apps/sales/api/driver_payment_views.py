@@ -14,7 +14,46 @@ from apps.dayclose import selectors as dayclose
 from apps.partners import selectors as partners
 from apps.sales import selectors, services
 
-from .driver_payment_serializers import RoadPaymentSerializer, RoadPaymentWriteSerializer
+from .driver_payment_serializers import (
+    CashLimitSerializer,
+    ReceiptHeaderSerializer,
+    RoadPaymentSerializer,
+    RoadPaymentWriteSerializer,
+)
+
+
+class MyCashLimitView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyCashLimit", responses=CashLimitSerializer)
+    def get(self, request: Request) -> Response:
+        """The amount from which a cash collection needs the driver's confirmation (D-273, D-280): the phone asks
+        before sending, and keeps the answer for when it has no connection."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        limit = selectors.cash_limit_on(membership.organization, timezone.localdate())
+        return Response(CashLimitSerializer({"cash_limit": limit}).data)
+
+
+class MyReceiptHeaderView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyReceiptHeader", responses=ReceiptHeaderSerializer)
+    def get(self, request: Request) -> Response:
+        """The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+        fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+        for printing without a connection."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        organization = membership.organization
+        found = selectors.finance_settings_on(organization, timezone.localdate())
+        header = {
+            "name": (found.legal_name if found else "") or organization.name,
+            "address": found.address if found else "",
+            "phone": found.phone if found else "",
+            "tax_id": found.tax_id if found else "",
+        }
+        return Response(ReceiptHeaderSerializer(header).data)
 
 
 class MyPaymentsView(APIView):
@@ -55,5 +94,6 @@ class MyPaymentsView(APIView):
             method=data["method"],
             client_uuid=data["client_uuid"],
             made_at=made_at,
+            confirm_cash_limit=data["confirm_cash_limit"],
         )
         return Response(RoadPaymentSerializer(payment).data, status=status.HTTP_201_CREATED)

@@ -13,6 +13,7 @@ import { Link, useOutletContext, useParams } from "react-router";
 
 import { PdfButton } from "../lib/PdfButton";
 import { compare } from "../purchasing/allocation";
+import { TreasuryTrace } from "../treasury/TreasuryTrace";
 import { statusTone } from "./listFilters";
 import { EffetHistory, VoidReasonDialog } from "./ListParts";
 import { canCollect, refreshAfterPayment } from "./shared";
@@ -65,6 +66,7 @@ export function CustomerPaymentDetailPage() {
           )}
         </div>
       </PageHeader>
+      <TreasuryTrace source="sales.payment_line" ids={payment.lines.map((line) => line.id)} />
 
       {payment.is_voided && (
         <p role="status" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.9rem] text-bad">

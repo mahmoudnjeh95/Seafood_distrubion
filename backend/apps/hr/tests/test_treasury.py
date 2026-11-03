@@ -8,7 +8,13 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.hr import selectors, services
-from apps.hr.models import TREASURY_SOURCE, SalaryAdjustmentKind, SalaryPayment, SalaryPaymentKind
+from apps.hr.models import (
+    TREASURY_SOURCE,
+    SalaryAdjustment,
+    SalaryAdjustmentKind,
+    SalaryPayment,
+    SalaryPaymentKind,
+)
 from apps.treasury.models import AccountKind, TreasuryMovement
 
 from .factories import EmployeeFactory
@@ -107,27 +113,73 @@ def test_an_advance_above_what_is_due_is_refused_unless_the_office_confirms():
     assert movements_of_salaries().count() == 1
 
 
-def test_a_prime_raises_what_is_due_with_its_reason_and_needs_no_payment():
+def add_prime(record, amount: str = "150.000", method: str = "cash", reason: str = "Prime de rendement"):
+    return services.add_prime(record=record, actor=None, amount=amount, reason=reason, method=method, paid_on=TODAY)
+
+
+def test_a_prime_raises_what_is_due_and_is_paid_on_the_day_it_is_added():
     record = approved_salary("1000.000")
     organization = record.organization
 
-    services.add_prime(record=record, actor=None, amount="150.000", reason="Prime de rendement")
+    add_prime(record)
 
     fresh = selectors.salary_record_of(organization, record.pk)
     assert selectors.due_amount(fresh) == Decimal("1150.000")
-    assert selectors.unpaid_by_employee(organization) == {record.employee_id: Decimal("1150.000")}
+    # The prime is paid with its own payment: only the salary itself is still owed.
+    assert selectors.unpaid_by_employee(organization) == {record.employee_id: Decimal("1000.000")}
     prime = fresh.adjustments.get()
     assert (prime.kind, prime.reason) == (SalaryAdjustmentKind.PRIME, "Prime de rendement")
-    assert not SalaryPayment.objects.filter(organization=organization).exists()
+    payment = SalaryPayment.objects.get()
+    assert (payment.kind, payment.amount, payment.method) == (SalaryPaymentKind.PRIME, Decimal("150.000"), "cash")
+    assert [(line.salary_record_id, line.amount) for line in payment.allocations.all()] == [
+        (record.pk, Decimal("150.000"))
+    ]
+
+
+def test_a_prime_paid_in_cash_leaves_the_caisse_under_its_own_label():
+    record = approved_salary("1000.000")
+
+    add_prime(record)
+
+    payment = SalaryPayment.objects.get()
+    row = movements_of_salaries().get()
+    assert (row.source_id, row.amount, row.kind, row.day) == (payment.pk, Decimal("-150.000"), "salary", TODAY)
+    assert (row.account.kind, row.account.is_default) == (AccountKind.CASH, True)
+    assert row.label == f"Prime : {record.employee.name}"
+    assert row.reference == payment.number
+
+
+def test_a_prime_paid_by_transfer_leaves_the_main_bank_account():
+    record = approved_salary("1000.000")
+
+    add_prime(record, method="transfer")
+
+    row = movements_of_salaries().get()
+    assert (row.amount, row.account.kind, row.account.is_default) == (Decimal("-150.000"), AccountKind.BANK, True)
 
 
 def test_a_prime_is_positive_and_needs_a_reason():
     record = approved_salary("1000.000")
 
     with pytest.raises(ValidationError) as error:
-        services.add_prime(record=record, actor=None, amount="-10.000", reason="Erreur")
+        add_prime(record, amount="-10.000")
     assert "amount" in error.value.message_dict
 
     with pytest.raises(ValidationError) as error:
-        services.add_prime(record=record, actor=None, amount="10.000", reason="  ")
+        add_prime(record, reason="  ")
     assert "reason" in error.value.message_dict
+
+    assert not SalaryAdjustment.objects.exists()
+    assert not SalaryPayment.objects.exists()
+
+
+def test_a_prime_with_an_unknown_method_is_refused_and_adds_nothing():
+    record = approved_salary("1000.000")
+
+    with pytest.raises(ValidationError) as error:
+        add_prime(record, method="bitcoin")
+
+    assert "method" in error.value.message_dict
+    assert not record.adjustments.exists()
+    assert not SalaryPayment.objects.exists()
+    assert not movements_of_salaries().exists()

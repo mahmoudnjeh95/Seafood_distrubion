@@ -3,7 +3,7 @@
 import datetime as dt
 import uuid
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -26,7 +26,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, Tone, document_key
+from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
 
 from .models import (
@@ -35,6 +35,7 @@ from .models import (
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
+    CustomerWriteOffLotShare,
     DeliveryStatus,
     FinanceSettings,
     Invoice,
@@ -334,6 +335,40 @@ def batch_sales(organization: Organization, *, batch_id: int) -> QuerySet[SaleLi
     )
 
 
+def customer_lots(
+    organization: Organization, *, customer_id: int, sale_ids: Iterable[int] | None = None
+) -> list[dict[str, Any]]:
+    """The lots a customer bought from (confirmed sales), newest first, by id with their number and product:
+    the lots a write-off of their balance can be charged to (D-257). With `sale_ids`, only the lots of those BL
+    (the gap of one invoice, D-256)."""
+    sold = SaleLineBatch.objects.for_organization(organization).filter(
+        line__sale__customer_id=customer_id, line__sale__status=SaleStatus.CONFIRMED
+    )
+    if sale_ids is not None:
+        sold = sold.filter(line__sale_id__in=list(sale_ids))
+    rows = sold.values("batch_id", "batch__number", "batch__product__name", "batch__received_on").distinct()
+    lots = {
+        row["batch_id"]: {
+            "batch_id": row["batch_id"],
+            "number": row["batch__number"],
+            "product": row["batch__product__name"],
+            "received_on": row["batch__received_on"],
+        }
+        for row in rows
+    }
+    return sorted(lots.values(), key=lambda lot: (lot["received_on"], lot["batch_id"]), reverse=True)
+
+
+def write_off_shares_of_batch(organization: Organization, *, batch_id: int) -> QuerySet[CustomerWriteOffLotShare]:
+    """The customer balance write-offs charged to one lot (D-257), oldest first, with the write-off and customer."""
+    return (
+        CustomerWriteOffLotShare.objects.for_organization(organization)
+        .filter(batch_id=batch_id)
+        .select_related("write_off__customer")
+        .order_by("write_off__written_on", "id")
+    )
+
+
 @dataclass(frozen=True)
 class BatchSalesTotal:
     """What one lot sold over its confirmed sales: kg, revenue without VAT and cost of the goods (COGS)."""
@@ -403,6 +438,21 @@ def finance_settings_on(organization: Organization, day: dt.date | None = None) 
     return finance_settings_history(organization).filter(valid_from__lte=day).first()
 
 
+DEFAULT_CASH_LIMIT = Decimal("5000.000")
+
+
+def cash_limit_on(organization: Organization, day: dt.date | None = None) -> Decimal:
+    """The amount from which a cash line of a payment needs confirming, in force on `day` (D-273)."""
+    version = finance_settings_on(organization, day)
+    return version.cash_limit if version is not None else DEFAULT_CASH_LIMIT
+
+
+def cash_over_limit(organization: Organization, day: dt.date, cash_lines: Iterable[Decimal]) -> bool:
+    """True when one cash line of a payment is at or above the cash limit of its day."""
+    limit = cash_limit_on(organization, day)
+    return any(value >= limit for value in cash_lines)
+
+
 # ---- Invoices and credit notes (P2-T05, D-057) ----
 
 
@@ -423,11 +473,13 @@ def invoices_of(
     date_from: dt.date | None = None,
     date_to: dt.date | None = None,
     search: str = "",
+    payment_state: str | None = None,
 ) -> QuerySet[Invoice]:
     """Invoices, drafts first then the newest issued, each with its sale, customer, lines, VAT per rate and
     credit notes, and `credited_total` (what its credit notes gave back, net). Days are the issue dates, both
     included (a draft has none and is left out by a day filter); `search` matches the number, the sale's
-    number and the customer's name or reference."""
+    number and the customer's name or reference. `payment_state` ("unpaid", "partial", "paid") keeps the issued
+    invoices by what their BL still owe (D-256)."""
     credit_lines = CreditNoteLine.objects.select_related("invoice_line").order_by("id")
     credit_notes = (
         CreditNote.objects.select_related("created_by")
@@ -456,9 +508,29 @@ def invoices_of(
                 Value(Decimal("0.000")),
                 output_field=DecimalField(max_digits=14, decimal_places=3),
             ),
+            # What its BL still owe: the part of the net to pay not yet paid (D-256).
+            amount_left=Coalesce(
+                Subquery(
+                    InvoiceSale.objects.filter(invoice=OuterRef("pk"))
+                    .values("invoice")
+                    .annotate(total=Sum("sale__amount_due"))
+                    .values("total")
+                ),
+                Value(Decimal("0.000")),
+                output_field=DecimalField(max_digits=14, decimal_places=3),
+            ),
         )
         .order_by(F("issued_on").desc(nulls_first=True), "-id")
     )
+    if payment_state:
+        invoices = invoices.filter(status=InvoiceStatus.ISSUED)
+        owed = F("net_to_pay") - F("credited_total")
+        if payment_state == "paid":
+            invoices = invoices.filter(amount_left__lte=0)
+        elif payment_state == "partial":
+            invoices = invoices.filter(amount_left__gt=0, amount_left__lt=owed)
+        elif payment_state == "unpaid":
+            invoices = invoices.filter(amount_left__gt=0, amount_left__gte=owed)
     if status:
         invoices = invoices.filter(status=status)
     if customer_id is not None:
@@ -1082,3 +1154,31 @@ def customer_statement(
     from . import statements
 
     return statements.customer_statement(organization, customer_id, date_from=date_from, date_to=date_to)
+
+
+# ---- Customer documents for the règlement forms (D-211) ----
+
+
+def customer_documents(organization: Organization) -> dict[int, PartyDocuments]:
+    """Per customer with a BL or an invoice: its confirmed BL, its issued invoices and their net to pay (D-211)."""
+    documents: dict[int, PartyDocuments] = {}
+    deliveries = (
+        Sale.objects.for_organization(organization)
+        .filter(status=SaleStatus.CONFIRMED)
+        .values("customer_id")
+        .annotate(count=Count("id"))
+        .order_by()
+    )
+    for row in deliveries:
+        documents[row["customer_id"]] = PartyDocuments(party_id=row["customer_id"], deliveries=row["count"])
+    invoices = (
+        Invoice.objects.for_organization(organization)
+        .filter(status=InvoiceStatus.ISSUED)
+        .values("customer_id")
+        .annotate(count=Count("id"), total=Sum("net_to_pay"))
+        .order_by()
+    )
+    for row in invoices:
+        current = documents.get(row["customer_id"], PartyDocuments(party_id=row["customer_id"]))
+        documents[row["customer_id"]] = replace(current, invoices=row["count"], total=row["total"])
+    return documents

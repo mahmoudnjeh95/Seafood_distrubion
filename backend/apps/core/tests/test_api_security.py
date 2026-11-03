@@ -144,10 +144,16 @@ OWNER_ONLY_WRITES = (
     "/api/v1/finance-settings",
     "/api/v1/stock-settings",
 )
+# Clearing a customer's or a supplier's balance to zero (D-252): the owner alone; a manager gets 403.
+OWNER_ONLY_CLEARING = (
+    "/api/v1/customers/<int:customer_id>/write-off",
+    "/api/v1/supplier-balances/<int:supplier_id>/write-off",
+    "/api/v1/invoices/<int:invoice_id>/give-up-gap",
+)
 # Loading the company's data (P4-T01, D-112) and managing other users (D-123): the owner alone.
 OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members")
 # The API map: owner and manager only.
-OFFICE_ONLY = ("/api/v1/schema",)
+OFFICE_ONLY = ("/api/v1/schema", "/api/v1/notifications/recipients")
 
 
 def test_every_route_checks_a_role():
@@ -214,8 +220,10 @@ def _should_forbid(role: Role, path: str, method: str) -> bool:
             return False
         return method in WRITES
     if role == Role.MANAGER:
-        return path.startswith(OWNER_MONEY) or (
-            method in WRITES and path.startswith(OWNER_ONLY_WRITES) and not path.endswith("/generate")
+        return (
+            path.startswith(OWNER_MONEY)
+            or path in OWNER_ONLY_CLEARING
+            or (method in WRITES and path.startswith(OWNER_ONLY_WRITES) and not path.endswith("/generate"))
         )
     return False
 
@@ -329,6 +337,7 @@ OWN_DEFAULTS = {
     "/api/v1/members",
     "/api/v1/months",
     "/api/v1/numbering",
+    "/api/v1/notifications/recipients",
 }
 
 

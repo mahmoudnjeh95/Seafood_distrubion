@@ -48,6 +48,7 @@ import { useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { useDebounced } from "../lib/useDebounced";
+import { DayReview } from "./DayReview";
 import { DaysOverview } from "./DaysOverview";
 
 const STATUSES = ["submitted", "justification", "reopened", "approved"] as const;
@@ -329,7 +330,9 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
   const officeGap = gapOf(cashCounted, data?.expected_cash);
   const officePurchaseGap = gapOf(purchaseCounted, data?.expected_purchase_cash);
   const gapToExplain = officeGap !== 0 || officePurchaseGap !== 0;
-  const readyToApprove = cashCounted !== null && (!gapToExplain || gapNote.trim() !== "");
+  // The office settles the expenses, purchases and the truck before it approves the day (D-239).
+  const readyToApprove =
+    cashCounted !== null && (!gapToExplain || gapNote.trim() !== "") && (data?.review_blockers.length ?? 0) === 0;
   // An empty correction count stays as it is; a typed one must be a number.
   const correctCashValue = correctCash.trim() === "" ? null : parseDecimalInput(correctCash.trim(), 3);
   const correctPurchaseValue = correctPurchase.trim() === "" ? null : parseDecimalInput(correctPurchase.trim(), 3);
@@ -343,6 +346,7 @@ function ClosingDialog({ id, canDecide, onDone }: { id: number; canDecide: boole
       {data && (
         <div className="flex flex-col gap-4">
           <Reopenings reopened={data.status === "reopened"} sends={data.reopenings} />
+          <DayReview dayId={data.driver_day_id} canDecide={canDecide} />
           <div className="space-y-1">
             <Line
               label={t("admin.dayClosings.sales", { count: data.summary.sales_count })}
@@ -705,6 +709,8 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
 /** "Journées des chauffeurs": what each driver is doing now, and the days they sent, to check and approve. */
 export function DayClosingsPage() {
   const { t } = useTranslation();
+  const session = useOutletContext<Session>();
+  const canDecide = session.role === "owner" || session.role === "manager";
   const [view, setView] = useState<"overview" | "closings">("overview");
   const tab = (value: typeof view, label: string) => (
     <button
@@ -727,7 +733,7 @@ export function DayClosingsPage() {
         {tab("overview", t("admin.dayOverview.tabs.overview"))}
         {tab("closings", t("admin.dayOverview.tabs.closings"))}
       </div>
-      {view === "overview" ? <DaysOverview /> : <ClosingsList />}
+      {view === "overview" ? <DaysOverview canDecide={canDecide} /> : <ClosingsList />}
     </>
   );
 }

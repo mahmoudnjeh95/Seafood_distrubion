@@ -224,7 +224,7 @@ def create_batch(
 
 
 # Which side each kind of movement needs: (from a location, to a location). None: exactly one of the two,
-# the side giving the direction (an adjustment or a count correction adds or removes).
+# the side giving the direction (an adjustment, a count correction or a receipt correction adds or removes).
 MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
     MovementKind.RECEIPT: (False, True),
     MovementKind.CUSTOMER_RETURN: (False, True),
@@ -232,6 +232,7 @@ MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
     MovementKind.SUPPLIER_RETURN: (True, False),
     MovementKind.LOSS: (True, False),
     MovementKind.TRANSFER: (True, True),
+    MovementKind.RECEIPT_CORRECTION: None,
     MovementKind.ADJUSTMENT: None,
     MovementKind.COUNT_CORRECTION: None,
 }
@@ -810,7 +811,7 @@ def _prepared_transfer(
     """The kind, the checked lines, the box counts and the client parts of a transfer, or a ValidationError
     with every problem. `lines` and `boxes` are the part not given to a client (kept on the truck)."""
     errors = _transfer_header_errors(organization, from_location, to_location, from_cold_rooms)
-    if not lines and not deliveries:
+    if not lines and not deliveries and not boxes:
         errors["lines"] = _("Ajoutez au moins un produit.")
     kind = transfer_kind(from_location, to_location)
     at = moment_of(transferred_on)
@@ -1552,3 +1553,75 @@ def cancel_count(*, count: StockCount, actor: User | None) -> StockCount:
     count.save(update_fields=["status", "updated_at"])
     audit.record(organization=count.organization, actor=actor, action="count.cancelled", target=count)
     return count
+
+
+@transaction.atomic
+def adjust_stock(
+    *,
+    organization: Organization,
+    actor: User | None,
+    location: StockLocation,
+    batch: Batch,
+    add: bool,
+    quantity: Number,
+    reason: str,
+) -> StockMovement:
+    """Put kilos of one lot into a place, or take them out, by hand: an `adjustment` movement, reason required.
+
+    The kilos keep the lot's cost. Nothing stores the average purchase price, so it is worked out again from
+    the stock on hand as soon as this is saved. The usual checks apply: an archived place, a lot of another
+    organization, or more kilos taken out than the place holds.
+    """
+    try:
+        movement = post_movement(
+            organization=organization,
+            actor=actor,
+            kind=MovementKind.ADJUSTMENT,
+            batch=batch,
+            quantity=quantity,
+            from_location=None if add else location,
+            to_location=location if add else None,
+            reason=reason,
+        )
+    except ValidationError as error:
+        fields = getattr(error, "message_dict", {"quantity": error.messages})
+        raise ValidationError(
+            {
+                ("location" if field in ("from_location", "to_location") else field): messages
+                for field, messages in fields.items()
+            }
+        ) from None
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="stock.adjusted",
+        target=movement,
+        after={
+            "location": location.name,
+            "batch": batch.number,
+            "direction": "add" if add else "remove",
+            "quantity": str(movement.quantity),
+            "reason": movement.reason,
+        },
+    )
+    return movement
+
+
+@transaction.atomic
+def correct_batch(
+    *,
+    batch: Batch,
+    unit_cost: Decimal,
+    use_by: dt.date | None,
+    bought_with_vat: bool,
+    receipt_reference: str,
+) -> Batch:
+    """Correct what a lot says about its price, use-by date, VAT and receipt reference, for a receipt changed
+    after saving (D-269). The caller checks that nothing valued has left the lot; the kilos themselves move
+    through movements, never here."""
+    batch.unit_cost = unit_cost
+    batch.use_by = use_by
+    batch.bought_with_vat = bought_with_vat
+    batch.receipt_reference = receipt_reference
+    batch.save(update_fields=["unit_cost", "use_by", "bought_with_vat", "receipt_reference", "updated_at"])
+    return batch
