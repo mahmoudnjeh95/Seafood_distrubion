@@ -12,6 +12,7 @@ urlpatterns = [
     path("my-truck-choices", views.MyTruckChoicesView.as_view(), name="my-truck-choices"),
     path("my-day", views.MyDayView.as_view(), name="my-day"),
     path("my-day/fund", views.MyDayFundView.as_view(), name="my-day-fund"),
+    path("my-day/resume", views.MyDayResumeView.as_view(), name="my-day-resume"),
     path("day-funds", views.DayFundListView.as_view(), name="day-fund-list"),
     path("my-day/locations", views.MyLocationsView.as_view(), name="my-locations"),
     path("my-day/purchase-change", views.MyPurchaseChangeView.as_view(), name="my-purchase-change"),

@@ -74,6 +74,8 @@ class QuoteProductSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    # Printed under the French name on the driver's receipt (D-282); empty when the product has none.
+    name_ar = serializers.CharField(read_only=True)
 
 
 class QuoteLineSerializer(serializers.ModelSerializer[QuoteLine]):

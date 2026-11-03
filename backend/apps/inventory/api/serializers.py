@@ -378,6 +378,8 @@ class MyStockLineSerializer(serializers.Serializer[Any]):
 
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(read_only=True)
+    # The Arabic name, printed under the French one on the receipt (D-282); empty when there is none.
+    product_name_ar = serializers.CharField(read_only=True)
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
     unit_price = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True, allow_null=True)
     # The product's photo, empty when it has none; the driver app shows a plain mark then.

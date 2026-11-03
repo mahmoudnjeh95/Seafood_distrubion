@@ -1,28 +1,31 @@
 // The printer connection (Web Bluetooth, Bluetooth Low Energy) and the printer settings kept on the phone.
 // Chrome on Android can do this by itself. Safari on iPhone cannot, so there the buttons say so (printing from
 // an iPhone needs the app wrapped as a native app, P3-T10).
-import { escposJob } from "./escpos";
-import { DEFAULT_WIDTH, type ReceiptCopy, type ReceiptData, layoutReceipt, WIDTHS } from "./receipt";
+import { rememberedLogo } from "../companyLogo";
+import { escposJob, rasterJob } from "./escpos";
+import { receiptBitmap } from "./raster";
+import { DEFAULT_WIDTH, type ReceiptCopy, type ReceiptData, layoutReceipt, type Row, WIDTHS } from "./receipt";
 
 export type PrinterSettings = {
   /** Characters per line: 32 = 58 mm paper, 42 = 75 mm, 48 = 80 mm. */
   cols: number;
-  /** Print the office copy after the customer's or supplier's. */
-  officeCopy: boolean;
-  /** Send the French accents (code page 858). Off for a printer that prints garbage. */
+  /** Send the French accents (code page 858). Off for a printer that prints garbage. Text mode only. */
   accents: boolean;
+  /** Print the receipt as a picture, with the logo and the Arabic product names (D-282). Off: the printer's own
+   * text, for a printer that cannot print pictures (no logo, no Arabic). */
+  picture: boolean;
 };
 
 const KEY = "frutti.printer";
-const DEFAULTS: PrinterSettings = { cols: DEFAULT_WIDTH, officeCopy: true, accents: true };
+const DEFAULTS: PrinterSettings = { cols: DEFAULT_WIDTH, accents: true, picture: true };
 
 export function loadSettings(): PrinterSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<PrinterSettings>;
     return {
       cols: WIDTHS.includes(stored.cols as (typeof WIDTHS)[number]) ? (stored.cols as number) : DEFAULTS.cols,
-      officeCopy: stored.officeCopy ?? DEFAULTS.officeCopy,
       accents: stored.accents ?? DEFAULTS.accents,
+      picture: stored.picture ?? DEFAULTS.picture,
     };
   } catch {
     return DEFAULTS;
@@ -91,42 +94,40 @@ export function forgetPrinter(): void {
 
 async function send(bytes: Uint8Array): Promise<void> {
   const target = await connect();
-  // Printers have small buffers: short pieces, with a pause so none is lost.
-  const piece = 100;
+  // Printers have small buffers: short pieces, with a pause when the printer does not answer each one. A picture is
+  // some 50 kB, hence pieces larger than the text needs.
+  const piece = 180;
   for (let at = 0; at < bytes.length; at += piece) {
     const part = bytes.slice(at, at + piece);
-    if (target.properties.writeWithoutResponse) await target.writeValueWithoutResponse(part);
-    else await target.writeValue(part);
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    if (target.properties.writeWithoutResponse) {
+      await target.writeValueWithoutResponse(part);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } else await target.writeValue(part);
   }
 }
 
-/** Prints a receipt: the customer's or supplier's copy, then the office copy when the settings ask for it. */
-export async function printReceipt(data: ReceiptData, settings: PrinterSettings): Promise<void> {
-  const copies: ReceiptCopy[] = settings.officeCopy ? ["party", "office"] : ["party"];
-  await send(
-    escposJob(
-      copies.map((copy) => layoutReceipt(data, copy, settings.cols)),
-      settings,
-    ),
-  );
+/** The bytes of rows: a picture (logo, Arabic) or the printer's text, as the settings say. */
+async function job(rows: Row[], settings: PrinterSettings): Promise<Uint8Array> {
+  if (!settings.picture) return escposJob([rows], settings);
+  return rasterJob([await receiptBitmap(rows, settings.cols, rememberedLogo())]);
 }
 
-/** A short test page: a ruler as wide as the paper, the French accents and a sample amount. */
+/** Prints one copy of a receipt: the customer's or supplier's, or the office's (D-281: one copy per tap). */
+export async function printReceipt(data: ReceiptData, copy: ReceiptCopy, settings: PrinterSettings): Promise<void> {
+  await send(await job(layoutReceipt(data, copy, settings.cols), settings));
+}
+
+/** A short test page: the logo, a ruler as wide as the paper, the French accents, Arabic and a sample amount. */
 export async function printTest(settings: PrinterSettings): Promise<void> {
   const ruler = Array.from({ length: settings.cols }, (_, i) => String((i + 1) % 10)).join("");
-  await send(
-    escposJob(
-      [
-        [
-          { text: "TEST D'IMPRESSION", align: "center", bold: true },
-          { text: ruler },
-          { text: "éèêàçùôîû ÉÀ - 1 250,000 DT" },
-          { text: ruler },
-          { feed: 3 },
-        ],
-      ],
-      settings,
-    ),
-  );
+  const rows: Row[] = [
+    { logo: true },
+    { text: "TEST D'IMPRESSION", align: "center", bold: true },
+    { text: ruler },
+    { text: "éèêàçùôîû ÉÀ - 1 250,000 DT" },
+    { text: "قاروص - ورقة تجربة", align: "right", ar: true },
+    { text: ruler },
+    { feed: 3 },
+  ];
+  await send(await job(rows, settings));
 }

@@ -5312,6 +5312,11 @@ export const fr = {
   truck: {
     deliveries: {
       open: "Mes livraisons",
+      // D-281: a BL stays on screen once delivered, to print its receipt, and today's delivered BL are listed again
+      deliveredToday: "Livrés aujourd'hui",
+      deliveredSummary: "{{number}} · {{total}}",
+      receiptTitle: "BL {{number}} livré",
+      backToList: "Retour aux livraisons",
       summary_one: "{{count}} produit · {{total}}",
       summary_other: "{{count}} produits · {{total}}",
       title: "Livraisons du chargement",
@@ -5360,13 +5365,25 @@ export const fr = {
     },
     print: {
       button: "Imprimer le reçu",
+      // One copy per tap (D-281): the customer's or supplier's first, then the office's.
+      party: "Imprimer le reçu client",
+      partySupplier: "Imprimer le reçu fournisseur",
+      office: "Imprimer la copie bureau",
+      againParty: "Réimprimer le reçu client",
+      againPartySupplier: "Réimprimer le reçu fournisseur",
+      againOffice: "Réimprimer la copie bureau",
+      officeNext: "Reçu client imprimé. Touchez encore pour la copie bureau.",
+      officeNextSupplier: "Reçu fournisseur imprimé. Touchez encore pour la copie bureau.",
+      bothDone: "Les deux reçus sont imprimés.",
+      preview: "Voir le reçu",
       printing: "Impression…",
       done: "Reçu imprimé",
       failed: "Impression impossible : {{why}}",
       unsupported: "Ce téléphone ne peut pas imprimer en Bluetooth depuis l'application. Utilisez « Envoyer le reçu ».",
       settings: "Réglages de l'imprimante",
       paper: "Largeur du papier",
-      officeCopy: "Imprimer aussi la copie bureau",
+      // D-282: the receipt as a picture, so the printer prints the logo and the Arabic product names
+      picture: "Imprimer en image (logo et noms des produits en arabe)",
       accents: "Accents français (à désactiver si le texte est illisible)",
       test: "Impression d'essai",
       change: "Changer d'imprimante",
@@ -5648,6 +5665,15 @@ export const fr = {
       askedTitle: "Le bureau a une question sur une journée",
     },
     day: {
+      // D-281: a new load opened the sent day again; the driver confirms the new start before anything else
+      restartTitle: "Le bureau a rechargé votre camion",
+      restartBody:
+        "Vérifiez le nouveau chargement ci-dessous, puis confirmez la reprise. Rien d'autre n'est possible avant.",
+      restartConfirm: "Je confirme la reprise de ma journée",
+      restartConfirmTitle: "Reprendre la journée ?",
+      restartDone: "Journée reprise",
+      restartFailed: "La reprise n'a pas pu être enregistrée. Réessayez.",
+      restartLocked: "Le bureau a rechargé votre camion : confirmez d'abord la reprise dans « Ma journée ».",
       yourTruck: "Votre camion aujourd'hui",
       loadSummary_one: "{{count}} produit · {{kg}}",
       loadSummary_other: "{{count}} produits · {{kg}}",

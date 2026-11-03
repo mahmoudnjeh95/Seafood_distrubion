@@ -11,6 +11,7 @@ import {
   useListMyStock,
   useListMyTruckChoices,
   useOpenMyDay,
+  useResumeMyDay,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
@@ -148,18 +149,26 @@ interface TileProps {
   icon: IconName;
   label: string;
   primary?: boolean;
+  disabled?: boolean;
 }
 
 // One road task as a tile, two to a row: the day's menu takes one screen, not a scroll (D-171).
-function DayTile({ to, icon, label, primary = false }: TileProps) {
+function DayTile({ to, icon, label, primary = false, disabled = false }: TileProps) {
+  const look = cn(
+    "flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-card border p-3 text-center font-semibold",
+    primary ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink",
+  );
+  // Greyed out, not a link, while a new load waits for the driver's confirmation (D-281).
+  if (disabled) {
+    return (
+      <span aria-disabled="true" className={cn(look, "opacity-40")}>
+        <Icon name={icon} className="size-6" />
+        <span>{label}</span>
+      </span>
+    );
+  }
   return (
-    <Link
-      to={to}
-      className={cn(
-        "flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-card border p-3 text-center font-semibold",
-        primary ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink",
-      )}
-    >
+    <Link to={to} className={look}>
       <Icon name={icon} className="size-6" />
       <span>{label}</span>
     </Link>
@@ -251,6 +260,17 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
   // Millimes, as the other sums of kilos in this app.
   const loadMillimes = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * 1000), 0);
   const running = day.data !== undefined && day.data.ended_at === null;
+  // A new load opened the sent day again: the driver checks it and confirms the new start first (D-281).
+  const restart = running && day.data.restart_pending;
+  const resume = useResumeMyDay({
+    mutation: {
+      onSuccess: () => {
+        toast.success(t("truck.day.restartDone"));
+        void queryClient.invalidateQueries();
+      },
+      onError: () => toast.error(t("truck.day.restartFailed")),
+    },
+  });
   // The day's closing was sent: it is closed until the office loads the truck again (D-134).
   const ended = day.data !== undefined && day.data.ended_at !== null;
   // A day the office asked about waits in the history for the driver's answer.
@@ -274,7 +294,28 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <p className="text-ink-2">{truck.plate}</p>
       </Card>
       {/* Until the day starts, the cash form is the first thing here, not at the bottom (D-171). */}
-      {day.isLoading ? null : running ? (
+      {day.isLoading ? null : restart ? (
+        <Card className="space-y-3 border-2 border-warn">
+          <div>
+            <p className="text-lg font-semibold">{t("truck.day.restartTitle")}</p>
+            <p className="text-ink-2">{t("truck.day.restartBody")}</p>
+          </div>
+          <ConfirmButton
+            size="lg"
+            variant="primary"
+            className="w-full py-4 text-lg"
+            disabled={resume.isPending}
+            title={t("truck.day.restartConfirmTitle")}
+            rows={[
+              [t("truck.day.yourTruck"), truck.name],
+              [t("truck.day.inTruck"), formatQuantity((loadMillimes / 1000).toFixed(3))],
+            ]}
+            onConfirm={() => resume.mutate()}
+          >
+            {t("truck.day.restartConfirm")}
+          </ConfirmButton>
+        </Card>
+      ) : running ? (
         <Card>
           <p className="text-lg font-semibold">{t(reopened ? "truck.history.reopened" : "truck.day.started")}</p>
           <p className="text-ink-2">{t("truck.day.cashAtStart", { amount: formatMoney(day.data.opening_cash) })}</p>
@@ -298,7 +339,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
           onRefresh={() => void queryClient.invalidateQueries()}
         />
       )}
-      <TodayAtAGlance enabled={running} />
+      {restart ? null : <TodayAtAGlance enabled={running} />}
       {load.isLoading || stock.isLoading ? null : lines.length === 0 ? (
         <EmptyState illustration="fridge" title={t("truck.day.nothingLoaded")}>
           {t("truck.day.nothingLoadedBody")}
@@ -328,19 +369,20 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         </FoldCard>
       )}
       {boxes.data === undefined ? null : <BoxDayCard day={boxes.data} />}
+      {/* Nothing else until the new start is confirmed (D-281). */}
       <div className="grid grid-cols-2 gap-2.5">
         {canBuy ? (
           <>
-            <DayTile to="/achat" icon="cart" label={t("truck.purchase.add")} primary />
-            <DayTile to="/achats" icon="receipt" label={t("truck.purchase.mine")} />
+            <DayTile disabled={restart} to="/achat" icon="cart" label={t("truck.purchase.add")} primary />
+            <DayTile disabled={restart} to="/achats" icon="receipt" label={t("truck.purchase.mine")} />
           </>
         ) : null}
-        <DayTile to="/livraisons" icon="truck" label={t("truck.deliveries.open")} primary />
-        <DayTile to="/reprise" icon="box" label={t("truck.boxes.pickupAdd")} />
-        <DayTile to="/depense" icon="wallet" label={t("truck.expense.add")} />
-        <DayTile to="/encaissement" icon="cash" label={t("truck.payment.add")} />
-        <DayTile to="/perte" icon="trash" label={t("truck.loss.add")} />
-        <DayTile to="/historique" icon="calcheck" label={t("truck.history.open")} />
+        <DayTile disabled={restart} to="/livraisons" icon="truck" label={t("truck.deliveries.open")} primary />
+        <DayTile disabled={restart} to="/reprise" icon="box" label={t("truck.boxes.pickupAdd")} />
+        <DayTile disabled={restart} to="/depense" icon="wallet" label={t("truck.expense.add")} />
+        <DayTile disabled={restart} to="/encaissement" icon="cash" label={t("truck.payment.add")} />
+        <DayTile disabled={restart} to="/perte" icon="trash" label={t("truck.loss.add")} />
+        <DayTile disabled={restart} to="/historique" icon="calcheck" label={t("truck.history.open")} />
       </div>
     </div>
   );

@@ -29,3 +29,12 @@ class RoadPaymentSerializer(serializers.ModelSerializer[CustomerPayment]):
         model = CustomerPayment
         fields = ("id", "number", "customer_name", "amount", "method")
         read_only_fields = fields
+
+
+class ReceiptHeaderSerializer(serializers.Serializer[Any]):
+    """The seller printed at the top of the driver's receipts (D-281), from the finance settings in force."""
+
+    name = serializers.CharField(read_only=True)
+    address = serializers.CharField(read_only=True)
+    phone = serializers.CharField(read_only=True)
+    tax_id = serializers.CharField(read_only=True)

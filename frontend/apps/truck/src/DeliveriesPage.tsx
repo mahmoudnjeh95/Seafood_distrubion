@@ -5,7 +5,9 @@ import {
   notDeliveredMyDelivery,
   type SaleDetail,
   useListMyDeliveries,
+  useListMyDelivered,
 } from "@frutti/api";
+import { useSession } from "@frutti/auth";
 import { formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import { Button, Card, ConfirmButton, EmptyState, Input, MoneyInput, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +17,8 @@ import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, type BoxInputs, formatBoxCount } from "./boxes";
 import { FoldCard } from "./FoldCard";
 import { messagesOf } from "./messages";
+import { PrintButton } from "./printing/PrintButton";
+import { keptDeliveryReceipt, saleReceipt } from "./printing/records";
 import { type QueuedDelivery, type QueuedNotDelivered, useQueue } from "./queue";
 import { sendOrKeep } from "./sendOrKeep";
 import { newUuid } from "./uuid";
@@ -27,12 +31,26 @@ const millimes = (value: string) => Math.round(Number(value) * 1000);
 export function DeliveriesPage() {
   const { t } = useTranslation();
   const deliveries = useListMyDeliveries({ query: { retry: false } });
+  // What this driver delivered today, to see it again and print its receipt again (D-281).
+  const delivered = useListMyDelivered({ query: { retry: false } });
+  // The BL just delivered: its receipt stays on screen to print it, until the driver goes back to the list.
+  const [justDone, setJustDone] = useState<SaleDetail | null>(null);
   const queue = useQueue();
   // A delivery kept on the phone (no network) is done for the driver: it is sent when the network comes back.
   const sent = new Set(
     queue.flatMap((item) => (item.kind === "delivery" || item.kind === "not_delivered" ? [item.saleId] : [])),
   );
 
+  if (justDone !== null) {
+    return (
+      <div className="space-y-3">
+        <DeliveredReceipt sale={justDone} />
+        <Button size="lg" variant="ghost" className="w-full" onClick={() => setJustDone(null)}>
+          {t("truck.deliveries.backToList")}
+        </Button>
+      </div>
+    );
+  }
   if (deliveries.isPending) return <Card className="h-24 animate-pulse" aria-busy="true" />;
   if (deliveries.isError) {
     return (
@@ -45,31 +63,95 @@ export function DeliveriesPage() {
     );
   }
   const waiting = deliveries.data.filter((sale) => !sent.has(sale.id));
-  if (waiting.length === 0) {
-    return (
-      <EmptyState illustration="truck" title={t("truck.deliveries.empty")}>
-        {t("truck.deliveries.emptyBody")}
-      </EmptyState>
-    );
-  }
+  // Kept on the phone: shown with their receipt (provisional), at the bottom of what is left to deliver.
+  const kept = deliveries.data.filter((sale) => sent.has(sale.id));
+  const done = delivered.data ?? [];
   return (
     <div className="space-y-3">
-      <h2>{t("truck.deliveries.title")}</h2>
-      {waiting.map((sale) => (
+      {waiting.length === 0 ? (
+        <EmptyState illustration="truck" title={t("truck.deliveries.empty")}>
+          {t("truck.deliveries.emptyBody")}
+        </EmptyState>
+      ) : (
+        <>
+          <h2>{t("truck.deliveries.title")}</h2>
+          {waiting.map((sale) => (
+            <Delivery key={sale.id} sale={sale} onDelivered={setJustDone} />
+          ))}
+        </>
+      )}
+      {kept.map((sale) => (
         <Delivery key={sale.id} sale={sale} />
       ))}
+      {done.length > 0 ? (
+        <>
+          <h2>{t("truck.deliveries.deliveredToday")}</h2>
+          {done.map((sale) => (
+            <FoldCard
+              key={sale.id}
+              title={sale.customer.name}
+              summary={t("truck.deliveries.deliveredSummary", { number: sale.number, total: formatMoney(sale.total) })}
+            >
+              <DeliveredReceipt sale={sale} bare />
+            </FoldCard>
+          ))}
+        </>
+      ) : null}
     </div>
   );
+}
+
+/** A BL as delivered (D-281): what the client took, the total and what was paid, with the receipt to print. */
+export function DeliveredReceipt({ sale, bare = false }: { sale: SaleDetail; bare?: boolean }) {
+  const { t } = useTranslation();
+  const session = useSession();
+  const lines = sale.lines.filter((line) => Number(line.quantity) > 0);
+  const body = (
+    <div className="space-y-3">
+      <p className="text-lg font-bold">{t("truck.deliveries.receiptTitle", { number: sale.number })}</p>
+      {bare ? null : <p className="text-ink-2">{sale.customer.name}</p>}
+      <ul className="divide-y divide-line">
+        {lines.map((line) => (
+          <li key={line.id} className="flex items-baseline justify-between gap-3 py-2">
+            <span>
+              {line.product.name} · {formatQuantity(line.quantity)}
+            </span>
+            <span className="font-semibold">{formatMoney(line.amount)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="flex justify-between text-lg font-bold">
+        <span>{t("truck.deliveries.total")}</span>
+        <span>{formatMoney(sale.total)}</span>
+      </p>
+      <p className="flex justify-between">
+        <span>{t("truck.deliveries.paid")}</span>
+        <span>{formatMoney(sale.amount_paid)}</span>
+      </p>
+      {Number(sale.amount_due) > 0 ? (
+        <p className="flex justify-between font-semibold">
+          <span>{t("truck.sale.stillOwed")}</span>
+          <span>{formatMoney(sale.amount_due)}</span>
+        </p>
+      ) : null}
+      <PrintButton receipt={saleReceipt(sale, session.data?.organization.name ?? "", session.data?.user.first_name)} />
+    </div>
+  );
+  return bare ? body : <Card>{body}</Card>;
 }
 
 function initialBoxes(sale: SaleDetail): BoxInputs {
   return { small: sale.boxes.small ? String(sale.boxes.small) : "", big: sale.boxes.big ? String(sale.boxes.big) : "" };
 }
 
-export function Delivery({ sale }: { sale: SaleDetail }) {
+/** One BL to deliver. `onDelivered` gets the sale the office recorded, to show its receipt (D-281). */
+export function Delivery({ sale, onDelivered }: { sale: SaleDetail; onDelivered?: (sale: SaleDetail) => void }) {
   const { t } = useTranslation();
+  const session = useSession();
   const queryClient = useQueryClient();
   const queue = useQueue();
+  // Delivered and handed to `onDelivered`: the form goes away at once, before the list is read again.
+  const [delivered, setDelivered] = useState(false);
   const [kilos, setKilos] = useState<Record<number, string>>(() =>
     Object.fromEntries(sale.lines.map((line) => [line.id, line.quantity])),
   );
@@ -79,8 +161,9 @@ export function Delivery({ sale }: { sale: SaleDetail }) {
   const [refusing, setRefusing] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const kept = queue.some(
-    (item) => (item.kind === "delivery" || item.kind === "not_delivered") && item.saleId === sale.id,
+  const keptItem = queue.find(
+    (item): item is QueuedDelivery | QueuedNotDelivered =>
+      (item.kind === "delivery" || item.kind === "not_delivered") && item.saleId === sale.id,
   );
 
   const parsed = sale.lines.map((line) => ({ line, kg: parseDecimalInput((kilos[line.id] ?? "").trim(), 3) }));
@@ -133,6 +216,10 @@ export function Delivery({ sale }: { sale: SaleDetail }) {
     try {
       const outcome = await sendOrKeep(item, () => deliverMyDelivery(sale.id, data));
       const status = outcome.result?.delivery_status;
+      if (outcome.result !== undefined && status !== "cancelled" && onDelivered !== undefined) {
+        setDelivered(true);
+        onDelivered(outcome.result);
+      }
       done(
         outcome.kept,
         t(status === "cancelled" ? "truck.deliveries.notDeliveredDone" : "truck.deliveries.done", {
@@ -170,10 +257,23 @@ export function Delivery({ sale }: { sale: SaleDetail }) {
     }
   };
 
-  if (kept) {
+  if (delivered) return null;
+  if (keptItem !== undefined) {
     return (
-      <Card>
-        <p className="font-semibold">{t("truck.deliveries.kept")}</p>
+      <Card className="space-y-3">
+        <p className="font-semibold">{sale.customer.name}</p>
+        <p className="text-ink-2">{t("truck.deliveries.kept")}</p>
+        {/* Delivered without signal: the receipt prints from what was typed at the door (D-281). */}
+        {keptItem.kind === "delivery" ? (
+          <PrintButton
+            receipt={keptDeliveryReceipt(
+              sale,
+              keptItem,
+              session.data?.organization.name ?? "",
+              session.data?.user.first_name,
+            )}
+          />
+        ) : null}
       </Card>
     );
   }

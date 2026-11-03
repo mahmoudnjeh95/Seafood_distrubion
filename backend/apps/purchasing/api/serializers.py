@@ -1031,9 +1031,18 @@ class FieldPurchaseFilterSerializer(serializers.Serializer[Any]):
 class MyFieldPurchaseLineSerializer(FieldPurchaseLineSerializer):
     """A line as the driver sees it: no partner (the owner's business, D-060)."""
 
+    # The product's Arabic name, printed under the French one on the receipt (D-282); empty when none.
+    product_name_ar = serializers.SerializerMethodField()
+
     class Meta(FieldPurchaseLineSerializer.Meta):
-        fields = tuple(field for field in FieldPurchaseLineSerializer.Meta.fields if field != "partner")
+        fields = (
+            *(field for field in FieldPurchaseLineSerializer.Meta.fields if field != "partner"),
+            "product_name_ar",
+        )
         read_only_fields = fields
+
+    def get_product_name_ar(self, line: FieldPurchaseLine) -> str:
+        return line.product.name_ar if line.product is not None else ""
 
 
 class MyFieldPurchasePaymentSerializer(FieldPurchasePaymentSerializer):

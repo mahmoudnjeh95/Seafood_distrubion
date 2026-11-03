@@ -333,6 +333,7 @@ import type {
   QuoteRefuse,
   QuoteWrite,
   Receipt,
+  ReceiptHeader,
   ReceiptRevisionWrite,
   ReceiptWrite,
   ReceivablesAgeing,
@@ -16494,6 +16495,78 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getApproveMyPurchaseChangeMutationOptions(options), queryClient);
     }
 
+export const getResumeMyDayUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/resume`
+}
+
+/**
+ * The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+ * day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today.
+ */
+export const resumeMyDay = async ( options?: Parameters<typeof apiFetch>[1]): Promise<DriverDay> => {
+
+  return apiFetch<DriverDay>(getResumeMyDayUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeMyDayMutationKey = () => ['resumeMyDay'] as const;
+
+export const getResumeMyDayMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMyDay>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeMyDay>>, TError,void, TContext> => {
+
+const mutationKey = getResumeMyDayMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeMyDay>>, void> = () => {
+
+
+          return  resumeMyDay(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeMyDayMutationResult = NonNullable<Awaited<ReturnType<typeof resumeMyDay>>>
+
+    export type ResumeMyDayMutationError = unknown
+
+
+    export const useResumeMyDay = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeMyDay>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resumeMyDay>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResumeMyDayMutationOptions(options), queryClient);
+    }
+
 export const getListMyDaysUrl = () => {
 
 
@@ -17051,6 +17124,105 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getNotDeliveredMyDeliveryMutationOptions(options), queryClient);
     }
+
+export const getListMyDeliveredUrl = () => {
+
+
+
+
+  return `/api/v1/my-deliveries/done`
+}
+
+/**
+ * The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+ * shows them again on the sale screen and prints their receipt again (D-281).
+ */
+export const listMyDelivered = async ( options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail[]> => {
+
+  return apiFetch<SaleDetail[]>(getListMyDeliveredUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyDeliveredQueryKey = () => {
+    return [
+    `/api/v1/my-deliveries/done`
+    ] as const;
+    }
+
+
+export const getListMyDeliveredQueryOptions = <TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyDeliveredQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyDelivered>>> = ({ signal }) => listMyDelivered({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyDeliveredQueryResult = NonNullable<Awaited<ReturnType<typeof listMyDelivered>>>
+export type ListMyDeliveredQueryError = unknown
+
+
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDelivered>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDelivered>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDelivered>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDelivered>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyDelivered<TData = Awaited<ReturnType<typeof listMyDelivered>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyDelivered>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyDeliveredQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListRoadCategoriesUrl = () => {
 
@@ -18051,6 +18223,106 @@ export function useListMyPurchaseCosts<TData = Awaited<ReturnType<typeof listMyP
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListMyPurchaseCostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyReceiptHeaderUrl = () => {
+
+
+
+
+  return `/api/v1/my-receipt-header`
+}
+
+/**
+ * The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+ * fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+ * for printing without a connection.
+ */
+export const getMyReceiptHeader = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ReceiptHeader> => {
+
+  return apiFetch<ReceiptHeader>(getGetMyReceiptHeaderUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyReceiptHeaderQueryKey = () => {
+    return [
+    `/api/v1/my-receipt-header`
+    ] as const;
+    }
+
+
+export const getGetMyReceiptHeaderQueryOptions = <TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyReceiptHeaderQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyReceiptHeader>>> = ({ signal }) => getMyReceiptHeader({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyReceiptHeaderQueryResult = NonNullable<Awaited<ReturnType<typeof getMyReceiptHeader>>>
+export type GetMyReceiptHeaderQueryError = unknown
+
+
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyReceiptHeader>>,
+          TError,
+          Awaited<ReturnType<typeof getMyReceiptHeader>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyReceiptHeader>>,
+          TError,
+          Awaited<ReturnType<typeof getMyReceiptHeader>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyReceiptHeader<TData = Awaited<ReturnType<typeof getMyReceiptHeader>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyReceiptHeader>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyReceiptHeaderQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

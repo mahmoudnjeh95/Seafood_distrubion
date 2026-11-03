@@ -5391,6 +5391,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/DriverDay'
           description: ''
+  /api/v1/my-day/resume:
+    post:
+      operationId: resumeMyDay
+      description: |-
+        The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+        day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today.
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverDay'
+          description: ''
   /api/v1/my-days:
     get:
       operationId: listMyDays
@@ -5553,6 +5570,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/my-deliveries/done:
+    get:
+      operationId: listMyDelivered
+      description: |-
+        The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+        shows them again on the sale screen and prints their receipt again (D-281).
+      tags:
+      - my-deliveries
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaleDetail'
           description: ''
   /api/v1/my-expense-categories:
     get:
@@ -5815,6 +5851,24 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LastCost'
+          description: ''
+  /api/v1/my-receipt-header:
+    get:
+      operationId: getMyReceiptHeader
+      description: |-
+        The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+        fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+        for printing without a connection.
+      tags:
+      - my-receipt-header
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptHeader'
           description: ''
   /api/v1/my-return:
     post:
@@ -17230,12 +17284,16 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        restart_pending:
+          type: boolean
+          readOnly: true
       required:
       - date
       - ended_at
       - id
       - opening_cash
       - purchase_float
+      - restart_pending
       - truck_name
     DriverRef:
       type: object
@@ -22644,12 +22702,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        product_name_ar:
+          type: string
+          readOnly: true
       required:
       - amount
       - declared_quantity
       - id
       - owed_quantity
       - product
+      - product_name_ar
       - proposed_product
       - received_quantity
       - unit_cost
@@ -22755,6 +22817,9 @@ components:
         product_name:
           type: string
           readOnly: true
+        product_name_ar:
+          type: string
+          readOnly: true
         quantity:
           type: string
           format: decimal
@@ -22774,6 +22839,7 @@ components:
       - photo_url
       - product_id
       - product_name
+      - product_name_ar
       - quantity
       - unit_price
     MySupplier:
@@ -26031,9 +26097,13 @@ components:
         name:
           type: string
           readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
       required:
       - id
       - name
+      - name_ar
       - reference
     QuoteRef:
       type: object
@@ -26240,6 +26310,28 @@ components:
       - before
       - field
       - line
+    ReceiptHeader:
+      type: object
+      description: The seller printed at the top of the driver's receipts (D-281),
+        from the finance settings in force.
+      properties:
+        name:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        tax_id:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - name
+      - phone
+      - tax_id
     ReceiptLine:
       type: object
       properties:

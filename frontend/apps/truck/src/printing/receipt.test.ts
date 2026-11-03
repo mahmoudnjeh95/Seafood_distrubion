@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { encodeText, escposJob } from "./escpos";
+import { encodeText, escposJob, rasterJob, toBits } from "./escpos";
 import { amount, layoutReceipt, previewText, type ReceiptData, twoColumns, wrap } from "./receipt";
 
 const SALE: ReceiptData = {
@@ -23,9 +23,42 @@ describe("receipt layout", () => {
       32,
     );
     const text = previewText(rows, 32);
-    expect(text).toContain("2,500 kg");
+    expect(text).toContain("2,500");
+    expect(text).toContain("75,000");
     expect(text).not.toContain(" x ");
     expect(text).toContain("Provisoire");
+  });
+
+  test("the seller's address, phone and matricule fiscal head the paper, the driver signs it at the bottom", () => {
+    const text = previewText(
+      layoutReceipt(
+        { ...SALE, by: "Ahmed", seller: { address: "Sakiet Ezzit, Sfax", phone: "74 000 000", taxId: "1234567A" } },
+        "party",
+        32,
+      ),
+      32,
+    );
+    const lines = text.split("\n").map((line) => line.trim());
+    expect(lines.slice(0, 4)).toEqual(["Frutti Del Mare", "Sakiet Ezzit, Sfax", "Tél : 74 000 000", "MF : 1234567A"]);
+    expect(lines).toContain("Préparé par : Ahmed");
+    expect(text).toMatch(/Heure\s+\d\d:\d\d/);
+  });
+
+  test("the goods are a table of kilos, price and amount", () => {
+    const narrow = previewText(layoutReceipt(SALE, "party", 32), 32).split("\n");
+    expect(narrow).toContain("     4,000    32,500     130,000");
+    const wide = previewText(layoutReceipt(SALE, "party", 48), 48).split("\n");
+    expect(wide.some((line) => line.startsWith("Article") && line.endsWith("Montant"))).toBe(true);
+    expect(wide.some((line) => line.startsWith("Crevettes") && line.endsWith("130,000"))).toBe(true);
+  });
+
+  test("a huge amount that does not fit the columns still stays on the paper", () => {
+    const big = {
+      ...SALE,
+      lines: [{ name: "Thon", quantity: "123456.5", unitPrice: "123456.5", amount: "15241507232" }],
+    };
+    for (const line of previewText(layoutReceipt(big, "party", 32), 32).split("\n"))
+      expect(line.length).toBeLessThanOrEqual(32);
   });
 
   test("amounts keep three decimals and group thousands", () => {
@@ -55,7 +88,9 @@ describe("receipt layout", () => {
     const party = previewText(layoutReceipt(SALE, "party", 42), 42);
     const office = previewText(layoutReceipt(SALE, "office", 42), 42);
     expect(party).not.toContain("Signature");
-    expect(office).toContain("COPIE BUREAU");
+    expect(party).not.toContain("COPIE BUREAU");
+    // Marked at the top, so the two papers are never mixed up.
+    expect(office.indexOf("COPIE BUREAU")).toBeLessThan(office.indexOf("Client"));
     expect(office).toContain("Signature client");
     expect(party).toContain("Reste à payer");
     expect(previewText(layoutReceipt({ ...SALE, rest: "0" }, "party", 42), 42)).not.toContain("Reste à payer");
@@ -63,6 +98,38 @@ describe("receipt layout", () => {
 
   test("a purchase receipt names the supplier", () => {
     expect(previewText(layoutReceipt({ ...SALE, kind: "purchase" }, "office", 42), 42)).toContain("Fournisseur");
+  });
+});
+
+describe("Arabic names and the logo (D-282)", () => {
+  const withArabic: ReceiptData = { ...SALE, lines: [{ ...SALE.lines[0]!, nameAr: "قمبري مقشّر" }] };
+
+  test("the Arabic name follows the French one, the logo heads the paper", () => {
+    const rows = layoutReceipt(withArabic, "party", 32);
+    expect(rows[0]).toEqual({ logo: true });
+    const at = rows.findIndex((row) => "ar" in row && row.ar);
+    expect(rows[at]).toEqual({ text: "قمبري مقشّر", align: "right", ar: true });
+    expect(rows[at - 1]).toMatchObject({ text: "21/25" });
+    expect(previewText(rows, 32)).toContain("قمبري مقشّر");
+  });
+
+  test("the text mode prints neither the Arabic nor the logo", () => {
+    const text = escposJob([layoutReceipt(withArabic, "party", 32)], { cols: 32, accents: true });
+    const plain = escposJob([layoutReceipt(SALE, "party", 32)], { cols: 32, accents: true });
+    expect([...text]).toEqual([...plain]);
+  });
+
+  test("a picture is sent as dots, one bit each, then cut", () => {
+    // 16 dots wide, 2 rows: the first row black, the second white.
+    const rgba = new Uint8ClampedArray(16 * 2 * 4);
+    for (let i = 0; i < 16; i += 1) rgba.set([0, 0, 0, 255], i * 4);
+    for (let i = 16; i < 32; i += 1) rgba.set([255, 255, 255, 255], i * 4);
+    const bitmap = toBits(rgba, 16, 2);
+    expect([...bitmap.bits]).toEqual([0xff, 0xff, 0, 0]);
+    const bytes = [...rasterJob([bitmap])];
+    expect(bytes.slice(0, 10)).toEqual([0x1b, 0x40, 0x1d, 0x76, 0x30, 0, 2, 0, 2, 0]);
+    expect(bytes.slice(10, 14)).toEqual([0xff, 0xff, 0, 0]);
+    expect(bytes.slice(-4)).toEqual([0x1d, 0x56, 0x42, 0x00]);
   });
 });
 

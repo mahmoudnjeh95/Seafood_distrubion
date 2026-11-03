@@ -14,7 +14,12 @@ from apps.dayclose import selectors as dayclose
 from apps.partners import selectors as partners
 from apps.sales import selectors, services
 
-from .driver_payment_serializers import CashLimitSerializer, RoadPaymentSerializer, RoadPaymentWriteSerializer
+from .driver_payment_serializers import (
+    CashLimitSerializer,
+    ReceiptHeaderSerializer,
+    RoadPaymentSerializer,
+    RoadPaymentWriteSerializer,
+)
 
 
 class MyCashLimitView(APIView):
@@ -28,6 +33,27 @@ class MyCashLimitView(APIView):
         assert membership is not None  # guaranteed by the permission class
         limit = selectors.cash_limit_on(membership.organization, timezone.localdate())
         return Response(CashLimitSerializer({"cash_limit": limit}).data)
+
+
+class MyReceiptHeaderView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="getMyReceiptHeader", responses=ReceiptHeaderSerializer)
+    def get(self, request: Request) -> Response:
+        """The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+        fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+        for printing without a connection."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        organization = membership.organization
+        found = selectors.finance_settings_on(organization, timezone.localdate())
+        header = {
+            "name": (found.legal_name if found else "") or organization.name,
+            "address": found.address if found else "",
+            "phone": found.phone if found else "",
+            "tax_id": found.tax_id if found else "",
+        }
+        return Response(ReceiptHeaderSerializer(header).data)
 
 
 class MyPaymentsView(APIView):

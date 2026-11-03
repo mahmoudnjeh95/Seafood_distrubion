@@ -7,6 +7,7 @@ function line(productId: number, unitPrice: string | null): MyStockLine {
   return {
     product_id: productId,
     product_name: `Produit ${productId}`,
+    product_name_ar: "",
     quantity: "10.000",
     unit_price: unitPrice,
     photo_url: null,

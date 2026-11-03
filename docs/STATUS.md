@@ -1,9 +1,18 @@
 # Project status
 
-_Last updated: 2026-11-02 (print after confirming a sale or purchase, D-278; next free decision D-281)_
+_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; receipt picture with logo and Arabic names, Tunisian Arabic, D-282; next free decision D-283)_
 
 ## Where we are
 
+- **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
+  print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
+  (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
+  today's delivered BL are listed again (`my-deliveries/done`) in Mes livraisons and on the sale screen. A new load on a
+  sent day locks the phone to Ma journée until "Je confirme la reprise" (`my-day/resume`); the server refuses the rest
+  meanwhile. Check on staging (Android): deliver a BL, print twice; send the day, reload the truck, the tabs grey out.
+- **D-282 (same branch):** the receipt prints as a picture (canvas → ESC/POS raster): logo at the top, each product's
+  Arabic name under the French one, the rest in French; "Imprimer en image" off = old text mode. The driver app's
+  Arabic is now Tunisian derja (provisional, native review in P3-T09). Check on the real printer: speed and darkness.
 - **P3-T10 print after confirmation (D-278 addendum, branch `claude/practical-allen-66nje7`):** "Imprimer le reçu" on the
   purchase confirmation (sent, kept offline or changed) and on a sale kept on the phone ("Provisoire" receipt). Check on
   staging (Android, Chrome): send a purchase, the summary shows the button; in airplane mode save a sale, print it.
@@ -62,11 +71,6 @@ _Last updated: 2026-11-02 (print after confirming a sale or purchase, D-278; nex
   is a proposal the driver approves on the phone ("J'accepte ce montant"); until then the amount in force stays. Changes D-248.
   Check on staging: Camions du jour › Fonds de caisse on a started day shows "En attente du chauffeur"; the phone's day screen
   shows the proposal with the accept button; after approval the amount changes.
-- **All PRs merged, none open (2026-11-01).** On main and staging since 2026-10-31: D-208 to D-236, among them D-220 driver's
-  day corrected by the office only, D-221 amount separators, D-222 e-mail addresses, D-223 numbering and prefixes, D-224 VAT
-  on the BL, D-225 and D-226 règlement motif and "Total à régler" (a customer payment is now the règlement page), D-227
-  cold-room estimate, D-228 salaries approved when generated, D-231 several lots on a transfer, D-234 salary payments,
-  primes and advances in the treasury, D-235 party counts in the règlement lists, D-236 bank details.
 - **CI and deploy fixes:** the month-start test failures (#256), build heap 1536 MB on the VPS (#261).
 - **SmartFeesh:** `SmartToolsAgro/SmartFeesh` is pushed only when the owner says "push main" (D-209). It is at #234.
 - **D-252 on branch `customer-supplier-write-off` (awaits CI):** "Remettre le solde à zéro" for a customer (owner; the rest
@@ -93,6 +97,8 @@ _Last updated: 2026-11-02 (print after confirming a sale or purchase, D-278; nex
 
 ## Next step
 
+0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
+   a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.
 0. P1-T16 (D-269): merge the PR once green. On staging: a receipt with an accepted weight and a cost change, then Prix du jour and the stock page.
 0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.

@@ -32,7 +32,8 @@ export interface QueuedSale extends Waiting {
   data: SaleWrite;
   /** What the screen showed when the sale was made, for the receipt on the phone. */
   estimate: {
-    lines: { name: string; kilos: string; amount: string }[];
+    /** `nameAr`: the product's Arabic name, for the printed receipt (D-282). */
+    lines: { name: string; nameAr?: string; kilos: string; amount: string }[];
     total: string;
     paid: string;
   };
