@@ -554,6 +554,16 @@ def closing_by_id(organization: Organization, closing_id: int) -> DayClosing:
     return closings_of(organization).get(pk=closing_id)
 
 
+# A new load opened the sent day again (D-281): the driver confirms the new start before anything goes on it.
+def restart_pending_message() -> str:
+    return _("Le bureau a rechargé votre camion : confirmez la reprise de votre journée dans « Ma journée ».")
+
+
+def _restart_pending(driver_day: "DriverDay", moment: dt.datetime | None = None) -> bool:
+    since = driver_day.restart_pending_since
+    return since is not None and (moment is None or moment >= since)
+
+
 def _closed_day() -> PermissionDenied:
     return PermissionDenied(_("Votre journée est clôturée : elle rouvre quand le bureau recharge votre camion."))
 
@@ -565,6 +575,8 @@ def refuse_if_day_closed(membership: Membership) -> None:
     driver_day = fleet.driver_day_of(membership)
     if driver_day is not None and driver_day.ended_at is not None:
         raise _closed_day()
+    if driver_day is not None and _restart_pending(driver_day):
+        raise PermissionDenied(restart_pending_message())
 
 
 def refuse_sale_outside_day(membership: Membership, made_at: dt.datetime | None = None) -> None:
@@ -574,7 +586,8 @@ def refuse_sale_outside_day(membership: Membership, made_at: dt.datetime | None 
     Refused with 403 when:
     - the day had already ended at that moment: the sale was made after the closing was sent, and only a load
       validated that date opens the day again;
-    - the day is approved by the office (D-094): nothing is added to it.
+    - the day is approved by the office (D-094): nothing is added to it;
+    - a new load opened the day again and the driver has not confirmed the new start yet (D-281).
     A day sent but not approved still takes a sale made before it was sent: the figures the driver sent stay
     as sent, and the office waits for the day sent again (`changes_since_sent`, D-132).
     No day started on that date: accepted, the sale belongs to no closing (D-133)."""
@@ -594,6 +607,9 @@ def refuse_sale_outside_day(membership: Membership, made_at: dt.datetime | None 
             )
             % {"day": day.strftime("%d/%m/%Y")}
         )
+    # Made after a new load reopened the day and before the driver confirmed the new start (D-281).
+    if _restart_pending(driver_day, moment):
+        raise PermissionDenied(restart_pending_message())
     approved = DayClosing.objects.for_organization(membership.organization).filter(
         driver_day=driver_day, status=DayClosingStatus.APPROVED
     )

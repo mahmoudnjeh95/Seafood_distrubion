@@ -279,7 +279,8 @@ def test_approving_the_day_resets_the_cash_the_office_set_for_that_driver_to_zer
 
 
 def load_again(day, kg):
-    return inventory.create_transfer(
+    """The office loads the truck again, and the driver confirms the new start on the phone (D-281)."""
+    transfer = inventory.create_transfer(
         organization=day["organization"],
         actor=None,
         from_location=day["room"],
@@ -288,6 +289,8 @@ def load_again(day, kg):
         lines=[{"product": day["product"], "quantity": Decimal(kg)}],
         validate=True,
     )
+    assert day["api"].post(reverse("my-day-resume")).status_code == 200
+    return transfer
 
 
 def test_a_day_loaded_again_after_sending_is_sent_again_before_the_office_approves_it(day):

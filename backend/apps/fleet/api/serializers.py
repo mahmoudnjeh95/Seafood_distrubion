@@ -119,8 +119,14 @@ class DriverDaySerializer(serializers.ModelSerializer[DriverDay]):
 
     class Meta:
         model = DriverDay
-        fields = ("id", "date", "truck_name", "opening_cash", "purchase_float", "ended_at")
+        fields = ("id", "date", "truck_name", "opening_cash", "purchase_float", "ended_at", "restart_pending")
         read_only_fields = fields
+
+    # A new load opened the sent day again and the driver has not confirmed the new start yet (D-281).
+    restart_pending = serializers.SerializerMethodField()
+
+    def get_restart_pending(self, day: DriverDay) -> bool:
+        return day.restart_pending_since is not None
 
 
 class DayFundSerializer(serializers.Serializer[Any]):

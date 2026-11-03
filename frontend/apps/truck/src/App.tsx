@@ -10,10 +10,10 @@ import {
 } from "@frutti/auth";
 import { useGetMyDay } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
-import { Sprite, Toaster, TruckShell, type TruckTab, useFavicon } from "@frutti/ui";
+import { Button, Card, Sprite, Toaster, TruckShell, type TruckTab, useFavicon } from "@frutti/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { BackToDay } from "./BackToDay";
 import { ClosingPage } from "./ClosingPage";
@@ -110,20 +110,35 @@ function useCompanyLogo(): string | null {
   return loggedIn && !serverLogo ? null : logo;
 }
 
-// Same four tabs as the approved prototype.
-function useTabs(): TruckTab[] {
+// Same four tabs as the approved prototype. `locked`: only "Ma journée" works (a new load to confirm, D-281).
+function useTabs(locked: boolean): TruckTab[] {
   const { t } = useTranslation();
   return [
     { to: "/", label: t("truck.tabs.day"), icon: "home" },
-    { to: "/stock", label: t("truck.tabs.stock"), icon: "box" },
-    { to: "/vente", label: t("truck.tabs.sale"), icon: "receipt" },
-    { to: "/cloture", label: t("truck.tabs.closing"), icon: "lock" },
+    { to: "/stock", label: t("truck.tabs.stock"), icon: "box", disabled: locked },
+    { to: "/vente", label: t("truck.tabs.sale"), icon: "receipt", disabled: locked },
+    { to: "/cloture", label: t("truck.tabs.closing"), icon: "lock", disabled: locked },
   ];
+}
+
+/** Every screen but "Ma journée" while the driver has not confirmed the new start after a new load (D-281). */
+function RestartLocked() {
+  const { t } = useTranslation();
+  return (
+    <Card className="space-y-3 border-2 border-warn">
+      <p className="text-lg font-semibold">{t("truck.day.restartTitle")}</p>
+      <p>{t("truck.day.restartLocked")}</p>
+      <Link to="/" className="block">
+        <Button size="lg" className="w-full py-4 text-lg">
+          {t("truck.tabs.day")}
+        </Button>
+      </Link>
+    </Card>
+  );
 }
 
 function Shell({ session }: { session: Session }) {
   const { t } = useTranslation();
-  const tabs = useTabs();
   const logout = useLogout();
   const location = useLocation();
   // Logging out erases what the phone still has to send, so the logout window says how much (D-194).
@@ -132,8 +147,13 @@ function Shell({ session }: { session: Session }) {
   const stock = useTruckStock(session.truck !== null);
   usePriceWatch(stock.data);
   // The phone follows the day's position while the day runs (D-164); switched off for now (D-180).
-  const day = useGetMyDay({ query: { retry: false, enabled: session.truck !== null } });
+  // Read again every minute, so a new load that waits for the driver's confirmation shows soon (D-281).
+  const day = useGetMyDay({ query: { retry: false, enabled: session.truck !== null, refetchInterval: 60_000 } });
   const tracking = useLocationTracking(TRACKING_ENABLED && day.data !== undefined && day.data.ended_at === null);
+  // The office loaded the truck again after the day was sent: nothing but "Ma journée" until the driver confirms
+  // the new start (D-281). The server refuses the rest too; this only says so before the driver tries.
+  const locked = day.data?.restart_pending === true;
+  const tabs = useTabs(locked);
   return (
     <TruckShell
       tabs={tabs}
@@ -160,7 +180,7 @@ function Shell({ session }: { session: Session }) {
       <PurchaseNotice enabled={session.can_buy} />
       <SyncStatus />
       <ScreenError resetKey={location.pathname}>
-        <Outlet />
+        {locked && location.pathname !== "/" ? <RestartLocked /> : <Outlet />}
       </ScreenError>
       <LanguageSwitch className="mt-2 self-center" />
     </TruckShell>

@@ -14,9 +14,14 @@ export const PROVISIONAL = "Provisoire";
 /** The line printed under the totals of such a receipt. */
 export const PROVISIONAL_NOTE = "Pas encore envoyé au bureau : le numéro sera donné à l'envoi.";
 
+/** The seller at the top of the paper (D-281): the finance settings' legal name, address, phone and matricule fiscal. */
+export type ReceiptSeller = { name: string; address?: string; phone?: string; taxId?: string };
+
 export type ReceiptData = {
   kind: ReceiptKind;
   company: string;
+  /** The seller's address, phone and matricule fiscal, printed under the name when known. */
+  seller?: Omit<ReceiptSeller, "name">;
   number: string;
   /** ISO date or timestamp. */
   date: string;
@@ -25,7 +30,7 @@ export type ReceiptData = {
   total: string;
   paid: string;
   rest: string;
-  /** The driver's name, printed under the date. */
+  /** The driver's name, printed at the bottom ("Préparé par"). */
   by?: string;
   /** A line of text under the totals. */
   note?: string;
@@ -51,9 +56,10 @@ export function amount(value: string): string {
 
 const kilos = (value: string) => `${amount(value)} kg`;
 
-function frenchDate(iso: string): string {
+/** "02/11/2026" and "10:41", in Tunis time. */
+function frenchDate(iso: string): { day: string; time: string } {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
+  if (Number.isNaN(date.getTime())) return { day: iso, time: "" };
   const parts = new Intl.DateTimeFormat("fr-FR", {
     timeZone: "Africa/Tunis",
     day: "2-digit",
@@ -63,7 +69,7 @@ function frenchDate(iso: string): string {
     minute: "2-digit",
   }).formatToParts(date);
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${part("day")}/${part("month")}/${part("year")} ${part("hour")}:${part("minute")}`;
+  return { day: `${part("day")}/${part("month")}/${part("year")}`, time: `${part("hour")}:${part("minute")}` };
 }
 
 /** Left text and right text on one line; the left one is cut if the two do not fit. */
@@ -103,38 +109,91 @@ const TITLES: Record<ReceiptKind, { title: string; party: string }> = {
   purchase: { title: "REÇU D'ACHAT", party: "Fournisseur" },
 };
 
+// The three number columns of the goods table, right-aligned: kilos, price per kg, amount. Together 32 characters,
+// the 58 mm paper; on wider paper the product name has room on the same line.
+const QTY = 10;
+const PRICE = 10;
+const AMOUNT = 12;
+const NUMBERS = QTY + PRICE + AMOUNT;
+// Below this many characters left for the name, the name has its own line above its numbers.
+const NAME_ROOM = 12;
+
+const numbers = (qty: string, price: string, total: string) =>
+  qty.padStart(QTY) + price.padStart(PRICE) + total.padStart(AMOUNT);
+
+function goodsTable(lines: ReceiptLine[], cols: number): Row[] {
+  const room = cols - NUMBERS;
+  const wide = room >= NAME_ROOM;
+  const rows: Row[] = [];
+  const head = numbers("Qté kg", "Prix", "Montant");
+  if (wide) rows.push({ text: "Article".padEnd(room) + head, bold: true });
+  else rows.push({ text: "Article", bold: true }, { text: head, align: "right", bold: true });
+  rows.push({ rule: "-" });
+  for (const line of lines) {
+    const values = numbers(
+      amount(line.quantity),
+      line.unitPrice === undefined ? "" : amount(line.unitPrice),
+      amount(line.amount),
+    );
+    // A very large number does not fit the columns: kilos and price on one line, the amount on the next.
+    if (values.length > cols) {
+      for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
+      const each = line.unitPrice === undefined ? "" : ` x ${amount(line.unitPrice)}`;
+      rows.push({ text: `  ${kilos(line.quantity)}${each}` }, { text: amount(line.amount), align: "right" });
+      continue;
+    }
+    if (wide) {
+      const names = wrap(line.name, room - 1);
+      rows.push({ text: (names[0] ?? "").padEnd(room) + values });
+      for (const text of names.slice(1)) rows.push({ text });
+    } else {
+      for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
+      rows.push({ text: values, align: "right" });
+    }
+  }
+  return rows;
+}
+
+/** Who keeps this paper, printed big at the top of the office copy so the two papers are never mixed up. */
+export const COPY_TITLES: Record<ReceiptCopy, string> = { party: "", office: "COPIE BUREAU" };
+
 export function layoutReceipt(data: ReceiptData, copy: ReceiptCopy, cols: number): Row[] {
   const { title, party } = TITLES[data.kind];
   const rows: Row[] = [];
-  if (data.company !== "") rows.push({ text: data.company, align: "center", bold: true, big: true });
-  rows.push({ text: title, align: "center", bold: true });
+  if (data.company !== "") {
+    for (const text of wrap(data.company, cols)) rows.push({ text, align: "center", bold: true, big: true });
+  }
+  const seller = data.seller ?? {};
+  if (seller.address) for (const text of wrap(seller.address, cols)) rows.push({ text, align: "center" });
+  if (seller.phone) rows.push({ text: `Tél : ${seller.phone}`, align: "center" });
+  if (seller.taxId) rows.push({ text: `MF : ${seller.taxId}`, align: "center" });
   rows.push({ rule: "=" });
+  rows.push({ text: title, align: "center", bold: true });
+  if (copy === "office") rows.push({ text: `** ${COPY_TITLES.office} **`, align: "center", bold: true });
+  rows.push({ rule: "-" });
+  const when = frenchDate(data.date);
   rows.push({ text: twoColumns("N°", data.number, cols) });
-  rows.push({ text: twoColumns("Date", frenchDate(data.date), cols) });
-  if (data.by) rows.push({ text: twoColumns("Chauffeur", data.by, cols) });
+  rows.push({ text: twoColumns("Date", when.day, cols) });
+  if (when.time !== "") rows.push({ text: twoColumns("Heure", when.time, cols) });
   const names = wrap(data.partyName, cols - party.length - 2);
   rows.push({ text: twoColumns(party, names[0] ?? "", cols) });
   for (const text of names.slice(1)) rows.push({ text, align: "right" });
   rows.push({ rule: "-" });
-  for (const line of data.lines) {
-    for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
-    const each = line.unitPrice === undefined ? "" : ` x ${amount(line.unitPrice)}`;
-    rows.push({ text: twoColumns(`  ${kilos(line.quantity)}${each}`, amount(line.amount), cols) });
-  }
+  rows.push(...goodsTable(data.lines, cols));
   rows.push({ rule: "-" });
-  rows.push({ text: twoColumns("TOTAL DT", amount(data.total), cols), bold: true });
+  rows.push({ text: twoColumns("TOTAL DT", amount(data.total), cols), bold: true, big: true });
   rows.push({ text: twoColumns("Payé", amount(data.paid), cols) });
   if (Number(data.rest) > 0) rows.push({ text: twoColumns("Reste à payer", amount(data.rest), cols), bold: true });
   if (data.note) for (const text of wrap(data.note, cols)) rows.push({ text });
   rows.push({ rule: "-" });
   if (copy === "office") {
-    rows.push({ text: "COPIE BUREAU", align: "center", bold: true });
     rows.push({ feed: 2 });
     rows.push({ text: `Signature ${party.toLowerCase()} :` });
     rows.push({ feed: 3 });
   } else {
     rows.push({ text: "Merci de votre confiance", align: "center" });
   }
+  if (data.by) for (const text of wrap(`Préparé par : ${data.by}`, cols)) rows.push({ text, align: "center" });
   rows.push({ feed: 3 });
   return rows;
 }

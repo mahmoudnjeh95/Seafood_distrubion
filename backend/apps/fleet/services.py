@@ -596,10 +596,35 @@ def reset_day_fund(*, driver_day: DriverDay) -> None:
 
 def reopen_driver_day(*, driver_day: DriverDay) -> DriverDay:
     """A new load opened the sent day again (D-134): it runs until its closing is sent again. Called inside the
-    reopening's transaction, on a locked row."""
+    reopening's transaction, on a locked row. The driver confirms the new start on the phone before anything
+    more goes on the day (D-281, `resume_driver_day`)."""
     if driver_day.ended_at is not None:
         driver_day.ended_at = None
-        driver_day.save(update_fields=["ended_at", "updated_at"])
+        driver_day.restart_pending_since = timezone.now()
+        driver_day.save(update_fields=["ended_at", "restart_pending_since", "updated_at"])
+    return driver_day
+
+
+@transaction.atomic
+def resume_driver_day(*, driver_day: DriverDay, actor: User) -> DriverDay:
+    """The driver confirms the start of work after the office loaded the truck again (D-281): the day takes
+    sales, deliveries and the rest again. Asking again, or on a day that waits for nothing, changes nothing."""
+    driver_day = DriverDay.objects.select_for_update().get(pk=driver_day.pk)
+    if driver_day.restart_pending_since is None:
+        return driver_day
+    if driver_day.ended_at is not None:
+        raise ValidationError(_("Votre journée est clôturée : elle rouvre quand le bureau recharge votre camion."))
+    since = driver_day.restart_pending_since
+    driver_day.restart_pending_since = None
+    driver_day.save(update_fields=["restart_pending_since", "updated_at"])
+    audit.record(
+        organization=driver_day.organization,
+        actor=actor,
+        action="driver_day.resumed",
+        target=driver_day,
+        before={"restart_pending_since": since.isoformat()},
+        after={"restart_pending_since": None},
+    )
     return driver_day
 
 

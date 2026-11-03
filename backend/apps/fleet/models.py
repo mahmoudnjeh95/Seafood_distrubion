@@ -80,6 +80,9 @@ class DriverDay(OrganizationScopedModel, TimeStampedModel):
     purchase_float = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     # When the driver sent the closing; null while the day is running, and again once a new load reopened it.
     ended_at = models.DateTimeField(null=True, blank=True)
+    # When a new load opened the sent day again (D-281): until the driver confirms the new start on the phone
+    # (`resumed`), the phone shows only "Ma journée" and the server takes nothing on the day. Null otherwise.
+    restart_pending_since = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-date", "id"]

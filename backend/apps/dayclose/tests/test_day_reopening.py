@@ -30,6 +30,7 @@ DAY = timezone.localdate() - dt.timedelta(days=2)
 DAY_BEFORE = DAY - dt.timedelta(days=1)
 NEXT_DAY = DAY + dt.timedelta(days=1)
 CLOSED = "Votre journée est clôturée : elle rouvre quand le bureau recharge votre camion."
+RESTART = "Le bureau a rechargé votre camion : confirmez la reprise de votre journée dans « Ma journée »."
 
 
 def at(hour, minute=0, *, day=DAY):
@@ -136,6 +137,13 @@ def sell(road, kg, paid="0", *, made_at=None):
     return road["api"].post(reverse("sale-list"), body, format="json")
 
 
+def resume(road):
+    """The driver confirms the new start after a load reopened the day (D-281)."""
+    answer = road["api"].post(reverse("my-day-resume"))
+    assert answer.status_code == 200
+    assert answer.json()["restart_pending"] is False
+
+
 def empty_the_truck(road_office, closing_id):
     """The office gives back what the truck holds before it approves the day (D-249)."""
     driver_day_id = road_office.get(reverse("day-closing-detail", args=[closing_id])).json()["driver_day_id"]
@@ -234,8 +242,14 @@ def test_a_load_validated_that_date_opens_the_sent_day_again(road, clock):
     clock(at(13))
     load(road, "4")
 
-    assert road["api"].get(reverse("my-day")).json()["ended_at"] is None
+    day = road["api"].get(reverse("my-day")).json()
+    assert (day["ended_at"], day["restart_pending"]) == (None, True)
     assert my_day(road)["closing"]["status"] == "reopened"
+    clock(at(13, 30))
+    # Nothing goes on the day until the driver confirms the new start (D-281).
+    refused = sell(road, "2", "56.000")
+    assert (refused.status_code, refused.json()["detail"]) == (403, RESTART)
+    resume(road)
     clock(at(14))
     assert sell(road, "2", "56.000").status_code == 201
     summary = my_day(road)["summary"]
@@ -256,6 +270,7 @@ def test_a_reopened_day_balances_its_stock_over_the_whole_date(road, clock):
     morning_sent(road, clock)
     clock(at(13))
     load(road, "4")
+    resume(road)
     clock(at(14))
     assert sell(road, "2", "56.000").status_code == 201
     inventory.record_loss(
@@ -312,6 +327,8 @@ def test_the_office_cannot_check_a_reopened_day_until_it_is_sent_again(road, clo
     assert len(road["office"].get(reverse("day-closing-list"), {"status": "reopened"}).json()) == 1
     assert road["office"].get(reverse("day-closing-list"), {"status": "submitted"}).json() == []
     clock(at(18))
+    assert close(road).status_code == 400  # the driver has not confirmed the new start yet (D-281)
+    resume(road)
     assert close(road, "0.000").status_code == 201  # the 50 DT of the first send are with the office
     empty_the_truck(road["office"], row["id"])
     assert road["office"].post(reverse("day-closing-approve", args=[row["id"]])).json()["status"] == "approved"
@@ -363,6 +380,7 @@ def test_an_approved_day_is_reopened_by_a_load_and_its_approval_stays_on_record(
         {"load": transfer.number},
     )
     # The day sells again; the 10 DT that were missing at the first count are still missing at the next one.
+    resume(road)
     clock(at(14))
     assert sell(road, "1", "28.000").status_code == 201
     summary = my_day(road)["summary"]
@@ -389,6 +407,7 @@ def test_each_reopening_adds_the_cash_counted_to_what_was_handed_over(road, cloc
     morning_sent(road, clock)
     clock(at(13))
     load(road, "4")
+    resume(road)
     clock(at(14))
     assert sell(road, "2", "56.000").status_code == 201
     clock(at(15))
@@ -396,6 +415,7 @@ def test_each_reopening_adds_the_cash_counted_to_what_was_handed_over(road, cloc
 
     clock(at(16))
     load(road, "1")
+    resume(road)
 
     summary = my_day(road)["summary"]
     assert (summary["handed_over"], summary["expected_cash"]) == ("206.000", "0.000")
@@ -581,3 +601,19 @@ def test_a_sale_made_after_the_closing_of_an_earlier_date_is_refused_with_its_da
     assert before.status_code == 201  # made before the send: yesterday's sale, the day is not approved
     assert timezone.localtime(Sale.objects.get().sold_at) == at(17)
     assert sell(road, "1", "28.000").status_code == 201  # today no day is started yet: sold as before (D-133)
+
+
+def test_the_driver_confirms_the_new_start_once_and_a_day_that_waits_for_nothing_is_unchanged(road, clock):
+    """D-281: a new load leaves the reopened day waiting for the driver; confirming twice records it once."""
+    resume(road)  # a running day waits for nothing
+    assert not AuditLog.objects.filter(action="driver_day.resumed").exists()
+    morning_sent(road, clock)
+    clock(at(13))
+    load(road, "4")
+    assert close(road).status_code == 400  # nothing is sent before the new start
+
+    resume(road)
+    resume(road)
+
+    assert AuditLog.objects.filter(action="driver_day.resumed").count() == 1
+    assert driver_day(road).restart_pending_since is None

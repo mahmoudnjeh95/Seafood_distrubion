@@ -52,6 +52,8 @@ Look and feel: the "Camion" view of `prototype/index.html`.
       send a load undid is kept, and its counted cash is "already handed over" at the next count.
 - [x] (D-134) "Mes journées" on the phone: the driver's past days, and the answer to the office's question sent
       from there. The office page searches by driver or truck and filters by dates.
+- [x] (D-281) A new load on a sent day locks the phone (only Ma journée) until the driver confirms the new start;
+      the server refuses the day's records until then.
 - [x] (D-132, D-134) The office sees where the day's records differ from what the driver sent (a sale made
       before the send and received after it) and cannot approve until the driver sends the day again.
 
@@ -110,6 +112,8 @@ Moved here from the Phase 8 backlog (Q13: printed and digital receipts, Android 
 - [x] Receipt layout for the paper width; works offline; reprint from the sale screen (D-278; not yet tested on the real printer).
 - [x] Print right after confirming a sale or a purchase, also when it is kept on the phone (provisional receipt, D-278).
 - [x] The receipt is in French (Q13), whatever language the driver uses in the app.
+- [x] (D-281) One copy per tap (client or supplier, then office); seller's address, phone and MF; goods table; a
+      delivered BL shows its receipt and is listed again ("Livrés aujourd'hui", the sale screen) to print again.
 - [ ] If native: store accounts, builds, and getting the app onto the drivers' phones (human + agent).
 
 ### P3-T11 · Collecting customer payments on the phone · S

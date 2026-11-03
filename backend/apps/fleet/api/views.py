@@ -283,6 +283,22 @@ class MyDayView(APIView):
         return Response(DriverDaySerializer(day).data, status=status.HTTP_201_CREATED)
 
 
+class MyDayResumeView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="resumeMyDay", request=None, responses=DriverDaySerializer)
+    def post(self, request: Request) -> Response:
+        """The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+        day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        day = selectors.driver_day_of(membership)
+        if day is None:
+            raise Http404
+        day = services.resume_driver_day(driver_day=day, actor=membership.user)
+        return Response(DriverDaySerializer(day).data)
+
+
 class MyDayFundView(APIView):
     permission_classes = (IsDriver,)
 

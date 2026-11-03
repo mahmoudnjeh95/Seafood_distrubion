@@ -7,21 +7,18 @@ import { DEFAULT_WIDTH, type ReceiptCopy, type ReceiptData, layoutReceipt, WIDTH
 export type PrinterSettings = {
   /** Characters per line: 32 = 58 mm paper, 42 = 75 mm, 48 = 80 mm. */
   cols: number;
-  /** Print the office copy after the customer's or supplier's. */
-  officeCopy: boolean;
   /** Send the French accents (code page 858). Off for a printer that prints garbage. */
   accents: boolean;
 };
 
 const KEY = "frutti.printer";
-const DEFAULTS: PrinterSettings = { cols: DEFAULT_WIDTH, officeCopy: true, accents: true };
+const DEFAULTS: PrinterSettings = { cols: DEFAULT_WIDTH, accents: true };
 
 export function loadSettings(): PrinterSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<PrinterSettings>;
     return {
       cols: WIDTHS.includes(stored.cols as (typeof WIDTHS)[number]) ? (stored.cols as number) : DEFAULTS.cols,
-      officeCopy: stored.officeCopy ?? DEFAULTS.officeCopy,
       accents: stored.accents ?? DEFAULTS.accents,
     };
   } catch {
@@ -101,15 +98,9 @@ async function send(bytes: Uint8Array): Promise<void> {
   }
 }
 
-/** Prints a receipt: the customer's or supplier's copy, then the office copy when the settings ask for it. */
-export async function printReceipt(data: ReceiptData, settings: PrinterSettings): Promise<void> {
-  const copies: ReceiptCopy[] = settings.officeCopy ? ["party", "office"] : ["party"];
-  await send(
-    escposJob(
-      copies.map((copy) => layoutReceipt(data, copy, settings.cols)),
-      settings,
-    ),
-  );
+/** Prints one copy of a receipt: the customer's or supplier's, or the office's (D-281: one copy per tap). */
+export async function printReceipt(data: ReceiptData, copy: ReceiptCopy, settings: PrinterSettings): Promise<void> {
+  await send(escposJob([layoutReceipt(data, copy, settings.cols)], settings));
 }
 
 /** A short test page: a ruler as wide as the paper, the French accents and a sample amount. */

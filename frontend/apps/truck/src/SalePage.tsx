@@ -6,6 +6,7 @@ import {
   createSale,
   useListMyCustomers,
   useListMyDeliveries,
+  useListMyDelivered,
 } from "@frutti/api";
 import { useSession } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -15,7 +16,7 @@ import { useState } from "react";
 
 import { BoxCountInputs } from "./BoxCountInputs";
 import { boxCountsOf, type BoxInputs, NO_BOXES } from "./boxes";
-import { Delivery } from "./DeliveriesPage";
+import { DeliveredReceipt, Delivery } from "./DeliveriesPage";
 import { messagesOf } from "./messages";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { useOnline } from "./offline";
@@ -27,6 +28,7 @@ import { ProductPhoto } from "./ProductPhoto";
 import { recentCustomerIds, rememberCustomer } from "./recentCustomers";
 import { PrintButton } from "./printing/PrintButton";
 import { PROVISIONAL, PROVISIONAL_NOTE } from "./printing/receipt";
+import { saleReceipt } from "./printing/records";
 import { StickyAction } from "./StickyAction";
 import { sendWaiting } from "./sync";
 import { newUuid } from "./uuid";
@@ -302,31 +304,52 @@ export function PickCustomer({
   const customers = useListMyCustomers({ search: search.trim() });
   // The BL the office prepared with the load (D-160): a client who has one is delivered first (D-174).
   const deliveries = useListMyDeliveries({ query: { enabled: delivers, retry: false } });
+  // The BL delivered today, shown again with their receipt to print again (D-281).
+  const delivered = useListMyDelivered({ query: { enabled: delivers, retry: false } });
   const [delivering, setDelivering] = useState<CustomerChoice | null>(null);
+  // The BL just delivered here, shown at once while the list is read again.
+  const [justDone, setJustDone] = useState<SaleDetail | null>(null);
   const toDeliver = (customer: CustomerChoice) =>
     delivers ? deliveries.data?.find((sale) => sale.customer.id === customer.id) : undefined;
+  const deliveredTo = (customer: CustomerChoice) => {
+    if (!delivers) return [];
+    const listed = (delivered.data ?? []).filter((sale) => sale.customer.id === customer.id);
+    const fresh = justDone !== null && justDone.customer.id === customer.id ? [justDone] : [];
+    return [...fresh, ...listed.filter((sale) => !fresh.some((one) => one.id === sale.id))];
+  };
   // A customer picked goes to the top of the recent list (D-171).
   const pick = (customer: CustomerChoice) => {
     rememberCustomer(customer.id);
-    if (toDeliver(customer)) setDelivering(customer);
+    if (toDeliver(customer) || deliveredTo(customer).length > 0) setDelivering(customer);
     else onPick(customer);
   };
   if (delivering !== null) {
     const sale = toDeliver(delivering);
+    const done = deliveredTo(delivering);
     return (
       <div className="space-y-3">
         <h2>{delivering.name}</h2>
-        {sale ? (
-          <Delivery sale={sale} />
-        ) : (
+        {sale ? <Delivery sale={sale} onDelivered={setJustDone} /> : null}
+        {done.map((one) => (
+          <DeliveredReceipt key={one.id} sale={one} />
+        ))}
+        {sale === undefined && done.length === 0 ? (
           <Card>
             <p className="text-lg font-semibold">{t("truck.sale.deliveredDone")}</p>
           </Card>
-        )}
+        ) : null}
         <Button size="lg" className="w-full py-4 text-lg" onClick={() => onPick(delivering)}>
           {t("truck.sale.sellMore")}
         </Button>
-        <Button size="lg" variant="ghost" className="w-full" onClick={() => setDelivering(null)}>
+        <Button
+          size="lg"
+          variant="ghost"
+          className="w-full"
+          onClick={() => {
+            setDelivering(null);
+            setJustDone(null);
+          }}
+        >
           {t("truck.sale.change")}
         </Button>
       </div>
@@ -451,25 +474,7 @@ function Receipt({ sale, onNew }: { sale: SaleDetail; onNew: () => void }) {
           {t("truck.sale.share")}
         </Button>
       ) : null}
-      <PrintButton
-        receipt={{
-          kind: "sale",
-          company: session.data?.organization.name ?? "",
-          number: sale.number,
-          date: sale.sold_at,
-          partyName: sale.customer.name,
-          by: session.data?.user.first_name,
-          lines: sale.lines.map((line) => ({
-            name: line.product.name,
-            quantity: line.quantity,
-            unitPrice: line.unit_price,
-            amount: line.amount,
-          })),
-          total: sale.total,
-          paid: sale.amount_paid,
-          rest: sale.amount_due,
-        }}
-      />
+      <PrintButton receipt={saleReceipt(sale, session.data?.organization.name ?? "", session.data?.user.first_name)} />
       <Button size="lg" variant="primary" className="py-4 text-lg" onClick={onNew}>
         {t("truck.sale.newSale")}
       </Button>

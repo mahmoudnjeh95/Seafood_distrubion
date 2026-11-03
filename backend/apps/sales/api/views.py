@@ -884,6 +884,28 @@ class MyDeliveriesView(APIView):
         return Response(SaleDetailSerializer(sales, many=True, context={"show_costs": False}).data)
 
 
+class MyDeliveredView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyDelivered", responses=SaleDetailSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+        shows them again on the sale screen and prints their receipt again (D-281)."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        today = timezone.localdate()
+        sales = (
+            selectors.sales_of(membership.organization)
+            .filter(
+                delivery_status__in=(DeliveryStatus.DELIVERED, DeliveryStatus.PARTIAL),
+                delivered_by_id=membership.user_id,
+                delivered_at__date=today,
+            )
+            .order_by("-delivered_at", "-id")
+        )
+        return Response(SaleDetailSerializer(sales, many=True, context={"show_costs": False}).data)
+
+
 class MyDeliveryView(APIView):
     """One BL of the driver's truck to deliver (D-178); a retry finds the delivery it already recorded."""
 

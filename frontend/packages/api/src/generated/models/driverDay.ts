@@ -15,4 +15,5 @@ export interface DriverDay {
   readonly purchase_float: string;
   /** @nullable */
   readonly ended_at: string | null;
+  readonly restart_pending: boolean;
 }

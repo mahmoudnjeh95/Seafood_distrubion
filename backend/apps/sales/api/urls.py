@@ -4,6 +4,7 @@ from . import driver_payment_views, payment_views, views
 
 urlpatterns = [
     path("my-deliveries", views.MyDeliveriesView.as_view(), name="my-deliveries"),
+    path("my-deliveries/done", views.MyDeliveredView.as_view(), name="my-delivered"),
     path("my-deliveries/<int:sale_id>/deliver", views.MyDeliveryDeliverView.as_view(), name="my-delivery-deliver"),
     path(
         "my-deliveries/<int:sale_id>/not-delivered",
@@ -12,6 +13,7 @@ urlpatterns = [
     ),
     path("my-payments", driver_payment_views.MyPaymentsView.as_view(), name="my-payments"),
     path("my-cash-limit", driver_payment_views.MyCashLimitView.as_view(), name="my-cash-limit"),
+    path("my-receipt-header", driver_payment_views.MyReceiptHeaderView.as_view(), name="my-receipt-header"),
     # P2-T03 · quotes
     path("quotes", views.QuoteListView.as_view(), name="quote-list"),
     path("quotes/<int:quote_id>", views.QuoteDetailView.as_view(), name="quote-detail"),

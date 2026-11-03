@@ -10658,7 +10658,8 @@ export const GetMyDayResponse = zod.object({
   "truck_name": zod.string(),
   "opening_cash": zod.stringFormat('decimal', getMyDayResponseOpeningCashRegExp),
   "purchase_float": zod.stringFormat('decimal', getMyDayResponsePurchaseFloatRegExp),
-  "ended_at": zod.iso.datetime({"offset":true}).nullable()
+  "ended_at": zod.iso.datetime({"offset":true}).nullable(),
+  "restart_pending": zod.boolean()
 })
 
 
@@ -10676,7 +10677,8 @@ export const OpenMyDayResponse = zod.object({
   "truck_name": zod.string(),
   "opening_cash": zod.stringFormat('decimal', openMyDayResponseOpeningCashRegExp),
   "purchase_float": zod.stringFormat('decimal', openMyDayResponsePurchaseFloatRegExp),
-  "ended_at": zod.iso.datetime({"offset":true}).nullable()
+  "ended_at": zod.iso.datetime({"offset":true}).nullable(),
+  "restart_pending": zod.boolean()
 })
 
 
@@ -10941,7 +10943,27 @@ export const ApproveMyPurchaseChangeResponse = zod.object({
   "truck_name": zod.string(),
   "opening_cash": zod.stringFormat('decimal', approveMyPurchaseChangeResponseOpeningCashRegExp),
   "purchase_float": zod.stringFormat('decimal', approveMyPurchaseChangeResponsePurchaseFloatRegExp),
-  "ended_at": zod.iso.datetime({"offset":true}).nullable()
+  "ended_at": zod.iso.datetime({"offset":true}).nullable(),
+  "restart_pending": zod.boolean()
+})
+
+
+/**
+ * The driver confirms the start of work after the office loaded the truck again (D-281). Until then the
+ * day takes no sale, delivery, expense or closing. Asking again changes nothing. 404: no day today.
+ */
+export const resumeMyDayResponseOpeningCashRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const resumeMyDayResponsePurchaseFloatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ResumeMyDayResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.iso.date(),
+  "truck_name": zod.string(),
+  "opening_cash": zod.stringFormat('decimal', resumeMyDayResponseOpeningCashRegExp),
+  "purchase_float": zod.stringFormat('decimal', resumeMyDayResponsePurchaseFloatRegExp),
+  "ended_at": zod.iso.datetime({"offset":true}).nullable(),
+  "restart_pending": zod.boolean()
 })
 
 
@@ -11718,6 +11740,172 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
 
 
 /**
+ * The BL this driver delivered today, in full or in part, newest first, with what was delivered: the phone
+ * shows them again on the sale screen and prints their receipt again (D-281).
+ */
+export const listMyDeliveredResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listMyDeliveredResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listMyDeliveredResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listMyDeliveredResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMyDeliveredResponseItem = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string()
+}),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "quote": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', listMyDeliveredResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', listMyDeliveredResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', listMyDeliveredResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', listMyDeliveredResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', listMyDeliveredResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', listMyDeliveredResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', listMyDeliveredResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', listMyDeliveredResponseTotalInclTaxRegExp),
+  "cost_total": zod.stringFormat('decimal', listMyDeliveredResponseCostTotalRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', listMyDeliveredResponseMarginRegExp).nullable(),
+  "amount_paid": zod.stringFormat('decimal', listMyDeliveredResponseAmountPaidRegExp),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]),
+  "payment_reference": zod.string(),
+  "amount_due": zod.stringFormat('decimal', listMyDeliveredResponseAmountDueRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_by": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', listMyDeliveredResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemUnitPriceRegExp),
+  "price_source": zod.enum(['price_list', 'daily', 'quote', 'typed', 'shown']).describe('* `price_list` - Liste du client\n* `daily` - Prix du jour\n* `quote` - Devis\n* `typed` - Saisi\n* `shown` - Affiché au chauffeur'),
+  "below_minimum": zod.boolean(),
+  "discount_rate": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemAmountInclTaxRegExp),
+  "cost_amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
+  "batches": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemBatchesItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemBatchesItemUnitCostRegExp),
+  "cost_amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemBatchesItemCostAmountRegExp),
+  "revenue_amount": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemBatchesItemRevenueAmountRegExp)
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemOrderedQuantityRegExp).nullable()
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', listMyDeliveredResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', listMyDeliveredResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', listMyDeliveredResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', listMyDeliveredResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', listMyDeliveredResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', listMyDeliveredResponseEstimatedExtraRegExp)
+})
+export const ListMyDeliveredResponse = zod.array(ListMyDeliveredResponseItem)
+
+
+/**
  * The few categories a driver can spend on from the road: fuel, transport, handling, other.
  */
 export const ListRoadCategoriesResponseItem = zod.object({
@@ -12251,6 +12439,19 @@ export const ListMyPurchaseCostsResponseItem = zod.object({
   "batch_number": zod.string()
 }).describe('What was last paid a supplier for one product: the cost of their latest batch of it.')
 export const ListMyPurchaseCostsResponse = zod.array(ListMyPurchaseCostsResponseItem)
+
+
+/**
+ * The seller printed at the top of a receipt from the phone (D-281): the name, address, phone and matricule
+ * fiscal of the finance settings in force, the company's name when no legal name is set. The phone keeps it
+ * for printing without a connection.
+ */
+export const GetMyReceiptHeaderResponse = zod.object({
+  "name": zod.string(),
+  "address": zod.string(),
+  "phone": zod.string(),
+  "tax_id": zod.string()
+}).describe('The seller printed at the top of the driver\'s receipts (D-281), from the finance settings in force.')
 
 
 /**

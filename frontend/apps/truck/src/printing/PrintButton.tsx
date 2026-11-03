@@ -1,3 +1,4 @@
+import { useGetMyReceiptHeader } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Button, toast } from "@frutti/ui";
 import { useState } from "react";
@@ -11,27 +12,57 @@ import {
   printTest,
   saveSettings,
 } from "./printer";
-import { type ReceiptData, WIDTHS } from "./receipt";
+import { layoutReceipt, previewText, type ReceiptCopy, type ReceiptData, WIDTHS } from "./receipt";
 
 const PAPER = { 32: "58 mm", 42: "75 mm", 48: "80 mm" } as const;
 
-/** "Imprimer le reçu" on the small Bluetooth printer, with its settings (paper width, office copy) folded below. */
+/** The seller printed at the top (D-281): the finance settings, kept by the phone for printing without signal. */
+function useWithSeller(receipt: ReceiptData): ReceiptData {
+  const header = useGetMyReceiptHeader({ query: { staleTime: 60 * 60_000, retry: false } });
+  if (header.data === undefined) return receipt;
+  return {
+    ...receipt,
+    company: header.data.name || receipt.company,
+    seller: { address: header.data.address, phone: header.data.phone, taxId: header.data.tax_id },
+  };
+}
+
+/**
+ * "Imprimer le reçu" on the small Bluetooth printer (D-278). One copy per tap (D-281): the first tap prints the
+ * customer's or supplier's receipt, the next one the office copy; after that each can be printed again. The
+ * settings (paper width, accents) and a preview of the paper are folded below.
+ */
 export function PrintButton({ receipt }: { receipt: ReceiptData }) {
   const { t } = useTranslation();
+  const data = useWithSeller(receipt);
   const [settings, setSettings] = useState<PrinterSettings>(loadSettings);
   const [busy, setBusy] = useState(false);
+  const [printed, setPrinted] = useState<ReceiptCopy[]>([]);
   const supported = bluetoothAvailable();
+  const supplier = receipt.kind === "purchase";
 
   const change = (next: PrinterSettings) => {
     setSettings(next);
     saveSettings(next);
   };
 
-  const run = async (job: () => Promise<void>) => {
+  const run = async (job: () => Promise<void>, copy?: ReceiptCopy) => {
     setBusy(true);
     try {
       await job();
-      toast.success(t("truck.print.done"));
+      if (copy === undefined) {
+        toast.success(t("truck.print.done"));
+        return;
+      }
+      const after = printed.includes(copy) ? printed : [...printed, copy];
+      setPrinted(after);
+      if (copy === "party" && !after.includes("office")) {
+        toast.success(t(supplier ? "truck.print.officeNextSupplier" : "truck.print.officeNext"));
+      } else if (after.length === 2 && printed.length < 2) {
+        toast.success(t("truck.print.bothDone"));
+      } else {
+        toast.success(t("truck.print.done"));
+      }
     } catch (failure) {
       // The phone's picker closed without a choice: nothing to report.
       if (failure instanceof DOMException && failure.name === "NotFoundError") return;
@@ -42,18 +73,46 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
     }
   };
 
-  if (!supported) return <p className="text-sm text-ink-2">{t("truck.print.unsupported")}</p>;
+  const print = (copy: ReceiptCopy) => void run(() => printReceipt(data, copy, settings), copy);
+  // The main button: the customer's (or supplier's) copy first, then the office's, then the customer's again.
+  const next: ReceiptCopy = printed.includes("party") && !printed.includes("office") ? "office" : "party";
+  const other: ReceiptCopy = next === "party" ? "office" : "party";
+  const label = (copy: ReceiptCopy) => {
+    if (copy === "office") return t(printed.includes("office") ? "truck.print.againOffice" : "truck.print.office");
+    if (printed.includes("party")) return t(supplier ? "truck.print.againPartySupplier" : "truck.print.againParty");
+    return t(supplier ? "truck.print.partySupplier" : "truck.print.party");
+  };
+
+  const preview = (
+    <details className="text-sm">
+      <summary className="cursor-pointer py-1 text-ink-2">{t("truck.print.preview")}</summary>
+      <pre className="overflow-x-auto rounded-control border border-line bg-surface p-2 font-mono text-xs leading-snug">
+        {previewText(layoutReceipt(data, next, settings.cols), settings.cols)}
+      </pre>
+    </details>
+  );
+
+  if (!supported) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-ink-2">{t("truck.print.unsupported")}</p>
+        {preview}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
-      <Button
-        size="lg"
-        className="py-4 text-lg"
-        disabled={busy}
-        onClick={() => void run(() => printReceipt(receipt, settings))}
-      >
-        {busy ? t("truck.print.printing") : t("truck.print.button")}
+      <Button size="lg" className="w-full py-4 text-lg" disabled={busy} onClick={() => print(next)}>
+        {busy ? t("truck.print.printing") : label(next)}
       </Button>
+      {/* Once the first copy is out, the other one can be printed (again) without going through the cycle. */}
+      {printed.length > 0 ? (
+        <Button variant="ghost" className="w-full" disabled={busy} onClick={() => print(other)}>
+          {label(other)}
+        </Button>
+      ) : null}
+      {preview}
       <details className="text-sm">
         <summary className="cursor-pointer py-1 text-ink-2">{t("truck.print.settings")}</summary>
         <div className="space-y-3 py-2">
@@ -70,14 +129,6 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={settings.officeCopy}
-              onChange={(event) => change({ ...settings, officeCopy: event.target.checked })}
-            />
-            <span>{t("truck.print.officeCopy")}</span>
           </label>
           <label className="flex items-center gap-3">
             <input

@@ -23,9 +23,42 @@ describe("receipt layout", () => {
       32,
     );
     const text = previewText(rows, 32);
-    expect(text).toContain("2,500 kg");
+    expect(text).toContain("2,500");
+    expect(text).toContain("75,000");
     expect(text).not.toContain(" x ");
     expect(text).toContain("Provisoire");
+  });
+
+  test("the seller's address, phone and matricule fiscal head the paper, the driver signs it at the bottom", () => {
+    const text = previewText(
+      layoutReceipt(
+        { ...SALE, by: "Ahmed", seller: { address: "Sakiet Ezzit, Sfax", phone: "74 000 000", taxId: "1234567A" } },
+        "party",
+        32,
+      ),
+      32,
+    );
+    const lines = text.split("\n").map((line) => line.trim());
+    expect(lines.slice(0, 4)).toEqual(["Frutti Del Mare", "Sakiet Ezzit, Sfax", "Tél : 74 000 000", "MF : 1234567A"]);
+    expect(lines).toContain("Préparé par : Ahmed");
+    expect(text).toMatch(/Heure\s+\d\d:\d\d/);
+  });
+
+  test("the goods are a table of kilos, price and amount", () => {
+    const narrow = previewText(layoutReceipt(SALE, "party", 32), 32).split("\n");
+    expect(narrow).toContain("     4,000    32,500     130,000");
+    const wide = previewText(layoutReceipt(SALE, "party", 48), 48).split("\n");
+    expect(wide.some((line) => line.startsWith("Article") && line.endsWith("Montant"))).toBe(true);
+    expect(wide.some((line) => line.startsWith("Crevettes") && line.endsWith("130,000"))).toBe(true);
+  });
+
+  test("a huge amount that does not fit the columns still stays on the paper", () => {
+    const big = {
+      ...SALE,
+      lines: [{ name: "Thon", quantity: "123456.5", unitPrice: "123456.5", amount: "15241507232" }],
+    };
+    for (const line of previewText(layoutReceipt(big, "party", 32), 32).split("\n"))
+      expect(line.length).toBeLessThanOrEqual(32);
   });
 
   test("amounts keep three decimals and group thousands", () => {
@@ -55,7 +88,9 @@ describe("receipt layout", () => {
     const party = previewText(layoutReceipt(SALE, "party", 42), 42);
     const office = previewText(layoutReceipt(SALE, "office", 42), 42);
     expect(party).not.toContain("Signature");
-    expect(office).toContain("COPIE BUREAU");
+    expect(party).not.toContain("COPIE BUREAU");
+    // Marked at the top, so the two papers are never mixed up.
+    expect(office.indexOf("COPIE BUREAU")).toBeLessThan(office.indexOf("Client"));
     expect(office).toContain("Signature client");
     expect(party).toContain("Reste à payer");
     expect(previewText(layoutReceipt({ ...SALE, rest: "0" }, "party", 42), 42)).not.toContain("Reste à payer");

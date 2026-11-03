@@ -612,6 +612,7 @@ export * from './quoteWrite';
 export * from './receipt';
 export * from './receiptBatch';
 export * from './receiptChange';
+export * from './receiptHeader';
 export * from './receiptLine';
 export * from './receiptLineWrite';
 export * from './receiptLocation';

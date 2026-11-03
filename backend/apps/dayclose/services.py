@@ -131,6 +131,9 @@ def submit_day_closing(*, driver_day: "DriverDay", actor: User, note: str = "") 
         raise ValidationError(_("Cette journée est déjà envoyée."))
     if existing is not None and existing.status == DayClosingStatus.APPROVED:
         raise ValidationError(_("Cette journée est approuvée : elle ne change plus."))
+    # A new load waits for the driver to confirm the new start (D-281): nothing is sent before that.
+    if driver_day.restart_pending_since is not None:
+        raise ValidationError(selectors.restart_pending_message())
     # The driver never changes a sent day (D-220): when its records moved since the send, the office corrects it.
     if (
         existing is not None
