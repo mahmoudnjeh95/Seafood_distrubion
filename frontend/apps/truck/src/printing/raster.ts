@@ -3,16 +3,17 @@
 // characters have neither Arabic nor pictures, so this is the default; the text mode stays for a printer that
 // cannot print pictures.
 import { type Bitmap, toBits } from "./escpos";
-import type { Row } from "./receipt";
+import type { Row, Size } from "./receipt";
 
 /** Dots per line of the usual papers at 203 dpi: 58 mm prints 48 mm (384 dots), 80 mm prints 72 mm (576). */
 export const DOTS: Record<number, number> = { 32: 384, 42: 512, 48: 576 };
 
-const MONO = "'DejaVu Sans Mono', 'Noto Sans Mono', 'Roboto Mono', monospace";
+const SANS = "Roboto, 'Noto Sans', 'DejaVu Sans', Arial, sans-serif";
 const ARABIC = "'Noto Naskh Arabic', 'Noto Sans Arabic', Tahoma, sans-serif";
-// The logo, cut to its ink, is at most the paper's width and this many dots high (about 2.5 cm at 203 dpi).
-const LOGO_WIDTH = 0.94;
-const LOGO_HEIGHT = 200;
+// The logo, cut to its ink, is at most this share of the paper's width and this many dots high (about 2 cm at
+// 203 dpi). Smaller than the paper: the printer faded and cut a logo as wide as the paper at its left edge.
+const LOGO_WIDTH = 0.8;
+const LOGO_HEIGHT = 170;
 
 function loadImage(source: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -150,27 +151,37 @@ function logoDots(image: HTMLImageElement, paper: number): HTMLCanvasElement | n
   return canvas;
 }
 
-/** Draws the rows of one copy, `cols` characters wide, on a canvas as wide as the paper's dots. */
+/** Draws the rows of one copy on a canvas as wide as the paper's dots (D-282). The picture uses a proportional font
+ * and places each label and value by dots, so the columns line up whatever the letters; `cols` sets the size. */
 export async function drawReceipt(rows: Row[], cols: number, logo: string | null): Promise<HTMLCanvasElement> {
   const width = DOTS[cols] ?? 384;
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (context === null) throw new Error("canvas");
-  // The French rows are laid out in characters: the font is sized so `cols` of them fill the paper.
-  context.font = `100px ${MONO}`;
-  const size = (width / cols / context.measureText("0").width) * 100;
-  const line = Math.round(size * 1.2);
+  // 24 dots on 58 mm paper (the size of the printer's own letters), a little more on wider paper.
+  const base = Math.round(16 + width / 48);
+  const sizes: Record<Size, number> = {
+    small: Math.round(base * 0.85),
+    normal: base,
+    large: Math.round(base * 1.35),
+  };
   const image = logo ? await loadImage(logo) : null;
   const picture = image ? logoDots(image, width) : null;
 
-  // Under a logo the company name is not printed big: the logo already says it.
-  const big = (row: Row) => "text" in row && row.big === true && !(picture && row.company);
+  // Under a logo the company name is drawn at the normal size: the logo already says it.
+  const sizeOf = (row: Row): number => {
+    if (!("text" in row || "left" in row)) return base;
+    if ("text" in row && row.ar) return Math.round(base * 1.1);
+    if ("text" in row && row.company && picture) return base;
+    return sizes[row.size ?? "normal"];
+  };
+  const lineOf = (row: Row) => Math.round(sizeOf(row) * 1.3);
   const heightOf = (row: Row) => {
-    if ("logo" in row) return picture ? picture.height + Math.round(line / 2) : 0;
-    if ("feed" in row) return row.feed * line;
-    if ("rule" in row) return line;
-    if (row.ar) return Math.round(line * 1.3);
-    return big(row) ? line * 2 : line;
+    if ("logo" in row) return picture ? picture.height + Math.round(base / 2) : 0;
+    if ("feed" in row) return row.feed * Math.round(base * 1.3);
+    if ("gap" in row) return Math.round(base / 3);
+    if ("rule" in row) return Math.round(base * 0.9);
+    return lineOf(row);
   };
   canvas.width = width;
   canvas.height = Math.max(
@@ -180,35 +191,51 @@ export async function drawReceipt(rows: Row[], cols: number, logo: string | null
   context.fillStyle = "#fff";
   context.fillRect(0, 0, width, canvas.height);
   context.fillStyle = "#000";
-  context.textBaseline = "top";
+  context.textBaseline = "middle";
+  context.textAlign = "left";
+
+  /** Draws `text` with its left edge at x, narrowed to `room` dots when longer. */
+  const put = (text: string, x: number, middle: number, room: number) => {
+    const measured = context.measureText(text).width;
+    const squeeze = measured > room ? room / measured : 1;
+    context.save();
+    context.translate(x, middle);
+    context.scale(squeeze, 1);
+    context.fillText(text, 0, 0);
+    context.restore();
+    return Math.min(measured, room);
+  };
 
   let top = 0;
   for (const row of rows) {
     const height = heightOf(row);
+    const middle = top + height / 2;
     if ("logo" in row) {
       if (picture) context.drawImage(picture, Math.round((width - picture.width) / 2), top);
     } else if ("rule" in row) {
-      const middle = top + Math.round(line / 2);
-      context.fillRect(0, middle - 1, width, 2);
-      if (row.rule === "=") context.fillRect(0, middle + 3, width, 2);
+      if (row.rule === "=") {
+        context.fillRect(0, Math.round(middle) - 3, width, 2);
+        context.fillRect(0, Math.round(middle) + 1, width, 2);
+      } else {
+        // A dashed line, lighter on the paper than a full one.
+        for (let x = 0; x < width; x += 8) context.fillRect(x, Math.round(middle) - 1, 5, 2);
+      }
+    } else if ("left" in row) {
+      const size = sizeOf(row);
+      context.direction = "ltr";
+      context.font = `${row.bold || row.strong ? "bold " : ""}${size}px ${SANS}`;
+      const right = Math.min(context.measureText(row.right).width, width * 0.7);
+      put(row.right, width - right, middle, right);
+      context.font = `${row.bold ? "bold " : ""}${size}px ${SANS}`;
+      put(row.left, 0, middle, Math.max(width - right - base / 2, base));
     } else if ("text" in row) {
-      const fontSize = row.ar ? Math.round(size * 1.15) : size;
       context.direction = row.ar ? "rtl" : "ltr";
-      context.textAlign = "left";
-      context.font = `${row.bold || row.ar ? "bold " : ""}${fontSize}px ${row.ar ? ARABIC : MONO}`;
-      const text = row.ar ? row.text : row.text.replace(/\s+$/, "");
-      let measured = context.measureText(text).width;
-      // An Arabic name longer than the paper is drawn narrower rather than cut.
-      const squeeze = measured > width ? width / measured : 1;
-      measured = Math.min(measured, width);
+      context.font = `${row.bold || row.ar ? "bold " : ""}${sizeOf(row)}px ${row.ar ? ARABIC : SANS}`;
+      const measured = Math.min(context.measureText(row.text).width, width);
       const align = row.align ?? "left";
       const x = align === "center" ? (width - measured) / 2 : align === "right" ? width - measured : 0;
-      context.save();
       // "left" puts the text's left edge at x, also right-to-left text, which the canvas joins and orders itself.
-      context.translate(x, top);
-      context.scale(squeeze, big(row) ? 2 : 1);
-      context.fillText(text, 0, 0);
-      context.restore();
+      put(row.text, x, middle, width);
     }
     top += height;
   }
