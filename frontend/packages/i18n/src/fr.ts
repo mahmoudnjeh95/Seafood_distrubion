@@ -5384,6 +5384,7 @@ export const fr = {
       paper: "Largeur du papier",
       // D-282: the receipt as a picture, so the printer prints the logo and the Arabic product names
       picture: "Imprimer en image (logo et noms des produits en arabe)",
+      logo: "Imprimer le logo (sinon le nom de la société seul)",
       accents: "Accents français (à désactiver si le texte est illisible)",
       test: "Impression d'essai",
       change: "Changer d'imprimante",

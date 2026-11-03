@@ -3,13 +3,12 @@ import { useTranslation } from "@frutti/i18n";
 import { Button, toast } from "@frutti/ui";
 import { useEffect, useState } from "react";
 
-import { rememberedLogo } from "../companyLogo";
-
 import {
   bluetoothAvailable,
   forgetPrinter,
   loadSettings,
   type PrinterSettings,
+  printedLogo,
   printReceipt,
   printTest,
   saveSettings,
@@ -95,7 +94,7 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
   useEffect(() => {
     if (!drawn) return;
     let gone = false;
-    drawReceipt(layoutReceipt(data, next, settings.cols), settings.cols, rememberedLogo())
+    drawReceipt(layoutReceipt(data, next, settings.cols), settings.cols, printedLogo(settings))
       .then((canvas) => {
         if (!gone) setPicture(canvas.toDataURL());
       })
@@ -107,7 +106,7 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
     };
     // `text` stands for the rows: the picture is drawn again when what it shows changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawn, text, settings.cols]);
+  }, [drawn, text, settings.cols, settings.logo]);
   const preview = (
     <details className="text-sm" onToggle={(event) => setShowing(event.currentTarget.open)}>
       <summary className="cursor-pointer py-1 text-ink-2">{t("truck.print.preview")}</summary>
@@ -172,6 +171,16 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
             />
             <span>{t("truck.print.picture")}</span>
           </label>
+          {settings.picture ? (
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={settings.logo}
+                onChange={(event) => change({ ...settings, logo: event.target.checked })}
+              />
+              <span>{t("truck.print.logo")}</span>
+            </label>
+          ) : null}
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
