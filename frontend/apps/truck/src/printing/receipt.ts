@@ -39,12 +39,22 @@ export type ReceiptData = {
 };
 
 export type Align = "left" | "center" | "right";
-/** `ar`: Arabic text, drawn right to left; only a picture prints it (the text mode leaves the row out, D-282).
- * `logo`: the company logo, at the top of a printed picture (nothing in the text mode). */
+/** How big a row is drawn in a picture: `small` for the seller's details, `large` for the title and the total. In the
+ * text mode, `large` is double height and the rest the printer's normal size. */
+export type Size = "small" | "normal" | "large";
+
+/**
+ * - text: one line. `ar`: Arabic, drawn right to left; only a picture prints it (the text mode leaves it out, D-282).
+ *   `company`: the company name, drawn smaller under a logo, which already says it.
+ * - left/right: a label and its value, the value against the right edge (`strong`: the value in bold).
+ * - rule, feed (blank lines), gap (a little space between goods; nothing in the text mode), logo (pictures only).
+ */
 export type Row =
-  | { text: string; align?: Align; bold?: boolean; big?: boolean; ar?: boolean; company?: boolean }
+  | { text: string; align?: Align; bold?: boolean; size?: Size; ar?: boolean; company?: boolean }
+  | { left: string; right: string; bold?: boolean; strong?: boolean; size?: Size }
   | { rule: "-" | "=" }
   | { feed: number }
+  | { gap: true }
   | { logo: true };
 
 /** Characters per line for the usual paper widths: 58 mm = 32, 75 to 76 mm = 42, 80 mm = 48. */
@@ -116,56 +126,24 @@ const TITLES: Record<ReceiptKind, { title: string; party: string }> = {
   purchase: { title: "REÇU D'ACHAT", party: "Fournisseur" },
 };
 
-// The three number columns of the goods table, right-aligned: kilos, price per kg, amount. Together 32 characters,
-// the 58 mm paper; on wider paper the product name has room on the same line.
-const QTY = 10;
-const PRICE = 10;
-const AMOUNT = 12;
-const NUMBERS = QTY + PRICE + AMOUNT;
-// Below this many characters left for the name, the name has its own line above its numbers.
-const NAME_ROOM = 12;
-
-const numbers = (qty: string, price: string, total: string) =>
-  qty.padStart(QTY) + price.padStart(PRICE) + total.padStart(AMOUNT);
-
-function goodsTable(lines: ReceiptLine[], cols: number): Row[] {
-  const room = cols - NUMBERS;
-  const wide = room >= NAME_ROOM;
-  const rows: Row[] = [];
-  const head = numbers("Qté kg", "Prix", "Montant");
-  if (wide) rows.push({ text: "Article".padEnd(room) + head, bold: true });
-  else rows.push({ text: "Article", bold: true }, { text: head, align: "right", bold: true });
-  rows.push({ rule: "-" });
-  for (const line of lines) {
-    const values = numbers(
-      amount(line.quantity),
-      line.unitPrice === undefined ? "" : amount(line.unitPrice),
-      amount(line.amount),
-    );
-    // A very large number does not fit the columns: kilos and price on one line, the amount on the next.
-    const arabic: Row[] = line.nameAr ? [{ text: line.nameAr, align: wide ? "left" : "right", ar: true }] : [];
-    if (values.length > cols) {
-      for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
-      rows.push(...arabic);
-      const each = line.unitPrice === undefined ? "" : ` x ${amount(line.unitPrice)}`;
-      rows.push({ text: `  ${kilos(line.quantity)}${each}` }, { text: amount(line.amount), align: "right" });
-      continue;
-    }
-    if (wide) {
-      const names = wrap(line.name, room - 1);
-      rows.push({ text: (names[0] ?? "").padEnd(room) + values });
-      for (const text of names.slice(1)) rows.push({ text });
-      rows.push(...arabic);
-    } else {
-      for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
-      rows.push(...arabic);
-      rows.push({ text: values, align: "right" });
-    }
-  }
+/** Each product on its rows (D-282): its name in bold, its Arabic name, then "kilos x price" and the amount. */
+function goods(lines: ReceiptLine[], cols: number): Row[] {
+  const rows: Row[] = [{ left: "Désignation", right: "Montant", bold: true }, { rule: "-" }];
+  lines.forEach((line, index) => {
+    if (index > 0) rows.push({ gap: true });
+    for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
+    if (line.nameAr) rows.push({ text: line.nameAr, align: "right", ar: true });
+    const each = line.unitPrice === undefined ? "" : ` x ${amount(line.unitPrice)}`;
+    const detail = `${kilos(line.quantity)}${each}`;
+    const total = amount(line.amount);
+    // Too long for one line of the text mode: the amount goes on its own line.
+    if (detail.length + total.length + 1 > cols) rows.push({ text: detail }, { left: "", right: total });
+    else rows.push({ left: detail, right: total });
+  });
   return rows;
 }
 
-/** Who keeps this paper, printed big at the top of the office copy so the two papers are never mixed up. */
+/** Who keeps this paper, printed at the top of the office copy so the two papers are never mixed up. */
 export const COPY_TITLES: Record<ReceiptCopy, string> = { party: "", office: "COPIE BUREAU" };
 
 export function layoutReceipt(data: ReceiptData, copy: ReceiptCopy, cols: number): Row[] {
@@ -174,40 +152,43 @@ export function layoutReceipt(data: ReceiptData, copy: ReceiptCopy, cols: number
   const rows: Row[] = [{ logo: true }];
   if (data.company !== "") {
     for (const text of wrap(data.company, cols)) {
-      rows.push({ text, align: "center", bold: true, big: true, company: true });
+      rows.push({ text, align: "center", bold: true, size: "large", company: true });
     }
   }
   const seller = data.seller ?? {};
-  if (seller.address) for (const text of wrap(seller.address, cols)) rows.push({ text, align: "center" });
-  if (seller.phone) rows.push({ text: `Tél : ${seller.phone}`, align: "center" });
-  if (seller.taxId) rows.push({ text: `MF : ${seller.taxId}`, align: "center" });
+  if (seller.address) {
+    for (const text of wrap(seller.address, cols)) rows.push({ text, align: "center", size: "small" });
+  }
+  if (seller.phone) rows.push({ text: `Tél : ${seller.phone}`, align: "center", size: "small" });
+  if (seller.taxId) rows.push({ text: `MF : ${seller.taxId}`, align: "center", size: "small" });
   rows.push({ rule: "=" });
-  rows.push({ text: title, align: "center", bold: true });
+  rows.push({ text: title, align: "center", bold: true, size: "large" });
   if (copy === "office") rows.push({ text: `** ${COPY_TITLES.office} **`, align: "center", bold: true });
   rows.push({ rule: "-" });
   const when = frenchDate(data.date);
-  rows.push({ text: twoColumns("N°", data.number, cols) });
-  rows.push({ text: twoColumns("Date", when.day, cols) });
-  if (when.time !== "") rows.push({ text: twoColumns("Heure", when.time, cols) });
+  rows.push({ left: "N°", right: data.number, strong: true });
+  rows.push({ left: "Date", right: when.time === "" ? when.day : `${when.day} ${when.time}` });
   const names = wrap(data.partyName, cols - party.length - 2);
-  rows.push({ text: twoColumns(party, names[0] ?? "", cols) });
-  for (const text of names.slice(1)) rows.push({ text, align: "right" });
+  rows.push({ left: party, right: names[0] ?? "", strong: true });
+  for (const text of names.slice(1)) rows.push({ text, align: "right", bold: true });
   rows.push({ rule: "-" });
-  rows.push(...goodsTable(data.lines, cols));
+  rows.push(...goods(data.lines, cols));
   rows.push({ rule: "-" });
-  rows.push({ text: twoColumns("TOTAL DT", amount(data.total), cols), bold: true, big: true });
-  rows.push({ text: twoColumns("Payé", amount(data.paid), cols) });
-  if (Number(data.rest) > 0) rows.push({ text: twoColumns("Reste à payer", amount(data.rest), cols), bold: true });
-  if (data.note) for (const text of wrap(data.note, cols)) rows.push({ text });
+  rows.push({ left: "TOTAL", right: `${amount(data.total)} DT`, bold: true, size: "large" });
+  rows.push({ left: "Payé", right: amount(data.paid) });
+  if (Number(data.rest) > 0) rows.push({ left: "Reste à payer", right: amount(data.rest), bold: true });
+  if (data.note) for (const text of wrap(data.note, cols)) rows.push({ text, size: "small" });
   rows.push({ rule: "-" });
   if (copy === "office") {
-    rows.push({ feed: 2 });
+    rows.push({ feed: 1 });
     rows.push({ text: `Signature ${party.toLowerCase()} :` });
     rows.push({ feed: 3 });
   } else {
-    rows.push({ text: "Merci de votre confiance", align: "center" });
+    rows.push({ text: "Merci de votre confiance", align: "center", bold: true });
   }
-  if (data.by) for (const text of wrap(`Préparé par : ${data.by}`, cols)) rows.push({ text, align: "center" });
+  if (data.by) {
+    for (const text of wrap(`Préparé par : ${data.by}`, cols)) rows.push({ text, align: "center", size: "small" });
+  }
   rows.push({ feed: 3 });
   return rows;
 }
@@ -222,9 +203,10 @@ function placed(text: string, align: Align, cols: number): string {
 export function previewText(rows: Row[], cols: number): string {
   return rows
     .flatMap((row) => {
-      if ("logo" in row) return [];
+      if ("logo" in row || "gap" in row) return [];
       if ("rule" in row) return [row.rule.repeat(cols)];
       if ("feed" in row) return ["\n".repeat(row.feed - 1)];
+      if ("left" in row) return [twoColumns(row.left, row.right, cols)];
       return [placed(row.text, row.align ?? "left", cols)];
     })
     .join("\n");

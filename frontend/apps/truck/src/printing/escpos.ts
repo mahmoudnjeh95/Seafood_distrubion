@@ -1,5 +1,5 @@
 // ESC/POS bytes, the command set nearly every small thermal printer understands.
-import type { Row } from "./receipt";
+import { type Row, twoColumns } from "./receipt";
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -62,16 +62,19 @@ export function escposJob(copies: Row[][], { cols, accents }: EscposOptions): Ui
   for (const rows of copies) {
     for (const row of rows) {
       // No logo and no Arabic in the text mode: the printer's own characters have neither (D-282).
-      if ("logo" in row || ("ar" in row && row.ar)) continue;
+      if ("logo" in row || "gap" in row || ("ar" in row && row.ar)) continue;
       if ("feed" in row) {
         bytes.push(ESC, 0x64, row.feed);
       } else if ("rule" in row) {
         bytes.push(ESC, 0x61, 0, ...encodeText(row.rule.repeat(cols), accents), 0x0a);
       } else {
-        const align = row.align === "center" ? 1 : row.align === "right" ? 2 : 0;
+        const text = "left" in row ? twoColumns(row.left, row.right, cols) : row.text;
+        const where = "left" in row ? undefined : row.align;
+        const align = where === "center" ? 1 : where === "right" ? 2 : 0;
         // Double height only: the line keeps its width, so the right-hand column stays on the paper.
-        bytes.push(ESC, 0x61, align, ESC, 0x45, row.bold ? 1 : 0, GS, 0x21, row.big ? 0x01 : 0x00);
-        bytes.push(...encodeText(row.text, accents), 0x0a, GS, 0x21, 0x00, ESC, 0x45, 0x00);
+        const tall = row.size === "large";
+        bytes.push(ESC, 0x61, align, ESC, 0x45, row.bold ? 1 : 0, GS, 0x21, tall ? 0x01 : 0x00);
+        bytes.push(...encodeText(text, accents), 0x0a, GS, 0x21, 0x00, ESC, 0x45, 0x00);
       }
     }
     bytes.push(GS, 0x56, 0x42, 0x00); // feed and cut

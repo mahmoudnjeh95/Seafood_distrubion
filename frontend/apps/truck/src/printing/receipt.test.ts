@@ -41,15 +41,14 @@ describe("receipt layout", () => {
     const lines = text.split("\n").map((line) => line.trim());
     expect(lines.slice(0, 4)).toEqual(["Frutti Del Mare", "Sakiet Ezzit, Sfax", "Tél : 74 000 000", "MF : 1234567A"]);
     expect(lines).toContain("Préparé par : Ahmed");
-    expect(text).toMatch(/Heure\s+\d\d:\d\d/);
+    expect(text).toMatch(/Date\s+\d\d\/\d\d\/\d{4} \d\d:\d\d/);
   });
 
-  test("the goods are a table of kilos, price and amount", () => {
+  test("each product: its name, then kilos x price on the left and the amount on the right", () => {
     const narrow = previewText(layoutReceipt(SALE, "party", 32), 32).split("\n");
-    expect(narrow).toContain("     4,000    32,500     130,000");
-    const wide = previewText(layoutReceipt(SALE, "party", 48), 48).split("\n");
-    expect(wide.some((line) => line.startsWith("Article") && line.endsWith("Montant"))).toBe(true);
-    expect(wide.some((line) => line.startsWith("Crevettes") && line.endsWith("130,000"))).toBe(true);
+    expect(narrow).toContain(twoColumns("Désignation", "Montant", 32));
+    expect(narrow).toContain(twoColumns("4,000 kg x 32,500", "130,000", 32));
+    expect(narrow).toContain(twoColumns("TOTAL", "130,000 DT", 32));
   });
 
   test("a huge amount that does not fit the columns still stays on the paper", () => {
