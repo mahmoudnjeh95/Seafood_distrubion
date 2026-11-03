@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { encodeText, escposJob } from "./escpos";
+import { encodeText, escposJob, rasterJob, toBits } from "./escpos";
 import { amount, layoutReceipt, previewText, type ReceiptData, twoColumns, wrap } from "./receipt";
 
 const SALE: ReceiptData = {
@@ -98,6 +98,38 @@ describe("receipt layout", () => {
 
   test("a purchase receipt names the supplier", () => {
     expect(previewText(layoutReceipt({ ...SALE, kind: "purchase" }, "office", 42), 42)).toContain("Fournisseur");
+  });
+});
+
+describe("Arabic names and the logo (D-282)", () => {
+  const withArabic: ReceiptData = { ...SALE, lines: [{ ...SALE.lines[0]!, nameAr: "قمبري مقشّر" }] };
+
+  test("the Arabic name follows the French one, the logo heads the paper", () => {
+    const rows = layoutReceipt(withArabic, "party", 32);
+    expect(rows[0]).toEqual({ logo: true });
+    const at = rows.findIndex((row) => "ar" in row && row.ar);
+    expect(rows[at]).toEqual({ text: "قمبري مقشّر", align: "right", ar: true });
+    expect(rows[at - 1]).toMatchObject({ text: "21/25" });
+    expect(previewText(rows, 32)).toContain("قمبري مقشّر");
+  });
+
+  test("the text mode prints neither the Arabic nor the logo", () => {
+    const text = escposJob([layoutReceipt(withArabic, "party", 32)], { cols: 32, accents: true });
+    const plain = escposJob([layoutReceipt(SALE, "party", 32)], { cols: 32, accents: true });
+    expect([...text]).toEqual([...plain]);
+  });
+
+  test("a picture is sent as dots, one bit each, then cut", () => {
+    // 16 dots wide, 2 rows: the first row black, the second white.
+    const rgba = new Uint8ClampedArray(16 * 2 * 4);
+    for (let i = 0; i < 16; i += 1) rgba.set([0, 0, 0, 255], i * 4);
+    for (let i = 16; i < 32; i += 1) rgba.set([255, 255, 255, 255], i * 4);
+    const bitmap = toBits(rgba, 16, 2);
+    expect([...bitmap.bits]).toEqual([0xff, 0xff, 0, 0]);
+    const bytes = [...rasterJob([bitmap])];
+    expect(bytes.slice(0, 10)).toEqual([0x1b, 0x40, 0x1d, 0x76, 0x30, 0, 2, 0, 2, 0]);
+    expect(bytes.slice(10, 14)).toEqual([0xff, 0xff, 0, 0]);
+    expect(bytes.slice(-4)).toEqual([0x1d, 0x56, 0x42, 0x00]);
   });
 });
 

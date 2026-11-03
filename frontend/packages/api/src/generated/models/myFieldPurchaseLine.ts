@@ -26,4 +26,5 @@ export interface MyFieldPurchaseLine {
   readonly unit_cost: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
+  readonly product_name_ar: string;
 }

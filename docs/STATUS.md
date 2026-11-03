@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; next free decision D-282)_
+_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; receipt picture with logo and Arabic names, Tunisian Arabic, D-282; next free decision D-283)_
 
 ## Where we are
 
@@ -10,6 +10,9 @@ _Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, relo
   today's delivered BL are listed again (`my-deliveries/done`) in Mes livraisons and on the sale screen. A new load on a
   sent day locks the phone to Ma journée until "Je confirme la reprise" (`my-day/resume`); the server refuses the rest
   meanwhile. Check on staging (Android): deliver a BL, print twice; send the day, reload the truck, the tabs grey out.
+- **D-282 (same branch):** the receipt prints as a picture (canvas → ESC/POS raster): logo at the top, each product's
+  Arabic name under the French one, the rest in French; "Imprimer en image" off = old text mode. The driver app's
+  Arabic is now Tunisian derja (provisional, native review in P3-T09). Check on the real printer: speed and darkness.
 - **P3-T10 print after confirmation (D-278 addendum, branch `claude/practical-allen-66nje7`):** "Imprimer le reçu" on the
   purchase confirmation (sent, kept offline or changed) and on a sale kept on the phone ("Provisoire" receipt). Check on
   staging (Android, Chrome): send a purchase, the summary shows the button; in airplane mode save a sale, print it.
@@ -94,8 +97,8 @@ _Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, relo
 
 ## Next step
 
-0. D-281: open the PR from `claude/serene-gates-6iaad1` when the owner asks, wait for green CI, merge (recheck the
-   decision and `fleet` migration numbers first). Then the real-printer check of D-278 still stands.
+0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
+   a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.
 0. P1-T16 (D-269): merge the PR once green. On staging: a receipt with an accepted weight and a cost change, then Prix du jour and the stock page.
 0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.

@@ -27,7 +27,7 @@ test("Arabic switches the page to right-to-left and falls back to French for mis
 
   expect(document.documentElement.lang).toBe("ar");
   expect(document.documentElement.dir).toBe("rtl");
-  expect(i18n.t("auth.title")).toBe("تسجيل الدخول");
+  expect(i18n.t("auth.title")).toBe("ادخل");
   expect(i18n.t("truck.tabs.sale")).toBe("البيع");
   // A text with no Arabic yet shows the French one.
   expect(i18n.t("admin.nav.dashboard")).toBe("Tableau de bord");

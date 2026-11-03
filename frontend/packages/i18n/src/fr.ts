@@ -5382,6 +5382,8 @@ export const fr = {
       unsupported: "Ce téléphone ne peut pas imprimer en Bluetooth depuis l'application. Utilisez « Envoyer le reçu ».",
       settings: "Réglages de l'imprimante",
       paper: "Largeur du papier",
+      // D-282: the receipt as a picture, so the printer prints the logo and the Arabic product names
+      picture: "Imprimer en image (logo et noms des produits en arabe)",
       accents: "Accents français (à désactiver si le texte est illisible)",
       test: "Impression d'essai",
       change: "Changer d'imprimante",

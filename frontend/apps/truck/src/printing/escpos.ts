@@ -61,6 +61,8 @@ export function escposJob(copies: Row[][], { cols, accents }: EscposOptions): Ui
   if (accents) bytes.push(ESC, 0x74, 19); // code page 858
   for (const rows of copies) {
     for (const row of rows) {
+      // No logo and no Arabic in the text mode: the printer's own characters have neither (D-282).
+      if ("logo" in row || ("ar" in row && row.ar)) continue;
       if ("feed" in row) {
         bytes.push(ESC, 0x64, row.feed);
       } else if ("rule" in row) {
@@ -75,4 +77,45 @@ export function escposJob(copies: Row[][], { cols, accents }: EscposOptions): Ui
     bytes.push(GS, 0x56, 0x42, 0x00); // feed and cut
   }
   return Uint8Array.from(bytes);
+}
+
+/** A black and white picture, one bit per dot (1 = black), `width` dots wide (a multiple of 8). */
+export type Bitmap = { width: number; height: number; bits: Uint8Array };
+
+// A band of at most this many dot rows per command: small printers have small buffers.
+const BAND = 128;
+
+/** One print job of pictures (D-282): each copy is printed as dots (GS v 0), then fed and cut. */
+export function rasterJob(copies: Bitmap[]): Uint8Array {
+  const bytes: number[] = [ESC, 0x40];
+  for (const { width, height, bits } of copies) {
+    const rowBytes = width / 8;
+    for (let top = 0; top < height; top += BAND) {
+      const rows = Math.min(BAND, height - top);
+      bytes.push(GS, 0x76, 0x30, 0, rowBytes & 0xff, rowBytes >> 8, rows & 0xff, rows >> 8);
+      for (let at = top * rowBytes; at < (top + rows) * rowBytes; at += 1) bytes.push(bits[at] ?? 0);
+    }
+    bytes.push(ESC, 0x64, 3, GS, 0x56, 0x42, 0x00);
+  }
+  return Uint8Array.from(bytes);
+}
+
+/** RGBA pixels (a canvas) to one bit per dot: dark enough is black. */
+export function toBits(rgba: Uint8ClampedArray, width: number, height: number): Bitmap {
+  const rowBytes = width / 8;
+  const bits = new Uint8Array(rowBytes * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const at = (y * width + x) * 4;
+      const alpha = (rgba[at + 3] ?? 0) / 255;
+      // Transparent counts as white paper.
+      const light =
+        255 - alpha * (255 - ((rgba[at] ?? 0) * 0.299 + (rgba[at + 1] ?? 0) * 0.587 + (rgba[at + 2] ?? 0) * 0.114));
+      if (light < 128) {
+        const index = y * rowBytes + (x >> 3);
+        bits[index] = (bits[index] ?? 0) | (0x80 >> (x & 7));
+      }
+    }
+  }
+  return { width, height, bits };
 }

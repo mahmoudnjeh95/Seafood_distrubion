@@ -22702,12 +22702,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        product_name_ar:
+          type: string
+          readOnly: true
       required:
       - amount
       - declared_quantity
       - id
       - owed_quantity
       - product
+      - product_name_ar
       - proposed_product
       - received_quantity
       - unit_cost
@@ -22813,6 +22817,9 @@ components:
         product_name:
           type: string
           readOnly: true
+        product_name_ar:
+          type: string
+          readOnly: true
         quantity:
           type: string
           format: decimal
@@ -22832,6 +22839,7 @@ components:
       - photo_url
       - product_id
       - product_name
+      - product_name_ar
       - quantity
       - unit_price
     MySupplier:
@@ -26089,9 +26097,13 @@ components:
         name:
           type: string
           readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
       required:
       - id
       - name
+      - name_ar
       - reference
     QuoteRef:
       type: object

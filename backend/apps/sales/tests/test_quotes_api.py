@@ -83,7 +83,7 @@ def test_creating_a_quote_answers_it_with_amounts_as_strings(api, customer, crev
     assert body["lines"] == [
         {
             "id": body["lines"][0]["id"],
-            "product": {"id": crevette.pk, "reference": "CR-001", "name": "Crevette Royale"},
+            "product": {"id": crevette.pk, "reference": "CR-001", "name": "Crevette Royale", "name_ar": ""},
             "quantity": "5.000",
             "unit_price": "42.000",
             "discount_rate": "10.00",

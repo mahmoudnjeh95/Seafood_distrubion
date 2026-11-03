@@ -17,6 +17,7 @@ import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } fro
 
 import { BackToDay } from "./BackToDay";
 import { ClosingPage } from "./ClosingPage";
+import { remember, rememberedLogo } from "./companyLogo";
 import { DayPage } from "./DayPage";
 import { DeliveriesPage } from "./DeliveriesPage";
 import { ExpensePage } from "./ExpensePage";
@@ -42,29 +43,6 @@ import { forgetPoints, TRACKING_ENABLED, useLocationTracking } from "./tracking"
 const queryClient = createQueryClient();
 // Without signal, ask anyway: the phone answers from what it saved (public/sw.js) instead of waiting forever.
 queryClient.setDefaultOptions({ queries: { networkMode: "offlineFirst" } });
-
-// The phone keeps a copy of the company logo, so the login screen and the browser-tab icon show it before any login
-// (D-125, D-154). It is a data: address, not the logo's URL: the server serves the logo only to a logged-in user, so
-// the URL fails on the login screen. Not a secret: it is the logo every document already carries. Storage can be
-// blocked: then the default icon stays.
-const LOGO_KEY = "frutti-truck-logo";
-
-function rememberedLogo(): string | null {
-  try {
-    return localStorage.getItem(LOGO_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function remember(logo: string | null): void {
-  try {
-    if (logo) localStorage.setItem(LOGO_KEY, logo);
-    else localStorage.removeItem(LOGO_KEY);
-  } catch {
-    // Not saved: the next login screen shows the default icon until a login works again.
-  }
-}
 
 /** The logo as a data: address, read with the logged-in driver's session. */
 async function logoAsDataUrl(url: string): Promise<string | null> {

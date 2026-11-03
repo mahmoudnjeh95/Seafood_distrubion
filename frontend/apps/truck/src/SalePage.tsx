@@ -137,6 +137,7 @@ export function SalePage() {
       estimate: {
         lines: lines.map((line) => ({
           name: line.product_name,
+          nameAr: line.product_name_ar,
           kilos: kilos[line.product_id] ?? "",
           amount: (lineMillimes(line) / 1000).toFixed(3),
         })),
@@ -519,7 +520,12 @@ function QueuedReceipt({ sale, onNew }: { sale: QueuedSale; onNew: () => void })
           date: madeAtOf(sale),
           partyName: sale.label,
           by: session.data?.user.first_name,
-          lines: sale.estimate.lines.map((line) => ({ name: line.name, quantity: line.kilos, amount: line.amount })),
+          lines: sale.estimate.lines.map((line) => ({
+            name: line.name,
+            nameAr: line.nameAr,
+            quantity: line.kilos,
+            amount: line.amount,
+          })),
           total: sale.estimate.total,
           paid: sale.estimate.paid,
           rest: amountLeft(sale.estimate.total, sale.estimate.paid),

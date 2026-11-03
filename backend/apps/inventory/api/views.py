@@ -453,6 +453,7 @@ class MyStockView(APIView):
                 {
                     "product_id": row["product_id"],
                     "product_name": row["product__name"],
+                    "product_name_ar": product.name_ar,
                     "quantity": row["quantity"],
                     "unit_price": None if price is None else price.price,
                     "photo_url": _photo_url(product),

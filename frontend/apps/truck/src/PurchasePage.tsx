@@ -264,6 +264,7 @@ function PurchaseForm({ purchase, onSaved }: { purchase?: MyFieldPurchase; onSav
       name: line.isNew
         ? line.newName.trim()
         : (products.data?.find((product) => String(product.id) === line.product)?.name ?? ""),
+      nameAr: line.isNew ? undefined : products.data?.find((product) => String(product.id) === line.product)?.name_ar,
       quantity: parseDecimalInput(line.kilos.trim(), 3) ?? line.kilos,
       unitPrice: parseDecimalInput(line.price.trim(), 3) ?? line.price,
       amount: lineAmount(line.kilos, line.price) ?? "0",

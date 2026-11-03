@@ -1,13 +1,15 @@
 // Receipt layout for a small thermal printer. Pure functions: a receipt becomes rows of text, the rows become
-// either a plain-text preview or ESC/POS bytes (escpos.ts). Receipts are always in French (Q13), whatever
-// language the driver uses in the app, and every number is written the way the paper invoices do: "1 250,000".
+// either a plain-text preview, ESC/POS text bytes (escpos.ts) or a picture (raster.ts). Receipts are in French
+// (Q13), whatever language the driver uses in the app; only the product names also come in Arabic (D-282). Every
+// number is written the way the paper invoices do: "1 250,000".
 
 export type ReceiptKind = "sale" | "purchase";
 /** Who keeps this paper: the customer or supplier, or the office (with a line for the signature). */
 export type ReceiptCopy = "party" | "office";
 
-/** `unitPrice` is left out when only the kilos and the amount are known (a sale still kept on the phone). */
-export type ReceiptLine = { name: string; quantity: string; unitPrice?: string; amount: string };
+/** `unitPrice` is left out when only the kilos and the amount are known (a sale still kept on the phone).
+ * `nameAr`: the product's Arabic name, printed under the French one when the product has one (D-282). */
+export type ReceiptLine = { name: string; nameAr?: string; quantity: string; unitPrice?: string; amount: string };
 
 /** The number printed on a receipt the office has not received yet: it gets its real number when it is sent. */
 export const PROVISIONAL = "Provisoire";
@@ -37,8 +39,13 @@ export type ReceiptData = {
 };
 
 export type Align = "left" | "center" | "right";
+/** `ar`: Arabic text, drawn right to left; only a picture prints it (the text mode leaves the row out, D-282).
+ * `logo`: the company logo, at the top of a printed picture (nothing in the text mode). */
 export type Row =
-  { text: string; align?: Align; bold?: boolean; big?: boolean } | { rule: "-" | "=" } | { feed: number };
+  | { text: string; align?: Align; bold?: boolean; big?: boolean; ar?: boolean }
+  | { rule: "-" | "=" }
+  | { feed: number }
+  | { logo: true };
 
 /** Characters per line for the usual paper widths: 58 mm = 32, 75 to 76 mm = 42, 80 mm = 48. */
 export const WIDTHS = [32, 42, 48] as const;
@@ -136,8 +143,10 @@ function goodsTable(lines: ReceiptLine[], cols: number): Row[] {
       amount(line.amount),
     );
     // A very large number does not fit the columns: kilos and price on one line, the amount on the next.
+    const arabic: Row[] = line.nameAr ? [{ text: line.nameAr, align: wide ? "left" : "right", ar: true }] : [];
     if (values.length > cols) {
       for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
+      rows.push(...arabic);
       const each = line.unitPrice === undefined ? "" : ` x ${amount(line.unitPrice)}`;
       rows.push({ text: `  ${kilos(line.quantity)}${each}` }, { text: amount(line.amount), align: "right" });
       continue;
@@ -146,8 +155,10 @@ function goodsTable(lines: ReceiptLine[], cols: number): Row[] {
       const names = wrap(line.name, room - 1);
       rows.push({ text: (names[0] ?? "").padEnd(room) + values });
       for (const text of names.slice(1)) rows.push({ text });
+      rows.push(...arabic);
     } else {
       for (const text of wrap(line.name, cols)) rows.push({ text, bold: true });
+      rows.push(...arabic);
       rows.push({ text: values, align: "right" });
     }
   }
@@ -159,7 +170,8 @@ export const COPY_TITLES: Record<ReceiptCopy, string> = { party: "", office: "CO
 
 export function layoutReceipt(data: ReceiptData, copy: ReceiptCopy, cols: number): Row[] {
   const { title, party } = TITLES[data.kind];
-  const rows: Row[] = [];
+  // The logo heads a printed picture; the text mode and the preview text leave it out.
+  const rows: Row[] = [{ logo: true }];
   if (data.company !== "") {
     for (const text of wrap(data.company, cols)) rows.push({ text, align: "center", bold: true, big: true });
   }
@@ -207,10 +219,11 @@ function placed(text: string, align: Align, cols: number): string {
 /** The receipt as plain text, the way it comes out of the printer (the on-screen preview and the tests). */
 export function previewText(rows: Row[], cols: number): string {
   return rows
-    .map((row) => {
-      if ("rule" in row) return row.rule.repeat(cols);
-      if ("feed" in row) return "\n".repeat(row.feed - 1);
-      return placed(row.text, row.align ?? "left", cols);
+    .flatMap((row) => {
+      if ("logo" in row) return [];
+      if ("rule" in row) return [row.rule.repeat(cols)];
+      if ("feed" in row) return ["\n".repeat(row.feed - 1)];
+      return [placed(row.text, row.align ?? "left", cols)];
     })
     .join("\n");
 }

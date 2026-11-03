@@ -532,6 +532,7 @@ def test_a_bl_the_driver_delivered_today_is_listed_again_with_what_was_delivered
     assert delivered.status_code == 200, delivered.json()
     (again,) = phone.get(reverse("my-delivered")).json()
     assert (again["id"], again["delivery_status"], again["lines"][0]["quantity"]) == (bl["id"], "partial", "4.000")
+    assert again["lines"][0]["product"]["name_ar"] == crevette.name_ar  # printed under the French name (D-282)
     # Another driver does not see it.
     other = MembershipFactory.create(organization=organization, role=Role.DRIVER)
     assert client_for(other).get(reverse("my-delivered")).json() == []

@@ -6,6 +6,7 @@ import { truckIsEmpty } from "./myStock";
 const line = (product_id: number, quantity: string): MyStockLine => ({
   product_id,
   product_name: `P${product_id}`,
+  product_name_ar: "",
   quantity,
   unit_price: "10.000",
   photo_url: null,

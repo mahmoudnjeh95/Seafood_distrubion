@@ -1,7 +1,9 @@
 import { useGetMyReceiptHeader } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Button, toast } from "@frutti/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { rememberedLogo } from "../companyLogo";
 
 import {
   bluetoothAvailable,
@@ -12,6 +14,7 @@ import {
   printTest,
   saveSettings,
 } from "./printer";
+import { drawReceipt } from "./raster";
 import { layoutReceipt, previewText, type ReceiptCopy, type ReceiptData, WIDTHS } from "./receipt";
 
 const PAPER = { 32: "58 mm", 42: "75 mm", 48: "80 mm" } as const;
@@ -38,6 +41,9 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
   const [settings, setSettings] = useState<PrinterSettings>(loadSettings);
   const [busy, setBusy] = useState(false);
   const [printed, setPrinted] = useState<ReceiptCopy[]>([]);
+  // The preview picture, drawn only while the preview is open.
+  const [showing, setShowing] = useState(false);
+  const [picture, setPicture] = useState<string | null>(null);
   const supported = bluetoothAvailable();
   const supplier = receipt.kind === "purchase";
 
@@ -83,12 +89,40 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
     return t(supplier ? "truck.print.partySupplier" : "truck.print.party");
   };
 
+  const rows = layoutReceipt(data, next, settings.cols);
+  const text = previewText(rows, settings.cols);
+  const drawn = showing && settings.picture;
+  useEffect(() => {
+    if (!drawn) return;
+    let gone = false;
+    drawReceipt(layoutReceipt(data, next, settings.cols), settings.cols, rememberedLogo())
+      .then((canvas) => {
+        if (!gone) setPicture(canvas.toDataURL());
+      })
+      .catch(() => {
+        if (!gone) setPicture(null);
+      });
+    return () => {
+      gone = true;
+    };
+    // `text` stands for the rows: the picture is drawn again when what it shows changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawn, text, settings.cols]);
   const preview = (
-    <details className="text-sm">
+    <details className="text-sm" onToggle={(event) => setShowing(event.currentTarget.open)}>
       <summary className="cursor-pointer py-1 text-ink-2">{t("truck.print.preview")}</summary>
-      <pre className="overflow-x-auto rounded-control border border-line bg-surface p-2 font-mono text-xs leading-snug">
-        {previewText(layoutReceipt(data, next, settings.cols), settings.cols)}
-      </pre>
+      {settings.picture && picture !== null ? (
+        // The picture the printer gets, logo and Arabic names included (D-282).
+        <img
+          src={picture}
+          alt={t("truck.print.preview")}
+          className="mx-auto w-full max-w-xs border border-line bg-white"
+        />
+      ) : (
+        <pre className="overflow-x-auto rounded-control border border-line bg-surface p-2 font-mono text-xs leading-snug">
+          {text}
+        </pre>
+      )}
     </details>
   );
 
@@ -129,6 +163,14 @@ export function PrintButton({ receipt }: { receipt: ReceiptData }) {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={settings.picture}
+              onChange={(event) => change({ ...settings, picture: event.target.checked })}
+            />
+            <span>{t("truck.print.picture")}</span>
           </label>
           <label className="flex items-center gap-3">
             <input

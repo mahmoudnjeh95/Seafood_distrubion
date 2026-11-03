@@ -17,6 +17,7 @@ export function purchaseReceipt(purchase: MyFieldPurchase, company: string, by: 
     by,
     lines: purchase.lines.map((line) => ({
       name: line.product?.name ?? line.proposed_product,
+      nameAr: line.product_name_ar,
       quantity: line.received_quantity ?? line.declared_quantity,
       unitPrice: line.unit_cost,
       amount: line.amount,
@@ -41,6 +42,7 @@ export function saleReceipt(sale: SaleDetail, company: string, by: string | unde
       .filter((line) => Number(line.quantity) > 0)
       .map((line) => ({
         name: line.product.name,
+        nameAr: line.product.name_ar,
         quantity: line.quantity,
         unitPrice: line.unit_price,
         amount: line.amount,
@@ -68,7 +70,7 @@ export function keptDeliveryReceipt(
     const amount = Math.round(
       (Number(quantity) * millimes(line.unit_price) * (100 - Number(line.discount_rate))) / 100,
     );
-    return [{ name: line.product.name, quantity, unitPrice: line.unit_price, amount }];
+    return [{ name: line.product.name, nameAr: line.product.name_ar, quantity, unitPrice: line.unit_price, amount }];
   });
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
   const paid = millimes(item.data.amount_paid ?? "0");

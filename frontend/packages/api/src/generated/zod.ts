@@ -6841,7 +6841,8 @@ export const CreateInvoiceResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
@@ -7065,7 +7066,8 @@ export const GetInvoiceResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
@@ -7308,7 +7310,8 @@ export const UpdateInvoiceResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
@@ -7640,7 +7643,8 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
@@ -7865,7 +7869,8 @@ export const IssueInvoiceResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "product_reference": zod.string(),
   "product_name": zod.string(),
@@ -11307,7 +11312,8 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', listMyDeliveriesResponseLinesItemUnitPriceRegExp),
@@ -11508,7 +11514,8 @@ export const DeliverMyDeliveryResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', deliverMyDeliveryResponseLinesItemUnitPriceRegExp),
@@ -11687,7 +11694,8 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', notDeliveredMyDeliveryResponseLinesItemUnitPriceRegExp),
@@ -11852,7 +11860,8 @@ export const ListMyDeliveredResponseItem = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', listMyDeliveredResponseLinesItemUnitPriceRegExp),
@@ -12019,7 +12028,8 @@ export const ListMyFieldPurchasesResponseItem = zod.object({
   "received_quantity": zod.stringFormat('decimal', listMyFieldPurchasesResponseLinesItemReceivedQuantityRegExp).nullable(),
   "owed_quantity": zod.stringFormat('decimal', listMyFieldPurchasesResponseLinesItemOwedQuantityRegExp),
   "unit_cost": zod.stringFormat('decimal', listMyFieldPurchasesResponseLinesItemUnitCostRegExp),
-  "amount": zod.stringFormat('decimal', listMyFieldPurchasesResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', listMyFieldPurchasesResponseLinesItemAmountRegExp),
+  "product_name_ar": zod.string()
 }).describe('A line as the driver sees it: no partner (the owner\'s business, D-060).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -12134,7 +12144,8 @@ export const SendMyFieldPurchaseResponse = zod.object({
   "received_quantity": zod.stringFormat('decimal', sendMyFieldPurchaseResponseLinesItemReceivedQuantityRegExp).nullable(),
   "owed_quantity": zod.stringFormat('decimal', sendMyFieldPurchaseResponseLinesItemOwedQuantityRegExp),
   "unit_cost": zod.stringFormat('decimal', sendMyFieldPurchaseResponseLinesItemUnitCostRegExp),
-  "amount": zod.stringFormat('decimal', sendMyFieldPurchaseResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', sendMyFieldPurchaseResponseLinesItemAmountRegExp),
+  "product_name_ar": zod.string()
 }).describe('A line as the driver sees it: no partner (the owner\'s business, D-060).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -12251,7 +12262,8 @@ export const ChangeMyFieldPurchaseResponse = zod.object({
   "received_quantity": zod.stringFormat('decimal', changeMyFieldPurchaseResponseLinesItemReceivedQuantityRegExp).nullable(),
   "owed_quantity": zod.stringFormat('decimal', changeMyFieldPurchaseResponseLinesItemOwedQuantityRegExp),
   "unit_cost": zod.stringFormat('decimal', changeMyFieldPurchaseResponseLinesItemUnitCostRegExp),
-  "amount": zod.stringFormat('decimal', changeMyFieldPurchaseResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', changeMyFieldPurchaseResponseLinesItemAmountRegExp),
+  "product_name_ar": zod.string()
 }).describe('A line as the driver sees it: no partner (the owner\'s business, D-060).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -12325,7 +12337,8 @@ export const AddMyFieldPurchasePaperResponse = zod.object({
   "received_quantity": zod.stringFormat('decimal', addMyFieldPurchasePaperResponseLinesItemReceivedQuantityRegExp).nullable(),
   "owed_quantity": zod.stringFormat('decimal', addMyFieldPurchasePaperResponseLinesItemOwedQuantityRegExp),
   "unit_cost": zod.stringFormat('decimal', addMyFieldPurchasePaperResponseLinesItemUnitCostRegExp),
-  "amount": zod.stringFormat('decimal', addMyFieldPurchasePaperResponseLinesItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', addMyFieldPurchasePaperResponseLinesItemAmountRegExp),
+  "product_name_ar": zod.string()
 }).describe('A line as the driver sees it: no partner (the owner\'s business, D-060).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -12485,6 +12498,7 @@ export const listMyStockResponseUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.
 export const ListMyStockResponseItem = zod.object({
   "product_id": zod.int(),
   "product_name": zod.string(),
+  "product_name_ar": zod.string(),
   "quantity": zod.stringFormat('decimal', listMyStockResponseQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', listMyStockResponseUnitPriceRegExp).nullable(),
   "photo_url": zod.string().nullable()
@@ -14302,7 +14316,8 @@ export const CreateQuoteResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', createQuoteResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', createQuoteResponseLinesItemUnitPriceRegExp),
@@ -14391,7 +14406,8 @@ export const GetQuoteResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', getQuoteResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', getQuoteResponseLinesItemUnitPriceRegExp),
@@ -14508,7 +14524,8 @@ export const UpdateQuoteResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', updateQuoteResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', updateQuoteResponseLinesItemUnitPriceRegExp),
@@ -14598,7 +14615,8 @@ export const AcceptQuoteResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', acceptQuoteResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', acceptQuoteResponseLinesItemUnitPriceRegExp),
@@ -14757,7 +14775,8 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', convertQuoteToSaleResponseLinesItemUnitPriceRegExp),
@@ -14892,7 +14911,8 @@ export const RefuseQuoteResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', refuseQuoteResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', refuseQuoteResponseLinesItemUnitPriceRegExp),
@@ -14982,7 +15002,8 @@ export const SendQuoteResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', sendQuoteResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', sendQuoteResponseLinesItemUnitPriceRegExp),
@@ -17229,7 +17250,8 @@ export const CreateSaleResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', createSaleResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', createSaleResponseLinesItemUnitPriceRegExp),
@@ -17398,7 +17420,8 @@ export const GetSaleResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', getSaleResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', getSaleResponseLinesItemUnitPriceRegExp),
@@ -17616,7 +17639,8 @@ export const UpdateSaleResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', updateSaleResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', updateSaleResponseLinesItemUnitPriceRegExp),
@@ -17794,7 +17818,8 @@ export const CancelSaleResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', cancelSaleResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', cancelSaleResponseLinesItemUnitPriceRegExp),
@@ -17972,7 +17997,8 @@ export const ConfirmSaleResponse = zod.object({
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "name_ar": zod.string()
 }),
   "quantity": zod.stringFormat('decimal', confirmSaleResponseLinesItemQuantityRegExp),
   "unit_price": zod.stringFormat('decimal', confirmSaleResponseLinesItemUnitPriceRegExp),
