@@ -10,9 +10,9 @@ export const DOTS: Record<number, number> = { 32: 384, 42: 512, 48: 576 };
 
 const MONO = "'DejaVu Sans Mono', 'Noto Sans Mono', 'Roboto Mono', monospace";
 const ARABIC = "'Noto Naskh Arabic', 'Noto Sans Arabic', Tahoma, sans-serif";
-// The logo is at most this share of the paper's width and this many dots high.
-const LOGO_WIDTH = 0.6;
-const LOGO_HEIGHT = 140;
+// The logo, cut to its ink, is at most the paper's width and this many dots high (about 2.5 cm at 203 dpi).
+const LOGO_WIDTH = 0.94;
+const LOGO_HEIGHT = 200;
 
 function loadImage(source: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -23,11 +23,44 @@ function loadImage(source: string): Promise<HTMLImageElement | null> {
   });
 }
 
-/** The logo in black dots: grey shades become a dot pattern (Floyd–Steinberg), so a photo-like logo stays readable. */
-function ditheredLogo(image: HTMLImageElement, paper: number): HTMLCanvasElement | null {
-  const scale = Math.min((paper * LOGO_WIDTH) / image.width, LOGO_HEIGHT / image.height, 1);
-  const width = Math.max(Math.round(image.width * scale), 1);
-  const height = Math.max(Math.round(image.height * scale), 1);
+/** The grey level that best splits the picture in two (Otsu): the logo's ink on one side, the paper on the other. */
+export function splitLevel(grey: ArrayLike<number>): number {
+  const counts = new Array<number>(256).fill(0);
+  for (let i = 0; i < grey.length; i += 1) {
+    const level = Math.round(grey[i] ?? 0);
+    counts[level] = (counts[level] ?? 0) + 1;
+  }
+  const total = grey.length;
+  let sum = 0;
+  for (let level = 0; level < 256; level += 1) sum += level * (counts[level] ?? 0);
+  let below = 0;
+  let belowSum = 0;
+  let best = 128;
+  let bestSpread = -1;
+  for (let level = 0; level < 256; level += 1) {
+    below += counts[level] ?? 0;
+    if (below === 0) continue;
+    const above = total - below;
+    if (above === 0) break;
+    belowSum += level * (counts[level] ?? 0);
+    const spread = below * above * (belowSum / below - (sum - belowSum) / above) ** 2;
+    if (spread > bestSpread) {
+      bestSpread = spread;
+      best = level;
+    }
+  }
+  return best;
+}
+
+type Grey = { grey: Float32Array; width: number; height: number };
+
+/** The picture flattened on white paper, as grey levels, `width` × `height` dots (from the `source` part of it). */
+function greyOf(
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+  source = { x: 0, y: 0, width: image.width, height: image.height },
+): Grey | null {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -35,32 +68,83 @@ function ditheredLogo(image: HTMLImageElement, paper: number): HTMLCanvasElement
   if (context === null) return null;
   context.fillStyle = "#fff";
   context.fillRect(0, 0, width, height);
-  context.drawImage(image, 0, 0, width, height);
-  const pixels = context.getImageData(0, 0, width, height);
-  const data = pixels.data;
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, width, height);
+  const data = context.getImageData(0, 0, width, height).data;
   const grey = new Float32Array(width * height);
   for (let i = 0; i < grey.length; i += 1) {
     grey[i] = (data[i * 4] ?? 0) * 0.299 + (data[i * 4 + 1] ?? 0) * 0.587 + (data[i * 4 + 2] ?? 0) * 0.114;
   }
-  const spread = (x: number, y: number, error: number) => {
-    if (x < 0 || x >= width || y >= height) return;
-    grey[y * width + x] = (grey[y * width + x] ?? 0) + error;
+  return { grey, width, height };
+}
+
+/** Whether the border is mostly at or below `level`: a light logo on a dark ground, to be turned over. */
+function darkGround({ grey, width, height }: Grey, level: number): boolean {
+  let border = 0;
+  let dark = 0;
+  const look = (x: number, y: number) => {
+    border += 1;
+    if ((grey[y * width + x] ?? 255) <= level) dark += 1;
   };
+  for (let x = 0; x < width; x += 1) {
+    look(x, 0);
+    look(x, height - 1);
+  }
+  for (let y = 0; y < height; y += 1) {
+    look(0, y);
+    look(width - 1, y);
+  }
+  return dark > border / 2;
+}
+
+/** The smallest box around the ink, so white margins in the file do not shrink the printed logo. */
+function inkBox({ grey, width, height }: Grey, level: number, turnOver: boolean) {
+  let left = width;
+  let right = -1;
+  let top = height;
+  let bottom = -1;
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const old = grey[y * width + x] ?? 0;
-      const value = old < 128 ? 0 : 255;
-      const error = old - value;
-      spread(x + 1, y, (error * 7) / 16);
-      spread(x - 1, y + 1, (error * 3) / 16);
-      spread(x, y + 1, (error * 5) / 16);
-      spread(x + 1, y + 1, error / 16);
-      const at = (y * width + x) * 4;
-      data[at] = value;
-      data[at + 1] = value;
-      data[at + 2] = value;
-      data[at + 3] = 255;
+      if ((grey[y * width + x] ?? 255) <= level === turnOver) continue;
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+      top = Math.min(top, y);
+      bottom = Math.max(bottom, y);
     }
+  }
+  if (right < 0) return { x: 0, y: 0, width, height };
+  return { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+}
+
+/**
+ * The logo in black and white dots (D-282): flattened on white paper, cut to its ink (no white margins), as wide as
+ * the paper allows, then each dot black or white at the level that best splits ink from paper (Otsu), so a coloured
+ * logo prints in clean shapes, not a grainy pattern. A logo on a dark background is turned over, so it prints as ink
+ * on white paper, not a black block.
+ */
+function logoDots(image: HTMLImageElement, paper: number): HTMLCanvasElement | null {
+  const whole = greyOf(image, image.width, image.height);
+  if (whole === null) return null;
+  const level = splitLevel(whole.grey);
+  const turnOver = darkGround(whole, level);
+  const box = turnOver ? { x: 0, y: 0, width: image.width, height: image.height } : inkBox(whole, level, turnOver);
+  const scale = Math.min((paper * LOGO_WIDTH) / box.width, LOGO_HEIGHT / box.height, 3);
+  const width = Math.max(Math.round(box.width * scale), 1);
+  const height = Math.max(Math.round(box.height * scale), 1);
+  const small = greyOf(image, width, height, box);
+  if (small === null) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (context === null) return null;
+  const pixels = context.createImageData(width, height);
+  for (let i = 0; i < small.grey.length; i += 1) {
+    // Shrinking greys the thin strokes: a dot is ink a little above the split level, so they stay on the paper.
+    const ink = (small.grey[i] ?? 255) <= Math.min(level + 40, 230) !== turnOver;
+    const value = ink ? 0 : 255;
+    pixels.data.set([value, value, value, 255], i * 4);
   }
   context.putImageData(pixels, 0, 0);
   return canvas;
@@ -77,14 +161,16 @@ export async function drawReceipt(rows: Row[], cols: number, logo: string | null
   const size = (width / cols / context.measureText("0").width) * 100;
   const line = Math.round(size * 1.2);
   const image = logo ? await loadImage(logo) : null;
-  const picture = image ? ditheredLogo(image, width) : null;
+  const picture = image ? logoDots(image, width) : null;
 
+  // Under a logo the company name is not printed big: the logo already says it.
+  const big = (row: Row) => "text" in row && row.big === true && !(picture && row.company);
   const heightOf = (row: Row) => {
     if ("logo" in row) return picture ? picture.height + Math.round(line / 2) : 0;
     if ("feed" in row) return row.feed * line;
     if ("rule" in row) return line;
     if (row.ar) return Math.round(line * 1.3);
-    return row.big ? line * 2 : line;
+    return big(row) ? line * 2 : line;
   };
   canvas.width = width;
   canvas.height = Math.max(
@@ -120,7 +206,7 @@ export async function drawReceipt(rows: Row[], cols: number, logo: string | null
       context.save();
       // "left" puts the text's left edge at x, also right-to-left text, which the canvas joins and orders itself.
       context.translate(x, top);
-      context.scale(squeeze, row.big ? 2 : 1);
+      context.scale(squeeze, big(row) ? 2 : 1);
       context.fillText(text, 0, 0);
       context.restore();
     }

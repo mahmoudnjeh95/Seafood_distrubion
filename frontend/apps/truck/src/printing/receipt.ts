@@ -42,7 +42,7 @@ export type Align = "left" | "center" | "right";
 /** `ar`: Arabic text, drawn right to left; only a picture prints it (the text mode leaves the row out, D-282).
  * `logo`: the company logo, at the top of a printed picture (nothing in the text mode). */
 export type Row =
-  | { text: string; align?: Align; bold?: boolean; big?: boolean; ar?: boolean }
+  | { text: string; align?: Align; bold?: boolean; big?: boolean; ar?: boolean; company?: boolean }
   | { rule: "-" | "=" }
   | { feed: number }
   | { logo: true };
@@ -173,7 +173,9 @@ export function layoutReceipt(data: ReceiptData, copy: ReceiptCopy, cols: number
   // The logo heads a printed picture; the text mode and the preview text leave it out.
   const rows: Row[] = [{ logo: true }];
   if (data.company !== "") {
-    for (const text of wrap(data.company, cols)) rows.push({ text, align: "center", bold: true, big: true });
+    for (const text of wrap(data.company, cols)) {
+      rows.push({ text, align: "center", bold: true, big: true, company: true });
+    }
   }
   const seller = data.seller ?? {};
   if (seller.address) for (const text of wrap(seller.address, cols)) rows.push({ text, align: "center" });
