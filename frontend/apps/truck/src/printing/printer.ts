@@ -14,10 +14,12 @@ export type PrinterSettings = {
   /** Print the receipt as a picture, with the logo and the Arabic product names (D-282). Off: the printer's own
    * text, for a printer that cannot print pictures (no logo, no Arabic). */
   picture: boolean;
+  /** Print the company logo at the top of a picture; off: only the company name, printed big (D-282). */
+  logo: boolean;
 };
 
 const KEY = "frutti.printer";
-const DEFAULTS: PrinterSettings = { cols: DEFAULT_WIDTH, accents: true, picture: true };
+const DEFAULTS: PrinterSettings = { cols: DEFAULT_WIDTH, accents: true, picture: true, logo: true };
 
 export function loadSettings(): PrinterSettings {
   try {
@@ -26,6 +28,7 @@ export function loadSettings(): PrinterSettings {
       cols: WIDTHS.includes(stored.cols as (typeof WIDTHS)[number]) ? (stored.cols as number) : DEFAULTS.cols,
       accents: stored.accents ?? DEFAULTS.accents,
       picture: stored.picture ?? DEFAULTS.picture,
+      logo: stored.logo ?? DEFAULTS.logo,
     };
   } catch {
     return DEFAULTS;
@@ -106,10 +109,15 @@ async function send(bytes: Uint8Array): Promise<void> {
   }
 }
 
+/** The logo to draw at the top, or none when the settings say only the name. */
+export function printedLogo(settings: PrinterSettings): string | null {
+  return settings.logo ? rememberedLogo() : null;
+}
+
 /** The bytes of rows: a picture (logo, Arabic) or the printer's text, as the settings say. */
 async function job(rows: Row[], settings: PrinterSettings): Promise<Uint8Array> {
   if (!settings.picture) return escposJob([rows], settings);
-  return rasterJob([await receiptBitmap(rows, settings.cols, rememberedLogo())]);
+  return rasterJob([await receiptBitmap(rows, settings.cols, printedLogo(settings))]);
 }
 
 /** Prints one copy of a receipt: the customer's or supplier's, or the office's (D-281: one copy per tap). */
