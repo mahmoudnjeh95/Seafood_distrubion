@@ -339,6 +339,8 @@ import type {
   QuoteRefuse,
   QuoteWrite,
   Receipt,
+  ReceiptDisputeResolveWrite,
+  ReceiptDisputeWrite,
   ReceiptHeader,
   ReceiptRevisionWrite,
   ReceiptWrite,
@@ -23419,6 +23421,180 @@ export function useGetReceipt<TData = Awaited<ReturnType<typeof getReceipt>>, TE
 
 
 
+
+export const getDisputeReceiptUrl = (receiptId: number,) => {
+
+
+
+
+  return `/api/v1/receipts/${receiptId}/dispute`
+}
+
+/**
+ * Contest a goods receipt with its supplier (D-285): `reason` is required. While contested it goes on no
+ * supplier invoice. Refused while an invoice carries it or a dispute is already open.
+ */
+export const disputeReceipt = async (receiptId: number,
+    receiptDisputeWrite: ReceiptDisputeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Receipt>(getDisputeReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(receiptDisputeWrite)
+  }
+);}
+
+
+
+
+
+export const getDisputeReceiptMutationKey = () => ['disputeReceipt'] as const;
+
+export const getDisputeReceiptMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disputeReceipt>>, TError,DisputeReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disputeReceipt>>, TError,DisputeReceiptMutationVariables, TContext> => {
+
+const mutationKey = getDisputeReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disputeReceipt>>, DisputeReceiptMutationVariables> = (props) => {
+          const {receiptId,data} = props ?? {};
+
+          return  disputeReceipt(receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisputeReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof disputeReceipt>>>
+    export type DisputeReceiptMutationBody = ReceiptDisputeWrite
+    export type DisputeReceiptMutationError = unknown
+    export type DisputeReceiptMutationVariables = {receiptId: number;data: ReceiptDisputeWrite}
+
+    export const useDisputeReceipt = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disputeReceipt>>, TError,DisputeReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof disputeReceipt>>,
+        TError,
+        DisputeReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisputeReceiptMutationOptions(options), queryClient);
+    }
+
+export const getResolveReceiptDisputeUrl = (receiptId: number,) => {
+
+
+
+
+  return `/api/v1/receipts/${receiptId}/resolve-dispute`
+}
+
+/**
+ * Lift a receipt's open dispute (D-285), saying how it was settled (`resolution`, required): it can then
+ * be invoiced.
+ */
+export const resolveReceiptDispute = async (receiptId: number,
+    receiptDisputeResolveWrite: ReceiptDisputeResolveWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Receipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Receipt>(getResolveReceiptDisputeUrl(receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(receiptDisputeResolveWrite)
+  }
+);}
+
+
+
+
+
+export const getResolveReceiptDisputeMutationKey = () => ['resolveReceiptDispute'] as const;
+
+export const getResolveReceiptDisputeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveReceiptDispute>>, TError,ResolveReceiptDisputeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveReceiptDispute>>, TError,ResolveReceiptDisputeMutationVariables, TContext> => {
+
+const mutationKey = getResolveReceiptDisputeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveReceiptDispute>>, ResolveReceiptDisputeMutationVariables> = (props) => {
+          const {receiptId,data} = props ?? {};
+
+          return  resolveReceiptDispute(receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveReceiptDisputeMutationResult = NonNullable<Awaited<ReturnType<typeof resolveReceiptDispute>>>
+    export type ResolveReceiptDisputeMutationBody = ReceiptDisputeResolveWrite
+    export type ResolveReceiptDisputeMutationError = unknown
+    export type ResolveReceiptDisputeMutationVariables = {receiptId: number;data: ReceiptDisputeResolveWrite}
+
+    export const useResolveReceiptDispute = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveReceiptDispute>>, TError,ResolveReceiptDisputeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resolveReceiptDispute>>,
+        TError,
+        ResolveReceiptDisputeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveReceiptDisputeMutationOptions(options), queryClient);
+    }
 
 export const getReviseReceiptUrl = (receiptId: number,) => {
 

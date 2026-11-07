@@ -43,6 +43,7 @@ from .models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
+    ReceiptDisputeStatus,
     RejectedEffet,
     RejectedRelease,
     SupplierBalanceWriteOff,
@@ -74,17 +75,26 @@ def receipts_of(
     with_differences: bool = False,
     uninvoiced: bool = False,
     purchase_order_id: int | None = None,
+    disputed: bool = False,
 ) -> QuerySet[GoodsReceipt]:
     """Receipts newest first, with supplier, location, lines (product and batch), their invoice if any,
     and `has_differences`.
 
     `search` matches the receipt number, the supplier's reference and the supplier's name. `uninvoiced`
-    keeps the receipts not on any supplier invoice yet, draft or posted.
+    keeps the receipts not on any supplier invoice yet, draft or posted; `disputed` the ones contested now (D-285).
     """
     lines = GoodsReceiptLine.objects.select_related("product", "batch").order_by("id")
     receipts = (
         GoodsReceipt.objects.for_organization(organization)
-        .select_related("supplier", "location", "created_by", "invoice_link__invoice", "purchase_order")
+        .select_related(
+            "supplier",
+            "location",
+            "created_by",
+            "invoice_link__invoice",
+            "purchase_order",
+            "disputed_by",
+            "dispute_resolved_by",
+        )
         .prefetch_related(Prefetch("lines", queryset=lines), "revisions")
         .annotate(has_differences=Exists(GoodsReceiptLine.objects.filter(DIFFERENT, receipt=OuterRef("pk"))))
         .order_by("-received_on", "-id")
@@ -101,6 +111,8 @@ def receipts_of(
         receipts = receipts.filter(has_differences=True)
     if uninvoiced:
         receipts = receipts.filter(invoice_link__isnull=True)
+    if disputed:
+        receipts = receipts.filter(dispute_status=ReceiptDisputeStatus.OPEN)
     return receipts
 
 

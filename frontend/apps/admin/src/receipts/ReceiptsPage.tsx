@@ -31,18 +31,20 @@ export function ReceiptsPage() {
   const navigate = useNavigate();
   const canRecord = canRecordReceipts(session);
   const differencesId = useId();
+  const disputedId = useId();
   const [search, setSearch] = useUrlState("q");
   const [onlyDifferences, setOnlyDifferences] = useState(false);
+  const [onlyDisputed, setOnlyDisputed] = useState(false);
   const table = useServerTable();
   const query = useDebounced(search.trim());
 
   const receipts = useListReceipts(
-    { ...table.params, differences: onlyDifferences, ...(query ? { search: query } : {}) },
+    { ...table.params, differences: onlyDifferences, disputed: onlyDisputed, ...(query ? { search: query } : {}) },
     { query: { placeholderData: keepPreviousData } },
   );
   const page = receipts.data;
   const list = page?.results ?? [];
-  const filtering = query !== "" || onlyDifferences;
+  const filtering = query !== "" || onlyDifferences || onlyDisputed;
 
   return (
     <>
@@ -83,6 +85,19 @@ export function ReceiptsPage() {
             className="size-4 accent-coral"
           />
           {t("admin.receipts.onlyDifferences")}
+        </label>
+        <label htmlFor={disputedId} className="flex items-center gap-2 text-[0.9rem]">
+          <input
+            id={disputedId}
+            type="checkbox"
+            checked={onlyDisputed}
+            onChange={(event) => {
+              setOnlyDisputed(event.target.checked);
+              table.backToFirstPage();
+            }}
+            className="size-4 accent-coral"
+          />
+          {t("admin.receipts.onlyDisputed")}
         </label>
         <span className="ms-auto text-[0.85rem] text-ink-2" aria-live="polite">
           {page && t("admin.receipts.count", { count: page.count })}
@@ -141,6 +156,11 @@ export function ReceiptsPage() {
                     {receipt.has_differences && (
                       <Pill className="ms-2" tone="warn">
                         {t("admin.receipts.difference")}
+                      </Pill>
+                    )}
+                    {receipt.dispute_status === "open" && (
+                      <Pill className="ms-2" tone="bad">
+                        {t("admin.receipts.dispute.pill")}
                       </Pill>
                     )}
                   </Td>

@@ -10,6 +10,17 @@ from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField, QuantityField, line_total
 
 
+class ReceiptDisputeStatus(models.TextChoices):
+    """Where a goods receipt stands against its supplier (D-285). The stock is in either way."""
+
+    # Nothing contested.
+    NONE = "", _("Aucune")
+    # Contested ("contesté"): wrong weight, quality, price... It goes on no supplier invoice until resolved.
+    OPEN = "open", _("Contestée")
+    # The dispute was settled (a correction, the supplier's answer): it can be invoiced again.
+    RESOLVED = "resolved", _("Contestation levée")
+
+
 class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     """Goods received from a supplier on one day into one location, with their real net weight (Q12).
 
@@ -40,12 +51,32 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # A dispute with the supplier (D-285): while open, no supplier invoice takes this receipt.
+    dispute_status = models.CharField(
+        max_length=10, choices=ReceiptDisputeStatus.choices, default=ReceiptDisputeStatus.NONE, blank=True
+    )
+    # The "motif de contestation", required to open one.
+    dispute_reason = models.TextField(blank=True)
+    disputed_at = models.DateTimeField(null=True, blank=True)
+    disputed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # How it was settled, required to lift it.
+    dispute_resolution = models.TextField(blank=True)
+    dispute_resolved_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
 
     class Meta:
         ordering = ["-received_on", "-id"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "number"], name="receipt_number_unique_per_organization"),
         ]
+
+    @property
+    def is_disputed(self) -> bool:
+        return self.dispute_status == ReceiptDisputeStatus.OPEN
 
     def __str__(self) -> str:
         return self.number

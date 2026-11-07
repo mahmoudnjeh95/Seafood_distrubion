@@ -3933,3 +3933,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   in one or several `CustomerRefundPayment`, never beyond what is left; each writes a `customer_refund` treasury
   movement out of the account. The original payments are untouched. The customer's history shows "Remboursement d'avoir".
 - Not done: cancelling a planned refund (it is final, like the credit note), a credit note detail page.
+
+**D-285 · A goods receipt can be contested with its supplier; while contested it is not invoiced (P1-T18)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- From the Perfaxis manual's "Bon de réception contesté". Owner's choice: an open dispute **blocks invoicing** (not only a flag).
+- `GoodsReceipt.dispute_status` ("" / open / resolved) with the reason, the settlement, who and when. Contesting needs a
+  reason and is refused while an invoice (draft or posted) carries the receipt or a dispute is open; lifting needs how it
+  was settled. A lifted receipt can be contested again (the previous one stays in the audit log).
+- The stock is not touched: the goods are in either way. A weight or price the supplier agrees to change is corrected with
+  "Modifier la réception" (D-269), which stays allowed while contested.
+- Other Perfaxis gaps the owner kept (same day): "non facturable" BL, "Refacturer" after an avoir, attachments on
+  documents, supplier price comparison. Not wanted: Bureau d'ordre, exempt/export customers, internal purchase
+  requests, foreign currency, services.

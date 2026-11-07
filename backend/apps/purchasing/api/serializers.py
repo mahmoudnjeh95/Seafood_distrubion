@@ -26,6 +26,7 @@ from apps.purchasing.models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
+    ReceiptDisputeStatus,
     SupplierInvoice,
     SupplierInvoiceStatus,
     SupplierPayment,
@@ -148,6 +149,10 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     revisions = GoodsReceiptRevisionSerializer(many=True, read_only=True)
     # Changeable while no supplier invoice carries it (D-269).
     editable = serializers.SerializerMethodField()
+    # A dispute with the supplier (D-285): "" (none), "open" (contested: no invoice takes it) or "resolved".
+    dispute_status = serializers.ChoiceField(choices=ReceiptDisputeStatus.choices, read_only=True)
+    disputed_by = serializers.SerializerMethodField()
+    dispute_resolved_by = serializers.SerializerMethodField()
 
     class Meta:
         model = GoodsReceipt
@@ -171,8 +176,21 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
             "revision",
             "revisions",
             "editable",
+            "dispute_status",
+            "dispute_reason",
+            "disputed_at",
+            "disputed_by",
+            "dispute_resolution",
+            "dispute_resolved_at",
+            "dispute_resolved_by",
         )
         read_only_fields = fields
+
+    def get_disputed_by(self, receipt: GoodsReceipt) -> str:
+        return _name_of(receipt.disputed_by)
+
+    def get_dispute_resolved_by(self, receipt: GoodsReceipt) -> str:
+        return _name_of(receipt.dispute_resolved_by)
 
     @extend_schema_field(AMOUNT)
     def get_invoiced_total(self, receipt: GoodsReceipt) -> str:
@@ -259,6 +277,16 @@ class ReceiptRevisionWriteSerializer(serializers.Serializer[Any]):
     lines = ReceiptRevisionLineWriteSerializer(many=True)
 
 
+class ReceiptDisputeWriteSerializer(serializers.Serializer[Any]):
+    # The "motif de contestation": required (checked by the service).
+    reason = serializers.CharField(allow_blank=True, max_length=1000)
+
+
+class ReceiptDisputeResolveWriteSerializer(serializers.Serializer[Any]):
+    # How the dispute was settled: required (checked by the service).
+    resolution = serializers.CharField(allow_blank=True, max_length=1000)
+
+
 class ReceiptFilterSerializer(serializers.Serializer[Any]):
     supplier = serializers.IntegerField(required=False, min_value=1)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
@@ -268,6 +296,8 @@ class ReceiptFilterSerializer(serializers.Serializer[Any]):
     uninvoiced = serializers.BooleanField(required=False, default=False)
     # Only the receipts against this purchase order.
     purchase_order = serializers.IntegerField(required=False, min_value=1)
+    # Only the receipts contested now (D-285).
+    disputed = serializers.BooleanField(required=False, default=False)
 
 
 class ReceiptRefSerializer(serializers.Serializer[Any]):

@@ -43,6 +43,7 @@ from .models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
+    ReceiptDisputeStatus,
     RejectedEffet,
     RejectedRelease,
     SupplierBalanceWriteOff,
@@ -530,6 +531,101 @@ def revise_receipt(
     return receipt
 
 
+# ---- Disputes with the supplier ("bon de réception contesté", D-285) ----
+# The stock is in either way; an open dispute only keeps the receipt off supplier invoices until it is lifted.
+
+
+def _dispute_snapshot(receipt: GoodsReceipt) -> dict[str, Any]:
+    return {
+        "dispute_status": receipt.dispute_status,
+        "dispute_reason": receipt.dispute_reason,
+        "dispute_resolution": receipt.dispute_resolution,
+    }
+
+
+@transaction.atomic
+def dispute_receipt(*, receipt: GoodsReceipt, actor: User | None, reason: str) -> GoodsReceipt:
+    """Contest a goods receipt with its supplier: the reason ("motif de contestation") is required. Refused while an
+    invoice carries it (a draft is changed or deleted first; a posted one is corrected otherwise) and while a dispute
+    is already open. A receipt whose dispute was lifted may be contested again."""
+    reason = reason.strip()
+    locked = GoodsReceipt.objects.select_for_update(of=("self",)).select_related("organization").get(pk=receipt.pk)
+    link = SupplierInvoiceReceipt.objects.filter(receipt=locked).select_related("invoice").first()
+    if link is not None:
+        raise ValidationError(
+            _("La réception %(number)s est sur la facture %(invoice)s : retirez-la de la facture pour la contester.")
+            % {"number": locked.number, "invoice": link.invoice.number}
+        )
+    if locked.is_disputed:
+        raise ValidationError(_("La réception %(number)s est déjà contestée.") % {"number": locked.number})
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez le motif de la contestation.")})
+    before = _dispute_snapshot(locked)
+    locked.dispute_status = ReceiptDisputeStatus.OPEN
+    locked.dispute_reason = reason
+    locked.disputed_at = timezone.now()
+    locked.disputed_by = actor
+    locked.dispute_resolution = ""
+    locked.dispute_resolved_at = None
+    locked.dispute_resolved_by = None
+    locked.save(
+        update_fields=[
+            "dispute_status",
+            "dispute_reason",
+            "disputed_at",
+            "disputed_by",
+            "dispute_resolution",
+            "dispute_resolved_at",
+            "dispute_resolved_by",
+            "updated_at",
+        ]
+    )
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="receipt.disputed",
+        target=locked,
+        before=before,
+        after=_dispute_snapshot(locked),
+    )
+    return locked
+
+
+@transaction.atomic
+def resolve_receipt_dispute(*, receipt: GoodsReceipt, actor: User | None, resolution: str) -> GoodsReceipt:
+    """Lift an open dispute, saying how it was settled (required): the receipt may then go on a supplier invoice.
+    A weight or cost the supplier agreed to change is corrected on the receipt itself (`revise_receipt`)."""
+    resolution = resolution.strip()
+    locked = GoodsReceipt.objects.select_for_update(of=("self",)).select_related("organization").get(pk=receipt.pk)
+    if not locked.is_disputed:
+        raise ValidationError(_("La réception %(number)s n'est pas contestée.") % {"number": locked.number})
+    if not resolution:
+        raise ValidationError({"resolution": _("Indiquez comment la contestation a été réglée.")})
+    before = _dispute_snapshot(locked)
+    locked.dispute_status = ReceiptDisputeStatus.RESOLVED
+    locked.dispute_resolution = resolution
+    locked.dispute_resolved_at = timezone.now()
+    locked.dispute_resolved_by = actor
+    locked.save(
+        update_fields=[
+            "dispute_status",
+            "dispute_resolution",
+            "dispute_resolved_at",
+            "dispute_resolved_by",
+            "updated_at",
+        ]
+    )
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="receipt.dispute_resolved",
+        target=locked,
+        before=before,
+        after=_dispute_snapshot(locked),
+    )
+    return locked
+
+
 # ---- Purchase orders, the "commande d'achat" (D-076) ----
 # An order moves no stock and owes nothing; its receipts do. Its status follows them.
 
@@ -792,6 +888,11 @@ def _locked_receipts(
                 problems.append(
                     _("La réception %(number)s est déjà sur la facture %(invoice)s.")
                     % {"number": receipt.number, "invoice": link.invoice.number}
+                )
+            elif receipt.is_disputed:
+                problems.append(
+                    _("La réception %(number)s est contestée : levez la contestation avant de la facturer.")
+                    % {"number": receipt.number}
                 )
     if len(locked) != len(ids):
         problems.append(_("Réception inconnue."))
