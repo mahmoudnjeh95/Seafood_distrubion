@@ -6,7 +6,6 @@ import { OWNER_STATE } from "./owner";
 // cold room, in products the other tests leave alone (rouget, sardine, poulpe), so they can run in any order.
 test.use({ storageState: OWNER_STATE });
 
-// In the grid a sale is typed in, the cell after the price and the discount: the kilos in stock.
 // The stock cell on the sale form: after the discount and the net price (D-283).
 const STOCK_CELL = 6;
 
