@@ -14094,6 +14094,386 @@ export const UpdatePriceListResponse = zod.object({
 
 
 /**
+ * Price requests ("demandes de prix", D-289), newest first, paginated, with their lines and the suppliers'
+ * offers. Filter by status or `search` (number, product, supplier).
+ */
+export const listPriceRequestsQuerySearchDefault = ``;
+export const listPriceRequestsQuerySearchMax = 100;
+
+
+
+export const ListPriceRequestsQueryParams = zod.object({
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listPriceRequestsQuerySearchMax).default(listPriceRequestsQuerySearchDefault),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).optional().describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée')
+})
+
+export const listPriceRequestsResponseResultsItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listPriceRequestsResponseResultsItemOffersItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPriceRequestsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "requested_on": zod.iso.date(),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "quantity": zod.stringFormat('decimal', listPriceRequestsResponseResultsItemLinesItemQuantityRegExp)
+})),
+  "offers": zod.array(zod.object({
+  "id": zod.int(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "reference": zod.string(),
+  "received_on": zod.iso.date().nullable(),
+  "valid_until": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "request_line": zod.int(),
+  "unit_cost": zod.stringFormat('decimal', listPriceRequestsResponseResultsItemOffersItemLinesItemUnitCostRegExp),
+  "retained": zod.boolean()
+})),
+  "order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}),zod.null()])
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Ask several suppliers for their prices on products and kilos. Errors on `suppliers`, `lines`,
+ * `lines.<index>.<field>`, `requested_on`. Owner or manager.
+ */
+
+
+export const createPriceRequestBodyLinesItemQuantityMax = 20;
+
+export const createPriceRequestBodyNotesDefault = ``;
+
+export const CreatePriceRequestBody = zod.object({
+  "requested_on": zod.iso.date(),
+  "suppliers": zod.array(zod.int().min(1)),
+  "lines": zod.array(zod.object({
+  "product": zod.int().min(1),
+  "quantity": zod.string().max(createPriceRequestBodyLinesItemQuantityMax)
+})),
+  "notes": zod.string().default(createPriceRequestBodyNotesDefault)
+})
+
+export const createPriceRequestResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createPriceRequestResponseOffersItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreatePriceRequestResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "requested_on": zod.iso.date(),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "quantity": zod.stringFormat('decimal', createPriceRequestResponseLinesItemQuantityRegExp)
+})),
+  "offers": zod.array(zod.object({
+  "id": zod.int(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "reference": zod.string(),
+  "received_on": zod.iso.date().nullable(),
+  "valid_until": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "request_line": zod.int(),
+  "unit_cost": zod.stringFormat('decimal', createPriceRequestResponseOffersItemLinesItemUnitCostRegExp),
+  "retained": zod.boolean()
+})),
+  "order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}),zod.null()])
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetPriceRequestParams = zod.object({
+  "request_id": zod.int()
+})
+
+export const getPriceRequestResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getPriceRequestResponseOffersItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetPriceRequestResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "requested_on": zod.iso.date(),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "quantity": zod.stringFormat('decimal', getPriceRequestResponseLinesItemQuantityRegExp)
+})),
+  "offers": zod.array(zod.object({
+  "id": zod.int(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "reference": zod.string(),
+  "received_on": zod.iso.date().nullable(),
+  "valid_until": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "request_line": zod.int(),
+  "unit_cost": zod.stringFormat('decimal', getPriceRequestResponseOffersItemLinesItemUnitCostRegExp),
+  "retained": zod.boolean()
+})),
+  "order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}),zod.null()])
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Give up a price request still open: nothing is ordered.
+ */
+export const CancelPriceRequestParams = zod.object({
+  "request_id": zod.int()
+})
+
+export const cancelPriceRequestResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const cancelPriceRequestResponseOffersItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CancelPriceRequestResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "requested_on": zod.iso.date(),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "quantity": zod.stringFormat('decimal', cancelPriceRequestResponseLinesItemQuantityRegExp)
+})),
+  "offers": zod.array(zod.object({
+  "id": zod.int(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "reference": zod.string(),
+  "received_on": zod.iso.date().nullable(),
+  "valid_until": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "request_line": zod.int(),
+  "unit_cost": zod.stringFormat('decimal', cancelPriceRequestResponseOffersItemLinesItemUnitCostRegExp),
+  "retained": zod.boolean()
+})),
+  "order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}),zod.null()])
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Type a supplier's answer: a price per kg per request line (empty: not offered), their reference, the
+ * day it came and how long it holds. A supplier not asked yet is added. Replaces their earlier answer.
+ * Errors on `prices.<line id>`, `supplier`, `received_on`, `valid_until`. Only while the request is open.
+ */
+export const RecordSupplierOfferParams = zod.object({
+  "request_id": zod.int()
+})
+
+
+
+export const recordSupplierOfferBodyPricesItemUnitCostMax = 20;
+
+export const recordSupplierOfferBodyReferenceDefault = ``;
+export const recordSupplierOfferBodyReferenceMax = 50;
+
+export const recordSupplierOfferBodyNotesDefault = ``;
+
+export const RecordSupplierOfferBody = zod.object({
+  "supplier": zod.int().min(1),
+  "prices": zod.array(zod.object({
+  "request_line": zod.int().min(1),
+  "unit_cost": zod.string().max(recordSupplierOfferBodyPricesItemUnitCostMax).nullable()
+})),
+  "reference": zod.string().max(recordSupplierOfferBodyReferenceMax).default(recordSupplierOfferBodyReferenceDefault),
+  "received_on": zod.iso.date().nullish(),
+  "valid_until": zod.iso.date().nullish(),
+  "notes": zod.string().default(recordSupplierOfferBodyNotesDefault)
+})
+
+export const recordSupplierOfferResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const recordSupplierOfferResponseOffersItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordSupplierOfferResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "requested_on": zod.iso.date(),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "quantity": zod.stringFormat('decimal', recordSupplierOfferResponseLinesItemQuantityRegExp)
+})),
+  "offers": zod.array(zod.object({
+  "id": zod.int(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "reference": zod.string(),
+  "received_on": zod.iso.date().nullable(),
+  "valid_until": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "request_line": zod.int(),
+  "unit_cost": zod.stringFormat('decimal', recordSupplierOfferResponseOffersItemLinesItemUnitCostRegExp),
+  "retained": zod.boolean()
+})),
+  "order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}),zod.null()])
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Turn the chosen offers into purchase orders, one per supplier: `choices` gives the supplier retained per
+ * request line; a line left out is not ordered. Refused (`choices.<line id>`) without a price from that
+ * supplier or when their offer is no longer valid. The request is then "commandée".
+ */
+export const OrderFromOffersParams = zod.object({
+  "request_id": zod.int()
+})
+
+
+
+
+
+export const OrderFromOffersBody = zod.object({
+  "choices": zod.array(zod.object({
+  "request_line": zod.int().min(1),
+  "supplier": zod.int().min(1)
+})),
+  "ordered_on": zod.iso.date(),
+  "expected_on": zod.iso.date().nullish()
+})
+
+export const orderFromOffersResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const orderFromOffersResponseOffersItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const OrderFromOffersResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "requested_on": zod.iso.date(),
+  "status": zod.enum(['open', 'ordered', 'cancelled']).describe('* `open` - En cours\n* `ordered` - Commandée\n* `cancelled` - Annulée'),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "quantity": zod.stringFormat('decimal', orderFromOffersResponseLinesItemQuantityRegExp)
+})),
+  "offers": zod.array(zod.object({
+  "id": zod.int(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "reference": zod.string(),
+  "received_on": zod.iso.date().nullable(),
+  "valid_until": zod.iso.date().nullable(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "request_line": zod.int(),
+  "unit_cost": zod.stringFormat('decimal', orderFromOffersResponseOffersItemLinesItemUnitCostRegExp),
+  "retained": zod.boolean()
+})),
+  "order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}),zod.null()])
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Products sorted by name. Archived ones only when asked (`status`). Not paginated: a catalogue
  * holds tens of products, not thousands (D-030).
  */

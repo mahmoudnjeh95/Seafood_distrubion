@@ -205,6 +205,7 @@ import type {
   ListMyStockParams,
   ListPartnershipsParams,
   ListPriceListsParams,
+  ListPriceRequestsParams,
   ListProductsParams,
   ListPurchaseOrdersParams,
   ListQuotesParams,
@@ -269,8 +270,10 @@ import type {
   NotificationList,
   NumberLine,
   NumberingWrite,
+  OfferWrite,
   OfficeSiteProduct,
   Order,
+  OrderFromOffersWrite,
   OrderWrite,
   Organization,
   PaginatedAccountTransferList,
@@ -290,6 +293,7 @@ import type {
   PaginatedLossList,
   PaginatedLotPartnershipList,
   PaginatedOrderList,
+  PaginatedPriceRequestList,
   PaginatedQuoteList,
   PaginatedReceiptList,
   PaginatedSaleList,
@@ -330,6 +334,8 @@ import type {
   PriceBoard,
   PriceList,
   PriceListWrite,
+  PriceRequest,
+  PriceRequestWrite,
   PrimeWrite,
   Product,
   ProductCreate,
@@ -21501,6 +21507,540 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdatePriceListMutationOptions(options), queryClient);
+    }
+
+export const getListPriceRequestsUrl = (params?: ListPriceRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/price-requests?${stringifiedParams}` : `/api/v1/price-requests`
+}
+
+/**
+ * Price requests ("demandes de prix", D-289), newest first, paginated, with their lines and the suppliers'
+ * offers. Filter by status or `search` (number, product, supplier).
+ */
+export const listPriceRequests = async (params?: ListPriceRequestsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedPriceRequestList> => {
+
+  return apiFetch<PaginatedPriceRequestList>(getListPriceRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPriceRequestsQueryKey = (params?: ListPriceRequestsParams,) => {
+    return [
+    `/api/v1/price-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPriceRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listPriceRequests>>, TError = unknown>(params?: ListPriceRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPriceRequests>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPriceRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPriceRequests>>> = ({ signal }) => listPriceRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPriceRequests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPriceRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listPriceRequests>>>
+export type ListPriceRequestsQueryError = unknown
+
+
+export function useListPriceRequests<TData = Awaited<ReturnType<typeof listPriceRequests>>, TError = unknown>(
+ params: undefined |  ListPriceRequestsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPriceRequests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPriceRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listPriceRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPriceRequests<TData = Awaited<ReturnType<typeof listPriceRequests>>, TError = unknown>(
+ params?: ListPriceRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPriceRequests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPriceRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listPriceRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPriceRequests<TData = Awaited<ReturnType<typeof listPriceRequests>>, TError = unknown>(
+ params?: ListPriceRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPriceRequests>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListPriceRequests<TData = Awaited<ReturnType<typeof listPriceRequests>>, TError = unknown>(
+ params?: ListPriceRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPriceRequests>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPriceRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePriceRequestUrl = () => {
+
+
+
+
+  return `/api/v1/price-requests`
+}
+
+/**
+ * Ask several suppliers for their prices on products and kilos. Errors on `suppliers`, `lines`,
+ * `lines.<index>.<field>`, `requested_on`. Owner or manager.
+ */
+export const createPriceRequest = async (priceRequestWrite: PriceRequestWrite, options?: Parameters<typeof apiFetch>[1]): Promise<PriceRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<PriceRequest>(getCreatePriceRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(priceRequestWrite)
+  }
+);}
+
+
+
+
+
+export const getCreatePriceRequestMutationKey = () => ['createPriceRequest'] as const;
+
+export const getCreatePriceRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPriceRequest>>, TError,CreatePriceRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPriceRequest>>, TError,CreatePriceRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreatePriceRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPriceRequest>>, CreatePriceRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPriceRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePriceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createPriceRequest>>>
+    export type CreatePriceRequestMutationBody = PriceRequestWrite
+    export type CreatePriceRequestMutationError = unknown
+    export type CreatePriceRequestMutationVariables = {data: PriceRequestWrite}
+
+    export const useCreatePriceRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPriceRequest>>, TError,CreatePriceRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createPriceRequest>>,
+        TError,
+        CreatePriceRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePriceRequestMutationOptions(options), queryClient);
+    }
+
+export const getGetPriceRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/v1/price-requests/${requestId}`
+}
+
+export const getPriceRequest = async (requestId: number, options?: Parameters<typeof apiFetch>[1]): Promise<PriceRequest> => {
+
+  return apiFetch<PriceRequest>(getGetPriceRequestUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPriceRequestQueryKey = (requestId: number,) => {
+    return [
+    `/api/v1/price-requests/${requestId}`
+    ] as const;
+    }
+
+
+export const getGetPriceRequestQueryOptions = <TData = Awaited<ReturnType<typeof getPriceRequest>>, TError = unknown>(requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPriceRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPriceRequestQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPriceRequest>>> = ({ signal }) => getPriceRequest(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPriceRequest>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPriceRequestQueryResult = NonNullable<Awaited<ReturnType<typeof getPriceRequest>>>
+export type GetPriceRequestQueryError = unknown
+
+
+export function useGetPriceRequest<TData = Awaited<ReturnType<typeof getPriceRequest>>, TError = unknown>(
+ requestId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPriceRequest>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPriceRequest>>,
+          TError,
+          Awaited<ReturnType<typeof getPriceRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPriceRequest<TData = Awaited<ReturnType<typeof getPriceRequest>>, TError = unknown>(
+ requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPriceRequest>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPriceRequest>>,
+          TError,
+          Awaited<ReturnType<typeof getPriceRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPriceRequest<TData = Awaited<ReturnType<typeof getPriceRequest>>, TError = unknown>(
+ requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPriceRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetPriceRequest<TData = Awaited<ReturnType<typeof getPriceRequest>>, TError = unknown>(
+ requestId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPriceRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPriceRequestQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCancelPriceRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/v1/price-requests/${requestId}/cancel`
+}
+
+/**
+ * Give up a price request still open: nothing is ordered.
+ */
+export const cancelPriceRequest = async (requestId: number, options?: Parameters<typeof apiFetch>[1]): Promise<PriceRequest> => {
+
+  return apiFetch<PriceRequest>(getCancelPriceRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelPriceRequestMutationKey = () => ['cancelPriceRequest'] as const;
+
+export const getCancelPriceRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelPriceRequest>>, TError,CancelPriceRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelPriceRequest>>, TError,CancelPriceRequestMutationVariables, TContext> => {
+
+const mutationKey = getCancelPriceRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelPriceRequest>>, CancelPriceRequestMutationVariables> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  cancelPriceRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelPriceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof cancelPriceRequest>>>
+
+    export type CancelPriceRequestMutationError = unknown
+    export type CancelPriceRequestMutationVariables = {requestId: number}
+
+    export const useCancelPriceRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelPriceRequest>>, TError,CancelPriceRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelPriceRequest>>,
+        TError,
+        CancelPriceRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelPriceRequestMutationOptions(options), queryClient);
+    }
+
+export const getRecordSupplierOfferUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/v1/price-requests/${requestId}/offers`
+}
+
+/**
+ * Type a supplier's answer: a price per kg per request line (empty: not offered), their reference, the
+ * day it came and how long it holds. A supplier not asked yet is added. Replaces their earlier answer.
+ * Errors on `prices.<line id>`, `supplier`, `received_on`, `valid_until`. Only while the request is open.
+ */
+export const recordSupplierOffer = async (requestId: number,
+    offerWrite: OfferWrite, options?: Parameters<typeof apiFetch>[1]): Promise<PriceRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<PriceRequest>(getRecordSupplierOfferUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(offerWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordSupplierOfferMutationKey = () => ['recordSupplierOffer'] as const;
+
+export const getRecordSupplierOfferMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordSupplierOffer>>, TError,RecordSupplierOfferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordSupplierOffer>>, TError,RecordSupplierOfferMutationVariables, TContext> => {
+
+const mutationKey = getRecordSupplierOfferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordSupplierOffer>>, RecordSupplierOfferMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  recordSupplierOffer(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordSupplierOfferMutationResult = NonNullable<Awaited<ReturnType<typeof recordSupplierOffer>>>
+    export type RecordSupplierOfferMutationBody = OfferWrite
+    export type RecordSupplierOfferMutationError = unknown
+    export type RecordSupplierOfferMutationVariables = {requestId: number;data: OfferWrite}
+
+    export const useRecordSupplierOffer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordSupplierOffer>>, TError,RecordSupplierOfferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordSupplierOffer>>,
+        TError,
+        RecordSupplierOfferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordSupplierOfferMutationOptions(options), queryClient);
+    }
+
+export const getOrderFromOffersUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/v1/price-requests/${requestId}/order`
+}
+
+/**
+ * Turn the chosen offers into purchase orders, one per supplier: `choices` gives the supplier retained per
+ * request line; a line left out is not ordered. Refused (`choices.<line id>`) without a price from that
+ * supplier or when their offer is no longer valid. The request is then "commandée".
+ */
+export const orderFromOffers = async (requestId: number,
+    orderFromOffersWrite: OrderFromOffersWrite, options?: Parameters<typeof apiFetch>[1]): Promise<PriceRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<PriceRequest>(getOrderFromOffersUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orderFromOffersWrite)
+  }
+);}
+
+
+
+
+
+export const getOrderFromOffersMutationKey = () => ['orderFromOffers'] as const;
+
+export const getOrderFromOffersMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof orderFromOffers>>, TError,OrderFromOffersMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof orderFromOffers>>, TError,OrderFromOffersMutationVariables, TContext> => {
+
+const mutationKey = getOrderFromOffersMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof orderFromOffers>>, OrderFromOffersMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  orderFromOffers(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OrderFromOffersMutationResult = NonNullable<Awaited<ReturnType<typeof orderFromOffers>>>
+    export type OrderFromOffersMutationBody = OrderFromOffersWrite
+    export type OrderFromOffersMutationError = unknown
+    export type OrderFromOffersMutationVariables = {requestId: number;data: OrderFromOffersWrite}
+
+    export const useOrderFromOffers = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof orderFromOffers>>, TError,OrderFromOffersMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof orderFromOffers>>,
+        TError,
+        OrderFromOffersMutationVariables,
+        TContext
+      > => {
+      return useMutation(getOrderFromOffersMutationOptions(options), queryClient);
     }
 
 export const getListProductsUrl = (params?: ListProductsParams,) => {

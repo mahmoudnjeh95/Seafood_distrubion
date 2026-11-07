@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-07 (document attachments, D-288; next free decision D-289)_
+_Last updated: 2026-11-07 (supplier price requests, D-289; next free decision D-290)_
 
 ## Where we are
 
@@ -11,8 +11,8 @@ _Last updated: 2026-11-07 (document attachments, D-288; next free decision D-289
   owed but never invoiced, or given away at 100 % discount; (3) **P2-T18 "Refacturer"** (branch `rebill-credit-note`,
   migration sales 0035, D-287): a draft from a full credit note that took no goods back; (4) **P2-T19 attachments** (branch `document-attachments`,
   migration documents 0007, D-288): "Documents associés" on quotes, BL, invoices, purchase orders, receipts, supplier
-  invoices; (5) supplier price comparison
-  (demande de devis to several suppliers, offers, pick one, purchase order). Not wanted: Bureau d'ordre, exempt/export
+  invoices; (5) **P1-T19 supplier price requests** (branch `supplier-price-requests`, migration purchasing 0024,
+  D-289): Achats › Demandes de prix, offers compared, one order per chosen supplier. Not wanted: Bureau d'ordre, exempt/export
   customers, internal purchase requests, foreign currency, services.
 
 - **D-284 (branch `credit-note-refunds`, stacked on #323, migrations sales 0033, treasury 0008):** an avoir asks, per line
@@ -123,7 +123,8 @@ _Last updated: 2026-11-07 (document attachments, D-288; next free decision D-289
 ## Next step
 
 0. Perfaxis gaps: merge in order once green, after #324: `receipt-dispute` (#325), `bl-billing` (#326),
-   `rebill-credit-note`, `document-attachments`; then build (5) supplier price comparison (D-289 onwards).
+   `rebill-credit-note` (#327), `document-attachments` (#328), `supplier-price-requests`. Each needs a staging check
+   (see the phase files P1-T18, P1-T19, P2-T17 to P2-T19).
 0. D-284: merge #323 first, then the PR from `credit-note-refunds` once CI is green (retarget it to main).
 0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
    BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.
