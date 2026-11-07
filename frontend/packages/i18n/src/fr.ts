@@ -2118,6 +2118,23 @@ export const fr = {
       page: "{{from}}–{{to}} sur {{count}}",
       statusFilter: "Statut du bon de livraison",
       allStatuses: "Toutes",
+      // A BL invoiced, "non facturable" or "offert" (D-286)
+      billing: {
+        label: "Facturation",
+        invoice: "Facturable",
+        no_invoice: "Non facturable",
+        free: "Offert",
+        freeHint:
+          "Offert : chaque ligne part à 100 % de remise, le client ne doit rien et le bon ne se facture pas. Le lot garde le coût de la marchandise.",
+        noInvoiceHint:
+          "Non facturable : le client doit ce bon et le règle comme les autres, mais il ne va sur aucune facture.",
+        filter: "Facturation",
+        all: "Toutes",
+        change: "Rendre facturable",
+        changeNo: "Rendre non facturable",
+        changed: "Bon {{number}} : {{billing}}.",
+        failed: "La facturation n'a pas été changée.",
+      },
       // Grouped invoice from several BL (D-096)
       groupInvoice: {
         filter: "À facturer",

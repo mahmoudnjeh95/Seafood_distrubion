@@ -4,6 +4,8 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { BillingEnum } from './billingEnum';
+import type { NullEnum } from './nullEnum';
 import type { SaleLineWrite } from './saleLineWrite';
 import type { SaleWriteBoxes } from './saleWriteBoxes';
 import type { SaleWritePaymentMethod } from './saleWritePaymentMethod';
@@ -39,4 +41,5 @@ export interface SaleWrite {
      * @nullable
      */
   delivery_address?: string | null;
+  billing?: BillingEnum | NullEnum | null;
 }

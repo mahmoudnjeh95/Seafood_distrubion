@@ -24,6 +24,7 @@ urlpatterns = [
     path("quotes/<int:quote_id>/convert", views.QuoteConvertView.as_view(), name="quote-convert"),
     path("sales", views.SaleListView.as_view(), name="sale-list"),
     path("sales/<int:sale_id>", views.SaleDetailView.as_view(), name="sale-detail"),
+    path("sales/<int:sale_id>/billing", views.SaleBillingView.as_view(), name="sale-billing"),
     path("sales/<int:sale_id>/confirm", views.SaleConfirmView.as_view(), name="sale-confirm"),
     path("sales/<int:sale_id>/cancel", views.SaleCancelView.as_view(), name="sale-cancel"),
     path("batches/<int:batch_id>/sales", views.BatchSalesView.as_view(), name="batch-sales"),

@@ -3944,3 +3944,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Other Perfaxis gaps the owner kept (same day): "non facturable" BL, "Refacturer" after an avoir, attachments on
   documents, supplier price comparison. Not wanted: Bureau d'ordre, exempt/export customers, internal purchase
   requests, foreign currency, services.
+
+**D-286 · A BL can be "non facturable" (owed, never invoiced) or "offert" (given away) (P2-T17)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Non facturable" box. The owner wanted both meanings, chosen per BL: `Sale.billing` = invoice / no_invoice / free.
+- **Offert** is a BL whose lines all take a 100 % discount (the price stays, as the value given): total 0, nothing owed,
+  the minimum price does not apply, the FIFO cost stays on the lots, so the lot result shows the cost with no revenue
+  (no separate "gift" line for now). It is chosen on the draft only, since it changes what is owed; a confirmed gift is
+  cancelled and typed again to charge it.
+- **Non facturable** changes nothing in the amounts: the customer owes it and pays it as usual; it is left out of every
+  invoicing list and refused by `create_invoice`. It can be switched both ways on a confirmed BL while it is on no invoice.
+- Not for the walk-in customer (already never invoiced). The driver's phone does not choose: always "facturable".

@@ -49,6 +49,7 @@ from .models import (
     QuoteLine,
     QuoteStatus,
     Sale,
+    SaleBilling,
     SaleLine,
     SaleLineBatch,
     SaleRevision,
@@ -196,11 +197,13 @@ def sales_of(
     uninvoiced: bool = False,
     delivery_status: str | None = None,
     opening: str = "all",
+    billing: str | None = None,
 ) -> QuerySet[Sale]:
     """Sales newest first, each with `line_count`, its customer, place, quote and lines (product, batches).
     Days are those of `sold_at` in local time, both included; `search` matches the number and the
     customer's name or reference. `uninvoiced`: the BL still to invoice (confirmed, of a named customer,
-    on no live invoice). `opening` (D-283): "exclude" leaves out the customers' opening balances (OUV, not BL),
+    on no live invoice, and not "non facturable" or "offert", D-286). `billing` keeps one kind.
+    `opening` (D-283): "exclude" leaves out the customers' opening balances (OUV, not BL),
     "only" keeps them alone, "all" both."""
     lines = (
         SaleLine.objects.select_related("product")
@@ -250,14 +253,16 @@ def sales_of(
         sales = sales.filter(sold_at__date__gte=date_from)
     if date_to is not None:
         sales = sales.filter(sold_at__date__lte=date_to)
+    if billing:
+        sales = sales.filter(billing=billing)
     if opening == "exclude":
         sales = sales.filter(is_opening=False)
     elif opening == "only":
         sales = sales.filter(is_opening=True)
     if uninvoiced:
-        sales = sales.filter(status=SaleStatus.CONFIRMED, customer__is_walk_in=False, is_opening=False).exclude(
-            Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True))
-        )
+        sales = sales.filter(
+            status=SaleStatus.CONFIRMED, customer__is_walk_in=False, is_opening=False, billing=SaleBilling.INVOICE
+        ).exclude(Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True)))
     if search := search.strip():
         sales = sales.filter(
             Q(number__icontains=search) | Q(customer__name__icontains=search) | Q(customer__reference__icontains=search)

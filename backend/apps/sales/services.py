@@ -64,6 +64,7 @@ from .models import (
     QuoteStatus,
     RefundMethod,
     Sale,
+    SaleBilling,
     SaleBoxLine,
     SaleLine,
     SaleLineBatch,
@@ -234,8 +235,12 @@ def _checked_lines(
     errors: dict[str, str],
     typed_source: str = PriceSource.TYPED,
     below_minimum_reason: str = "",
+    free: bool = False,
 ) -> list[dict[str, Any]]:
     """The lines' values once checked and priced; each problem is added to `errors` under the line's keys.
+
+    `free` is a BL given away (D-286): every line at 100 % discount, so nothing is owed, and the minimum price does
+    not apply.
 
     Each line also says where its price comes from (`price_source`) and whether it is below the product's
     minimum price (`below_minimum`). A price once the discount is taken off may not go under that minimum: the
@@ -266,13 +271,15 @@ def _checked_lines(
                 checked["below_minimum"] = product is not None and catalog.is_below_minimum(product, price[0])
             else:
                 errors[line_error_key(index, "unit_price")] = price
-        rate = _checked_rate(line.get("discount_rate"))
+        rate = Decimal("100.00") if free else _checked_rate(line.get("discount_rate"))
         if rate is None:
             errors[line_error_key(index, "discount_rate")] = _(
                 "Indiquez une remise en %, de 0 à 100, avec 2 décimales au plus."
             )
         checked["discount_rate"] = rate
-        if rate is not None and "unit_price" in checked and product is not None and product.min_price is not None:
+        if free:
+            checked["below_minimum"] = False
+        elif rate is not None and "unit_price" in checked and product is not None and product.min_price is not None:
             net = checked["unit_price"] * (100 - rate) / 100
             if net < product.min_price:
                 if below_minimum_reason.strip():
@@ -754,12 +761,26 @@ def _prepared_sale(
     payment: PaymentFields,
     typed_source: str = PriceSource.TYPED,
     below_minimum_reason: str = "",
+    billing: str = SaleBilling.INVOICE,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The checked lines and payment of a sale, or a ValidationError with every problem at once."""
     errors = _sale_header_errors(organization, customer, location, sold_at)
+    if billing not in SaleBilling.values:
+        errors["billing"] = _("Choisissez facturable, non facturable ou offert.")
+    elif billing != SaleBilling.INVOICE and customer.is_walk_in:
+        errors["billing"] = _("Une vente au client de passage ne se facture déjà pas : laissez « Facturable ».")
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
-    checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source, below_minimum_reason)
+    checked_lines = _checked_lines(
+        organization,
+        customer,
+        lines,
+        sold_at,
+        errors,
+        typed_source,
+        below_minimum_reason,
+        free=billing == SaleBilling.FREE,
+    )
     _checked_batches(organization, lines, checked_lines, errors)
     _checked_picks(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
@@ -908,6 +929,7 @@ def _sale_snapshot(sale: Sale) -> dict[str, Any]:
         "sold_at": sale.sold_at.isoformat(),
         "quote": sale.quote.number if sale.quote is not None else None,
         "delivery_address": sale.delivery_address,
+        "billing": sale.billing,
         "lines": [
             {
                 "product": line.product.reference,
@@ -947,8 +969,11 @@ def create_sale(
     delivery_address: str | None = None,
     transfer: "Transfer | None" = None,
     below_minimum_reason: str = "",
+    billing: str = SaleBilling.INVOICE,
 ) -> Sale:
     """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
+
+    `billing` (D-286): invoiced as usual, owed but never invoiced, or given away (every line at 100 % discount).
 
     No customer means the walk-in customer (a counter sale, D-047). A line without a price takes what the
     customer is charged at `sold_at` (now by default), kept on the line. A `client_uuid` already used
@@ -964,10 +989,11 @@ def create_sale(
         customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     sold_at = sold_at or timezone.now()
     checked_lines, paid = _prepared_sale(
-        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason
+        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason, billing
     )
     box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
+        billing=billing,
         organization=organization,
         number=numbering.next_draft_number(organization, "delivery_note"),
         customer=customer,
@@ -1277,6 +1303,7 @@ def update_sale(
     boxes: Mapping[str, object] | None = None,
     delivery_address: str | None = None,
     below_minimum_reason: str = "",
+    billing: str | None = None,
 ) -> Sale:
     """Change a draft: customer, place, moment, notes, payment, lines and boxes (all replaced). With `confirm`,
     confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment.
@@ -1301,8 +1328,11 @@ def update_sale(
         payment if payment is not None else _kept_payment(sale),
         typed_source,
         below_minimum_reason,
+        billing if billing is not None else sale.billing,
     )
     box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
+    if billing is not None:
+        sale.billing = billing
     sale.customer = customer
     sale.location = location
     sale.sold_at = sold_at
@@ -1346,6 +1376,42 @@ def update_sale(
     if confirm:
         return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
     return sale
+
+
+@transaction.atomic
+def set_sale_billing(*, sale: Sale, actor: User | None, billing: str) -> Sale:
+    """Mark a BL invoiced as usual or "non facturable" (owed, never invoiced), also once confirmed (D-286): its
+    amounts do not change. Refused while it is on an invoice (draft or issued), for the walk-in customer, and to or
+    from "offert", which changes what is owed: that is chosen on the draft."""
+    locked = _locked_sale(sale)
+    if billing not in (SaleBilling.INVOICE, SaleBilling.NO_INVOICE):
+        raise ValidationError({"billing": _("Choisissez facturable ou non facturable.")})
+    if locked.billing == SaleBilling.FREE:
+        raise ValidationError(_("Un bon offert le reste : annulez-le et refaites-le pour le facturer."))
+    if locked.status == SaleStatus.CANCELLED or locked.is_opening:
+        raise ValidationError(_("Ce bon ne se facture pas."))
+    if locked.customer.is_walk_in:
+        raise ValidationError(_("Une vente au client de passage ne se facture pas."))
+    live = locked.invoices.exclude(status=InvoiceStatus.CANCELLED).first()
+    if live is not None:
+        raise ValidationError(
+            _("Le bon est sur la facture %(number)s : supprimez le brouillon ou faites un avoir d'abord.")
+            % {"number": live.number or live.draft_number or _("(brouillon)")}
+        )
+    if locked.billing == billing:
+        return locked
+    before = {"billing": locked.billing}
+    locked.billing = billing
+    locked.save(update_fields=["billing", "updated_at"])
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="sale.billing_changed",
+        target=locked,
+        before=before,
+        after={"billing": billing},
+    )
+    return locked
 
 
 class CreditApprovalRequired(ValidationError):
@@ -2295,6 +2361,11 @@ def _checked_sale_to_invoice(sale: Sale) -> None:
         raise ValidationError(_("Seule une vente confirmée se facture."))
     if sale.is_opening:
         raise ValidationError(_("Un solde d'ouverture ne se facture pas : la facture existe déjà sur papier."))
+    if sale.billing != SaleBilling.INVOICE:
+        raise ValidationError(
+            _("Le bon %(number)s est « %(billing)s » : il ne se facture pas.")
+            % {"number": sale.number, "billing": sale.get_billing_display()}
+        )
     if sale.customer.is_walk_in:
         raise ValidationError(
             {"customer": _("Une vente au client de passage ne se facture pas : la facture nomme son client.")}
@@ -2328,6 +2399,7 @@ def _invoiceable_now(sale: Sale) -> bool:
     return (
         sale.status == SaleStatus.CONFIRMED
         and not sale.is_opening
+        and sale.billing == SaleBilling.INVOICE
         and not sale.customer.is_walk_in
         and not sale.invoices.exclude(status=InvoiceStatus.CANCELLED).exists()
     )
