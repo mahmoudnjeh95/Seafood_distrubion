@@ -42,6 +42,7 @@ import { NumberingPage } from "./settings/NumberingPage";
 import { CustomerTypesPage } from "./settings/CustomerTypesPage";
 import { VatRatesPage } from "./settings/VatRatesPage";
 import { OpeningBalancesPage } from "./treasury/OpeningBalancesPage";
+import { RefundsPage } from "./treasury/RefundsPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { AccountsPage } from "./treasury/AccountsPage";
 import { BordereauPage } from "./treasury/BordereauPage";
@@ -316,6 +317,7 @@ function AppRoutes() {
         <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
         <Route path="/tresorerie/soldes-ouverture" element={<OpeningBalancesPage />} />
+        <Route path="/tresorerie/remboursements" element={<RefundsPage />} />
         <Route path="/tresorerie/bordereau" element={<BordereauPage />} />
         <Route path="/tresorerie/agences" element={<AccountsPage kind="bank" />} />
         <Route path="/tresorerie/caisses" element={<AccountsPage kind="cash" />} />

@@ -828,6 +828,8 @@ class CreditNoteStock(models.TextChoices):
     RESTOCK = "restock", _("Remis en stock")
     # The goods come back but cannot be sold again: they are written off, on the lot they came from.
     LOSS = "loss", _("Mis en perte")
+    # A partial credit note whose lines say different things (D-284): each line's own `stock` decides.
+    MIXED = "mixed", _("Selon la ligne")
 
 
 class CreditNote(OrganizationScopedModel, TimeStampedModel):
@@ -890,6 +892,8 @@ class CreditNoteLine(OrganizationScopedModel):
     credit_note = models.ForeignKey(CreditNote, on_delete=models.CASCADE, related_name="lines")
     invoice_line = models.ForeignKey(InvoiceLine, on_delete=models.PROTECT, related_name="credit_lines")
     quantity = QuantityField(default=Decimal("0.000"))
+    # What became of this line's kilos (D-284): back in stock, written off as a loss, or not taken back.
+    stock = models.CharField(max_length=20, choices=CreditNoteStock.choices, default=CreditNoteStock.NONE)
     vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
     amount_excl_tax = MoneyField()
     vat_amount = MoneyField(default=Decimal("0.000"))
@@ -1223,3 +1227,80 @@ class WithholdingCertificate(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+class RefundMethod(models.TextChoices):
+    CASH = "cash", _("Espèces")
+    TRANSFER = "transfer", _("Virement")
+    CHEQUE = "cheque", _("Chèque")
+
+
+class CustomerRefund(OrganizationScopedModel, TimeStampedModel):
+    """Money a credit note gives back to a customer who had already paid (D-284), "À rembourser" until paid.
+
+    Made with the credit note when the invoice's BLs were paid beyond what they owe once credited: the debt left
+    is cancelled first, only the rest is refunded. Paid at once or later, in one or several payments
+    (`CustomerRefundPayment`), never beyond `amount`. The original payments stay as they were.
+    """
+
+    number = models.CharField(max_length=20)
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="refunds")
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="refunds")
+    credit_note = models.OneToOneField(CreditNote, on_delete=models.PROTECT, related_name="refund")
+    amount = MoneyField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="customer_refund_number_unique"),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_refund_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class CustomerRefundAllocation(OrganizationScopedModel):
+    """The part of a refund taken from one BL's overpayment (D-284): that BL no longer counts it as paid, so a BL
+    invoiced again after a total credit note owes its amount anew. Written once with the refund."""
+
+    refund = models.ForeignKey(CustomerRefund, on_delete=models.PROTECT, related_name="allocations")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="refund_allocations")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["refund", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_refund_allocation_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.refund} · {self.sale} · {self.amount}"
+
+
+class CustomerRefundPayment(OrganizationScopedModel):
+    """Money actually given back on a refund: the day, how, from which caisse or bank account (D-284). It writes a
+    treasury movement out of that account. Written once, never changed."""
+
+    refund = models.ForeignKey(CustomerRefund, on_delete=models.PROTECT, related_name="payments")
+    paid_on = models.DateField()
+    method = models.CharField(max_length=20, choices=RefundMethod.choices)
+    amount = MoneyField()
+    account = models.ForeignKey("treasury.TreasuryAccount", on_delete=models.PROTECT, related_name="+")
+    reference = models.CharField(max_length=50, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["refund", "paid_on", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_refund_payment_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.refund} · {self.amount}"

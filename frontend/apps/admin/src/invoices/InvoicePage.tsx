@@ -581,6 +581,27 @@ function CreditNotesCard({ notes }: { notes: readonly CreditNote[] }) {
               {note.reason}
               {note.stock !== "none" && ` · ${t(`admin.invoices.creditDialog.stocks.${note.stock}`)}`}
             </span>
+            {note.lines.some((line) => line.stock !== "none") && note.stock === "mixed" && (
+              <span className="w-full text-[0.82rem] text-ink-2">
+                {note.lines
+                  .filter((line) => line.stock !== "none")
+                  .map(
+                    (line) =>
+                      `${line.product_name} ${formatQuantity(line.quantity)} : ${t(`admin.invoices.creditDialog.stocks.${line.stock}`)}`,
+                  )
+                  .join(" · ")}
+              </span>
+            )}
+            {note.refund && (
+              <Link to="/tresorerie/remboursements" className="w-full text-[0.85rem] text-sea hover:underline">
+                {t("admin.refunds.onNote", {
+                  number: note.refund.number,
+                  status: t(`admin.refunds.statuses.${note.refund.status}`),
+                  amount: formatMoney(note.refund.amount),
+                  left: formatMoney(note.refund.left),
+                })}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

@@ -80,6 +80,8 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await expect(page.getByRole("button", { name: "Enregistrer et recalculer" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Faire un avoir" }).click();
+  // What becomes of the kilos is always asked (D-284).
+  await page.getByRole("radio", { name: "Non repris" }).check();
   await page.getByLabel("Motif").fill("Erreur de pesée");
   await page.getByRole("button", { name: "Créer l'avoir" }).click();
   await expect(page.getByText(/Avoir AV-\d{4}-\d{4} créé/)).toBeVisible();

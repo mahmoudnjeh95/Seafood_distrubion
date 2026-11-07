@@ -338,7 +338,10 @@ class OpenSaleSerializer(serializers.Serializer[Any]):
 class HistoryEntrySerializer(serializers.Serializer[Any]):
     # "sale" (what it owes now), "on_spot" (paid at the sale), "payment", "unpaid" (an effet refused by the
     # bank: owed again, D-217), or "writeoff" (the balance given up, D-252; `note` is its reason).
-    kind = serializers.ChoiceField(choices=["sale", "on_spot", "payment", "unpaid", "writeoff"], read_only=True)
+    # "refund": money a credit note gives back to the customer (D-284).
+    kind = serializers.ChoiceField(
+        choices=["sale", "on_spot", "payment", "unpaid", "writeoff", "refund"], read_only=True
+    )
     day = serializers.DateField(read_only=True)
     number = serializers.CharField(read_only=True)
     object_id = serializers.IntegerField(read_only=True)

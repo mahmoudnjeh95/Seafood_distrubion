@@ -45,6 +45,9 @@ from .models import (
     CustomerPayment,
     CustomerPaymentLine,
     CustomerPaymentMethod,
+    CustomerRefund,
+    CustomerRefundAllocation,
+    CustomerRefundPayment,
     CustomerWriteOffAllocation,
     CustomerWriteOffLotShare,
     DeliveryStatus,
@@ -59,6 +62,7 @@ from .models import (
     Quote,
     QuoteLine,
     QuoteStatus,
+    RefundMethod,
     Sale,
     SaleBoxLine,
     SaleLine,
@@ -2605,6 +2609,19 @@ class CreditLineFields(TypedDict, total=False):
     quantity: Number | None
     # Amount without VAT given back; empty = the kilos' share of the line.
     amount: Number | None
+    # What becomes of this line's kilos (D-284): "restock", "loss" or "none"; empty takes the credit note's `stock`.
+    stock: str
+
+
+class RefundFields(TypedDict, total=False):
+    """How the money a credit note gives back is refunded (D-284): "now" pays it at once from `account`, "later"
+    leaves it "À rembourser" for the treasurer."""
+
+    mode: str
+    method: str
+    account: "TreasuryAccount | None"
+    paid_on: dt.date | None
+    reference: str
 
 
 @dataclass(frozen=True)
@@ -2613,9 +2630,15 @@ class _CreditPart:
     quantity: Decimal
     excl: Decimal
     vat: Decimal
+    # What becomes of the kilos given back (D-284); "none" when no kilos come back.
+    stock: str = CreditNoteStock.NONE
 
 
-def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedLine]) -> list[_CreditPart]:
+# What a line may say about its kilos (D-284); "mixed" only describes a whole credit note.
+_LINE_STOCKS = (CreditNoteStock.NONE, CreditNoteStock.RESTOCK, CreditNoteStock.LOSS)
+
+
+def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedLine], stock: str) -> list[_CreditPart]:
     parts = []
     for line in invoice.lines.order_by("id"):
         done = credited.get(line.pk)
@@ -2623,15 +2646,20 @@ def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedL
         excl = line.amount_excl_tax - (done.amount_excl_tax if done else Decimal("0.000"))
         vat = line.vat_amount - (done.vat_amount if done else Decimal("0.000"))
         if quantity > 0 or excl > 0 or vat > 0:
-            parts.append(_CreditPart(line, max(quantity, Decimal("0.000")), excl, vat))
+            kilos = max(quantity, Decimal("0.000"))
+            parts.append(_CreditPart(line, kilos, excl, vat, stock if kilos > 0 else CreditNoteStock.NONE))
     return parts
 
 
 def _partial_credit_parts(
-    invoice: Invoice, lines: Sequence[CreditLineFields], credited: dict[int, selectors.CreditedLine]
+    invoice: Invoice,
+    lines: Sequence[CreditLineFields],
+    credited: dict[int, selectors.CreditedLine],
+    default_stock: str | None,
 ) -> list[_CreditPart]:
     """The kilos and amounts given back per line, checked against what each line still holds; problems come
-    back on `lines.<index>.<field>`."""
+    back on `lines.<index>.<field>`. Each line with kilos says what becomes of them (`stock`, D-284): its own
+    choice, else `default_stock`; with neither the line is refused, so returned goods are never forgotten."""
     errors: dict[str, str] = {}
     parts: list[_CreditPart] = []
     seen: set[int] = set()
@@ -2688,7 +2716,15 @@ def _partial_credit_parts(
             vat = min(money(line.vat_amount * excl / line.amount_excl_tax), vat_left)
         else:
             vat = Decimal("0.000")
-        parts.append(_CreditPart(line, quantity, excl, vat))
+        stock: str = CreditNoteStock.NONE
+        if quantity > 0:
+            stock = fields.get("stock") or default_stock or ""
+            if stock not in _LINE_STOCKS:
+                errors[line_error_key(index, "stock")] = _(
+                    "Indiquez ce que deviennent ces kilos : remis en stock, mis en perte ou non repris."
+                )
+                continue
+        parts.append(_CreditPart(line, quantity, excl, vat, stock))
     if errors:
         raise ValidationError(errors)
     return parts
@@ -2710,7 +2746,7 @@ def _take_back(
     )
     returned = selectors.returned_by_sale_batch([row.pk for row in batch_rows])
     taken: list[tuple[SaleLineBatch, Decimal]] = []
-    if note.stock != CreditNoteStock.NONE and part.quantity > 0:
+    if part.stock != CreditNoteStock.NONE and part.quantity > 0:
         needed = part.quantity
         for row in batch_rows:
             left = row.quantity - returned.get(row.pk, Decimal("0.000"))
@@ -2751,7 +2787,7 @@ def _take_back(
             reason=_("Retour client · avoir %(number)s") % {"number": note.number},
             source=credit_line,
         )
-        if note.stock == CreditNoteStock.LOSS:
+        if part.stock == CreditNoteStock.LOSS:
             inventory.post_movement(
                 organization=note.organization,
                 actor=actor,
@@ -2772,7 +2808,8 @@ def create_credit_note(
     kind: str,
     reason: str,
     lines: Sequence[CreditLineFields] = (),
-    stock: str = CreditNoteStock.NONE,
+    stock: str | None = CreditNoteStock.NONE,
+    refund: RefundFields | None = None,
 ) -> CreditNote:
     """Correct an issued invoice: the only way (D-057). Numbered AV-<year>-0001... at once, never changed.
 
@@ -2783,7 +2820,12 @@ def create_credit_note(
 
     `stock` says what happens to the kilos given back (customer returns, D-070): `none` moves nothing,
     `restock` puts them back in the sale's place on the batches they left, `loss` does the same and writes
-    them off. Either way the lot's revenue and cost of goods drop by what came back.
+    them off on that lot. Either way the lot's revenue and cost of goods drop by what came back. A partial
+    credit note may say it per line (D-284); `stock` None makes the choice required on every line with kilos.
+
+    Money (D-284): the credit note first cancels what the invoice's BLs still owe; what they were paid beyond
+    that is refunded to the customer (`CustomerRefund`): at once with `refund` mode "now" (from a caisse or a bank
+    account), else "À rembourser" for the treasurer. The original payments are not touched.
     """
     invoice = _locked_invoice(invoice)
     if invoice.status == InvoiceStatus.DRAFT:
@@ -2795,20 +2837,25 @@ def create_credit_note(
         raise ValidationError({"reason": _("Indiquez la raison de l'avoir.")})
     if kind not in CreditNoteKind.values:
         raise ValidationError({"kind": _("Type d'avoir inconnu.")})
-    if stock not in CreditNoteStock.values:
+    if (kind == CreditNoteKind.FULL or stock is not None) and stock not in _LINE_STOCKS:
         raise ValidationError({"stock": _("Indiquez ce que deviennent les kilos rendus.")})
+    refund_mode = (refund or {}).get("mode") or "later"
+    if refund_mode not in ("now", "later"):
+        raise ValidationError({"refund.mode": _("Remboursez maintenant ou plus tard.")})
+    if refund_mode == "now":
+        _checked_refund_payment(invoice.organization, refund or {}, key="refund")
     credited = selectors.credited_by_line(invoice)
     already = invoice.credit_notes.aggregate(
         stamp=Sum("fiscal_stamp"), fees=Sum("fees"), withholding=Sum("withholding_amount")
     )
     withholding_left = invoice.withholding_amount - (already["withholding"] or Decimal("0.000"))
     if kind == CreditNoteKind.FULL:
-        parts = _full_credit_parts(invoice, credited)
+        parts = _full_credit_parts(invoice, credited, stock or CreditNoteStock.NONE)
         stamp = invoice.fiscal_stamp - (already["stamp"] or Decimal("0.000"))
         fees = invoice.fees - (already["fees"] or Decimal("0.000"))
         withholding = withholding_left
     else:
-        parts = _partial_credit_parts(invoice, lines, credited)
+        parts = _partial_credit_parts(invoice, lines, credited, stock)
         stamp = Decimal("0.000")
         fees = Decimal("0.000")
         goods = sum((part.excl + part.vat for part in parts), Decimal("0.000"))
@@ -2818,6 +2865,8 @@ def create_credit_note(
     total_excl = sum((part.excl for part in parts), Decimal("0.000"))
     vat_total = sum((part.vat for part in parts), Decimal("0.000"))
     today = timezone.localdate()
+    stocks = {part.stock for part in parts if part.quantity > 0}
+    note_stock = stocks.pop() if len(stocks) == 1 else (CreditNoteStock.MIXED if stocks else CreditNoteStock.NONE)
     note = CreditNote.objects.create(
         organization=invoice.organization,
         number=numbering.next_number(invoice.organization, "credit_note", year=today.year),
@@ -2825,7 +2874,7 @@ def create_credit_note(
         kind=kind,
         issued_on=today,
         reason=reason,
-        stock=stock,
+        stock=note_stock,
         total_excl_tax=total_excl,
         vat_total=vat_total,
         fiscal_stamp=stamp,
@@ -2842,6 +2891,7 @@ def create_credit_note(
             credit_note=note,
             invoice_line=part.invoice_line,
             quantity=part.quantity,
+            stock=part.stock,
             vat_rate=part.invoice_line.vat_rate,
             amount_excl_tax=part.excl,
             vat_amount=part.vat,
@@ -2859,6 +2909,9 @@ def create_credit_note(
             sale.tax_amount = None
             sale.save(update_fields=["tax_amount", "updated_at"])
     refresh_invoice_sales(invoice)
+    planned = _plan_refund(note=note, actor=actor)
+    if planned is not None and refund_mode == "now":
+        pay_refund(refund=planned, actor=actor, amount=planned.amount, **_refund_payment_fields(refund or {}))
     audit.record(
         organization=invoice.organization,
         actor=actor,
@@ -2869,7 +2922,9 @@ def create_credit_note(
             "invoice": invoice.number,
             "kind": kind,
             "reason": reason,
-            "stock": stock,
+            "stock": note_stock,
+            "lines_stock": [part.stock for part in parts],
+            "refund": str(planned.amount) if planned is not None else "0.000",
             "total_excl_tax": str(note.total_excl_tax),
             "vat_total": str(note.vat_total),
             "fiscal_stamp": str(note.fiscal_stamp),
@@ -2879,6 +2934,161 @@ def create_credit_note(
         },
     )
     return note
+
+
+# ---- Refunds of credit notes (D-284) ----
+
+# The treasury movement of a refund payment: money out of a caisse or a bank account.
+REFUND_PAYMENT_SOURCE = "sales.refund_payment"
+
+
+def _overpaid_sales(invoice: Invoice) -> list[tuple[int, Decimal]]:
+    """The invoice's BLs paid beyond what they owe now (credit notes and planned refunds taken off), oldest first."""
+    sale_ids = list(invoice.sale_links.values_list("sale_id", flat=True))
+    rows = receivables.sale_receivables(invoice.organization, sale_ids=sale_ids)
+    return [(row.sale_id, row.overpaid) for row in rows if row.overpaid > 0]
+
+
+def refundable_on(invoice: Invoice) -> Decimal:
+    """What a credit note on this invoice may refund now: what its BLs were paid beyond what they owe. A BL still
+    owing gives nothing back, so the debt is always cancelled first."""
+    return sum((amount for _sale, amount in _overpaid_sales(invoice)), Decimal("0.000"))
+
+
+def _plan_refund(*, note: CreditNote, actor: User | None) -> CustomerRefund | None:
+    """The refund a new credit note owes the customer (D-284): its net amount, at most what the invoice's BLs were
+    paid beyond what they owe now; taken from those BLs (`CustomerRefundAllocation`) so they no longer count it as
+    paid. None when nothing was overpaid: the credit note only cancelled debt."""
+    overpaid = _overpaid_sales(note.invoice)
+    amount = min(sum((value for _sale, value in overpaid), Decimal("0.000")), note.net_amount)
+    if amount <= 0:
+        return None
+    today = timezone.localdate()
+    refund = CustomerRefund.objects.create(
+        organization=note.organization,
+        number=numbering.next_number(note.organization, "customer_refund", year=today.year),
+        customer=note.invoice.customer,
+        invoice=note.invoice,
+        credit_note=note,
+        amount=amount,
+        created_by=actor,
+    )
+    left = amount
+    for sale_id, value in overpaid:
+        take = min(value, left)
+        if take <= 0:
+            break
+        CustomerRefundAllocation.objects.create(
+            organization_id=note.organization_id, refund=refund, sale_id=sale_id, amount=take
+        )
+        left -= take
+    audit.record(
+        organization=note.organization,
+        actor=actor,
+        action="customer_refund.planned",
+        target=refund,
+        after={"number": refund.number, "credit_note": note.number, "amount": str(amount)},
+    )
+    return refund
+
+
+def refunded_total(refund: CustomerRefund) -> Decimal:
+    """What was actually paid back on a refund so far."""
+    return refund.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+
+
+def _refund_payment_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "method": fields.get("method") or "",
+        "account": fields.get("account"),
+        "paid_on": fields.get("paid_on"),
+        "reference": fields.get("reference") or "",
+    }
+
+
+def _checked_refund_payment(organization: Organization, fields: Mapping[str, Any], *, key: str = "") -> None:
+    """How a refund is paid: a method, and a caisse for cash or a bank account for the rest (D-284)."""
+    prefix = f"{key}." if key else ""
+    errors: dict[str, str] = {}
+    method = fields.get("method") or ""
+    if method not in RefundMethod.values:
+        errors[f"{prefix}method"] = _("Choisissez comment le client est remboursé.")
+    else:
+        problem = treasury.line_account_error(organization, method, fields.get("account"))
+        if problem:
+            errors[f"{prefix}account"] = problem
+    paid_on = fields.get("paid_on")
+    if paid_on is not None and paid_on > timezone.localdate():
+        errors[f"{prefix}paid_on"] = _("La date ne peut pas être dans le futur.")
+    if errors:
+        raise ValidationError(errors)
+
+
+@transaction.atomic
+def pay_refund(
+    *,
+    refund: CustomerRefund,
+    actor: User | None,
+    amount: Number,
+    method: str,
+    account: "TreasuryAccount | None" = None,
+    paid_on: dt.date | None = None,
+    reference: str = "",
+) -> CustomerRefundPayment:
+    """Give money back on a refund (D-284): all of what is left or a part. It leaves the chosen caisse or bank
+    account (else the Caisse for cash, the main bank account otherwise) by a treasury movement the day it is paid.
+    Never beyond what is left, so a refund is never paid twice."""
+    refund = CustomerRefund.objects.select_for_update().get(pk=refund.pk)
+    organization = refund.organization
+    _checked_refund_payment(organization, {"method": method, "account": account, "paid_on": paid_on})
+    try:
+        value = checked_amount(amount)
+    except (ValueError, TypeError):
+        raise ValidationError({"amount": _("Indiquez un montant en DT, au millime près.")}) from None
+    left = refund.amount - refunded_total(refund)
+    if value <= 0:
+        raise ValidationError({"amount": _("Le montant doit être supérieur à 0.")})
+    if value > left:
+        raise ValidationError({"amount": _("Il reste %(amount)s DT à rembourser.") % {"amount": display_money(left)}})
+    day = paid_on or timezone.localdate()
+    chosen = treasury.line_account(organization, method, account)
+    payment = CustomerRefundPayment.objects.create(
+        organization=organization,
+        refund=refund,
+        paid_on=day,
+        method=method,
+        amount=value,
+        account=chosen,
+        reference=reference.strip()[:50],
+        created_by=actor,
+    )
+    treasury.post_movement(
+        organization=organization,
+        account=chosen,
+        day=day,
+        amount=-value,
+        kind="customer_refund",
+        label=f"{refund.number} · {refund.customer.name}",
+        reference=refund.number,
+        source=REFUND_PAYMENT_SOURCE,
+        source_id=payment.pk,
+        actor=actor,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer_refund.paid",
+        target=refund,
+        after={
+            "number": refund.number,
+            "amount": str(value),
+            "method": method,
+            "account": chosen.name,
+            "paid_on": day.isoformat(),
+            "reference": payment.reference,
+        },
+    )
+    return payment
 
 
 # ---- Customer payments, balance, credit, withholding certificates (P2-T06, D-062, D-063) ----

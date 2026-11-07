@@ -14,6 +14,8 @@ from apps.sales.models import (
     CreditNoteStock,
     CreditPolicy,
     CreditStatus,
+    CustomerRefund,
+    CustomerRefundPayment,
     DeliveryStatus,
     EInvoiceStatus,
     FinanceSettings,
@@ -25,6 +27,7 @@ from apps.sales.models import (
     Quote,
     QuoteLine,
     QuoteStatus,
+    RefundMethod,
     Sale,
     SaleLine,
     SaleLineBatch,
@@ -803,12 +806,77 @@ class CreditNoteLineSerializer(serializers.ModelSerializer[CreditNoteLine]):
             "product_reference",
             "product_name",
             "quantity",
+            # What became of these kilos (D-284): restock, loss or none.
+            "stock",
             "vat_rate",
             "amount_excl_tax",
             "vat_amount",
             "amount_incl_tax",
         )
         read_only_fields: tuple[str, ...] = fields
+
+
+class RefundPaymentSerializer(serializers.ModelSerializer[CustomerRefundPayment]):
+    method = serializers.ChoiceField(choices=RefundMethod.choices, read_only=True)
+    account_name = serializers.CharField(source="account.name", read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerRefundPayment
+        fields: tuple[str, ...] = (
+            "id",
+            "paid_on",
+            "method",
+            "amount",
+            "account",
+            "account_name",
+            "reference",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    def get_created_by(self, payment: CustomerRefundPayment) -> str:
+        return person_name(payment.created_by)
+
+
+REFUND_STATUSES = [("to_refund", "to_refund"), ("partial", "partial"), ("refunded", "refunded")]
+# The list filter adds "open": something left to pay back.
+REFUND_FILTER_STATUSES = [("open", "open"), *REFUND_STATUSES]
+
+
+def refund_status(amount: Decimal, refunded: Decimal) -> str:
+    """to_refund while nothing was paid back, partial while some is left, refunded once all is paid (D-284)."""
+    if refunded <= 0:
+        return "to_refund"
+    return "refunded" if refunded >= amount else "partial"
+
+
+def refunded_of(refund: CustomerRefund) -> Decimal:
+    return sum((payment.amount for payment in refund.payments.all()), Decimal("0.000"))
+
+
+class RefundSummarySerializer(serializers.Serializer[Any]):
+    """A credit note's refund in short (D-284): planned, paid back, left and where it stands."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    refunded = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    left = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    status = serializers.ChoiceField(choices=REFUND_STATUSES, read_only=True)
+
+
+def refund_summary(refund: CustomerRefund) -> dict[str, Any]:
+    refunded = refunded_of(refund)
+    return {
+        "id": refund.pk,
+        "number": refund.number,
+        "amount": refund.amount,
+        "refunded": refunded,
+        "left": refund.amount - refunded,
+        "status": refund_status(refund.amount, refunded),
+    }
 
 
 class CreditNoteInvoiceSerializer(serializers.Serializer[Any]):
@@ -825,6 +893,8 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
     invoice = CreditNoteInvoiceSerializer(read_only=True)
     lines = CreditNoteLineSerializer(many=True, read_only=True)
     created_by = serializers.SerializerMethodField()
+    # The money it gives back to a customer who had paid (D-284); null when it only cancelled debt.
+    refund = serializers.SerializerMethodField()
 
     class Meta:
         model = CreditNote
@@ -848,11 +918,17 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
             "created_at",
             "einvoice_status",
             "einvoice_reference",
+            "refund",
         )
         read_only_fields: tuple[str, ...] = fields
 
     def get_created_by(self, note: CreditNote) -> str:
         return person_name(note.created_by)
+
+    @extend_schema_field(RefundSummarySerializer(allow_null=True))
+    def get_refund(self, note: CreditNote) -> dict[str, Any] | None:
+        refund = CustomerRefund.objects.filter(credit_note=note).prefetch_related("payments").first()
+        return refund_summary(refund) if refund is not None else None
 
 
 class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
@@ -1180,19 +1256,39 @@ class InvoiceEstimateSerializer(serializers.Serializer[Any]):
     extra_by_sale = serializers.DictField(child=serializers.CharField(), read_only=True)
 
 
+# What a credit note line (or a whole note) may say about the kilos given back (D-284).
+LINE_STOCKS = [(CreditNoteStock.NONE, "none"), (CreditNoteStock.RESTOCK, "restock"), (CreditNoteStock.LOSS, "loss")]
+
+
 class CreditNoteLineWriteSerializer(serializers.Serializer[Any]):
     invoice_line = serializers.IntegerField(min_value=1)
     # Kilos given back; empty or 0 for a price correction.
     quantity = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     # DT without VAT; empty: the kilos' share of the line.
     amount = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # What becomes of these kilos (D-284); required on a line with kilos unless the note's `stock` says it.
+    stock = serializers.ChoiceField(choices=LINE_STOCKS, required=False, allow_null=True, default=None)
+
+
+class CreditNoteRefundWriteSerializer(serializers.Serializer[Any]):
+    """How the money given back is refunded (D-284): `now` (method, caisse or bank account) or `later`."""
+
+    mode = serializers.ChoiceField(choices=[("now", "now"), ("later", "later")])
+    method = serializers.ChoiceField(choices=RefundMethod.choices, required=False, allow_blank=True, default="")
+    # A caisse for cash, a bank account otherwise; empty: the Caisse, the main bank account.
+    account = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+    paid_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
 
 
 class CreditNoteWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=CreditNoteKind.choices)
     reason = serializers.CharField(allow_blank=True, max_length=255)
     # What happens to the kilos given back: nothing, back in stock, or written off (customer returns, D-070).
-    stock = serializers.ChoiceField(choices=CreditNoteStock.choices, required=False, default=CreditNoteStock.NONE)
+    # Required for a full note; a partial note may say it per line instead (D-284).
+    stock = serializers.ChoiceField(choices=LINE_STOCKS, required=False, allow_null=True, default=None)
+    # When the invoice was paid: refund now or later (D-284). Absent: later ("À rembourser").
+    refund = CreditNoteRefundWriteSerializer(required=False, allow_null=True, default=None)
     # Partial notes only; a full note gives back everything left.
     lines = CreditNoteLineWriteSerializer(many=True, required=False, default=list)
 
@@ -1209,3 +1305,65 @@ class UninvoicedCountSerializer(serializers.Serializer[Any]):
 
     customer = serializers.IntegerField()
     count = serializers.IntegerField()
+
+
+class CustomerRefundSerializer(serializers.ModelSerializer[CustomerRefund]):
+    """A refund of a credit note (D-284): the customer, the invoice and credit note, planned, paid back, left."""
+
+    customer = QuoteCustomerSerializer(read_only=True)
+    invoice = CreditNoteInvoiceSerializer(read_only=True)
+    credit_note = SaleRefSerializer(read_only=True)
+    refunded = serializers.SerializerMethodField()
+    left = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    payments = RefundPaymentSerializer(many=True, read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerRefund
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "customer",
+            "invoice",
+            "credit_note",
+            "amount",
+            "refunded",
+            "left",
+            "status",
+            "payments",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_refunded(self, refund: CustomerRefund) -> str:
+        return str(refunded_of(refund))
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_left(self, refund: CustomerRefund) -> str:
+        return str(refund.amount - refunded_of(refund))
+
+    @extend_schema_field(serializers.ChoiceField(choices=REFUND_STATUSES))
+    def get_status(self, refund: CustomerRefund) -> str:
+        return refund_status(refund.amount, refunded_of(refund))
+
+    def get_created_by(self, refund: CustomerRefund) -> str:
+        return person_name(refund.created_by)
+
+
+class RefundFilterSerializer(serializers.Serializer[Any]):
+    # "open": something left to pay back.
+    status = serializers.ChoiceField(choices=REFUND_FILTER_STATUSES, required=False)
+    customer = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class RefundPaymentWriteSerializer(serializers.Serializer[Any]):
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0.001"))
+    method = serializers.ChoiceField(choices=RefundMethod.choices)
+    # A caisse for cash, a bank account otherwise; empty: the Caisse, the main bank account.
+    account = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+    paid_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)

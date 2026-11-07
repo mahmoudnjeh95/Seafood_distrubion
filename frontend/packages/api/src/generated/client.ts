@@ -64,6 +64,7 @@ import type {
   CustomerPaymentDetail,
   CustomerPaymentTotals,
   CustomerPaymentWrite,
+  CustomerRefund,
   CustomerType,
   CustomerTypeWrite,
   CustomerWrite,
@@ -172,6 +173,7 @@ import type {
   ListCountsParams,
   ListCreditNotesParams,
   ListCustomerPaymentsParams,
+  ListCustomerRefundsParams,
   ListCustomersParams,
   ListDayClosingsParams,
   ListDayFundsParams,
@@ -345,6 +347,7 @@ import type {
   ReconciliationSummary,
   RecurringCost,
   RecurringCostWrite,
+  RefundPaymentWrite,
   ReopenLot,
   ReopenMonth,
   ReviewMonth,
@@ -11018,7 +11021,10 @@ export const getCreateCreditNoteUrl = (invoiceId: number,) => {
  * everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
  * amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
  * `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
- * (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
+ * (back, then written off on the same lot); a partial note may say it per line (`lines.<n>.stock`, D-284) and
+ * a line with kilos must say it. When the invoice was paid, what it gives back beyond the debt left is a refund
+ * (`refund`: `now` pays it from a caisse or bank account, `later` leaves it "À rembourser").
+ * Errors: `lines.<index>.<field>`, `reason`, `stock`, `refund.<field>`.
  */
 export const createCreditNote = async (invoiceId: number,
     creditNoteWrite: CreditNoteWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CreditNote> => {
@@ -24174,6 +24180,200 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getGenerateRecurringCostsMutationOptions(options), queryClient);
+    }
+
+export const getListCustomerRefundsUrl = (params?: ListCustomerRefundsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/refunds?${stringifiedParams}` : `/api/v1/refunds`
+}
+
+/**
+ * The refunds of credit notes (D-284), newest first: planned, paid back, left and status, with their
+ * payments. Filter by `status` (open, to_refund, partial, refunded), customer or `search`.
+ */
+export const listCustomerRefunds = async (params?: ListCustomerRefundsParams, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerRefund[]> => {
+
+  return apiFetch<CustomerRefund[]>(getListCustomerRefundsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustomerRefundsQueryKey = (params?: ListCustomerRefundsParams,) => {
+    return [
+    `/api/v1/refunds`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCustomerRefundsQueryOptions = <TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = unknown>(params?: ListCustomerRefundsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustomerRefundsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomerRefunds>>> = ({ signal }) => listCustomerRefunds(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCustomerRefundsQueryResult = NonNullable<Awaited<ReturnType<typeof listCustomerRefunds>>>
+export type ListCustomerRefundsQueryError = unknown
+
+
+export function useListCustomerRefunds<TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = unknown>(
+ params: undefined |  ListCustomerRefundsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomerRefunds>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomerRefunds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomerRefunds<TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = unknown>(
+ params?: ListCustomerRefundsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomerRefunds>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomerRefunds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomerRefunds<TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = unknown>(
+ params?: ListCustomerRefundsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCustomerRefunds<TData = Awaited<ReturnType<typeof listCustomerRefunds>>, TError = unknown>(
+ params?: ListCustomerRefundsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerRefunds>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCustomerRefundsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPayCustomerRefundUrl = (refundId: number,) => {
+
+
+
+
+  return `/api/v1/refunds/${refundId}/payments`
+}
+
+/**
+ * Pay back all or part of what is left on a refund (owner or manager), from a caisse or a bank account:
+ * the money leaves that account the day given. Never beyond what is left. Errors: `amount`, `method`,
+ * `account`, `paid_on`.
+ */
+export const payCustomerRefund = async (refundId: number,
+    refundPaymentWrite: RefundPaymentWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerRefund> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerRefund>(getPayCustomerRefundUrl(refundId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(refundPaymentWrite)
+  }
+);}
+
+
+
+
+
+export const getPayCustomerRefundMutationKey = () => ['payCustomerRefund'] as const;
+
+export const getPayCustomerRefundMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof payCustomerRefund>>, TError,PayCustomerRefundMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof payCustomerRefund>>, TError,PayCustomerRefundMutationVariables, TContext> => {
+
+const mutationKey = getPayCustomerRefundMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof payCustomerRefund>>, PayCustomerRefundMutationVariables> = (props) => {
+          const {refundId,data} = props ?? {};
+
+          return  payCustomerRefund(refundId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PayCustomerRefundMutationResult = NonNullable<Awaited<ReturnType<typeof payCustomerRefund>>>
+    export type PayCustomerRefundMutationBody = RefundPaymentWrite
+    export type PayCustomerRefundMutationError = unknown
+    export type PayCustomerRefundMutationVariables = {refundId: number;data: RefundPaymentWrite}
+
+    export const usePayCustomerRefund = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof payCustomerRefund>>, TError,PayCustomerRefundMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof payCustomerRefund>>,
+        TError,
+        PayCustomerRefundMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPayCustomerRefundMutationOptions(options), queryClient);
     }
 
 export const getGetCashFlowReportUrl = (params?: GetCashFlowReportParams,) => {

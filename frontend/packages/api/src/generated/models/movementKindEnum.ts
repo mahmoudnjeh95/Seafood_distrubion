@@ -20,6 +20,7 @@
  * * `salary` - Salaire
  * * `partner_settlement` - Règlement associé
  * * `field_purchase` - Achat au port
+ * * `customer_refund` - Remboursement client
  */
 export type MovementKindEnum = typeof MovementKindEnum[keyof typeof MovementKindEnum];
 
@@ -39,4 +40,5 @@ export const MovementKindEnum = {
   salary: 'salary',
   partner_settlement: 'partner_settlement',
   field_purchase: 'field_purchase',
+  customer_refund: 'customer_refund',
 } as const;

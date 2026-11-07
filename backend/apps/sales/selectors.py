@@ -35,6 +35,8 @@ from .models import (
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
+    CustomerRefund,
+    CustomerRefundPayment,
     CustomerWriteOffLotShare,
     DeliveryStatus,
     FinanceSettings,
@@ -1211,3 +1213,37 @@ def vat_rate_in_use(organization: Organization, rate: Decimal) -> bool:
         or InvoiceLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
         or CreditNoteLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
     )
+
+
+def refunds_of(
+    organization: Organization, *, status: str | None = None, customer_id: int | None = None, search: str = ""
+) -> QuerySet[CustomerRefund]:
+    """The refunds of credit notes (D-284), newest first, with their payments. `status`: "open" (something left),
+    "to_refund" (nothing paid back yet), "partial" or "refunded"."""
+    refunds = (
+        CustomerRefund.objects.for_organization(organization)
+        .select_related("customer", "invoice", "credit_note", "created_by")
+        .prefetch_related(
+            Prefetch("payments", queryset=CustomerRefundPayment.objects.select_related("account", "created_by"))
+        )
+        .annotate(paid=Coalesce(Sum("payments__amount"), Value(Decimal("0.000")), output_field=DecimalField()))
+        .order_by("-created_at", "-id")
+    )
+    if customer_id is not None:
+        refunds = refunds.filter(customer_id=customer_id)
+    if search := search.strip():
+        refunds = refunds.filter(
+            Q(number__icontains=search)
+            | Q(invoice__number__icontains=search)
+            | Q(credit_note__number__icontains=search)
+            | Q(customer__name__icontains=search)
+        )
+    if status == "open":
+        refunds = refunds.filter(paid__lt=F("amount"))
+    elif status == "to_refund":
+        refunds = refunds.filter(paid=0)
+    elif status == "partial":
+        refunds = refunds.filter(paid__gt=0, paid__lt=F("amount"))
+    elif status == "refunded":
+        refunds = refunds.filter(paid__gte=F("amount"))
+    return refunds

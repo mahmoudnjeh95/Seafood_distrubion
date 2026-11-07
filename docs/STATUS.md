@@ -1,8 +1,14 @@
 # Project status
 
-_Last updated: 2026-11-07 (client bug list of 2026-11-06, P2-T16, D-283; next free decision D-284)_
+_Last updated: 2026-11-07 (credit note refunds and per-line stock, D-284; next free decision D-285)_
 
 ## Where we are
+
+- **D-284 (branch `credit-note-refunds`, stacked on #323, migrations sales 0033, treasury 0008):** an avoir asks, per line
+  with kilos, remis en stock / mis en perte / non repris; when the invoice was paid it asks "Rembourser maintenant"
+  (caisse or bank) or "À rembourser plus tard". Debt first, then refund. Trésorerie › Remboursements clients lists and
+  pays them. Check on staging: pay an invoice, avoir partiel with one line back in stock and one in loss, refund later,
+  then pay it from Remboursements clients and see the caisse journal.
 
 - **P2-T16 / D-283 (client document "13 bugs avec captures", branch `claude/jolly-feynman-76x5xb`, migrations core 0007,
   partners 0005, catalog 0007, sales 0032, purchasing 0022):** done 01 net price column, 02 "Bons de livraison" wording,
@@ -105,6 +111,7 @@ _Last updated: 2026-11-07 (client bug list of 2026-11-06, P2-T16, D-283; next fr
 
 ## Next step
 
+0. D-284: merge #323 first, then the PR from `credit-note-refunds` once CI is green (retarget it to main).
 0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
    BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.
    Then ask the owner about bug 11 (stock out at delivery for direct BL), bugs 5/6 (refund flow) and bug 4's columns.
