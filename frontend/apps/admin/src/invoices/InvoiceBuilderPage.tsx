@@ -1,4 +1,4 @@
-import { createInvoice, type InvoiceDetail, useListCustomers, useListSales } from "@frutti/api";
+import { createInvoice, useListCustomers, useListSales, useListUninvoicedCounts } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, Navigate, useOutletContext } from "react-router";
+import { Link, Navigate, useNavigate, useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
 import { canInvoice } from "./shared";
@@ -25,29 +25,33 @@ import { canInvoice } from "./shared";
 const millimes = (value: string) => Math.round(Number(value) * 1000);
 
 /**
- * "Nouvelle facture" (D-200): pick a customer, tick one or several of their BL still to invoice, generate. The
- * page stays open on the same customer, so the next invoice is made right away from the BL that are left.
+ * "Nouvelle facture" (D-200): pick a customer, tick one or several of their BL still to invoice, generate. Each
+ * customer shows how many BL they have to invoice ("— 3 BL"). A generated invoice opens at once (D-283); on a
+ * failure the page stays as it was, the BL still ticked.
  */
 export function InvoiceBuilderPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const queryClient = useQueryClient();
   const [customer, setCustomer] = useState("");
+  const navigate = useNavigate();
   const [chosen, setChosen] = useState<Set<number>>(new Set());
-  const [made, setMade] = useState<InvoiceDetail[]>([]);
 
   const customers = useListCustomers({ status: "active" });
-  const options = useMemo<ComboboxOption[]>(
-    () =>
-      (customers.data ?? [])
-        .filter((row) => !row.is_walk_in)
-        .map((row) => ({
+  const counts = useListUninvoicedCounts();
+  const options = useMemo<ComboboxOption[]>(() => {
+    const toInvoice = new Map((counts.data ?? []).map((row) => [row.customer, row.count]));
+    return (customers.data ?? [])
+      .filter((row) => !row.is_walk_in)
+      .map((row) => {
+        const count = toInvoice.get(row.id) ?? 0;
+        return {
           value: String(row.id),
-          label: row.name,
+          label: count > 0 ? t("admin.invoiceBuilder.customerWithCount", { name: row.name, count }) : row.name,
           keywords: [row.reference, row.city].filter(Boolean),
-        })),
-    [customers.data],
-  );
+        };
+      });
+  }, [customers.data, counts.data, t]);
   const sales = useListSales(
     { customer: Number(customer), uninvoiced: true, limit: 200 },
     { query: { enabled: customer !== "" } },
@@ -59,10 +63,14 @@ export function InvoiceBuilderPage() {
   const generate = useMutation({
     mutationFn: (issue: boolean) => createInvoice({ sales: picked.map((sale) => sale.id), issue_now: issue }),
     onSuccess: async (invoice) => {
-      toast.success(t("admin.invoiceBuilder.made", { count: picked.length }));
-      setMade((list) => [invoice, ...list]);
-      setChosen(new Set());
+      toast.success(
+        t("admin.invoiceBuilder.made", {
+          count: picked.length,
+          number: invoice.number || t("admin.invoices.draftNumber"),
+        }),
+      );
       await queryClient.invalidateQueries();
+      void navigate(`/factures/${invoice.id}`);
     },
     onError: (failure) => toast.error(Object.values(fieldErrors(failure))[0] ?? t("admin.invoiceBuilder.failed")),
   });
@@ -176,23 +184,6 @@ export function InvoiceBuilderPage() {
               </div>
             </>
           )}
-        </Card>
-      )}
-
-      {made.length > 0 && (
-        <Card className="flex flex-col gap-2">
-          <CardTitle className="mb-0">{t("admin.invoiceBuilder.madeTitle")}</CardTitle>
-          <ul className="flex flex-col gap-1">
-            {made.map((invoice) => (
-              <li key={invoice.id} className="flex flex-wrap items-baseline gap-2">
-                <Link to={`/factures/${invoice.id}`} className="font-semibold text-sea hover:underline">
-                  {invoice.number || t("admin.invoices.draftNumber")}
-                </Link>
-                <span className="text-ink-2">{invoice.customer.name}</span>
-                <span className="num ms-auto">{formatMoney(invoice.total_incl_tax)}</span>
-              </li>
-            ))}
-          </ul>
         </Card>
       )}
     </>

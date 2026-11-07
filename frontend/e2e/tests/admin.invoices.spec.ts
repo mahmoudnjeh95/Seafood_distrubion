@@ -45,12 +45,12 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await choose(page, line, "Produit", "Sardine · SA-010");
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
-  await expect(page.getByText(/Brouillon VE-\d+ enregistré/)).toBeVisible();
-  await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
+  await expect(page.getByText(/Brouillon VE-[\d-]+ enregistré/)).toBeVisible();
+  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
   await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
 
   await page.getByRole("button", { name: "Facturer" }).click();
-  await expect(page.getByRole("heading", { name: "Facture (brouillon)", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^BROUILLON-\d{4}-\d+$/, level: 1 })).toBeVisible();
   const document = page.getByRole("region", { name: /^Facture/ });
   // Sardine is not bought with VAT, so the box starts unchecked (D-246).
   await expect(page.getByLabel("Facture avec TVA")).not.toBeChecked();
@@ -96,7 +96,7 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
     await choose(page, line, "Produit", "Sardine · SA-010");
     await line.getByLabel("Poids (kg)").fill("1");
     await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
-    await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
+    await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
     // The page shows the draft number until the sale is read again: wait for the BL number.
     const title = page.getByRole("heading", { level: 1 });
     await expect(title).toHaveText(/^BL-\d{4}-\d+$/);
@@ -110,7 +110,7 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
   }
   await page.getByRole("button", { name: "Facturer la sélection (2)" }).click();
 
-  await expect(page.getByRole("heading", { name: "Facture (brouillon)", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^BROUILLON-\d{4}-\d+$/, level: 1 })).toBeVisible();
   for (const number of numbers) {
     await expect(page.getByRole("link", { name: number })).toBeVisible();
   }
@@ -123,7 +123,7 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
   }
 
   // Dropping the grouped draft goes back to the list: there is no single BL to return to.
-  await row.getByRole("link", { name: "Brouillon" }).click();
+  await row.getByRole("link", { name: /^BROUILLON-/ }).click();
   await page.getByRole("button", { name: "Supprimer le brouillon" }).click();
   await page.getByRole("button", { name: "Supprimer", exact: true }).click();
   await expect(page).toHaveURL(/\/factures$/);

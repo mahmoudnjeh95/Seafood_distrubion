@@ -338,6 +338,9 @@ OWN_DEFAULTS = {
     "/api/v1/months",
     "/api/v1/numbering",
     "/api/v1/notifications/recipients",
+    # The customer types and VAT rates every company starts with (D-283).
+    "/api/v1/customer-types",
+    "/api/v1/vat-rates",
 }
 
 

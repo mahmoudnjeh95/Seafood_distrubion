@@ -31,6 +31,7 @@ urlpatterns = [
     path("finance-settings", views.FinanceSettingsView.as_view(), name="finance-settings"),
     path("invoices", views.InvoiceListView.as_view(), name="invoice-list"),
     path("invoices/estimate", views.InvoiceEstimateView.as_view(), name="invoice-estimate"),
+    path("invoices/to-invoice-counts", views.InvoiceToInvoiceCountsView.as_view(), name="invoice-to-invoice-counts"),
     path("invoices/<int:invoice_id>", views.InvoiceDetailView.as_view(), name="invoice-detail"),
     path("invoices/<int:invoice_id>/give-up-gap", views.InvoiceGiveUpGapView.as_view(), name="invoice-give-up-gap"),
     path("invoices/<int:invoice_id>/issue", views.InvoiceIssueView.as_view(), name="invoice-issue"),

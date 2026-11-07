@@ -4,7 +4,17 @@ import { Button, cn, Combobox, type ComboboxOption, Icon, Pill, Table, Th, typeM
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { subtract, sum } from "./decimal";
-import { amountsOf, filled, isBlank, isShort, type Line, netUnderMinimum, shownPrice, withSpare } from "./lines";
+import {
+  amountsOf,
+  filled,
+  isBlank,
+  isShort,
+  type Line,
+  netPriceOf,
+  netUnderMinimum,
+  shownPrice,
+  withSpare,
+} from "./lines";
 import type { PlaceKilos } from "./placeStock";
 
 type Column = "product" | "quantity" | "unit_price" | "discount_rate";
@@ -193,7 +203,10 @@ export function LinesGrid({
         }}
         // The columns have their widths and the product takes the rest: on a narrow screen the grid scrolls
         // sideways before the product gets too small to read.
-        className={cn("table-fixed", extra ? "min-w-[62rem]" : priced ? "min-w-[56rem]" : "min-w-[40rem]")}
+        className={cn(
+          "table-fixed",
+          extra ? "min-w-[62rem]" : priced ? (discount ? "min-w-[64rem]" : "min-w-[56rem]") : "min-w-[40rem]",
+        )}
       >
         <thead>
           <tr className="bg-surface-2">
@@ -210,6 +223,11 @@ export function LinesGrid({
             {discount && (
               <Th numeric className="w-24 border border-line">
                 {t("admin.lines.discount")}
+              </Th>
+            )}
+            {discount && priced && (
+              <Th numeric className="w-32 border border-line">
+                {t("admin.lines.netPrice")}
               </Th>
             )}
             <Th numeric className="w-32 border border-line">
@@ -336,6 +354,15 @@ export function LinesGrid({
                 {priced &&
                   number("unit_price", t("admin.lines.price"), price, line.discount_rate ? null : underMinimum)}
                 {discount && number("discount_rate", t("admin.lines.discount"), line.discount_rate, underMinimum)}
+                {discount && priced && (
+                  // The price per kg after the discount: read only, worked out again as the price or discount changes.
+                  <td className={cn(CELL, CELL_TEXT, "num text-end")}>
+                    {(() => {
+                      const net = blank ? null : netPriceOf(line, price);
+                      return net ? formatMoney(net) : "";
+                    })()}
+                  </td>
+                )}
                 <td
                   className={cn(
                     CELL,

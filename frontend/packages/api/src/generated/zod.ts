@@ -990,6 +990,7 @@ export const RecordUnpaidEffetResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -1098,6 +1099,7 @@ export const ListCustomerPaymentsResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -1220,6 +1222,7 @@ export const CreateCustomerPaymentResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -1311,6 +1314,7 @@ export const GetCustomerPaymentResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -1415,6 +1419,7 @@ export const AllocateCustomerPaymentResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -1515,6 +1520,7 @@ export const VoidCustomerPaymentResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -1635,16 +1641,88 @@ export const GetCustomerPaymentTotalsResponse = zod.object({
 
 
 /**
+ * The customer types (Paramètres › Types de clients, D-283), active and deactivated, in their order. The
+ * customer form offers the active ones; a customer keeps a deactivated one.
+ */
+export const ListCustomerTypesResponseItem = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "is_active": zod.boolean(),
+  "customer_count": zod.int()
+}).describe('One customer type (D-283), with how many customers have it: a type in use cannot be deleted.')
+export const ListCustomerTypesResponse = zod.array(ListCustomerTypesResponseItem)
+
+
+/**
+ * A new customer type (owner or manager), active, at the end of the list.
+ */
+export const createCustomerTypeBodyLabelMax = 60;
+
+
+
+export const CreateCustomerTypeBody = zod.object({
+  "label": zod.string().max(createCustomerTypeBodyLabelMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const CreateCustomerTypeResponse = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "is_active": zod.boolean(),
+  "customer_count": zod.int()
+}).describe('One customer type (D-283), with how many customers have it: a type in use cannot be deleted.')
+
+
+/**
+ * Rename a customer type, deactivate it or bring it back. Its customers keep it either way.
+ */
+export const UpdateCustomerTypeParams = zod.object({
+  "type_id": zod.int()
+})
+
+export const updateCustomerTypeBodyLabelMax = 60;
+
+
+
+export const UpdateCustomerTypeBody = zod.object({
+  "label": zod.string().max(updateCustomerTypeBodyLabelMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const UpdateCustomerTypeResponse = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "is_active": zod.boolean(),
+  "customer_count": zod.int()
+}).describe('One customer type (D-283), with how many customers have it: a type in use cannot be deleted.')
+
+
+/**
+ * Delete a customer type no customer has; one in use is refused (deactivate it instead).
+ */
+export const DeleteCustomerTypeParams = zod.object({
+  "type_id": zod.int()
+})
+
+export const DeleteCustomerTypeResponse = zod.void()
+
+
+/**
  * Customers sorted by name, with their contacts. Archived ones only when asked (`status`); `kind`
  * keeps one type. Not paginated (D-047).
  */
+export const listCustomersQueryKindMax = 20;
+
 export const listCustomersQuerySearchDefault = ``;
 export const listCustomersQuerySearchMax = 100;
 
 export const listCustomersQueryStatusDefault = `active`;
 
 export const ListCustomersQueryParams = zod.object({
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).optional().describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string().min(1).max(listCustomersQueryKindMax).optional(),
   "search": zod.string().max(listCustomersQuerySearchMax).default(listCustomersQuerySearchDefault),
   "status": zod.enum(['active', 'archived', 'all']).default(listCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
 })
@@ -1671,7 +1749,8 @@ export const ListCustomersResponseItem = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -1704,6 +1783,9 @@ export const createCustomerBodyReferenceMax = 30;
 export const createCustomerBodyNameMax = 150;
 
 export const createCustomerBodyKindDefault = `restaurant`;
+export const createCustomerBodyKindMax = 20;
+
+export const createCustomerBodyIdTypeDefault = `tax_id`;
 export const createCustomerBodyTaxIdDefault = ``;
 export const createCustomerBodyTaxIdMax = 20;
 
@@ -1746,7 +1828,8 @@ export const createCustomerBodyContactsItemEmailTwoMax = 0;
 export const CreateCustomerBody = zod.object({
   "reference": zod.string().max(createCustomerBodyReferenceMax).default(createCustomerBodyReferenceDefault),
   "name": zod.string().max(createCustomerBodyNameMax),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier').default(createCustomerBodyKindDefault),
+  "kind": zod.string().max(createCustomerBodyKindMax).default(createCustomerBodyKindDefault),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour').default(createCustomerBodyIdTypeDefault),
   "tax_id": zod.string().max(createCustomerBodyTaxIdMax).default(createCustomerBodyTaxIdDefault),
   "phone": zod.string().max(createCustomerBodyPhoneMax).default(createCustomerBodyPhoneDefault),
   "email": zod.union([zod.email().default(createCustomerBodyEmailOneDefault),zod.string().max(createCustomerBodyEmailTwoMax)]).optional(),
@@ -1785,7 +1868,8 @@ export const CreateCustomerResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -1834,7 +1918,8 @@ export const GetCustomerResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -1870,6 +1955,9 @@ export const updateCustomerBodyReferenceMax = 30;
 export const updateCustomerBodyNameMax = 150;
 
 export const updateCustomerBodyKindDefault = `restaurant`;
+export const updateCustomerBodyKindMax = 20;
+
+export const updateCustomerBodyIdTypeDefault = `tax_id`;
 export const updateCustomerBodyTaxIdDefault = ``;
 export const updateCustomerBodyTaxIdMax = 20;
 
@@ -1912,7 +2000,8 @@ export const updateCustomerBodyContactsItemEmailTwoMax = 0;
 export const UpdateCustomerBody = zod.object({
   "reference": zod.string().max(updateCustomerBodyReferenceMax).default(updateCustomerBodyReferenceDefault),
   "name": zod.string().max(updateCustomerBodyNameMax).optional(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier').default(updateCustomerBodyKindDefault),
+  "kind": zod.string().max(updateCustomerBodyKindMax).default(updateCustomerBodyKindDefault),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour').default(updateCustomerBodyIdTypeDefault),
   "tax_id": zod.string().max(updateCustomerBodyTaxIdMax).default(updateCustomerBodyTaxIdDefault),
   "phone": zod.string().max(updateCustomerBodyPhoneMax).default(updateCustomerBodyPhoneDefault),
   "email": zod.union([zod.email().default(updateCustomerBodyEmailOneDefault),zod.string().max(updateCustomerBodyEmailTwoMax)]).optional(),
@@ -1951,7 +2040,8 @@ export const UpdateCustomerResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -2003,7 +2093,8 @@ export const ArchiveCustomerResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -2063,6 +2154,7 @@ export const GetCustomerBalanceResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -2159,7 +2251,8 @@ export const SetCustomerLocationResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -2208,7 +2301,8 @@ export const RestoreCustomerResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string(),
+  "id_type": zod.enum(['tax_id', 'cin', 'passport', 'residence_card']).describe('* `tax_id` - Matricule fiscal\n* `cin` - Carte d\'identité nationale (CIN)\n* `passport` - Passeport\n* `residence_card` - Carte de séjour'),
   "tax_id": zod.string(),
   "phone": zod.string(),
   "email": zod.email(),
@@ -2286,6 +2380,7 @@ export const WriteOffCustomerBalanceResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -6610,6 +6705,7 @@ export const ListInvoicesResponse = zod.object({
   "results": zod.array(zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
   "sale": zod.object({
   "id": zod.int(),
@@ -6628,6 +6724,7 @@ export const ListInvoicesResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -6746,6 +6843,7 @@ export const createInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = 
 export const CreateInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
   "sale": zod.object({
   "id": zod.int(),
@@ -6764,6 +6862,7 @@ export const CreateInvoiceResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -6822,7 +6921,8 @@ export const CreateInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "bill_to": zod.object({
   "name": zod.string(),
@@ -6830,7 +6930,8 @@ export const CreateInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "settings_valid_from": zod.iso.date().nullable(),
   "settings_vat_rate": zod.stringFormat('decimal', createInvoiceResponseSettingsVatRateRegExp).nullable(),
@@ -6971,6 +7072,7 @@ export const getInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new
 export const GetInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
   "sale": zod.object({
   "id": zod.int(),
@@ -6989,6 +7091,7 @@ export const GetInvoiceResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -7047,7 +7150,8 @@ export const GetInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "bill_to": zod.object({
   "name": zod.string(),
@@ -7055,7 +7159,8 @@ export const GetInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "settings_valid_from": zod.iso.date().nullable(),
   "settings_vat_rate": zod.stringFormat('decimal', getInvoiceResponseSettingsVatRateRegExp).nullable(),
@@ -7215,6 +7320,7 @@ export const updateInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = 
 export const UpdateInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
   "sale": zod.object({
   "id": zod.int(),
@@ -7233,6 +7339,7 @@ export const UpdateInvoiceResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -7291,7 +7398,8 @@ export const UpdateInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "bill_to": zod.object({
   "name": zod.string(),
@@ -7299,7 +7407,8 @@ export const UpdateInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "settings_valid_from": zod.iso.date().nullable(),
   "settings_vat_rate": zod.stringFormat('decimal', updateInvoiceResponseSettingsVatRateRegExp).nullable(),
@@ -7548,6 +7657,7 @@ export const giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountInclTaxRegExp
 export const GiveUpInvoiceGapResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
   "sale": zod.object({
   "id": zod.int(),
@@ -7566,6 +7676,7 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -7624,7 +7735,8 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "bill_to": zod.object({
   "name": zod.string(),
@@ -7632,7 +7744,8 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "settings_valid_from": zod.iso.date().nullable(),
   "settings_vat_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseSettingsVatRateRegExp).nullable(),
@@ -7774,6 +7887,7 @@ export const issueInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = n
 export const IssueInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
   "sale": zod.object({
   "id": zod.int(),
@@ -7792,6 +7906,7 @@ export const IssueInvoiceResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -7850,7 +7965,8 @@ export const IssueInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "bill_to": zod.object({
   "name": zod.string(),
@@ -7858,7 +7974,8 @@ export const IssueInvoiceResponse = zod.object({
   "city": zod.string(),
   "phone": zod.string(),
   "tax_id": zod.string(),
-  "trade_register": zod.string()
+  "trade_register": zod.string(),
+  "id_type": zod.string()
 }).describe('A seller or a customer as an invoice prints them.'),
   "settings_valid_from": zod.iso.date().nullable(),
   "settings_vat_rate": zod.stringFormat('decimal', issueInvoiceResponseSettingsVatRateRegExp).nullable(),
@@ -7977,6 +8094,7 @@ export const RecordWithholdingCertificateResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 })
@@ -8047,6 +8165,17 @@ export const ExportInvoicesQueryParams = zod.object({
 })
 
 export const ExportInvoicesResponse = zod.unknown()
+
+
+/**
+ * How many BL each customer has still to invoice (validated, not cancelled, on no invoice): the count shown
+ * beside the customer in "Nouvelle facture". Customers with none are left out.
+ */
+export const ListUninvoicedCountsResponseItem = zod.object({
+  "customer": zod.int(),
+  "count": zod.int()
+}).describe('A customer and the number of their BL still to invoice.')
+export const ListUninvoicedCountsResponse = zod.array(ListUninvoicedCountsResponseItem)
 
 
 /**
@@ -10596,13 +10725,15 @@ export const GetMyCashLimitResponse = zod.object({
  * they sold to lately first, the walk-in customer last. Filter with `search`. At most 30 rows. When today's
  * load of the driver's truck names clients, only those clients and the walk-in customer are listed (D-174).
  */
+export const listMyCustomersQueryKindMax = 20;
+
 export const listMyCustomersQuerySearchDefault = ``;
 export const listMyCustomersQuerySearchMax = 100;
 
 export const listMyCustomersQueryStatusDefault = `active`;
 
 export const ListMyCustomersQueryParams = zod.object({
-  "kind": zod.enum(['restaurant', 'hotel', 'fish_shop', 'supermarket', 'wholesaler', 'caterer', 'individual']).optional().describe('* `restaurant` - Restaurant\n* `hotel` - Hôtel\n* `fish_shop` - Poissonnerie\n* `supermarket` - Supermarché\n* `wholesaler` - Grossiste\n* `caterer` - Traiteur\n* `individual` - Particulier'),
+  "kind": zod.string().min(1).max(listMyCustomersQueryKindMax).optional(),
   "search": zod.string().max(listMyCustomersQuerySearchMax).default(listMyCustomersQuerySearchDefault),
   "status": zod.enum(['active', 'archived', 'all']).default(listMyCustomersQueryStatusDefault).describe('* `active` - active\n* `archived` - archived\n* `all` - all')
 })
@@ -11251,6 +11382,7 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -11307,6 +11439,8 @@ export const ListMyDeliveriesResponseItem = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -11453,6 +11587,7 @@ export const DeliverMyDeliveryResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -11509,6 +11644,8 @@ export const DeliverMyDeliveryResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -11633,6 +11770,7 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -11689,6 +11827,8 @@ export const NotDeliveredMyDeliveryResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -11799,6 +11939,7 @@ export const ListMyDeliveredResponseItem = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -11855,6 +11996,8 @@ export const ListMyDeliveredResponseItem = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -12628,7 +12771,10 @@ export const GetNumberingResponseItem = zod.object({
   "prefix": zod.string(),
   "default_prefix": zod.string(),
   "yearly": zod.boolean(),
-  "next_number": zod.string()
+  "next_number": zod.string(),
+  "has_draft": zod.boolean(),
+  "draft_prefix": zod.string(),
+  "next_draft_number": zod.string()
 })
 export const GetNumberingResponse = zod.array(GetNumberingResponseItem)
 
@@ -12640,12 +12786,15 @@ export const updateNumberingBodyPrefixesItemKindMax = 30;
 
 export const updateNumberingBodyPrefixesItemPrefixMax = 6;
 
+export const updateNumberingBodyPrefixesItemDraftPrefixMax = 6;
+
 
 
 export const UpdateNumberingBody = zod.object({
   "prefixes": zod.array(zod.object({
   "kind": zod.string().max(updateNumberingBodyPrefixesItemKindMax),
-  "prefix": zod.string().max(updateNumberingBodyPrefixesItemPrefixMax)
+  "prefix": zod.string().max(updateNumberingBodyPrefixesItemPrefixMax),
+  "draft_prefix": zod.string().max(updateNumberingBodyPrefixesItemDraftPrefixMax).optional()
 }))
 })
 
@@ -12656,7 +12805,10 @@ export const UpdateNumberingResponseItem = zod.object({
   "prefix": zod.string(),
   "default_prefix": zod.string(),
   "yearly": zod.boolean(),
-  "next_number": zod.string()
+  "next_number": zod.string(),
+  "has_draft": zod.boolean(),
+  "draft_prefix": zod.string(),
+  "next_draft_number": zod.string()
 })
 export const UpdateNumberingResponse = zod.array(UpdateNumberingResponseItem)
 
@@ -14170,6 +14322,7 @@ export const ListQuotesResponse = zod.object({
   "results": zod.array(zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14178,6 +14331,7 @@ export const ListQuotesResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14268,6 +14422,7 @@ export const createQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^
 export const CreateQuoteResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14276,6 +14431,7 @@ export const CreateQuoteResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14358,6 +14514,7 @@ export const getQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?\
 export const GetQuoteResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14366,6 +14523,7 @@ export const GetQuoteResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14476,6 +14634,7 @@ export const updateQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^
 export const UpdateQuoteResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14484,6 +14643,7 @@ export const UpdateQuoteResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14567,6 +14727,7 @@ export const acceptQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^
 export const AcceptQuoteResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14575,6 +14736,7 @@ export const AcceptQuoteResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14714,6 +14876,7 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14770,6 +14933,8 @@ export const ConvertQuoteToSaleResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -14863,6 +15028,7 @@ export const refuseQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^
 export const RefuseQuoteResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14871,6 +15037,7 @@ export const RefuseQuoteResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -14954,6 +15121,7 @@ export const sendQuoteResponseLinesItemRemainingQuantityRegExp = new RegExp('^-?
 export const SendQuoteResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "status": zod.enum(['draft', 'sent', 'accepted', 'refused', 'expired']).describe('* `draft` - Brouillon\n* `sent` - Envoyé\n* `accepted` - Accepté\n* `refused` - Refusé\n* `expired` - Expiré'),
   "customer": zod.object({
   "id": zod.int(),
@@ -14962,6 +15130,7 @@ export const SendQuoteResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -15557,6 +15726,7 @@ export const GetReceivablesAgeingResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -16971,6 +17141,7 @@ export const GenerateSalaryMonthResponse = zod.object({
  */
 
 
+export const listSalesQueryOpeningDefault = `exclude`;
 export const listSalesQuerySearchDefault = ``;
 export const listSalesQuerySearchMax = 100;
 
@@ -16984,6 +17155,7 @@ export const ListSalesQueryParams = zod.object({
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "opening": zod.enum(['exclude', 'only', 'all']).default(listSalesQueryOpeningDefault).describe('* `exclude` - exclude\n* `only` - only\n* `all` - all'),
   "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listSalesQuerySearchMax).default(listSalesQuerySearchDefault),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
@@ -17020,6 +17192,7 @@ export const ListSalesResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -17075,7 +17248,9 @@ export const ListSalesResponse = zod.object({
   "version": zod.int(),
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
-  "delivery_note": zod.string()
+  "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string()
 }))
 })
 
@@ -17189,6 +17364,7 @@ export const CreateSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -17245,6 +17421,8 @@ export const CreateSaleResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -17359,6 +17537,7 @@ export const GetSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -17415,6 +17594,8 @@ export const GetSaleResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -17578,6 +17759,7 @@ export const UpdateSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -17634,6 +17816,8 @@ export const UpdateSaleResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -17757,6 +17941,7 @@ export const CancelSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -17813,6 +17998,8 @@ export const CancelSaleResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -17936,6 +18123,7 @@ export const ConfirmSaleResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -17992,6 +18180,8 @@ export const ConfirmSaleResponse = zod.object({
   "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
   "delivered_by": zod.string(),
   "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
   "product": zod.object({
@@ -18055,6 +18245,7 @@ export const ConfirmSaleResponse = zod.object({
  */
 
 
+export const exportSalesQueryOpeningDefault = `exclude`;
 export const exportSalesQuerySearchDefault = ``;
 export const exportSalesQuerySearchMax = 100;
 
@@ -18066,6 +18257,7 @@ export const ExportSalesQueryParams = zod.object({
   "date_to": zod.iso.date().optional(),
   "delivery_status": zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).optional().describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),
   "location": zod.int().min(1).optional(),
+  "opening": zod.enum(['exclude', 'only', 'all']).default(exportSalesQueryOpeningDefault).describe('* `exclude` - exclude\n* `only` - only\n* `all` - all'),
   "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(exportSalesQuerySearchMax).default(exportSalesQuerySearchDefault),
   "status": zod.enum(['draft', 'confirmed', 'cancelled']).optional().describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
@@ -18860,6 +19052,7 @@ export const ListSupplierInvoicesResponse = zod.object({
   "results": zod.array(zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -18935,6 +19128,7 @@ export const createSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp(
 export const CreateSupplierInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -18990,6 +19184,7 @@ export const getSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-
 export const GetSupplierInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -19065,6 +19260,7 @@ export const updateSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp(
 export const UpdateSupplierInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -19196,6 +19392,7 @@ export const postSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^
 export const PostSupplierInvoiceResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "draft_number": zod.string(),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -22802,6 +22999,89 @@ export const ListVatProductsResponse = zod.object({
 
 
 /**
+ * The VAT rates (Paramètres › TVA, D-283), lowest first, active and deactivated. The product form offers
+ * the active ones.
+ */
+export const listVatRatesResponseRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+
+
+export const ListVatRatesResponseItem = zod.object({
+  "id": zod.int(),
+  "rate": zod.stringFormat('decimal', listVatRatesResponseRateRegExp),
+  "label": zod.string(),
+  "is_active": zod.boolean(),
+  "in_use": zod.boolean()
+}).describe('One VAT rate of Paramètres › TVA (D-283). `in_use`: a product or a document carries it, so it cannot be\ndeleted and its percent no longer changes.')
+export const ListVatRatesResponse = zod.array(ListVatRatesResponseItem)
+
+
+/**
+ * A new VAT rate (owner or manager), active at once.
+ */
+export const createVatRateBodyRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createVatRateBodyLabelMax = 60;
+
+
+
+export const CreateVatRateBody = zod.object({
+  "rate": zod.stringFormat('decimal', createVatRateBodyRateRegExp).optional(),
+  "label": zod.string().max(createVatRateBodyLabelMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const createVatRateResponseRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+
+
+export const CreateVatRateResponse = zod.object({
+  "id": zod.int(),
+  "rate": zod.stringFormat('decimal', createVatRateResponseRateRegExp),
+  "label": zod.string(),
+  "is_active": zod.boolean(),
+  "in_use": zod.boolean()
+}).describe('One VAT rate of Paramètres › TVA (D-283). `in_use`: a product or a document carries it, so it cannot be\ndeleted and its percent no longer changes.')
+
+
+/**
+ * Change a VAT rate's label, deactivate it or bring it back; its percent only while nothing uses it.
+ */
+export const UpdateVatRateParams = zod.object({
+  "rate_id": zod.int()
+})
+
+export const updateVatRateBodyRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateVatRateBodyLabelMax = 60;
+
+
+
+export const UpdateVatRateBody = zod.object({
+  "rate": zod.stringFormat('decimal', updateVatRateBodyRateRegExp).optional(),
+  "label": zod.string().max(updateVatRateBodyLabelMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const updateVatRateResponseRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+
+
+export const UpdateVatRateResponse = zod.object({
+  "id": zod.int(),
+  "rate": zod.stringFormat('decimal', updateVatRateResponseRateRegExp),
+  "label": zod.string(),
+  "is_active": zod.boolean(),
+  "in_use": zod.boolean()
+}).describe('One VAT rate of Paramètres › TVA (D-283). `in_use`: a product or a document carries it, so it cannot be\ndeleted and its percent no longer changes.')
+
+
+/**
+ * Delete a VAT rate never used; one in use is refused (deactivate it instead).
+ */
+export const DeleteVatRateParams = zod.object({
+  "rate_id": zod.int()
+})
+
+export const DeleteVatRateResponse = zod.void()
+
+
+/**
  * Quote requests and orders sent from the public site, newest first, paginated (`limit`, `offset`).
  * Filter by status, kind or `search` (name, phone, company, number).
  */
@@ -22976,6 +23256,7 @@ export const AddWithholdingCertificateFileResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 })
@@ -23029,6 +23310,7 @@ export const VoidWithholdingCertificateResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 })
@@ -23086,6 +23368,7 @@ export const GetWithholdingSummaryResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 }),
@@ -23107,6 +23390,7 @@ export const GetWithholdingSummaryResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 })
@@ -23134,6 +23418,7 @@ export const GetWithholdingSummaryResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "tax_id": zod.string(),
+  "id_type": zod.string(),
   "phone": zod.string(),
   "is_walk_in": zod.boolean()
 })

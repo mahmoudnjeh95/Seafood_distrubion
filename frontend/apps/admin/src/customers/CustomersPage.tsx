@@ -1,4 +1,4 @@
-import { CustomerKindEnum, useListCustomers } from "@frutti/api";
+import { useListCustomers } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatMoney, useTranslation } from "@frutti/i18n";
 import {
@@ -29,7 +29,7 @@ import { Link, useNavigate, useOutletContext } from "react-router";
 import { type Status, StatusFilter } from "../lib/StatusFilter";
 import { useDebounced } from "../lib/useDebounced";
 import { CustomerDialog } from "./CustomerDialog";
-import { canEditCustomers } from "./shared";
+import { canEditCustomers, useCustomerTypes } from "./shared";
 
 const ALL_KINDS = "all";
 
@@ -42,27 +42,32 @@ export function CustomersPage() {
   const [status, setStatus] = useState<Status>("active");
   const [kind, setKind] = useState(ALL_KINDS);
   const [creating, setCreating] = useState(false);
+  const { types, labelOf } = useCustomerTypes();
   const query = useDebounced(search.trim());
 
   const customers = useListCustomers(
     {
       status,
       ...(query ? { search: query } : {}),
-      ...(kind !== ALL_KINDS ? { kind: kind as CustomerKindEnum } : {}),
+      ...(kind !== ALL_KINDS ? { kind } : {}),
     },
     { query: { placeholderData: keepPreviousData } },
   );
   const list = customers.data ?? [];
   const filtering = query !== "" || status !== "active" || kind !== ALL_KINDS;
 
-  const view = useTableView(list, {
-    reference: (customer) => customer.reference,
-    name: (customer) => customer.name,
-    kind: (customer) => customer.kind,
-    phone: (customer) => customer.phone,
-    creditLimit: (customer) => Number(customer.credit_limit),
-    paymentTerms: (customer) => customer.payment_terms_days,
-  });
+  const view = useTableView(
+    list,
+    {
+      reference: (customer) => customer.reference,
+      name: (customer) => customer.name,
+      kind: (customer) => labelOf(customer.kind),
+      phone: (customer) => customer.phone,
+      creditLimit: (customer) => Number(customer.credit_limit),
+      paymentTerms: (customer) => customer.payment_terms_days,
+    },
+    { defaultSort: { key: "reference", direction: "asc" } },
+  );
   const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (
@@ -94,9 +99,10 @@ export function CustomersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL_KINDS}>{t("admin.customers.allKinds")}</SelectItem>
-              {Object.values(CustomerKindEnum).map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`admin.customers.kinds.${value}`)}
+              {/* Every type of Paramètres › Types de clients, deactivated ones too: their customers stay findable. */}
+              {types.map((type) => (
+                <SelectItem key={type.code} value={type.code}>
+                  {type.is_active ? type.label : t("admin.customerTypes.inactiveLabel", { label: type.label })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -180,9 +186,7 @@ export function CustomersPage() {
                     )}
                     {customer.city && <div className="text-[0.8rem] text-ink-2">{customer.city}</div>}
                   </Td>
-                  <Td className="whitespace-nowrap max-[720px]:hidden">
-                    {t(`admin.customers.kinds.${customer.kind}`)}
-                  </Td>
+                  <Td className="whitespace-nowrap max-[720px]:hidden">{labelOf(customer.kind)}</Td>
                   <Td className="num whitespace-nowrap max-[720px]:hidden">{customer.phone}</Td>
                   <Td className="num whitespace-nowrap text-end">
                     {Number(customer.credit_limit) > 0 ? (

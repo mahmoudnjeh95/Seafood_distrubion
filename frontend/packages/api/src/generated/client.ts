@@ -64,6 +64,8 @@ import type {
   CustomerPaymentDetail,
   CustomerPaymentTotals,
   CustomerPaymentWrite,
+  CustomerType,
+  CustomerTypeWrite,
   CustomerWrite,
   CustomerWriteOffWrite,
   Dashboard,
@@ -295,6 +297,7 @@ import type {
   PartnerReport,
   PartyDocuments,
   PatchedCategory,
+  PatchedCustomerTypeWrite,
   PatchedCustomerWrite,
   PatchedEmployeeWrite,
   PatchedExpenseCategoryUpdate,
@@ -310,6 +313,7 @@ import type {
   PatchedSupplierWrite,
   PatchedTruckWrite,
   PatchedUpdateProfile,
+  PatchedVatRateWrite,
   PaymentAllocate,
   PaymentOrderNotice,
   PaymentTotals,
@@ -407,10 +411,13 @@ import type {
   TruckChoice,
   TruckDay,
   TruckWrite,
+  UninvoicedCount,
   UnpaidSalaries,
   UnpaidWrite,
   Unread,
   VatProducts,
+  VatRate,
+  VatRateWrite,
   VoidTransfer,
   VoidWrite,
   WebRequest,
@@ -3517,6 +3524,347 @@ export function useGetCustomerPaymentTotals<TData = Awaited<ReturnType<typeof ge
 
 
 
+
+export const getListCustomerTypesUrl = () => {
+
+
+
+
+  return `/api/v1/customer-types`
+}
+
+/**
+ * The customer types (Paramètres › Types de clients, D-283), active and deactivated, in their order. The
+ * customer form offers the active ones; a customer keeps a deactivated one.
+ */
+export const listCustomerTypes = async ( options?: Parameters<typeof apiFetch>[1]): Promise<CustomerType[]> => {
+
+  return apiFetch<CustomerType[]>(getListCustomerTypesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustomerTypesQueryKey = () => {
+    return [
+    `/api/v1/customer-types`
+    ] as const;
+    }
+
+
+export const getListCustomerTypesQueryOptions = <TData = Awaited<ReturnType<typeof listCustomerTypes>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerTypes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustomerTypesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomerTypes>>> = ({ signal }) => listCustomerTypes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustomerTypes>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCustomerTypesQueryResult = NonNullable<Awaited<ReturnType<typeof listCustomerTypes>>>
+export type ListCustomerTypesQueryError = unknown
+
+
+export function useListCustomerTypes<TData = Awaited<ReturnType<typeof listCustomerTypes>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerTypes>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomerTypes>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomerTypes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomerTypes<TData = Awaited<ReturnType<typeof listCustomerTypes>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerTypes>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomerTypes>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomerTypes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomerTypes<TData = Awaited<ReturnType<typeof listCustomerTypes>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerTypes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCustomerTypes<TData = Awaited<ReturnType<typeof listCustomerTypes>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomerTypes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCustomerTypesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCustomerTypeUrl = () => {
+
+
+
+
+  return `/api/v1/customer-types`
+}
+
+/**
+ * A new customer type (owner or manager), active, at the end of the list.
+ */
+export const createCustomerType = async (customerTypeWrite?: CustomerTypeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerType> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerType>(getCreateCustomerTypeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerTypeWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateCustomerTypeMutationKey = () => ['createCustomerType'] as const;
+
+export const getCreateCustomerTypeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustomerType>>, TError,CreateCustomerTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCustomerType>>, TError,CreateCustomerTypeMutationVariables, TContext> => {
+
+const mutationKey = getCreateCustomerTypeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCustomerType>>, CreateCustomerTypeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCustomerType(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCustomerTypeMutationResult = NonNullable<Awaited<ReturnType<typeof createCustomerType>>>
+    export type CreateCustomerTypeMutationBody = CustomerTypeWrite | undefined
+    export type CreateCustomerTypeMutationError = unknown
+    export type CreateCustomerTypeMutationVariables = {data?: CustomerTypeWrite}
+
+    export const useCreateCustomerType = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustomerType>>, TError,CreateCustomerTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createCustomerType>>,
+        TError,
+        CreateCustomerTypeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCustomerTypeMutationOptions(options), queryClient);
+    }
+
+export const getUpdateCustomerTypeUrl = (typeId: number,) => {
+
+
+
+
+  return `/api/v1/customer-types/${typeId}`
+}
+
+/**
+ * Rename a customer type, deactivate it or bring it back. Its customers keep it either way.
+ */
+export const updateCustomerType = async (typeId: number,
+    patchedCustomerTypeWrite?: PatchedCustomerTypeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerType> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerType>(getUpdateCustomerTypeUrl(typeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedCustomerTypeWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateCustomerTypeMutationKey = () => ['updateCustomerType'] as const;
+
+export const getUpdateCustomerTypeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCustomerType>>, TError,UpdateCustomerTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCustomerType>>, TError,UpdateCustomerTypeMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCustomerTypeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCustomerType>>, UpdateCustomerTypeMutationVariables> = (props) => {
+          const {typeId,data} = props ?? {};
+
+          return  updateCustomerType(typeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCustomerTypeMutationResult = NonNullable<Awaited<ReturnType<typeof updateCustomerType>>>
+    export type UpdateCustomerTypeMutationBody = PatchedCustomerTypeWrite | undefined
+    export type UpdateCustomerTypeMutationError = unknown
+    export type UpdateCustomerTypeMutationVariables = {typeId: number;data?: PatchedCustomerTypeWrite}
+
+    export const useUpdateCustomerType = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCustomerType>>, TError,UpdateCustomerTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCustomerType>>,
+        TError,
+        UpdateCustomerTypeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCustomerTypeMutationOptions(options), queryClient);
+    }
+
+export const getDeleteCustomerTypeUrl = (typeId: number,) => {
+
+
+
+
+  return `/api/v1/customer-types/${typeId}`
+}
+
+/**
+ * Delete a customer type no customer has; one in use is refused (deactivate it instead).
+ */
+export const deleteCustomerType = async (typeId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteCustomerTypeUrl(typeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCustomerTypeMutationKey = () => ['deleteCustomerType'] as const;
+
+export const getDeleteCustomerTypeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustomerType>>, TError,DeleteCustomerTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCustomerType>>, TError,DeleteCustomerTypeMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCustomerTypeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCustomerType>>, DeleteCustomerTypeMutationVariables> = (props) => {
+          const {typeId} = props ?? {};
+
+          return  deleteCustomerType(typeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCustomerTypeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCustomerType>>>
+
+    export type DeleteCustomerTypeMutationError = unknown
+    export type DeleteCustomerTypeMutationVariables = {typeId: number}
+
+    export const useDeleteCustomerType = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustomerType>>, TError,DeleteCustomerTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCustomerType>>,
+        TError,
+        DeleteCustomerTypeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCustomerTypeMutationOptions(options), queryClient);
+    }
 
 export const getListCustomersUrl = (params?: ListCustomersParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -11195,6 +11543,105 @@ export function useExportInvoices<TData = Awaited<ReturnType<typeof exportInvoic
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getExportInvoicesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListUninvoicedCountsUrl = () => {
+
+
+
+
+  return `/api/v1/invoices/to-invoice-counts`
+}
+
+/**
+ * How many BL each customer has still to invoice (validated, not cancelled, on no invoice): the count shown
+ * beside the customer in "Nouvelle facture". Customers with none are left out.
+ */
+export const listUninvoicedCounts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<UninvoicedCount[]> => {
+
+  return apiFetch<UninvoicedCount[]>(getListUninvoicedCountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListUninvoicedCountsQueryKey = () => {
+    return [
+    `/api/v1/invoices/to-invoice-counts`
+    ] as const;
+    }
+
+
+export const getListUninvoicedCountsQueryOptions = <TData = Awaited<ReturnType<typeof listUninvoicedCounts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUninvoicedCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListUninvoicedCountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUninvoicedCounts>>> = ({ signal }) => listUninvoicedCounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listUninvoicedCounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListUninvoicedCountsQueryResult = NonNullable<Awaited<ReturnType<typeof listUninvoicedCounts>>>
+export type ListUninvoicedCountsQueryError = unknown
+
+
+export function useListUninvoicedCounts<TData = Awaited<ReturnType<typeof listUninvoicedCounts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUninvoicedCounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUninvoicedCounts>>,
+          TError,
+          Awaited<ReturnType<typeof listUninvoicedCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListUninvoicedCounts<TData = Awaited<ReturnType<typeof listUninvoicedCounts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUninvoicedCounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUninvoicedCounts>>,
+          TError,
+          Awaited<ReturnType<typeof listUninvoicedCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListUninvoicedCounts<TData = Awaited<ReturnType<typeof listUninvoicedCounts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUninvoicedCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListUninvoicedCounts<TData = Awaited<ReturnType<typeof listUninvoicedCounts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUninvoicedCounts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListUninvoicedCountsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -36503,6 +36950,347 @@ export function useListVatProducts<TData = Awaited<ReturnType<typeof listVatProd
 
 
 
+
+export const getListVatRatesUrl = () => {
+
+
+
+
+  return `/api/v1/vat-rates`
+}
+
+/**
+ * The VAT rates (Paramètres › TVA, D-283), lowest first, active and deactivated. The product form offers
+ * the active ones.
+ */
+export const listVatRates = async ( options?: Parameters<typeof apiFetch>[1]): Promise<VatRate[]> => {
+
+  return apiFetch<VatRate[]>(getListVatRatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVatRatesQueryKey = () => {
+    return [
+    `/api/v1/vat-rates`
+    ] as const;
+    }
+
+
+export const getListVatRatesQueryOptions = <TData = Awaited<ReturnType<typeof listVatRates>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatRates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVatRatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVatRates>>> = ({ signal }) => listVatRates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVatRates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListVatRatesQueryResult = NonNullable<Awaited<ReturnType<typeof listVatRates>>>
+export type ListVatRatesQueryError = unknown
+
+
+export function useListVatRates<TData = Awaited<ReturnType<typeof listVatRates>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatRates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVatRates>>,
+          TError,
+          Awaited<ReturnType<typeof listVatRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVatRates<TData = Awaited<ReturnType<typeof listVatRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatRates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVatRates>>,
+          TError,
+          Awaited<ReturnType<typeof listVatRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVatRates<TData = Awaited<ReturnType<typeof listVatRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatRates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListVatRates<TData = Awaited<ReturnType<typeof listVatRates>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVatRates>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListVatRatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateVatRateUrl = () => {
+
+
+
+
+  return `/api/v1/vat-rates`
+}
+
+/**
+ * A new VAT rate (owner or manager), active at once.
+ */
+export const createVatRate = async (vatRateWrite?: VatRateWrite, options?: Parameters<typeof apiFetch>[1]): Promise<VatRate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<VatRate>(getCreateVatRateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(vatRateWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateVatRateMutationKey = () => ['createVatRate'] as const;
+
+export const getCreateVatRateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVatRate>>, TError,CreateVatRateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createVatRate>>, TError,CreateVatRateMutationVariables, TContext> => {
+
+const mutationKey = getCreateVatRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVatRate>>, CreateVatRateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createVatRate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateVatRateMutationResult = NonNullable<Awaited<ReturnType<typeof createVatRate>>>
+    export type CreateVatRateMutationBody = VatRateWrite | undefined
+    export type CreateVatRateMutationError = unknown
+    export type CreateVatRateMutationVariables = {data?: VatRateWrite}
+
+    export const useCreateVatRate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVatRate>>, TError,CreateVatRateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createVatRate>>,
+        TError,
+        CreateVatRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateVatRateMutationOptions(options), queryClient);
+    }
+
+export const getUpdateVatRateUrl = (rateId: number,) => {
+
+
+
+
+  return `/api/v1/vat-rates/${rateId}`
+}
+
+/**
+ * Change a VAT rate's label, deactivate it or bring it back; its percent only while nothing uses it.
+ */
+export const updateVatRate = async (rateId: number,
+    patchedVatRateWrite?: PatchedVatRateWrite, options?: Parameters<typeof apiFetch>[1]): Promise<VatRate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<VatRate>(getUpdateVatRateUrl(rateId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedVatRateWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateVatRateMutationKey = () => ['updateVatRate'] as const;
+
+export const getUpdateVatRateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVatRate>>, TError,UpdateVatRateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVatRate>>, TError,UpdateVatRateMutationVariables, TContext> => {
+
+const mutationKey = getUpdateVatRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVatRate>>, UpdateVatRateMutationVariables> = (props) => {
+          const {rateId,data} = props ?? {};
+
+          return  updateVatRate(rateId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVatRateMutationResult = NonNullable<Awaited<ReturnType<typeof updateVatRate>>>
+    export type UpdateVatRateMutationBody = PatchedVatRateWrite | undefined
+    export type UpdateVatRateMutationError = unknown
+    export type UpdateVatRateMutationVariables = {rateId: number;data?: PatchedVatRateWrite}
+
+    export const useUpdateVatRate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVatRate>>, TError,UpdateVatRateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateVatRate>>,
+        TError,
+        UpdateVatRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateVatRateMutationOptions(options), queryClient);
+    }
+
+export const getDeleteVatRateUrl = (rateId: number,) => {
+
+
+
+
+  return `/api/v1/vat-rates/${rateId}`
+}
+
+/**
+ * Delete a VAT rate never used; one in use is refused (deactivate it instead).
+ */
+export const deleteVatRate = async (rateId: number, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteVatRateUrl(rateId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteVatRateMutationKey = () => ['deleteVatRate'] as const;
+
+export const getDeleteVatRateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVatRate>>, TError,DeleteVatRateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVatRate>>, TError,DeleteVatRateMutationVariables, TContext> => {
+
+const mutationKey = getDeleteVatRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVatRate>>, DeleteVatRateMutationVariables> = (props) => {
+          const {rateId} = props ?? {};
+
+          return  deleteVatRate(rateId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVatRateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVatRate>>>
+
+    export type DeleteVatRateMutationError = unknown
+    export type DeleteVatRateMutationVariables = {rateId: number}
+
+    export const useDeleteVatRate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVatRate>>, TError,DeleteVatRateMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVatRate>>,
+        TError,
+        DeleteVatRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteVatRateMutationOptions(options), queryClient);
+    }
 
 export const getListWebRequestsUrl = (params?: ListWebRequestsParams,) => {
   const normalizedParams = new URLSearchParams();

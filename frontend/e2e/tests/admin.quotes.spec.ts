@@ -75,7 +75,7 @@ test("a draft is saved, changed, sent, then refused with a reason", async ({ pag
   await line.getByLabel("Poids (kg)").fill("3");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
 
-  await expect(page.getByText(/Brouillon DV-\d{4}-\d+ enregistré/)).toBeVisible();
+  await expect(page.getByText(/Brouillon BROUILLON-\d{4}-\d+ enregistré/)).toBeVisible();
   await expect(page.getByRole("note")).toContainText("le client ne l'a pas encore");
 
   await page.getByRole("button", { name: "Modifier" }).click();

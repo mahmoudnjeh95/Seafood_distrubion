@@ -39,6 +39,9 @@ import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
 import { NumberingPage } from "./settings/NumberingPage";
+import { CustomerTypesPage } from "./settings/CustomerTypesPage";
+import { VatRatesPage } from "./settings/VatRatesPage";
+import { OpeningBalancesPage } from "./treasury/OpeningBalancesPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { AccountsPage } from "./treasury/AccountsPage";
 import { BordereauPage } from "./treasury/BordereauPage";
@@ -275,6 +278,22 @@ function AppRoutes() {
             </OwnerOnly>
           }
         />
+        <Route
+          path="/parametres/types-clients"
+          element={
+            <OwnerOnly>
+              <CustomerTypesPage />
+            </OwnerOnly>
+          }
+        />
+        <Route
+          path="/parametres/tva"
+          element={
+            <OwnerOnly>
+              <VatRatesPage />
+            </OwnerOnly>
+          }
+        />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}
@@ -296,6 +315,7 @@ function AppRoutes() {
         <Route path="/reglements/:paymentId" element={<CustomerPaymentDetailPage />} />
         <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
+        <Route path="/tresorerie/soldes-ouverture" element={<OpeningBalancesPage />} />
         <Route path="/tresorerie/bordereau" element={<BordereauPage />} />
         <Route path="/tresorerie/agences" element={<AccountsPage kind="bank" />} />
         <Route path="/tresorerie/caisses" element={<AccountsPage kind="cash" />} />

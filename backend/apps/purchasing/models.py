@@ -223,8 +223,11 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     other balances (D-040) and never pass through it.
     """
 
-    # "FF-0001", "FF-0002"... per organization, given by `services.create_invoice`.
+    # "FF-0001", "FF-0002"... per organization, given when the invoice is validated (D-283); a draft carries its
+    # provisional reference (BFF-0007, or BROUILLON-0007 without a draft prefix).
     number = models.CharField(max_length=20)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="invoices")
     # The number printed on the supplier's invoice.
     supplier_reference = models.CharField(max_length=50, blank=True)

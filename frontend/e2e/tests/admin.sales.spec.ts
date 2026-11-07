@@ -17,7 +17,7 @@ async function choose(page: Page, scope: Page | Locator, label: string, option: 
 test("the demo sales are listed with what is still owed", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Bons de livraison" }).click();
-  await expect(page.getByRole("heading", { name: "Ventes", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bons de livraison", level: 1 })).toBeVisible();
 
   await page.getByRole("searchbox").fill("Corail");
   const row = page.getByRole("row", { name: /Restaurant Le Corail/ });
@@ -35,8 +35,8 @@ test("a counter sale to the walk-in customer is weighed and confirmed at once, i
 }) => {
   test.slow();
   await page.goto("/ventes");
-  await page.getByRole("button", { name: "Vente comptoir" }).click();
-  await expect(page.getByRole("heading", { name: "Vente comptoir", level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Bon de livraison comptoir" }).click();
+  await expect(page.getByRole("heading", { name: "Bon de livraison comptoir", level: 1 })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Client" })).toHaveText("Client de passage");
 
   // The basket is a grid: its first row waits for a product, with the cursor in it.
@@ -52,18 +52,18 @@ test("a counter sale to the walk-in customer is weighed and confirmed at once, i
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
 
-  await page.getByRole("button", { name: /Enregistrer la vente \(21,000\sDT\)/ }).click();
+  await page.getByRole("button", { name: /Enregistrer le bon de livraison \(21,000\sDT\)/ }).click();
 
-  await expect(page.getByRole("status")).toContainText(/Vente BL-\d{4}-\d+ enregistrée/);
+  await expect(page.getByRole("status")).toContainText(/Bon de livraison BL-\d{4}-\d+ enregistré/);
   // A new basket is ready for the next customer.
   await expect(line.getByRole("combobox", { name: "Produit" })).toHaveValue("");
-  await expect(page.getByRole("button", { name: /Enregistrer la vente \(0,000\sDT\)/ })).toBeDisabled();
-  await page.getByRole("link", { name: "Voir la vente" }).click();
+  await expect(page.getByRole("button", { name: /Enregistrer le bon de livraison \(0,000\sDT\)/ })).toBeDisabled();
+  await page.getByRole("link", { name: "Voir le bon de livraison" }).click();
 
   await expect(page.getByText("Confirmée", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Client de passage" })).toBeVisible();
   // Nothing was paid at the counter: the money is the treasurer's, so the sale still owes all of it.
-  await expect(page.getByRole("region", { name: /^Vente BL-/ })).toContainText(/Reste dû\s*21,000\sDT/);
+  await expect(page.getByRole("region", { name: /^Bon de livraison BL-/ })).toContainText(/Reste dû\s*21,000\sDT/);
   await expect(page.getByRole("link", { name: "Encaisser au trésorier" })).toBeVisible();
 });
 
@@ -79,15 +79,15 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
   await expect(line).toContainText(/30,000\sDT/);
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
 
-  await expect(page.getByText(/Brouillon VE-\d+ enregistré/)).toBeVisible();
+  await expect(page.getByText(/Brouillon VE-[\d-]+ enregistré/)).toBeVisible();
   await expect(page.getByRole("note")).toContainText("rien n'est encore sorti du stock");
 
-  // Validating the draft makes it the delivery note: VE-0007 becomes BL-2026-0007 (D-095).
-  await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
+  // Validating the draft makes it the delivery note: VE-2026-0007 becomes BL-2026-0007 (D-095, D-283).
+  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
   // The page shows the draft number until the sale is read again: wait for the BL number.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^BL-\d{4}-\d+$/);
   const number = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
-  await expect(page.getByRole("region", { name: /^Vente BL-/ })).toContainText(/Reste dû\s*30,000\sDT/);
+  await expect(page.getByRole("region", { name: /^Bon de livraison BL-/ })).toContainText(/Reste dû\s*30,000\sDT/);
 
   // Drill down to the lot the kilos came from: its sales list this one.
   await page.getByRole("list", { name: "Lots" }).getByRole("link").first().click();
@@ -96,15 +96,15 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
   await expect(lotSales.getByRole("link", { name: number })).toBeVisible();
   await lotSales.getByRole("link", { name: number }).click();
 
-  await page.getByRole("button", { name: "Annuler la vente" }).click();
+  await page.getByRole("button", { name: "Annuler le bon de livraison" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("reviennent dans les mêmes lots");
-  await dialog.getByRole("button", { name: "Annuler la vente" }).click();
+  await dialog.getByRole("button", { name: "Annuler le bon de livraison" }).click();
   await expect(dialog.getByText("Indiquez la raison de l'annulation.")).toBeVisible();
   await dialog.getByLabel("Motif").fill("Commande annulée par téléphone");
-  await dialog.getByRole("button", { name: "Annuler la vente" }).click();
+  await dialog.getByRole("button", { name: "Annuler le bon de livraison" }).click();
 
-  await expect(page.getByText(new RegExp(`Vente ${number} annulée`))).toBeVisible();
+  await expect(page.getByText(new RegExp(`Bon de livraison ${number} annulé`))).toBeVisible();
   await expect(page.getByText("Annulée", { exact: true })).toBeVisible();
   await expect(page.getByText("Commande annulée par téléphone")).toBeVisible();
 });
@@ -226,7 +226,7 @@ test("a quote is delivered in two BL: the first one takes part of it", async ({ 
   await dialog.getByLabel("À livrer (kg) · Poulpe").fill("0,5");
   await dialog.getByRole("button", { name: "Créer le brouillon" }).click();
 
-  await expect(page.getByText(/Vente VE-\d+ créée depuis le devis/)).toBeVisible();
+  await expect(page.getByText(/Vente VE-[\d-]+ créée depuis le devis/)).toBeVisible();
   await expect(page.getByRole("row", { name: /Poulpe/ })).toContainText(/15,000\sDT/);
   await page.getByRole("link", { name: quoteNumber }).click();
 

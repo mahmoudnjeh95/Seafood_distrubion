@@ -193,11 +193,13 @@ def sales_of(
     search: str = "",
     uninvoiced: bool = False,
     delivery_status: str | None = None,
+    opening: str = "all",
 ) -> QuerySet[Sale]:
     """Sales newest first, each with `line_count`, its customer, place, quote and lines (product, batches).
     Days are those of `sold_at` in local time, both included; `search` matches the number and the
     customer's name or reference. `uninvoiced`: the BL still to invoice (confirmed, of a named customer,
-    on no live invoice)."""
+    on no live invoice). `opening` (D-283): "exclude" leaves out the customers' opening balances (OUV, not BL),
+    "only" keeps them alone, "all" both."""
     lines = (
         SaleLine.objects.select_related("product")
         .prefetch_related(Prefetch("batches", queryset=SaleLineBatch.objects.select_related("batch").order_by("id")))
@@ -246,6 +248,10 @@ def sales_of(
         sales = sales.filter(sold_at__date__gte=date_from)
     if date_to is not None:
         sales = sales.filter(sold_at__date__lte=date_to)
+    if opening == "exclude":
+        sales = sales.filter(is_opening=False)
+    elif opening == "only":
+        sales = sales.filter(is_opening=True)
     if uninvoiced:
         sales = sales.filter(status=SaleStatus.CONFIRMED, customer__is_walk_in=False, is_opening=False).exclude(
             Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True))
@@ -255,6 +261,20 @@ def sales_of(
             Q(number__icontains=search) | Q(customer__name__icontains=search) | Q(customer__reference__icontains=search)
         )
     return sales
+
+
+def uninvoiced_counts(organization: Organization) -> dict[int, int]:
+    """For each customer with BL still to invoice, how many: the same BL `sales_of(uninvoiced=True)` offers once the
+    customer is chosen in "Nouvelle facture" (validated, not cancelled, not an opening balance, on no live invoice)."""
+    rows = (
+        Sale.objects.for_organization(organization)
+        .filter(pk__in=sales_of(organization, uninvoiced=True).values("pk"))
+        .order_by()
+        .values("customer_id")
+        .annotate(count=Count("pk"))
+        .values_list("customer_id", "count")
+    )
+    return {customer_id: count for customer_id, count in rows if customer_id is not None}
 
 
 def sale_of(organization: Organization, sale_id: int) -> Sale:
@@ -1182,3 +1202,12 @@ def customer_documents(organization: Organization) -> dict[int, PartyDocuments]:
         current = documents.get(row["customer_id"], PartyDocuments(party_id=row["customer_id"]))
         documents[row["customer_id"]] = replace(current, invoices=row["count"], total=row["total"])
     return documents
+
+
+def vat_rate_in_use(organization: Organization, rate: Decimal) -> bool:
+    """Whether a BL line, an invoice line or a credit note line carries this VAT rate (Paramètres › TVA, D-283)."""
+    return (
+        SaleLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
+        or InvoiceLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
+        or CreditNoteLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
+    )

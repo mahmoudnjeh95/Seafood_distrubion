@@ -197,3 +197,23 @@ class PriceListItem(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.price_list} · {self.product} · {self.price}"
+
+
+class VatRate(OrganizationScopedModel, TimeStampedModel):
+    """One VAT rate the organization uses (Paramètres › TVA, D-283). The product form offers the active ones. A
+    deactivated rate is no longer offered but stays where it is used: products, documents and lines keep the
+    percent itself, so changing this list never recomputes a saved document. A rate is deleted only while unused."""
+
+    rate = models.DecimalField(max_digits=5, decimal_places=2)
+    label = models.CharField(max_length=60, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["rate", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "rate"], name="vat_rate_unique_per_organization"),
+            models.CheckConstraint(condition=models.Q(rate__gte=0, rate__lte=100), name="vat_rate_percent"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.rate} %"

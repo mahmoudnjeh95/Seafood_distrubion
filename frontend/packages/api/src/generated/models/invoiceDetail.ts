@@ -19,6 +19,7 @@ import type { SaleRef } from './saleRef';
 export interface InvoiceDetail {
   readonly id: number;
   readonly number: string;
+  readonly draft_number: string;
   readonly status: InvoiceStatusEnum;
   readonly sale: SaleRef;
   readonly sales: readonly SaleRef[];

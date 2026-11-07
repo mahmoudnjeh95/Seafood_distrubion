@@ -24,8 +24,8 @@ test("a customer pays part of a credit sale and the balance shows the rest", asy
   await choose(page, line, "Produit", "Sardine · SA-010");
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
-  await expect(page.getByText(/Brouillon VE-\d+ enregistré/)).toBeVisible();
-  await page.getByRole("button", { name: "Valider la vente (BL)" }).click();
+  await expect(page.getByText(/Brouillon VE-[\d-]+ enregistré/)).toBeVisible();
+  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
   await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
 
   await page.goto("/clients");

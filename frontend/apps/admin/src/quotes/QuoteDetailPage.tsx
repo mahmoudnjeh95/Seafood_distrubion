@@ -263,6 +263,11 @@ export function QuoteDetailPage() {
                 {data.customer.name}
               </Link>
             </Detail>
+            {data.draft_number && (
+              <Detail label={t("admin.numbering.draftReference")}>
+                <span className="num">{data.draft_number}</span>
+              </Detail>
+            )}
             <Detail label={t("admin.quotes.detail.createdBy")}>
               {data.created_by || none} · <span className="num">{formatDateTime(data.created_at)}</span>
             </Detail>

@@ -32,8 +32,11 @@ class Quote(OrganizationScopedModel, TimeStampedModel):
     (expired) closes it. An accepted quote becomes one or several sales (BL, D-115). Nothing is reserved in the stock.
     """
 
-    # "DV-0001", "DV-0002"... per organization, given by `services.create_quote`.
+    # "DV-2026-0001"... per organization: the provisional reference while a draft, the definitive number once
+    # sent (D-283), given by `services.create_quote` and `services.send_quote`.
     number = models.CharField(max_length=20)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=QuoteStatus.choices, default=QuoteStatus.DRAFT)
     # By name, not by import: an app only uses another app's services and selectors (ARCHITECTURE §3).
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="quotes")
@@ -218,8 +221,10 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     sale stays, marked cancelled. Never deleted.
     """
 
-    # "VE-0001", "VE-0002"... per organization, given when the draft is created.
+    # The provisional reference while a draft (VE-2026-0001, D-283), the BL number once validated.
     number = models.CharField(max_length=20)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=SaleStatus.choices, default=SaleStatus.DRAFT)
     # The walk-in customer ("Client de passage") for counter sales without a name (D-047).
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="sales")
@@ -613,8 +618,11 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     issued invoice is never edited or deleted: a `CreditNote` corrects it.
     """
 
-    # "FA-2026-0001"..., per organization and year; empty while a draft (taken only when issued: no gaps).
+    # "FA-2026-0001"..., per organization and year, taken only when issued (no gaps). A draft carries its
+    # provisional reference (BFA-2026-0007, or BROUILLON-2026-0007 without a draft prefix, D-283); older drafts none.
     number = models.CharField(max_length=20, blank=True)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT)
     # The delivery notes (BL) this invoice bills, all of its customer (D-101): usually one, several for a
     # "facture récapitulative". Each line points to its own sale line.
@@ -642,6 +650,8 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     customer_address = models.CharField(max_length=255, blank=True)
     customer_city = models.CharField(max_length=100, blank=True)
     customer_tax_id = models.CharField(max_length=20, blank=True)
+    # What `customer_tax_id` is (D-283): "tax_id", "cin", "passport" or "residence_card".
+    customer_id_type = models.CharField(max_length=20, blank=True, default="tax_id")
     # Totals, computed by the services from the lines and the VAT per rate.
     # kg × price before discounts, and the discounts, as charged on the sale.
     subtotal = MoneyField(default=Decimal("0.000"))

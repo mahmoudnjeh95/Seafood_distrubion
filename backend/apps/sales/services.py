@@ -422,7 +422,7 @@ def create_quote(
     )
     quote = Quote.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "quote"),
+        number=numbering.next_draft_number(organization, "quote"),
         customer=customer,
         location=location,
         quoted_on=quoted_on,
@@ -527,7 +527,10 @@ def send_quote(*, quote: Quote, actor: User | None) -> Quote:
     quote.status = QuoteStatus.SENT
     quote.sent_by = actor
     quote.sent_at = timezone.now()
-    quote.save(update_fields=["status", "sent_by", "sent_at", "updated_at"])
+    # The definitive number only now, once sent (D-283): a draft never uses one.
+    quote.draft_number = quote.number
+    quote.number = numbering.next_number(quote.organization, "quote")
+    quote.save(update_fields=["status", "sent_by", "sent_at", "number", "draft_number", "updated_at"])
     audit.record(organization=quote.organization, actor=actor, action="quote.sent", target=quote)
     return quote
 
@@ -962,7 +965,7 @@ def create_sale(
     box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "sale"),
+        number=numbering.next_draft_number(organization, "delivery_note"),
         customer=customer,
         location=location,
         sold_at=sold_at,
@@ -1078,11 +1081,12 @@ def _add_revision(
 
 def _issue_load_bl(sale: Sale, actor: User | None) -> None:
     """The client's BL of a load gets its BL number now and is version 1, the one printed and taken on the road."""
+    sale.draft_number = sale.number
     sale.number = numbering.next_number(sale.organization, "delivery_note")
     sale.issued_at = timezone.now()
     sale.delivery_status = DeliveryStatus.TO_DELIVER
     sale.version = 1
-    sale.save(update_fields=["number", "issued_at", "delivery_status", "version", "updated_at"])
+    sale.save(update_fields=["number", "draft_number", "issued_at", "delivery_status", "version", "updated_at"])
     sale.lines.update(ordered_quantity=F("quantity"))
     _add_revision(sale, SaleRevisionKind.ISSUED, actor)
     audit.record(
@@ -1587,6 +1591,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     draft_number = sale.number
     # The BL of a load has its number since the load (D-178).
     if sale.issued_at is None:
+        sale.draft_number = draft_number
         sale.number = numbering.next_number(organization, "delivery_note")
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
@@ -1619,6 +1624,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
             "delivered_at",
             "delivered_by",
             "number",
+            "draft_number",
             "cost_total",
             "amount_due",
             "status",
@@ -2402,6 +2408,8 @@ def create_invoice(
     overrides = _checked_choices(choices, len(sale_lines), default_apply_vat=bool(_vat_product_names(locked)))
     invoice = Invoice.objects.create(
         organization=sale.organization,
+        # The provisional reference (BFA-2026-0007, or BROUILLON-2026-0007 without a draft prefix, D-283).
+        number=numbering.next_draft_number(sale.organization, "invoice"),
         customer=sale.customer,
         created_by=actor,
     )
@@ -2557,11 +2565,13 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     invoice.customer_address = customer.address
     invoice.customer_city = customer.city
     invoice.customer_tax_id = customer.tax_id
+    invoice.customer_id_type = customer.id_type
     invoice.issued_on = today
     invoice.due_on = today + dt.timedelta(days=customer.payment_terms_days)
     invoice.issued_by = actor
     invoice.issued_at = timezone.now()
     invoice.status = InvoiceStatus.ISSUED
+    invoice.draft_number = invoice.number
     invoice.number = numbering.next_number(invoice.organization, "invoice", year=today.year)
     invoice.save()
     lines = list(invoice.lines.select_related("product", "sale_line"))

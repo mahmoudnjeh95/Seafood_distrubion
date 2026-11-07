@@ -5,14 +5,16 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CustomerContact } from './customerContact';
-import type { CustomerKindEnum } from './customerKindEnum';
+import type { IdTypeEnum } from './idTypeEnum';
 
 export interface PatchedCustomerWrite {
   /** @maxLength 30 */
   reference?: string;
   /** @maxLength 150 */
   name?: string;
-  kind?: CustomerKindEnum;
+  /** @maxLength 20 */
+  kind?: string;
+  id_type?: IdTypeEnum;
   /** @maxLength 20 */
   tax_id?: string;
   /** @maxLength 30 */

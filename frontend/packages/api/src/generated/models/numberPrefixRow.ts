@@ -10,4 +10,6 @@ export interface NumberPrefixRow {
   kind: string;
   /** @maxLength 6 */
   prefix: string;
+  /** @maxLength 6 */
+  draft_prefix?: string;
 }

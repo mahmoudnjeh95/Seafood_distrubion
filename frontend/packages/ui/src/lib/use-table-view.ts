@@ -36,13 +36,14 @@ function compare(a: SortValue, b: SortValue): number {
 
 /** Sorts and pages rows already loaded in the browser. `accessors` gives, for each sortable column key, the value to
  * compare (return a number for amounts, so "10" sorts after "9"). A click on a header cycles ascending, descending,
- * back to the original order. Changing the sort or the page size goes back to page 1. */
+ * back to the original order. `defaultSort` is the order the list opens with. Changing the sort or the page size goes back to page 1. */
 export function useTableView<Row>(
   rows: readonly Row[],
   accessors: Record<string, (row: Row) => SortValue>,
-  { pageSize: initialSize = 50 }: { pageSize?: number } = {},
+  { pageSize: initialSize = 50, defaultSort = null }: { pageSize?: number; defaultSort?: TableSort } = {},
 ) {
-  const [sort, setSort] = useState<TableSort>(null);
+  // A list may open already sorted (customers and suppliers by reference); a click on a header still changes it.
+  const [sort, setSort] = useState<TableSort>(defaultSort);
   const [pageSize, setPageSizeState] = useState(() => rememberedPageSize(initialSize));
   const [requestedPage, setPage] = useState(1);
 

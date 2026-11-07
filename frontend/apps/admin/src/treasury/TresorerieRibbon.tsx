@@ -6,6 +6,7 @@ import { Link } from "react-router";
 
 export type RibbonScreen =
   | "encaissement"
+  | "soldesOuverture"
   | "decaissement"
   | "banque"
   | "agences"
@@ -28,6 +29,8 @@ const GROUPS: RibbonGroup[] = [
     id: "treasury",
     screens: [
       { id: "encaissement", to: "/reglements", icon: "cash" },
+      // Créances clients › Soldes d'ouverture (D-283): what customers owed at the start, apart from the BL.
+      { id: "soldesOuverture", to: "/tresorerie/soldes-ouverture", icon: "calcheck" },
       { id: "decaissement", to: "/achats/paiements", icon: "wallet" },
       { id: "banque", to: "/tresorerie/banques", icon: "badge" },
       { id: "agences", to: "/tresorerie/agences", icon: "home" },

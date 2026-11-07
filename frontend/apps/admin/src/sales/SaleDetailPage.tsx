@@ -33,6 +33,7 @@ import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
 import { PdfButton } from "../lib/PdfButton";
 import { openPdf } from "../lib/pdf";
+import { OpeningBalanceDetail } from "../treasury/OpeningBalancesPage";
 import { TreasuryTrace } from "../treasury/TreasuryTrace";
 import { canSell, DELIVERY_TONES, refreshAfterSale, STATUS_TONES } from "./shared";
 
@@ -149,6 +150,8 @@ export function SaleDetailPage() {
 
   const data = sale.data;
   const none = t("admin.sales.detail.none");
+  // A customer's opening balance (OUV) is not a BL (D-283): its own page, without delivery, invoice or margin.
+  if (data.is_opening) return <OpeningBalanceDetail sale={data} />;
   const canWrite = canSell(session);
   const busy = confirm.isPending || cancel.isPending || invoice.isPending || validateAndPrint.isPending;
   const hasDiscount = !isZero(data.discount_total);
@@ -461,6 +464,11 @@ export function SaleDetailPage() {
                 : t("admin.sales.detail.nothingPaid")}
               {data.payment_reference && <span className="num block text-ink-2">{data.payment_reference}</span>}
             </Detail>
+            {data.draft_number && (
+              <Detail label={t("admin.numbering.draftReference")}>
+                <span className="num">{data.draft_number}</span>
+              </Detail>
+            )}
             <Detail label={t("admin.sales.detail.createdBy")}>
               {data.created_by || none} · <span className="num">{formatDateTime(data.created_at)}</span>
             </Detail>

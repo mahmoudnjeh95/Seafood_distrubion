@@ -151,6 +151,32 @@ _(owner's workflow of 2026-10-17, all twelve points agreed)_
 - [x] Notifications: delivered, delivered in part, not delivered (office); BL changed or cancelled (driver).
 - [ ] Owner check on staging: a load for two clients, one delivered in part from the phone, one not delivered; reprint.
 
+### P2-T16 · Client bug list of 2026-11-06 ("13 bugs avec captures", D-283) · L
+_(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots before/after in the PR)_
+- [x] 01 Quote and BL grid: "Prix net (DT/kg)" column after the discount (25,000 at 8 % → 23,000; 20 kg → 460,000).
+- [x] 02 Menu, titles, buttons and messages say "Bon(s) de livraison", "Nouveau bon de livraison", "Bon de livraison
+      comptoir", "Tous les bons de livraison".
+- [x] 03 "Nouvelle facture": each client with BL to invoice reads "Nom — 3 BL" (`GET /invoices/to-invoice-counts`).
+- [~] 04 Paramètres › TVA (create, deactivate, delete if never used) and the product's VAT as a list of active rates.
+      **Not done:** the column order Poids / Prix U HT / TVA / Prix U TTC / Remise / Prix net / Montant TTC on every
+      document, PDF and print, and the TTC-based line amount (it changes how prices are typed: owner decision).
+- [ ] 05 Partial and total credit notes with "À rembourser" refunds and disbursements: not done (new refund model,
+      treasury movement, stock return or loss per line).
+- [ ] 06 Central "Avoirs clients" page with refund tracking: not done (depends on 05).
+- [x] 07 Clients and suppliers open sorted by reference ascending (C-001, C-002…); a header click still changes it.
+- [x] 08 Paramètres › Types de clients: add, rename, deactivate (kept on its clients, no longer offered), delete
+      only when unused; the client form and the clients filter read the list.
+- [x] 09 Client identification type (MF, CIN, passeport, carte de séjour) and number (text, leading zeros kept);
+      existing numbers are MF; the documents print the matching label.
+- [x] 10 A generated client invoice opens at once with its reference and a success message; on failure the page
+      and the ticked BL stay.
+- [ ] 11 One delivery cycle for every BL (À livrer, Partiellement livré, Livré, Annulé; stock out at the delivery):
+      not done (changes when a direct BL takes the stock out: owner decision).
+- [x] 12 Opening balances (OUV) out of the BL list, their own page Trésorerie › Soldes d'ouverture and their own
+      detail page (no delivery, no invoice, no margin). Still stored as `Sale(is_opening=True)`: no data moved.
+- [x] 13 Optional draft prefix per document with a draft step (quote, BL, invoice, supplier invoice) with its own
+      counter; the definitive number only at validation; the draft reference kept (`draft_number`).
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.
