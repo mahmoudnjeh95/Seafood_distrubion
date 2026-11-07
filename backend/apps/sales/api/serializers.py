@@ -900,6 +900,24 @@ class CreditNoteInvoiceSerializer(serializers.Serializer[Any]):
     issued_on = serializers.DateField(read_only=True)
 
 
+class RebillRefSerializer(serializers.Serializer[Any]):
+    """An invoice made again with "Refacturer" (D-287): draft or issued, with its reference."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    draft_number = serializers.CharField(read_only=True)
+    status = serializers.ChoiceField(choices=InvoiceStatus.choices, read_only=True)
+
+
+class RebilledFromSerializer(serializers.Serializer[Any]):
+    """The credit note an invoice bills again, and the original invoice it cancelled (D-287)."""
+
+    credit_note_id = serializers.IntegerField(source="pk", read_only=True)
+    credit_note_number = serializers.CharField(source="number", read_only=True)
+    invoice_id = serializers.IntegerField(read_only=True)
+    invoice_number = serializers.CharField(source="invoice.number", read_only=True)
+
+
 class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
     kind = serializers.ChoiceField(choices=CreditNoteKind.choices, read_only=True)
     stock = serializers.ChoiceField(choices=CreditNoteStock.choices, read_only=True)
@@ -909,6 +927,9 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
     created_by = serializers.SerializerMethodField()
     # The money it gives back to a customer who had paid (D-284); null when it only cancelled debt.
     refund = serializers.SerializerMethodField()
+    # "Refacturer" (D-287): whether it can bill its BLs again now, and the invoices made that way.
+    rebillable = serializers.SerializerMethodField()
+    rebills = RebillRefSerializer(many=True, read_only=True)
 
     class Meta:
         model = CreditNote
@@ -933,8 +954,16 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
             "einvoice_status",
             "einvoice_reference",
             "refund",
+            "rebillable",
+            "rebills",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_rebillable(self, note: CreditNote) -> bool:
+        from apps.sales import services
+
+        return services.rebillable(note)
 
     def get_created_by(self, note: CreditNote) -> str:
         return person_name(note.created_by)
@@ -963,6 +992,8 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
     extra_over_goods = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     issued_by = serializers.SerializerMethodField()
+    # Made with "Refacturer" (D-287): the credit note it bills again and the original invoice; null otherwise.
+    rebilled_from = RebilledFromSerializer(read_only=True, allow_null=True)
 
     class Meta:
         model = Invoice
@@ -971,6 +1002,7 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "number",
             "draft_number",
             "status",
+            "rebilled_from",
             "sale",
             "sales",
             "customer",

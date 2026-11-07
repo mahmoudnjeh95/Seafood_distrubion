@@ -721,6 +721,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/credit-notes/{credit_note_id}/rebill:
+    post:
+      operationId: rebillCreditNote
+      description: |-
+        "Refacturer" (D-287): a new draft invoice for the BLs of a fully credited invoice, with what was typed on
+        the original, pointing back to this credit note. Only for a full credit note that took no goods back, while
+        the BLs are on no live invoice. Owner or manager.
+      parameters:
+      - in: path
+        name: credit_note_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
   /api/v1/customer-effets/{instrument_id}/unpaid:
     post:
       operationId: recordUnpaidEffet
@@ -14526,6 +14550,14 @@ components:
           - $ref: '#/components/schemas/RefundSummary'
           nullable: true
           readOnly: true
+        rebillable:
+          type: boolean
+          readOnly: true
+        rebills:
+          type: array
+          items:
+            $ref: '#/components/schemas/RebillRef'
+          readOnly: true
       required:
       - created_at
       - created_by
@@ -14541,6 +14573,8 @@ components:
       - net_amount
       - number
       - reason
+      - rebillable
+      - rebills
       - refund
       - stock
       - total_excl_tax
@@ -20135,6 +20169,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/InvoiceStatusEnum'
           readOnly: true
+        rebilled_from:
+          allOf:
+          - $ref: '#/components/schemas/RebilledFrom'
+          readOnly: true
+          nullable: true
         sale:
           allOf:
           - $ref: '#/components/schemas/SaleRef'
@@ -20296,6 +20335,7 @@ components:
       - paid_total
       - payment_state
       - prices_include_vat
+      - rebilled_from
       - remaining_to_pay
       - sale
       - sales
@@ -20449,6 +20489,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/InvoiceStatusEnum'
           readOnly: true
+        rebilled_from:
+          allOf:
+          - $ref: '#/components/schemas/RebilledFrom'
+          readOnly: true
+          nullable: true
         sale:
           allOf:
           - $ref: '#/components/schemas/SaleRef'
@@ -20682,6 +20727,7 @@ components:
       - paid_total
       - payment_state
       - prices_include_vat
+      - rebilled_from
       - remaining_to_pay
       - sale
       - sales
@@ -26860,6 +26906,51 @@ components:
       - customer
       - lines
       - quoted_on
+    RebillRef:
+      type: object
+      description: 'An invoice made again with "Refacturer" (D-287): draft or issued,
+        with its reference.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+      required:
+      - draft_number
+      - id
+      - number
+      - status
+    RebilledFrom:
+      type: object
+      description: The credit note an invoice bills again, and the original invoice
+        it cancelled (D-287).
+      properties:
+        credit_note_id:
+          type: integer
+          readOnly: true
+        credit_note_number:
+          type: string
+          readOnly: true
+        invoice_id:
+          type: integer
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+      required:
+      - credit_note_id
+      - credit_note_number
+      - invoice_id
+      - invoice_number
     Receipt:
       type: object
       properties:

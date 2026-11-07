@@ -3014,6 +3014,58 @@ def create_credit_note(
 REFUND_PAYMENT_SOURCE = "sales.refund_payment"
 
 
+def rebillable(note: CreditNote) -> bool:
+    """Whether "Refacturer" applies (D-287): a full credit note that took no goods back, whose BLs are on no live
+    invoice again yet."""
+    if note.kind != CreditNoteKind.FULL or note.stock != CreditNoteStock.NONE:
+        return False
+    return not Invoice.objects.filter(
+        sales__in=note.invoice.sales.all(), status__in=(InvoiceStatus.DRAFT, InvoiceStatus.ISSUED)
+    ).exists()
+
+
+@transaction.atomic
+def rebill_credit_note(*, note: CreditNote, actor: User | None) -> Invoice:
+    """ "Refacturer" (D-287, the Perfaxis button): a new draft invoice for the BLs of a fully credited invoice, with
+    what was typed on it (VAT or not, rates, VAT amounts, stamp, fees, withholding rate, notes), pointing to the
+    credit note (and through it to the original invoice). The office corrects what was wrong, then issues it.
+
+    Only for a full credit note that took no goods back (stock "none"): goods returned or written off are no longer
+    the customer's to pay. Refused while one of the BLs is on a live invoice again."""
+    note = CreditNote.objects.select_related("invoice", "invoice__customer").get(pk=note.pk)
+    if note.kind != CreditNoteKind.FULL:
+        raise ValidationError(_("Seul un avoir total se refacture : la facture partiellement créditée reste valable."))
+    if note.stock != CreditNoteStock.NONE:
+        raise ValidationError(
+            _("Cet avoir a repris la marchandise (remise en stock ou perte) : il n'y a plus rien à refacturer.")
+        )
+    original = note.invoice
+    sales = list(original.sales.order_by("sold_at", "id"))
+    overrides = _stored_overrides(original)
+    rates = {line.sale_line_id: line.vat_rate if line.vat_rate_overridden else None for line in original.lines.all()}
+    lines = [line for sale in sales for line in sale.lines.order_by("id")]
+    choices: InvoiceChoices = {
+        "apply_vat": overrides.apply_vat,
+        "vat_rates": [rates.get(line.pk) for line in lines],
+        "vat_amounts": dict(overrides.vat_amounts),
+        "fiscal_stamp": overrides.fiscal_stamp,
+        "fees": overrides.fees,
+        "withholding_rate": overrides.withholding_rate,
+        "notes": overrides.notes,
+    }
+    invoice = create_invoice(sales=sales, actor=actor, **choices)
+    invoice.rebilled_from = note
+    invoice.save(update_fields=["rebilled_from", "updated_at"])
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="invoice.rebilled",
+        target=invoice,
+        after={"invoice": original.number, "credit_note": note.number},
+    )
+    return invoice
+
+
 def _overpaid_sales(invoice: Invoice) -> list[tuple[int, Decimal]]:
     """The invoice's BLs paid beyond what they owe now (credit notes and planned refunds taken off), oldest first."""
     sale_ids = list(invoice.sale_links.values_list("sale_id", flat=True))

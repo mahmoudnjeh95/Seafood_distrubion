@@ -930,6 +930,20 @@ class CreditNoteDetailView(OfficeView):
         return Response(CreditNoteSerializer(note).data)
 
 
+class CreditNoteRebillView(InvoiceView):
+    @extend_schema(operation_id="rebillCreditNote", request=None, responses={201: InvoiceDetailSerializer})
+    def post(self, request: Request, credit_note_id: int) -> Response:
+        """ "Refacturer" (D-287): a new draft invoice for the BLs of a fully credited invoice, with what was typed on
+        the original, pointing back to this credit note. Only for a full credit note that took no goods back, while
+        the BLs are on no live invoice. Owner or manager."""
+        try:
+            note = selectors.credit_notes_of(self.organization).get(pk=credit_note_id)
+        except CreditNote.DoesNotExist:
+            raise Http404 from None
+        invoice = services.rebill_credit_note(note=note, actor=self.membership.user)
+        return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
+
+
 class MyDeliveriesView(APIView):
     permission_classes = (IsDriver,)
 

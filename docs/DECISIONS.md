@@ -3954,3 +3954,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Non facturable** changes nothing in the amounts: the customer owes it and pays it as usual; it is left out of every
   invoicing list and refused by `create_invoice`. It can be switched both ways on a confirmed BL while it is on no invoice.
 - Not for the walk-in customer (already never invoiced). The driver's phone does not choose: always "facturable".
+
+**D-287 · "Refacturer" makes a new draft from a full credit note that took no goods back (P2-T18)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Refacturer" (after a "facture avoir" whose lines were not changed = our full credit note). The new invoice is
+  a **draft** (not issued at once) so the office corrects what was wrong (customer data, VAT, stamp, fees), then issues
+  it with the next number. It copies what was typed on the original; what was not typed follows the settings in force.
+- `Invoice.rebilled_from` → the credit note (and through it the original invoice). Refused for a partial credit note (the
+  invoice is still valid), when the credit note took goods back (restock or loss: nothing left to bill), and while a BL
+  is on a live invoice again. Before this, the same was possible by hand from Nouvelle facture, without the link.

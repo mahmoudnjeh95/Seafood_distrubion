@@ -41,6 +41,7 @@ urlpatterns = [
     path("refunds", views.RefundListView.as_view(), name="refund-list"),
     path("refunds/<int:refund_id>/payments", views.RefundPayView.as_view(), name="refund-pay"),
     path("credit-notes/<int:credit_note_id>", views.CreditNoteDetailView.as_view(), name="credit-note-detail"),
+    path("credit-notes/<int:credit_note_id>/rebill", views.CreditNoteRebillView.as_view(), name="credit-note-rebill"),
     # P2-T06 · customer payments, balances, withholding certificates
     path("customer-payments", payment_views.CustomerPaymentListView.as_view(), name="customer-payment-list"),
     path(
