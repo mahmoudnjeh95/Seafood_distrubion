@@ -7,7 +7,8 @@ import { OWNER_STATE } from "./owner";
 test.use({ storageState: OWNER_STATE });
 
 // In the grid a sale is typed in, the cell after the price and the discount: the kilos in stock.
-const STOCK_CELL = 5;
+// The stock cell on the sale form: after the discount and the net price (D-283).
+const STOCK_CELL = 6;
 
 async function choose(page: Page, scope: Page | Locator, label: string, option: string) {
   await scope.getByRole("combobox", { name: label }).click();
@@ -46,8 +47,8 @@ test("a counter sale to the walk-in customer is weighed and confirmed at once, i
   await choose(page, line, "Produit", "Rouget · RO-009");
   // The daily price is proposed; the cold room's stock is shown; the oldest lot goes first unless one is picked.
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("14,000");
-  // No discount column at the counter: the stock is one cell earlier than on the sale form (the lot is last, D-201).
-  await expect(line.getByRole("cell").nth(STOCK_CELL - 1)).toHaveText(/^[\d\s,]+kg$/);
+  // No discount nor net price at the counter: the stock is two cells earlier than on the sale form (lot last, D-201).
+  await expect(line.getByRole("cell").nth(STOCK_CELL - 2)).toHaveText(/^[\d\s,]+kg$/);
   await expect(line.getByRole("button", { name: "Lot" })).toHaveText("Lot le plus ancien (FIFO)");
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
