@@ -3,6 +3,96 @@ info:
   title: Frutti Del Mare ERP API
   version: 1.0.0
 paths:
+  /api/v1/attachments:
+    get:
+      operationId: listAttachments
+      description: The files attached to one document (`kind`, `object_id`), oldest
+        first.
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - quote
+          - delivery_note
+          - invoice
+          - credit_note
+          - purchase_order
+          - goods_receipt
+          - supplier_invoice
+          type: string
+          minLength: 1
+        description: |-
+          * `quote` - Devis
+          * `delivery_note` - Bon de livraison
+          * `invoice` - Facture
+          * `credit_note` - Avoir
+          * `purchase_order` - Bon de commande fournisseur
+          * `goods_receipt` - Bon de réception
+          * `supplier_invoice` - Facture fournisseur
+        required: true
+      - in: query
+        name: object_id
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - attachments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachment'
+          description: ''
+    post:
+      operationId: addAttachment
+      description: |-
+        Attach a file to a document (D-288): a PDF of 8 MB at most, or a photo turned upright and shrunk. Owner or
+        manager.
+      tags:
+      - attachments
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+          description: ''
+        '400':
+          description: Not a PDF or a photo
+  /api/v1/attachments/{attachment_id}:
+    delete:
+      operationId: removeAttachment
+      description: |-
+        Take a file off its document: hidden from now on; the file is kept with who removed it. Owner or
+        manager.
+      parameters:
+      - in: path
+        name: attachment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - attachments
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/auth/csrf:
     get:
       operationId: getCsrfCookie
@@ -12980,6 +13070,89 @@ components:
       required:
       - approved
       - month
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/AttachmentKindEnum'
+          readOnly: true
+        object_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        uploaded_by:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        file_url:
+          type: string
+          readOnly: true
+      required:
+      - content_type
+      - file_url
+      - id
+      - kind
+      - name
+      - note
+      - object_id
+      - size
+      - uploaded_at
+      - uploaded_by
+    AttachmentKindEnum:
+      enum:
+      - quote
+      - delivery_note
+      - invoice
+      - credit_note
+      - purchase_order
+      - goods_receipt
+      - supplier_invoice
+      type: string
+      description: |-
+        * `quote` - Devis
+        * `delivery_note` - Bon de livraison
+        * `invoice` - Facture
+        * `credit_note` - Avoir
+        * `purchase_order` - Bon de commande fournisseur
+        * `goods_receipt` - Bon de réception
+        * `supplier_invoice` - Facture fournisseur
+    AttachmentWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/AttachmentKindEnum'
+        object_id:
+          type: integer
+          minimum: 1
+        file:
+          type: string
+          format: uri
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - file
+      - kind
+      - object_id
     AwaitingInvoice:
       type: object
       description: An issued invoice that planned a withholding and has no certificate

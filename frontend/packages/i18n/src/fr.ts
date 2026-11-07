@@ -2398,6 +2398,20 @@ export const fr = {
         amount: "Montant",
       },
     },
+    // Files attached to a document (D-288)
+    attachments: {
+      title: "Documents associés",
+      none: "Aucun document joint.",
+      add: "Joindre un fichier",
+      sending: "Envoi…",
+      note: "Note (facultatif)",
+      hint: "Un PDF (8 Mo au plus) ou une photo : bon de commande du client, devis signé, BL ou facture du fournisseur…",
+      added: "{{name}} joint.",
+      removed: "Document retiré.",
+      remove: "Retirer",
+      removeLabel: "Retirer {{name}}",
+      failed: "Le fichier n'a pas été joint.",
+    },
     receipts: {
       title: "Réceptions fournisseurs",
       add: "Nouvelle réception",

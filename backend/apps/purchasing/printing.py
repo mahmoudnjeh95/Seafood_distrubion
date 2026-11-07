@@ -9,7 +9,7 @@ from apps.core.models import Organization
 from apps.documents import services as documents
 from apps.sales import selectors as sales
 
-from .models import PaymentMethod
+from .models import GoodsReceipt, PaymentMethod, PurchaseOrder, SupplierInvoice
 from .selectors import payment_of
 
 
@@ -85,3 +85,17 @@ def supplier_receipt_printable(organization: Organization, payment_id: int) -> d
 
 def register_printables() -> None:
     documents.register(documents.DocumentKind.SUPPLIER_RECEIPT, supplier_receipt_printable)
+
+
+def _exists(model: Any) -> Any:
+    def exists(organization: Organization, object_id: int) -> bool:
+        return bool(model.objects.for_organization(organization).filter(pk=object_id).exists())
+
+    return exists
+
+
+def register_attachables() -> None:
+    """The purchase documents files can be attached to (D-288)."""
+    documents.register_attachable("purchase_order", _exists(PurchaseOrder))
+    documents.register_attachable("goods_receipt", _exists(GoodsReceipt))
+    documents.register_attachable("supplier_invoice", _exists(SupplierInvoice))

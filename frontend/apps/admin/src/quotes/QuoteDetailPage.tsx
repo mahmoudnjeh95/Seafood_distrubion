@@ -26,6 +26,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { useSeller } from "../lib/documentSeller";
 import { fieldErrors } from "../lib/errors";
@@ -329,6 +330,7 @@ export function QuoteDetailPage() {
       </Dialog>
 
       <DeliverDialog quoteId={converting ? data.id : null} onClose={() => setConverting(false)} />
+      <AttachmentsCard kind="quote" objectId={data.id} canWrite={canWrite} />
     </>
   );
 }

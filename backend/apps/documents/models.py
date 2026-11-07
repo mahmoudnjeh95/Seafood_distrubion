@@ -69,3 +69,52 @@ class SentEmail(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.kind} {self.object_id} -> {self.to}"
+
+
+class AttachmentKind(models.TextChoices):
+    """The documents a file can be attached to (D-288, Perfaxis's "Documents associés", without a Bureau d'ordre)."""
+
+    QUOTE = "quote", _("Devis")
+    DELIVERY_NOTE = "delivery_note", _("Bon de livraison")
+    INVOICE = "invoice", _("Facture")
+    CREDIT_NOTE = "credit_note", _("Avoir")
+    PURCHASE_ORDER = "purchase_order", _("Bon de commande fournisseur")
+    GOODS_RECEIPT = "goods_receipt", _("Bon de réception")
+    SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
+
+
+def attachment_path(attachment: "Attachment", filename: str) -> str:
+    # A random name: the address of a document's file cannot be guessed (it is served by the API anyway).
+    extension = ".pdf" if filename.lower().endswith(".pdf") else ".webp"
+    return f"attachments/{attachment.organization_id}/{uuid.uuid4().hex}{extension}"
+
+
+class Attachment(OrganizationScopedModel):
+    """A file joined to a document (D-288): the customer's signed quote or order, the supplier's delivery note or
+    invoice scan... A PDF kept as it is, or a photo turned upright and stored as WebP. Removing it hides it; the row
+    and the file stay (who removed it and when)."""
+
+    kind = models.CharField(max_length=20, choices=AttachmentKind.choices)
+    object_id = models.PositiveBigIntegerField()
+    file = models.FileField(upload_to=attachment_path)
+    # The name it had on the computer or phone, shown in the list.
+    name = models.CharField(max_length=200)
+    # "application/pdf" or "image/webp".
+    content_type = models.CharField(max_length=50)
+    size = models.PositiveIntegerField(default=0)
+    note = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+    removed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["uploaded_at", "id"]
+        indexes = [models.Index(fields=["organization", "kind", "object_id"], name="attachment_document_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.object_id} · {self.name}"

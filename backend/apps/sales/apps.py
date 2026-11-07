@@ -12,3 +12,5 @@ class SalesConfig(AppConfig):
 
         # The PDFs of quotes, invoices, credit notes and receipts (P2-T08).
         printing.register_printables()
+        # The documents files can be attached to (D-288).
+        printing.register_attachables()

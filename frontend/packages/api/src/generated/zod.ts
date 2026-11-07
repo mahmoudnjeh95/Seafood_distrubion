@@ -7,6 +7,74 @@
 import * as zod from 'zod';
 
 /**
+ * The files attached to one document (`kind`, `object_id`), oldest first.
+ */
+
+
+
+export const ListAttachmentsQueryParams = zod.object({
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "object_id": zod.int().min(1)
+})
+
+export const ListAttachmentsResponseItem = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "object_id": zod.int(),
+  "name": zod.string(),
+  "content_type": zod.string(),
+  "size": zod.int(),
+  "note": zod.string(),
+  "uploaded_by": zod.string(),
+  "uploaded_at": zod.iso.datetime({"offset":true}),
+  "file_url": zod.string()
+})
+export const ListAttachmentsResponse = zod.array(ListAttachmentsResponseItem)
+
+
+/**
+ * Attach a file to a document (D-288): a PDF of 8 MB at most, or a photo turned upright and shrunk. Owner or
+ * manager.
+ */
+
+export const addAttachmentBodyNoteDefault = ``;
+export const addAttachmentBodyNoteMax = 255;
+
+
+
+export const AddAttachmentBody = zod.object({
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "object_id": zod.int().min(1),
+  "file": zod.url(),
+  "note": zod.string().max(addAttachmentBodyNoteMax).default(addAttachmentBodyNoteDefault)
+})
+
+export const AddAttachmentResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "object_id": zod.int(),
+  "name": zod.string(),
+  "content_type": zod.string(),
+  "size": zod.int(),
+  "note": zod.string(),
+  "uploaded_by": zod.string(),
+  "uploaded_at": zod.iso.datetime({"offset":true}),
+  "file_url": zod.string()
+})
+
+
+/**
+ * Take a file off its document: hidden from now on; the file is kept with who removed it. Owner or
+ * manager.
+ */
+export const RemoveAttachmentParams = zod.object({
+  "attachment_id": zod.int()
+})
+
+export const RemoveAttachmentResponse = zod.void()
+
+
+/**
  * Sets the CSRF cookie. The apps call it once before the first POST (D-008).
  */
 export const GetCsrfCookieResponse = zod.void()

@@ -25,6 +25,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
 import { ORDER_TONE, refreshOrders } from "./shared";
 
@@ -267,6 +268,7 @@ export function PurchaseOrderDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AttachmentsCard kind="purchase_order" objectId={data.id} canWrite={canRecord} />
     </>
   );
 }

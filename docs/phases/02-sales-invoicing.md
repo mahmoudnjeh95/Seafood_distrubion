@@ -201,3 +201,12 @@ _(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots befo
       stamp, fees, withholding rate, notes) (`services.rebill_credit_note`, `POST /credit-notes/{id}/rebill`, audited).
 - [x] The new invoice shows "Refacturation de FA-… · avoir AV-…" (`Invoice.rebilled_from`); the credit note links it.
 - [ ] Check on staging: issue an invoice, full credit note "aucun mouvement de stock", Refacturer, correct, issue.
+
+### P2-T19 · Files attached to documents (D-288, Perfaxis gap, no Bureau d'ordre) · M
+- [x] `documents.Attachment`: a PDF (8 MB at most) kept as is, or a photo turned upright, shrunk to 2400 px, stored as
+      WebP; a note, who and when. Removing hides it and keeps the file (`services.add_attachment`, `remove_attachment`).
+- [x] Apps register what can carry files (`register_attachable`): quote, BL, invoice, credit note, purchase order, goods
+      receipt, supplier invoice. API `GET/POST /attachments`, `DELETE /attachments/{id}`, `/attachments/{id}/file`;
+      office reads, owner and manager add and remove; audited.
+- [x] "Documents associés" card on the quote, BL, invoice, purchase order, goods receipt and supplier invoice pages.
+- [ ] Check on staging: join a phone photo and a PDF to a goods receipt, open both, remove one.
