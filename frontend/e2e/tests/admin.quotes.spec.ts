@@ -43,8 +43,8 @@ test("the owner quotes a hotel with a discount, sends it, and records the yes", 
   // information.
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("22,500");
   await expect(page.getByText(/Prix du client \(Hôtel Thyna\) : 22,500\sDT/)).toBeVisible();
-  // The cell after the discount: the kilos in stock at the cold room.
-  await expect(line.getByRole("cell").nth(5)).toHaveText(/^[\d\s,]+kg$/);
+  // The cell after the discount and the net price (D-283): the kilos in stock at the cold room.
+  await expect(line.getByRole("cell").nth(6)).toHaveText(/^[\d\s,]+kg$/);
   await line.getByLabel("Poids (kg)").fill("4");
   await line.getByLabel("Remise (%)").fill("10");
   // 4 × 22.500 = 90.000, less 10 % = 81.000
