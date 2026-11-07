@@ -205,7 +205,16 @@ export function LinesGrid({
         // sideways before the product gets too small to read.
         className={cn(
           "table-fixed",
-          extra ? "min-w-[62rem]" : priced ? (discount ? "min-w-[64rem]" : "min-w-[56rem]") : "min-w-[40rem]",
+          // Fixed columns: ~51rem with the discount and net price, ~64rem with the lot too; the product takes the rest.
+          extra
+            ? discount
+              ? "min-w-[80rem]"
+              : "min-w-[62rem]"
+            : priced
+              ? discount
+                ? "min-w-[68rem]"
+                : "min-w-[56rem]"
+              : "min-w-[40rem]",
         )}
       >
         <thead>
