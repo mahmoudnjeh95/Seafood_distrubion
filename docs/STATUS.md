@@ -64,6 +64,9 @@ _Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; acc
 
 ## Next step
 
+0. **Market-readiness review (2026-11-08):** `docs/guides/market-readiness-review-2026-11-08.md` lists the gaps before
+   selling the app (TTN, seller identity required on invoices, withholding the company must make, payroll IRPP/CSS,
+   INPDP and hosting, contracts, partner-lot contract, traceability). Owner: take it to the accountant and a lawyer.
 0. P10-T02 to T05 (D-295): PR #333, merge once CI is green, then the staging checks above. Owner: confirm the
    suggested intervals against each truck's manual, and the paper list with the accountant or the ATTT.
 0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
