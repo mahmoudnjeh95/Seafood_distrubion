@@ -45,7 +45,7 @@ export const addAttachmentBodyNoteMax = 255;
 export const AddAttachmentBody = zod.object({
   "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
   "object_id": zod.int().min(1),
-  "file": zod.url(),
+  "file": zod.instanceof(Blob),
   "note": zod.string().max(addAttachmentBodyNoteMax).default(addAttachmentBodyNoteDefault)
 })
 

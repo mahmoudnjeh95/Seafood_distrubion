@@ -13144,7 +13144,7 @@ components:
           minimum: 1
         file:
           type: string
-          format: uri
+          format: binary
         note:
           type: string
           default: ''

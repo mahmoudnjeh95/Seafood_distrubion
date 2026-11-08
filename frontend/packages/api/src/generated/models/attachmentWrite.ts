@@ -10,7 +10,7 @@ export interface AttachmentWrite {
   kind: AttachmentKindEnum;
   /** @minimum 1 */
   object_id: number;
-  file: string;
+  file: Blob | File;
   /** @maxLength 255 */
   note?: string;
 }
