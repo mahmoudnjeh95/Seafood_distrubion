@@ -21545,6 +21545,7 @@ export const listSupplierInvoicesResponseResultsItemTotalExclTaxRegExp = new Reg
 export const listSupplierInvoicesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemPaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21574,6 +21575,7 @@ export const ListSupplierInvoicesResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21617,6 +21619,7 @@ export const createSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const createSupplierInvoiceBodyNotesDefault = ``;
 export const createSupplierInvoiceBodyFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceBodyPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceBodyPostDefault = false;
 export const createSupplierInvoiceBodyApplyAdvancesDefault = false;
 
@@ -21627,6 +21630,7 @@ export const CreateSupplierInvoiceBody = zod.object({
   "supplier_reference": zod.string().max(createSupplierInvoiceBodySupplierReferenceMax).default(createSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(createSupplierInvoiceBodyNotesDefault),
   "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceBodyFiscalStampRegExp).nullish(),
+  "paper_total": zod.stringFormat('decimal', createSupplierInvoiceBodyPaperTotalRegExp).nullish(),
   "post": zod.boolean().default(createSupplierInvoiceBodyPostDefault),
   "supplier": zod.int().min(1),
   "apply_advances": zod.boolean().default(createSupplierInvoiceBodyApplyAdvancesDefault)
@@ -21636,6 +21640,7 @@ export const createSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\
 export const createSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21661,6 +21666,7 @@ export const CreateSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', createSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', createSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', createSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', createSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21701,6 +21707,7 @@ export const getSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0
 export const getSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21726,6 +21733,7 @@ export const GetSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', getSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', getSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', getSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21772,6 +21780,7 @@ export const updateSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const updateSupplierInvoiceBodyNotesDefault = ``;
 export const updateSupplierInvoiceBodyFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceBodyPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceBodyPostDefault = false;
 
 export const UpdateSupplierInvoiceBody = zod.object({
@@ -21781,6 +21790,7 @@ export const UpdateSupplierInvoiceBody = zod.object({
   "supplier_reference": zod.string().max(updateSupplierInvoiceBodySupplierReferenceMax).default(updateSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(updateSupplierInvoiceBodyNotesDefault),
   "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceBodyFiscalStampRegExp).nullish(),
+  "paper_total": zod.stringFormat('decimal', updateSupplierInvoiceBodyPaperTotalRegExp).nullish(),
   "post": zod.boolean().default(updateSupplierInvoiceBodyPostDefault)
 })
 
@@ -21788,6 +21798,7 @@ export const updateSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\
 export const updateSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21813,6 +21824,7 @@ export const UpdateSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', updateSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', updateSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21929,6 +21941,7 @@ export const postSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{
 export const postSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21954,6 +21967,7 @@ export const PostSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', postSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', postSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', postSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', postSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', postSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -22649,6 +22663,8 @@ export const ListSuppliersResponseItem = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(listSuppliersResponseContactsItemNameMax),
   "role": zod.string().max(listSuppliersResponseContactsItemRoleMax).default(listSuppliersResponseContactsItemRoleDefault),
@@ -22687,6 +22703,10 @@ export const createSupplierBodyCityMax = 100;
 export const createSupplierBodyNotesDefault = ``;
 export const createSupplierBodyNotesMax = 2000;
 
+export const createSupplierBodyPaymentTermsDaysMin = 0;
+export const createSupplierBodyPaymentTermsDaysMax = 365;
+
+export const createSupplierBodyBuysWithVatDefault = false;
 export const createSupplierBodyContactsItemNameMax = 150;
 
 export const createSupplierBodyContactsItemRoleDefault = ``;
@@ -22711,6 +22731,8 @@ export const CreateSupplierBody = zod.object({
   "address": zod.string().max(createSupplierBodyAddressMax).default(createSupplierBodyAddressDefault),
   "city": zod.string().max(createSupplierBodyCityMax).default(createSupplierBodyCityDefault),
   "notes": zod.string().max(createSupplierBodyNotesMax).default(createSupplierBodyNotesDefault),
+  "payment_terms_days": zod.int().min(createSupplierBodyPaymentTermsDaysMin).max(createSupplierBodyPaymentTermsDaysMax).nullish(),
+  "buys_with_vat": zod.boolean().default(createSupplierBodyBuysWithVatDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierBodyContactsItemNameMax),
   "role": zod.string().max(createSupplierBodyContactsItemRoleMax).default(createSupplierBodyContactsItemRoleDefault),
@@ -22744,6 +22766,8 @@ export const CreateSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierResponseContactsItemNameMax),
   "role": zod.string().max(createSupplierResponseContactsItemRoleMax).default(createSupplierResponseContactsItemRoleDefault),
@@ -22784,6 +22808,8 @@ export const GetSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(getSupplierResponseContactsItemNameMax),
   "role": zod.string().max(getSupplierResponseContactsItemRoleMax).default(getSupplierResponseContactsItemRoleDefault),
@@ -22825,6 +22851,10 @@ export const updateSupplierBodyCityMax = 100;
 export const updateSupplierBodyNotesDefault = ``;
 export const updateSupplierBodyNotesMax = 2000;
 
+export const updateSupplierBodyPaymentTermsDaysMin = 0;
+export const updateSupplierBodyPaymentTermsDaysMax = 365;
+
+export const updateSupplierBodyBuysWithVatDefault = false;
 export const updateSupplierBodyContactsItemNameMax = 150;
 
 export const updateSupplierBodyContactsItemRoleDefault = ``;
@@ -22849,6 +22879,8 @@ export const UpdateSupplierBody = zod.object({
   "address": zod.string().max(updateSupplierBodyAddressMax).default(updateSupplierBodyAddressDefault),
   "city": zod.string().max(updateSupplierBodyCityMax).default(updateSupplierBodyCityDefault),
   "notes": zod.string().max(updateSupplierBodyNotesMax).default(updateSupplierBodyNotesDefault),
+  "payment_terms_days": zod.int().min(updateSupplierBodyPaymentTermsDaysMin).max(updateSupplierBodyPaymentTermsDaysMax).nullish(),
+  "buys_with_vat": zod.boolean().default(updateSupplierBodyBuysWithVatDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierBodyContactsItemNameMax),
   "role": zod.string().max(updateSupplierBodyContactsItemRoleMax).default(updateSupplierBodyContactsItemRoleDefault),
@@ -22882,6 +22914,8 @@ export const UpdateSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierResponseContactsItemNameMax),
   "role": zod.string().max(updateSupplierResponseContactsItemRoleMax).default(updateSupplierResponseContactsItemRoleDefault),
@@ -22925,6 +22959,8 @@ export const ArchiveSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(archiveSupplierResponseContactsItemNameMax),
   "role": zod.string().max(archiveSupplierResponseContactsItemRoleMax).default(archiveSupplierResponseContactsItemRoleDefault),
@@ -22965,6 +23001,8 @@ export const RestoreSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(restoreSupplierResponseContactsItemNameMax),
   "role": zod.string().max(restoreSupplierResponseContactsItemRoleMax).default(restoreSupplierResponseContactsItemRoleDefault),

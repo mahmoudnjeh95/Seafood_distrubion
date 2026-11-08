@@ -4097,3 +4097,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   row `supplier_credit`; a weight gap was never in the lot cost (cost = accepted kg). Returns and price cuts are refused
   on a lot already settled with its partner.
 - Saved once, never edited nor deleted, by the owner or the manager, audited (`supplier_credit_note.created`).
+
+**D-298 · A supplier's usual deal, and the total typed from the supplier's paper (P1-T22)** · accepted · 2026-11-08
+- `Supplier.payment_terms_days` (nullable, 0 to 365; empty means the 30-day default of D-043) and
+  `Supplier.buys_with_vat` only propose values on the forms (due date, "Achat avec TVA"); every receipt and invoice
+  keeps its own, so changing the supplier never changes a saved document (migration `partners 0007`).
+- `SupplierInvoice.paper_total` (nullable, migration `purchasing 0027`): the total printed on the supplier's invoice.
+  A difference with the computed total is shown, never applied nor blocking: what we owe comes from the receipts
+  (D-039); a real difference is settled by correcting the receipt (D-269) or by a supplier credit note (D-297).

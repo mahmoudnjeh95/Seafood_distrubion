@@ -16,6 +16,9 @@ export interface Supplier {
   readonly address: string;
   readonly city: string;
   readonly notes: string;
+  /** @nullable */
+  readonly payment_terms_days: number | null;
+  readonly buys_with_vat: boolean;
   readonly contacts: readonly SupplierContact[];
   readonly is_active: boolean;
   readonly updated_at: string;

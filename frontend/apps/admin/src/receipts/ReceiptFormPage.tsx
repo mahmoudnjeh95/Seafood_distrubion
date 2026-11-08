@@ -448,6 +448,9 @@ export function ReceiptFormPage() {
             supplier,
             (value) => {
               setSupplier(value);
+              // The supplier's usual deal proposes "Achat avec TVA" (D-298); it can still be changed here.
+              const chosen = (suppliers.data ?? []).find((one) => String(one.id) === value);
+              if (chosen) setWithVat(chosen.buys_with_vat);
               // An order belongs to one supplier: another supplier means no order.
               if (order && String(order.supplier.id) !== value) setOrderId(null);
             },

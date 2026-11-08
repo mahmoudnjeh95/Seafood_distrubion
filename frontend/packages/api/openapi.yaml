@@ -27287,6 +27287,14 @@ components:
           type: string
           default: ''
           maxLength: 2000
+        payment_terms_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          nullable: true
+        buys_with_vat:
+          type: boolean
+          default: false
         contacts:
           type: array
           items:
@@ -33184,6 +33192,13 @@ components:
         notes:
           type: string
           readOnly: true
+        payment_terms_days:
+          type: integer
+          readOnly: true
+          nullable: true
+        buys_with_vat:
+          type: boolean
+          readOnly: true
         contacts:
           type: array
           items:
@@ -33198,6 +33213,7 @@ components:
           readOnly: true
       required:
       - address
+      - buys_with_vat
       - city
       - contacts
       - email
@@ -33205,6 +33221,7 @@ components:
       - is_active
       - name
       - notes
+      - payment_terms_days
       - phone
       - reference
       - tax_id
@@ -33748,6 +33765,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        paper_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
         paid_amount:
           type: string
           format: decimal
@@ -33804,6 +33827,7 @@ components:
       - number
       - outstanding
       - paid_amount
+      - paper_total
       - payments
       - posted_at
       - posted_by
@@ -33852,6 +33876,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           nullable: true
+        paper_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
         post:
           type: boolean
           default: false
@@ -33881,6 +33910,11 @@ components:
           type: string
           default: ''
         fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        paper_total:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -34426,6 +34460,14 @@ components:
           type: string
           default: ''
           maxLength: 2000
+        payment_terms_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          nullable: true
+        buys_with_vat:
+          type: boolean
+          default: false
         contacts:
           type: array
           items:

@@ -27,6 +27,11 @@ export interface SupplierInvoice {
   readonly fiscal_stamp_overridden: boolean;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total: string;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  readonly paper_total: string | null;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly paid_amount: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

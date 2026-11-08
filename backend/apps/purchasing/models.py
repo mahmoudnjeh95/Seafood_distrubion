@@ -362,6 +362,9 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp_overridden = models.BooleanField(default=False)
     # What is owed: without VAT + VAT + stamp, kept by the services; frozen once posted.
     total = MoneyField(default=Decimal("0.000"))
+    # The total printed on the supplier's paper, typed to check it (D-298); empty when not typed. A difference with
+    # `total` is shown, never corrected by itself: the receipts are what we owe.
+    paper_total = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     notes = models.TextField(blank=True)
     # What the supplier was owed when the system started (P4-T01, D-112): a posted invoice with no receipts.
     is_opening = models.BooleanField(default=False)

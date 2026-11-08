@@ -911,6 +911,18 @@ def _locked_receipts(
     return locked
 
 
+def _checked_paper_total(value: Number | None, errors: dict[str, str]) -> Decimal | None:
+    """The total typed from the supplier's paper (D-298), or None when not typed."""
+    if value is None or value == "":
+        return None
+    try:
+        amount = checked_amount(value)
+    except (ValueError, TypeError) as error:
+        errors["paper_total"] = str(error)
+        return None
+    return amount
+
+
 def _checked_stamp(value: Number | None, errors: dict[str, str]) -> Decimal | None:
     """A typed droit de timbre, or None when none was typed (the default applies)."""
     if value in (None, ""):
@@ -975,6 +987,7 @@ def _invoice_snapshot(invoice: SupplierInvoice) -> dict[str, Any]:
         "vat_total": str(invoice.vat_total),
         "fiscal_stamp": str(invoice.fiscal_stamp),
         "total": str(invoice.total),
+        "paper_total": None if invoice.paper_total is None else str(invoice.paper_total),
         "receipts": {link.receipt.number: str(link.amount) for link in links},
     }
 
@@ -1029,6 +1042,7 @@ def create_invoice(
     post: bool = False,
     apply_advances: bool = False,
     fiscal_stamp: Number | None = None,
+    paper_total: Number | None = None,
 ) -> SupplierInvoice:
     """Record a supplier's invoice for some of their receipts, as a draft, or posted at once with `post`.
 
@@ -1038,6 +1052,7 @@ def create_invoice(
     """
     errors = _invoice_header_errors(organization, supplier, invoice_date, due_date)
     stamp = _checked_stamp(fiscal_stamp, errors)
+    paper = _checked_paper_total(paper_total, errors)
     locked = _locked_receipts(organization, supplier, receipts, errors) if "supplier" not in errors else []
     if errors:
         raise ValidationError(errors)
@@ -1049,6 +1064,7 @@ def create_invoice(
         invoice_date=invoice_date,
         due_date=due_date,
         notes=notes.strip(),
+        paper_total=paper,
         created_by=actor,
     )
     _set_receipts(invoice, locked, stamp)
@@ -1150,6 +1166,7 @@ def update_invoice(
     notes: str = "",
     post: bool = False,
     fiscal_stamp: Number | None = None,
+    paper_total: Number | None = None,
 ) -> SupplierInvoice:
     """Change a draft invoice (its receipts, dates, reference, notes); with `post`, post it afterwards.
 
@@ -1159,6 +1176,7 @@ def update_invoice(
     organization = invoice.organization
     errors = _invoice_header_errors(organization, invoice.supplier, invoice_date, due_date)
     stamp = _checked_stamp(fiscal_stamp, errors)
+    paper = _checked_paper_total(paper_total, errors)
     locked = _locked_receipts(organization, invoice.supplier, receipts, errors, invoice=invoice)
     if errors:
         raise ValidationError(errors)
@@ -1167,7 +1185,8 @@ def update_invoice(
     invoice.invoice_date = invoice_date
     invoice.due_date = due_date
     invoice.notes = notes.strip()
-    invoice.save(update_fields=["supplier_reference", "invoice_date", "due_date", "notes", "updated_at"])
+    invoice.paper_total = paper
+    invoice.save(update_fields=["supplier_reference", "invoice_date", "due_date", "notes", "paper_total", "updated_at"])
     _set_receipts(invoice, locked, stamp)
     audit.record(
         organization=organization,

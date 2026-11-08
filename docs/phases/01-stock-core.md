@@ -229,9 +229,13 @@ transformations wanted, with a transformation fee that goes into the new lot's c
 - [ ] Check on staging: an invoice of 100 kg, return 20 kg from the cold room; the stock drops 20 kg, the invoice is
       "Payée en partie" by the avoir and the supplier balance drops by the avoir's total.
 
-### P1-T22 · Supplier defaults and the supplier's paper total · S (gaps 8, 9)
-- [ ] Supplier: default payment terms (days) and "Achats avec TVA" by default; the receipt and invoice forms propose them.
-- [ ] Supplier invoice: the total printed on the supplier's paper, typed; the difference with the computed total is shown.
+### P1-T22 · Supplier defaults and the supplier's paper total · S (gaps 8, 9, D-298)
+- [x] Supplier: "Délai de paiement (jours)" (empty: 30) and "Achats avec TVA par défaut"; the receipt form ticks
+      "Achat avec TVA" from it when the supplier is chosen, the invoice form proposes the due date from it.
+- [x] Supplier invoice: "Total sur le papier du fournisseur" (`paper_total`, optional); the form and the page show the
+      difference with our total in red. Never blocks: the receipts are what we owe.
+- [ ] Check on staging: a supplier at 45 days with VAT; a receipt ticks VAT, the invoice is due at +45 days; type a
+      paper total 1 DT above, the gap shows.
 
 ### P1-T23 · Lot origin and recall · M (gap 5)
 - [ ] Receipt line / lot: scientific name (on the product), catch zone (FAO) or farm, wild or farmed, boat or port,

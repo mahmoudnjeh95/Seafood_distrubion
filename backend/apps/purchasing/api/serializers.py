@@ -513,6 +513,7 @@ class SupplierInvoiceSerializer(serializers.ModelSerializer[SupplierInvoice]):
             "fiscal_stamp",
             "fiscal_stamp_overridden",
             "total",
+            "paper_total",
             "paid_amount",
             "outstanding",
             "is_overdue",
@@ -546,6 +547,10 @@ class SupplierInvoiceUpdateSerializer(serializers.Serializer[Any]):
     # The supplier's droit de timbre as printed on their invoice; null = the default (the settings' stamp when a
     # receipt is bought with VAT, else none), D-294.
     fiscal_stamp = serializers.DecimalField(
+        max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, allow_null=True, default=None
+    )
+    # The total printed on the supplier's paper, typed to check it against ours (D-298); null when not typed.
+    paper_total = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, allow_null=True, default=None
     )
     # Post it in the same step: it becomes owed and no longer changes.

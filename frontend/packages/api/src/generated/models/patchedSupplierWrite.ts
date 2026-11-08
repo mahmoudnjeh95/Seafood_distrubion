@@ -22,5 +22,12 @@ export interface PatchedSupplierWrite {
   city?: string;
   /** @maxLength 2000 */
   notes?: string;
+  /**
+     * @minimum 0
+     * @maximum 365
+     * @nullable
+     */
+  payment_terms_days?: number | null;
+  buys_with_vat?: boolean;
   contacts?: SupplierContact[];
 }
