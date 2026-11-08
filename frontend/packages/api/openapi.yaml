@@ -19008,6 +19008,7 @@ components:
       - withholding_rate
     FleetOdometerRow:
       type: object
+      description: One `selectors.TruckOdometer`.
       properties:
         truck_id:
           type: integer
@@ -21825,6 +21826,8 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+      required:
+      - max_day_km
     MarkRead:
       type: object
       description: Either the ids seen, or `all` for everything shown.

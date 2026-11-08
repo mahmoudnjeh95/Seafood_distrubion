@@ -6,6 +6,9 @@
  */
 import type { OdometerReading } from './odometerReading';
 
+/**
+ * One `selectors.TruckOdometer`.
+ */
 export interface FleetOdometerRow {
   truck_id: number;
   name: string;

@@ -6432,7 +6432,7 @@ export const ListFleetOdometerResponseItem = zod.object({
   "created_at": zod.iso.datetime({"offset":true})
 }),zod.null()]),
   "warnings": zod.int()
-})
+}).describe('One `selectors.TruckOdometer`.')
 export const ListFleetOdometerResponse = zod.array(ListFleetOdometerResponseItem)
 
 
@@ -9539,7 +9539,7 @@ export const getMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
 
 
 export const GetMaintenanceSettingsResponse = zod.object({
-  "max_day_km": zod.int().min(getMaintenanceSettingsResponseMaxDayKmMin).max(getMaintenanceSettingsResponseMaxDayKmMax).optional()
+  "max_day_km": zod.int().min(getMaintenanceSettingsResponseMaxDayKmMin).max(getMaintenanceSettingsResponseMaxDayKmMax)
 })
 
 
@@ -9561,7 +9561,7 @@ export const updateMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
 
 
 export const UpdateMaintenanceSettingsResponse = zod.object({
-  "max_day_km": zod.int().min(updateMaintenanceSettingsResponseMaxDayKmMin).max(updateMaintenanceSettingsResponseMaxDayKmMax).optional()
+  "max_day_km": zod.int().min(updateMaintenanceSettingsResponseMaxDayKmMin).max(updateMaintenanceSettingsResponseMaxDayKmMax)
 })
 
 

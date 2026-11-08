@@ -85,3 +85,5 @@ class MaintenanceSettingsSerializer(serializers.ModelSerializer[MaintenanceSetti
     class Meta:
         model = MaintenanceSettings
         fields = ("max_day_km",)
+        # The model has a default, so a missing value would not be refused on its own.
+        extra_kwargs = {"max_day_km": {"required": True}}

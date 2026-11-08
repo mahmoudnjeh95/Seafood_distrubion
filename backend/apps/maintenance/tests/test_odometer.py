@@ -146,3 +146,7 @@ def test_another_organization_sees_nothing(road):
 
     assert stranger.get(reverse("truck-odometer", args=[road["truck"].pk])).status_code == 404
     assert stranger.get(reverse("fleet-odometer")).json() == []
+
+
+def test_settings_without_a_value_are_refused(road):
+    assert road["office"].patch(reverse("maintenance-settings"), {}, format="json").status_code == 400

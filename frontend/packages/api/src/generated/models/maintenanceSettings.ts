@@ -10,5 +10,5 @@ export interface MaintenanceSettings {
      * @minimum 0
      * @maximum 2147483647
      */
-  max_day_km?: number;
+  max_day_km: number;
 }
