@@ -7,6 +7,7 @@ import {
   updateMaintenanceSettings,
   useGetMaintenanceSettings,
   useListFleetOdometer,
+  useListLocations,
   useListTruckOdometer,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
@@ -17,15 +18,9 @@ import { useId, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
-
-function formatKm(km: number | null | undefined): string {
-  return km == null ? "—" : `${new Intl.NumberFormat("fr-FR").format(km)} km`;
-}
-
-/** Only digits, at most the 7 a compteur shows. */
-function digits(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 7);
-}
+import { PlansPanel } from "./PlansPanel";
+import { digits, formatKm } from "./shared";
+import { TypesCard } from "./TypesCard";
 
 /** The office sets a truck's compteur, with its reason (a typo, a new truck, a compteur replaced). */
 function CorrectionForm({ truckId }: { truckId: number }) {
@@ -167,7 +162,7 @@ function SettingsCard({ canEdit }: { canEdit: boolean }) {
   });
   return (
     <Card className="space-y-2">
-      <p className="font-semibold">{t("admin.fleet.settings")}</p>
+      <p className="font-semibold">{t("admin.fleet.compteurSettings")}</p>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-56">
           <Field label={t("admin.fleet.maxDayKm")} htmlFor={id} error={error || undefined}>
@@ -192,6 +187,24 @@ function SettingsCard({ canEdit }: { canEdit: boolean }) {
       </div>
       <p className="text-ink-2">{t("admin.fleet.maxDayKmHint")}</p>
     </Card>
+  );
+}
+
+/** The company's cold rooms and their monthly service (P10-T03, owner answer 4). */
+function ColdRooms({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation();
+  const rooms = useListLocations({ kind: "cold_room" });
+  return (
+    <>
+      {(rooms.data ?? []).map((room) => (
+        <PlansPanel
+          key={`room-${room.id}`}
+          subject={{ location: room.id }}
+          title={t("admin.maintenance.plansOf", { name: room.name })}
+          canEdit={canEdit}
+        />
+      ))}
+    </>
   );
 }
 
@@ -252,8 +265,19 @@ export function FleetPage() {
           </Table>
         </Card>
       )}
+      {chosen && (
+        <PlansPanel
+          key={`plans-${chosen.truck_id}`}
+          subject={{ truck: chosen.truck_id }}
+          title={t("admin.maintenance.plansOf", { name: chosen.name })}
+          canEdit={canEdit}
+        />
+      )}
       {chosen && <TruckReadings key={chosen.truck_id} row={chosen} canEdit={canEdit} />}
+      <ColdRooms canEdit={canEdit} />
+      <h2>{t("admin.fleet.settings")}</h2>
       <SettingsCard canEdit={canEdit} />
+      <TypesCard canEdit={canEdit} />
     </>
   );
 }

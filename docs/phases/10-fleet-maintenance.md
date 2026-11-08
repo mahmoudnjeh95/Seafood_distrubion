@@ -55,17 +55,22 @@ medical renewal.
 
 ### P10-T02 · Paramètres entretien and maintenance plans
 
-- [ ] Maintenance types per organization (vidange, filtres, freins, pneus, courroie, batterie…) with default
+- [x] Maintenance types per organization (vidange, filtres, freins, pneus, courroie, batterie…) with default
       interval in km and/or months and warning thresholds (km and days before), all editable.
-- [ ] Plan per truck (a type, its own interval if different, the last done km and date).
-- [ ] "Entretien effectué": date, compteur, garage, cost, note → reschedules the next one; the cost becomes an
+- [x] Plan per truck (a type, its own interval if different, the last done km and date).
+- [x] "Entretien effectué": date, compteur, garage, cost, note → reschedules the next one; the cost becomes an
       expense tied to the truck (general overhead).
-- [ ] Status per plan: ok / bientôt (orange) / en retard (red), from the last reading and the average km per day.
+- [x] Status per plan: ok / bientôt (orange) / en retard (red), from the last reading and the average km per day.
 
 ### P10-T03 · Frigo maintenance (trucks and cold rooms)
 
-- [ ] Same plans for the truck frigo units and the company's cold rooms (`inventory.StockLocation` of kind cold
+- [x] Same plans for the truck frigo units and the company's cold rooms (`inventory.StockLocation` of kind cold
       room), counted in months only (monthly by default). No temperature readings (answer 4).
+- Done as: `MaintenanceType` (target truck / frigo / cold_room, `every_km`, `every_months`, `warn_km`, `warn_days`),
+  `MaintenancePlan` (on a truck or a cold room, own interval, last done), `MaintenanceRecord` (append-only). The
+  suggested types come with "Ajouter les entretiens conseillés". A cost is an approved expense of the new default
+  category "Entretien et papiers des camions" (`vehicles`), or "Froid et stockage" for a cold room, **without** the
+  truck tag (a truck-tagged expense is a truck cost of the day, split over the lots, D-041).
 
 ### P10-T04 · Papers with expiry dates
 

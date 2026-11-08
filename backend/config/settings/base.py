@@ -211,6 +211,7 @@ SPECTACULAR_SETTINGS = {
         "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
         "OdometerSourceEnum": "apps.maintenance.models.OdometerSource",
         "OdometerWarningEnum": "apps.maintenance.models.OdometerWarning",
+        "MaintenanceTargetEnum": "apps.maintenance.models.MaintenanceTarget",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SalaryAdjustmentKindEnum": "apps.hr.models.SalaryAdjustmentKind",

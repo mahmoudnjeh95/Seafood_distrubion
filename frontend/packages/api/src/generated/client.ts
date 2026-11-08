@@ -27,6 +27,7 @@ import type {
   AccountStatement,
   AccountTransfer,
   AccountTransferWrite,
+  Added,
   AdjustmentWrite,
   AllocateWrite,
   ApprovedMonth,
@@ -199,6 +200,8 @@ import type {
   ListLossesParams,
   ListLotFiguresParams,
   ListLotWorkDaysParams,
+  ListMaintenancePlansParams,
+  ListMaintenanceTypesParams,
   ListMatchCandidatesParams,
   ListMovementsOfParams,
   ListMovementsParams,
@@ -247,7 +250,12 @@ import type {
   LotSettlementView,
   LotWorkDay,
   LotWorkDayWrite,
+  MaintenancePlan,
+  MaintenancePlanCreate,
+  MaintenanceRecord,
+  MaintenanceRecordWrite,
   MaintenanceSettings,
+  MaintenanceType,
   MarkRead,
   MatchCandidate,
   MatchWrite,
@@ -319,7 +327,9 @@ import type {
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
   PatchedLotPartnershipUpdate,
+  PatchedMaintenancePlanUpdate,
   PatchedMaintenanceSettings,
+  PatchedMaintenanceTypeUpdate,
   PatchedMemberCanBuy,
   PatchedMemberProfile,
   PatchedMemberRole,
@@ -14448,6 +14458,467 @@ export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSett
 
 
 
+export const getListMaintenancePlansUrl = (params?: ListMaintenancePlansParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/maintenance-plans?${stringifiedParams}` : `/api/v1/maintenance-plans`
+}
+
+/**
+ * The maintenance followed, with where each one stands today (ok, bientôt, en retard, à renseigner).
+ */
+export const listMaintenancePlans = async (params?: ListMaintenancePlansParams, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenancePlan[]> => {
+
+  return apiFetch<MaintenancePlan[]>(getListMaintenancePlansUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMaintenancePlansQueryKey = (params?: ListMaintenancePlansParams,) => {
+    return [
+    `/api/v1/maintenance-plans`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMaintenancePlansQueryOptions = <TData = Awaited<ReturnType<typeof listMaintenancePlans>>, TError = unknown>(params?: ListMaintenancePlansParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenancePlans>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMaintenancePlansQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMaintenancePlans>>> = ({ signal }) => listMaintenancePlans(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMaintenancePlans>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMaintenancePlansQueryResult = NonNullable<Awaited<ReturnType<typeof listMaintenancePlans>>>
+export type ListMaintenancePlansQueryError = unknown
+
+
+export function useListMaintenancePlans<TData = Awaited<ReturnType<typeof listMaintenancePlans>>, TError = unknown>(
+ params: undefined |  ListMaintenancePlansParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenancePlans>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMaintenancePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listMaintenancePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMaintenancePlans<TData = Awaited<ReturnType<typeof listMaintenancePlans>>, TError = unknown>(
+ params?: ListMaintenancePlansParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenancePlans>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMaintenancePlans>>,
+          TError,
+          Awaited<ReturnType<typeof listMaintenancePlans>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMaintenancePlans<TData = Awaited<ReturnType<typeof listMaintenancePlans>>, TError = unknown>(
+ params?: ListMaintenancePlansParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenancePlans>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMaintenancePlans<TData = Awaited<ReturnType<typeof listMaintenancePlans>>, TError = unknown>(
+ params?: ListMaintenancePlansParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenancePlans>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMaintenancePlansQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMaintenancePlanUrl = () => {
+
+
+
+
+  return `/api/v1/maintenance-plans`
+}
+
+/**
+ * Follow a kind of maintenance on a truck (or its frigo unit) or a cold room.
+ */
+export const createMaintenancePlan = async (maintenancePlanCreate: MaintenancePlanCreate, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenancePlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MaintenancePlan>(getCreateMaintenancePlanUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(maintenancePlanCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateMaintenancePlanMutationKey = () => ['createMaintenancePlan'] as const;
+
+export const getCreateMaintenancePlanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMaintenancePlan>>, TError,CreateMaintenancePlanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMaintenancePlan>>, TError,CreateMaintenancePlanMutationVariables, TContext> => {
+
+const mutationKey = getCreateMaintenancePlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMaintenancePlan>>, CreateMaintenancePlanMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMaintenancePlan(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMaintenancePlanMutationResult = NonNullable<Awaited<ReturnType<typeof createMaintenancePlan>>>
+    export type CreateMaintenancePlanMutationBody = MaintenancePlanCreate
+    export type CreateMaintenancePlanMutationError = unknown
+    export type CreateMaintenancePlanMutationVariables = {data: MaintenancePlanCreate}
+
+    export const useCreateMaintenancePlan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMaintenancePlan>>, TError,CreateMaintenancePlanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createMaintenancePlan>>,
+        TError,
+        CreateMaintenancePlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMaintenancePlanMutationOptions(options), queryClient);
+    }
+
+export const getUpdateMaintenancePlanUrl = (planId: number,) => {
+
+
+
+
+  return `/api/v1/maintenance-plans/${planId}`
+}
+
+/**
+ * Change the plan's own interval or when it was last done, or stop following it (`is_active` false).
+ */
+export const updateMaintenancePlan = async (planId: number,
+    patchedMaintenancePlanUpdate?: PatchedMaintenancePlanUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenancePlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MaintenancePlan>(getUpdateMaintenancePlanUrl(planId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedMaintenancePlanUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMaintenancePlanMutationKey = () => ['updateMaintenancePlan'] as const;
+
+export const getUpdateMaintenancePlanMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaintenancePlan>>, TError,UpdateMaintenancePlanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMaintenancePlan>>, TError,UpdateMaintenancePlanMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMaintenancePlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMaintenancePlan>>, UpdateMaintenancePlanMutationVariables> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  updateMaintenancePlan(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMaintenancePlanMutationResult = NonNullable<Awaited<ReturnType<typeof updateMaintenancePlan>>>
+    export type UpdateMaintenancePlanMutationBody = PatchedMaintenancePlanUpdate | undefined
+    export type UpdateMaintenancePlanMutationError = unknown
+    export type UpdateMaintenancePlanMutationVariables = {planId: number;data?: PatchedMaintenancePlanUpdate}
+
+    export const useUpdateMaintenancePlan = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaintenancePlan>>, TError,UpdateMaintenancePlanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateMaintenancePlan>>,
+        TError,
+        UpdateMaintenancePlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMaintenancePlanMutationOptions(options), queryClient);
+    }
+
+export const getListMaintenanceRecordsUrl = (planId: number,) => {
+
+
+
+
+  return `/api/v1/maintenance-plans/${planId}/records`
+}
+
+/**
+ * The jobs done on the plan, the latest first.
+ */
+export const listMaintenanceRecords = async (planId: number, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceRecord[]> => {
+
+  return apiFetch<MaintenanceRecord[]>(getListMaintenanceRecordsUrl(planId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMaintenanceRecordsQueryKey = (planId: number,) => {
+    return [
+    `/api/v1/maintenance-plans/${planId}/records`
+    ] as const;
+    }
+
+
+export const getListMaintenanceRecordsQueryOptions = <TData = Awaited<ReturnType<typeof listMaintenanceRecords>>, TError = unknown>(planId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceRecords>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMaintenanceRecordsQueryKey(planId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMaintenanceRecords>>> = ({ signal }) => listMaintenanceRecords(planId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: planId !== null && planId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceRecords>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMaintenanceRecordsQueryResult = NonNullable<Awaited<ReturnType<typeof listMaintenanceRecords>>>
+export type ListMaintenanceRecordsQueryError = unknown
+
+
+export function useListMaintenanceRecords<TData = Awaited<ReturnType<typeof listMaintenanceRecords>>, TError = unknown>(
+ planId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceRecords>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMaintenanceRecords>>,
+          TError,
+          Awaited<ReturnType<typeof listMaintenanceRecords>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMaintenanceRecords<TData = Awaited<ReturnType<typeof listMaintenanceRecords>>, TError = unknown>(
+ planId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceRecords>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMaintenanceRecords>>,
+          TError,
+          Awaited<ReturnType<typeof listMaintenanceRecords>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMaintenanceRecords<TData = Awaited<ReturnType<typeof listMaintenanceRecords>>, TError = unknown>(
+ planId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceRecords>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMaintenanceRecords<TData = Awaited<ReturnType<typeof listMaintenanceRecords>>, TError = unknown>(
+ planId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceRecords>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMaintenanceRecordsQueryOptions(planId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordMaintenanceUrl = (planId: number,) => {
+
+
+
+
+  return `/api/v1/maintenance-plans/${planId}/records`
+}
+
+/**
+ * "Entretien effectué": the next one is due from here. A cost becomes an approved expense of the general
+ * overhead (not charged to the lots).
+ */
+export const recordMaintenance = async (planId: number,
+    maintenanceRecordWrite: MaintenanceRecordWrite, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MaintenanceRecord>(getRecordMaintenanceUrl(planId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(maintenanceRecordWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordMaintenanceMutationKey = () => ['recordMaintenance'] as const;
+
+export const getRecordMaintenanceMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMaintenance>>, TError,RecordMaintenanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordMaintenance>>, TError,RecordMaintenanceMutationVariables, TContext> => {
+
+const mutationKey = getRecordMaintenanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordMaintenance>>, RecordMaintenanceMutationVariables> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  recordMaintenance(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordMaintenanceMutationResult = NonNullable<Awaited<ReturnType<typeof recordMaintenance>>>
+    export type RecordMaintenanceMutationBody = MaintenanceRecordWrite
+    export type RecordMaintenanceMutationError = unknown
+    export type RecordMaintenanceMutationVariables = {planId: number;data: MaintenanceRecordWrite}
+
+    export const useRecordMaintenance = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMaintenance>>, TError,RecordMaintenanceMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordMaintenance>>,
+        TError,
+        RecordMaintenanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordMaintenanceMutationOptions(options), queryClient);
+    }
+
 export const getGetMaintenanceSettingsUrl = () => {
 
 
@@ -14629,6 +15100,353 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateMaintenanceSettingsMutationOptions(options), queryClient);
+    }
+
+export const getListMaintenanceTypesUrl = (params?: ListMaintenanceTypesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/maintenance-types?${stringifiedParams}` : `/api/v1/maintenance-types`
+}
+
+/**
+ * The kinds of maintenance with their intervals (Paramètres entretien), archived ones included.
+ */
+export const listMaintenanceTypes = async (params?: ListMaintenanceTypesParams, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceType[]> => {
+
+  return apiFetch<MaintenanceType[]>(getListMaintenanceTypesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMaintenanceTypesQueryKey = (params?: ListMaintenanceTypesParams,) => {
+    return [
+    `/api/v1/maintenance-types`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMaintenanceTypesQueryOptions = <TData = Awaited<ReturnType<typeof listMaintenanceTypes>>, TError = unknown>(params?: ListMaintenanceTypesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceTypes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMaintenanceTypesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMaintenanceTypes>>> = ({ signal }) => listMaintenanceTypes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceTypes>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMaintenanceTypesQueryResult = NonNullable<Awaited<ReturnType<typeof listMaintenanceTypes>>>
+export type ListMaintenanceTypesQueryError = unknown
+
+
+export function useListMaintenanceTypes<TData = Awaited<ReturnType<typeof listMaintenanceTypes>>, TError = unknown>(
+ params: undefined |  ListMaintenanceTypesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceTypes>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMaintenanceTypes>>,
+          TError,
+          Awaited<ReturnType<typeof listMaintenanceTypes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMaintenanceTypes<TData = Awaited<ReturnType<typeof listMaintenanceTypes>>, TError = unknown>(
+ params?: ListMaintenanceTypesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceTypes>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMaintenanceTypes>>,
+          TError,
+          Awaited<ReturnType<typeof listMaintenanceTypes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMaintenanceTypes<TData = Awaited<ReturnType<typeof listMaintenanceTypes>>, TError = unknown>(
+ params?: ListMaintenanceTypesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceTypes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMaintenanceTypes<TData = Awaited<ReturnType<typeof listMaintenanceTypes>>, TError = unknown>(
+ params?: ListMaintenanceTypesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMaintenanceTypes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMaintenanceTypesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMaintenanceTypeUrl = () => {
+
+
+
+
+  return `/api/v1/maintenance-types`
+}
+
+/**
+ * A new kind of maintenance: every X km and/or Y months, warned so many km or days before.
+ */
+export const createMaintenanceType = async (maintenanceType: NonReadonly<MaintenanceType>, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceType> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MaintenanceType>(getCreateMaintenanceTypeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(maintenanceType)
+  }
+);}
+
+
+
+
+
+export const getCreateMaintenanceTypeMutationKey = () => ['createMaintenanceType'] as const;
+
+export const getCreateMaintenanceTypeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMaintenanceType>>, TError,CreateMaintenanceTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMaintenanceType>>, TError,CreateMaintenanceTypeMutationVariables, TContext> => {
+
+const mutationKey = getCreateMaintenanceTypeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMaintenanceType>>, CreateMaintenanceTypeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMaintenanceType(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMaintenanceTypeMutationResult = NonNullable<Awaited<ReturnType<typeof createMaintenanceType>>>
+    export type CreateMaintenanceTypeMutationBody = NonReadonly<MaintenanceType>
+    export type CreateMaintenanceTypeMutationError = unknown
+    export type CreateMaintenanceTypeMutationVariables = {data: NonReadonly<MaintenanceType>}
+
+    export const useCreateMaintenanceType = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMaintenanceType>>, TError,CreateMaintenanceTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createMaintenanceType>>,
+        TError,
+        CreateMaintenanceTypeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMaintenanceTypeMutationOptions(options), queryClient);
+    }
+
+export const getUpdateMaintenanceTypeUrl = (typeId: number,) => {
+
+
+
+
+  return `/api/v1/maintenance-types/${typeId}`
+}
+
+/**
+ * Change a kind of maintenance, or archive it (`is_active` false). Its target never changes.
+ */
+export const updateMaintenanceType = async (typeId: number,
+    patchedMaintenanceTypeUpdate?: PatchedMaintenanceTypeUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceType> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MaintenanceType>(getUpdateMaintenanceTypeUrl(typeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedMaintenanceTypeUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMaintenanceTypeMutationKey = () => ['updateMaintenanceType'] as const;
+
+export const getUpdateMaintenanceTypeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaintenanceType>>, TError,UpdateMaintenanceTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMaintenanceType>>, TError,UpdateMaintenanceTypeMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMaintenanceTypeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMaintenanceType>>, UpdateMaintenanceTypeMutationVariables> = (props) => {
+          const {typeId,data} = props ?? {};
+
+          return  updateMaintenanceType(typeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMaintenanceTypeMutationResult = NonNullable<Awaited<ReturnType<typeof updateMaintenanceType>>>
+    export type UpdateMaintenanceTypeMutationBody = PatchedMaintenanceTypeUpdate | undefined
+    export type UpdateMaintenanceTypeMutationError = unknown
+    export type UpdateMaintenanceTypeMutationVariables = {typeId: number;data?: PatchedMaintenanceTypeUpdate}
+
+    export const useUpdateMaintenanceType = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaintenanceType>>, TError,UpdateMaintenanceTypeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateMaintenanceType>>,
+        TError,
+        UpdateMaintenanceTypeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMaintenanceTypeMutationOptions(options), queryClient);
+    }
+
+export const getAddDefaultMaintenanceTypesUrl = () => {
+
+
+
+
+  return `/api/v1/maintenance-types/defaults`
+}
+
+/**
+ * Add the suggested kinds of maintenance the organization does not have yet.
+ */
+export const addDefaultMaintenanceTypes = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Added> => {
+
+  return apiFetch<Added>(getAddDefaultMaintenanceTypesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAddDefaultMaintenanceTypesMutationKey = () => ['addDefaultMaintenanceTypes'] as const;
+
+export const getAddDefaultMaintenanceTypesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDefaultMaintenanceTypes>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addDefaultMaintenanceTypes>>, TError,void, TContext> => {
+
+const mutationKey = getAddDefaultMaintenanceTypesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addDefaultMaintenanceTypes>>, void> = () => {
+
+
+          return  addDefaultMaintenanceTypes(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddDefaultMaintenanceTypesMutationResult = NonNullable<Awaited<ReturnType<typeof addDefaultMaintenanceTypes>>>
+
+    export type AddDefaultMaintenanceTypesMutationError = unknown
+
+
+    export const useAddDefaultMaintenanceTypes = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDefaultMaintenanceTypes>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addDefaultMaintenanceTypes>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAddDefaultMaintenanceTypesMutationOptions(options), queryClient);
     }
 
 export const getGetSessionUrl = () => {

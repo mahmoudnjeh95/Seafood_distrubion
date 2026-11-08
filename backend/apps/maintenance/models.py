@@ -69,3 +69,109 @@ class OdometerReading(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.truck_id} · {self.km} km"
+
+
+# ---- Maintenance types, plans and records (P10-T02, P10-T03) ----
+
+
+class MaintenanceTarget(models.TextChoices):
+    # The truck itself: by km and/or months (vidange, filtres, freins…).
+    TRUCK = "truck", _("Camion")
+    # The truck's refrigeration unit: by months (monthly service, owner answer 4).
+    FRIGO = "frigo", _("Groupe frigo du camion")
+    # A cold room of the company (`inventory.StockLocation` of kind cold room): by months.
+    COLD_ROOM = "cold_room", _("Chambre froide")
+
+
+class MaintenanceType(OrganizationScopedModel, TimeStampedModel):
+    """A kind of maintenance with its default interval and warning thresholds (Paramètres entretien, D-295).
+
+    Due after `every_km` km or `every_months` months, whichever comes first; either may be empty, not both. Warned
+    `warn_km` km or `warn_days` days before. A plan may set its own interval for one truck or cold room.
+    """
+
+    name = models.CharField(max_length=100)
+    target = models.CharField(max_length=10, choices=MaintenanceTarget.choices, default=MaintenanceTarget.TRUCK)
+    every_km = models.PositiveIntegerField(null=True, blank=True)
+    every_months = models.PositiveSmallIntegerField(null=True, blank=True)
+    warn_km = models.PositiveIntegerField(default=1000)
+    warn_days = models.PositiveSmallIntegerField(default=15)
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ["target", "position", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "target", "name"], name="maintenance_type_name_unique_per_target"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class MaintenancePlan(OrganizationScopedModel, TimeStampedModel):
+    """One maintenance type followed on one truck (or its frigo unit), or on one cold room.
+
+    `last_done_on` / `last_done_km` are copied from the latest `MaintenanceRecord` (or typed once when the plan is
+    made, for a job done before the app): the next one is due from there.
+    """
+
+    type = models.ForeignKey(MaintenanceType, on_delete=models.PROTECT, related_name="plans")
+    # By name, not by import (ARCHITECTURE §3). A truck for the truck and frigo types, a cold room for the others.
+    truck = models.ForeignKey("fleet.Truck", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    location = models.ForeignKey(
+        "inventory.StockLocation", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # Empty: the type's interval.
+    every_km = models.PositiveIntegerField(null=True, blank=True)
+    every_months = models.PositiveSmallIntegerField(null=True, blank=True)
+    last_done_on = models.DateField(null=True, blank=True)
+    last_done_km = models.PositiveIntegerField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["type__target", "type__position", "type__name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "type", "truck"],
+                condition=models.Q(truck__isnull=False),
+                name="one_plan_per_type_and_truck",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "type", "location"],
+                condition=models.Q(location__isnull=False),
+                name="one_plan_per_type_and_location",
+            ),
+            models.CheckConstraint(
+                condition=(models.Q(truck__isnull=False) & models.Q(location__isnull=True))
+                | (models.Q(truck__isnull=True) & models.Q(location__isnull=False)),
+                name="plan_on_a_truck_or_a_location",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.type.name} · {self.truck_id or self.location_id}"
+
+
+class MaintenanceRecord(OrganizationScopedModel, TimeStampedModel):
+    """ "Entretien effectué": a job done on a plan, with its cost. Append-only; its cost is an approved expense of
+    the general overhead (owner answer 6: not charged to the lots)."""
+
+    plan = models.ForeignKey(MaintenancePlan, on_delete=models.PROTECT, related_name="records")
+    done_on = models.DateField()
+    # The compteur when it was done (truck types); empty for a frigo unit or a cold room.
+    km = models.PositiveIntegerField(null=True, blank=True)
+    garage = models.CharField(max_length=150, blank=True)
+    note = models.CharField(max_length=300, blank=True)
+    cost = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    # The expense the cost made (by name, not by import); empty when it cost nothing.
+    expense = models.ForeignKey("expenses.Expense", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        ordering = ["-done_on", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.plan_id} · {self.done_on}"

@@ -10207,6 +10207,282 @@ export const GetLotSettlementResponse = zod.object({
 
 
 /**
+ * The maintenance followed, with where each one stands today (ok, bientôt, en retard, à renseigner).
+ */
+export const ListMaintenancePlansQueryParams = zod.object({
+  "location": zod.int().optional(),
+  "truck": zod.int().optional()
+})
+
+export const listMaintenancePlansResponseTypeNameMax = 100;
+
+export const listMaintenancePlansResponseTypeEveryKmMin = 0;
+export const listMaintenancePlansResponseTypeEveryKmMax = 2147483647;
+
+export const listMaintenancePlansResponseTypeEveryMonthsMin = 0;
+export const listMaintenancePlansResponseTypeEveryMonthsMax = 32767;
+
+export const listMaintenancePlansResponseTypeWarnKmMin = 0;
+export const listMaintenancePlansResponseTypeWarnKmMax = 2147483647;
+
+export const listMaintenancePlansResponseTypeWarnDaysMin = 0;
+export const listMaintenancePlansResponseTypeWarnDaysMax = 32767;
+
+
+
+export const ListMaintenancePlansResponseItem = zod.object({
+  "id": zod.int(),
+  "type": zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(listMaintenancePlansResponseTypeNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(listMaintenancePlansResponseTypeEveryKmMin).max(listMaintenancePlansResponseTypeEveryKmMax).nullish(),
+  "every_months": zod.int().min(listMaintenancePlansResponseTypeEveryMonthsMin).max(listMaintenancePlansResponseTypeEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(listMaintenancePlansResponseTypeWarnKmMin).max(listMaintenancePlansResponseTypeWarnKmMax).optional(),
+  "warn_days": zod.int().min(listMaintenancePlansResponseTypeWarnDaysMin).max(listMaintenancePlansResponseTypeWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+}),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('The truck or the cold room a plan is on.'),zod.null()]),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('The truck or the cold room a plan is on.'),zod.null()]),
+  "own_every_km": zod.int().nullable(),
+  "own_every_months": zod.int().nullable(),
+  "last_done_on": zod.iso.date().nullable(),
+  "last_done_km": zod.int().nullable(),
+  "every_km": zod.int().nullable(),
+  "every_months": zod.int().nullable(),
+  "current_km": zod.int().nullable(),
+  "due_km": zod.int().nullable(),
+  "km_left": zod.int().nullable(),
+  "due_on": zod.iso.date().nullable(),
+  "days_left": zod.int().nullable(),
+  "estimated_on": zod.iso.date().nullable(),
+  "state": zod.enum(['ok', 'soon', 'late', 'unknown']).describe('* `ok` - ok\n* `soon` - soon\n* `late` - late\n* `unknown` - unknown')
+}).describe('One `selectors.PlanStatus`: the plan and where it stands today.')
+export const ListMaintenancePlansResponse = zod.array(ListMaintenancePlansResponseItem)
+
+
+/**
+ * Follow a kind of maintenance on a truck (or its frigo unit) or a cold room.
+ */
+
+export const createMaintenancePlanBodyEveryMonthsMax = 120;
+
+export const createMaintenancePlanBodyLastDoneKmMin = 0;
+
+
+
+export const CreateMaintenancePlanBody = zod.object({
+  "type": zod.int(),
+  "truck": zod.int().nullish(),
+  "location": zod.int().nullish(),
+  "every_km": zod.int().min(1).nullish(),
+  "every_months": zod.int().min(1).max(createMaintenancePlanBodyEveryMonthsMax).nullish(),
+  "last_done_on": zod.iso.date().nullish(),
+  "last_done_km": zod.int().min(createMaintenancePlanBodyLastDoneKmMin).nullish()
+})
+
+export const createMaintenancePlanResponseTypeNameMax = 100;
+
+export const createMaintenancePlanResponseTypeEveryKmMin = 0;
+export const createMaintenancePlanResponseTypeEveryKmMax = 2147483647;
+
+export const createMaintenancePlanResponseTypeEveryMonthsMin = 0;
+export const createMaintenancePlanResponseTypeEveryMonthsMax = 32767;
+
+export const createMaintenancePlanResponseTypeWarnKmMin = 0;
+export const createMaintenancePlanResponseTypeWarnKmMax = 2147483647;
+
+export const createMaintenancePlanResponseTypeWarnDaysMin = 0;
+export const createMaintenancePlanResponseTypeWarnDaysMax = 32767;
+
+
+
+export const CreateMaintenancePlanResponse = zod.object({
+  "id": zod.int(),
+  "type": zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(createMaintenancePlanResponseTypeNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(createMaintenancePlanResponseTypeEveryKmMin).max(createMaintenancePlanResponseTypeEveryKmMax).nullish(),
+  "every_months": zod.int().min(createMaintenancePlanResponseTypeEveryMonthsMin).max(createMaintenancePlanResponseTypeEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(createMaintenancePlanResponseTypeWarnKmMin).max(createMaintenancePlanResponseTypeWarnKmMax).optional(),
+  "warn_days": zod.int().min(createMaintenancePlanResponseTypeWarnDaysMin).max(createMaintenancePlanResponseTypeWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+}),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('The truck or the cold room a plan is on.'),zod.null()]),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('The truck or the cold room a plan is on.'),zod.null()]),
+  "own_every_km": zod.int().nullable(),
+  "own_every_months": zod.int().nullable(),
+  "last_done_on": zod.iso.date().nullable(),
+  "last_done_km": zod.int().nullable(),
+  "every_km": zod.int().nullable(),
+  "every_months": zod.int().nullable(),
+  "current_km": zod.int().nullable(),
+  "due_km": zod.int().nullable(),
+  "km_left": zod.int().nullable(),
+  "due_on": zod.iso.date().nullable(),
+  "days_left": zod.int().nullable(),
+  "estimated_on": zod.iso.date().nullable(),
+  "state": zod.enum(['ok', 'soon', 'late', 'unknown']).describe('* `ok` - ok\n* `soon` - soon\n* `late` - late\n* `unknown` - unknown')
+}).describe('One `selectors.PlanStatus`: the plan and where it stands today.')
+
+
+/**
+ * Change the plan's own interval or when it was last done, or stop following it (`is_active` false).
+ */
+export const UpdateMaintenancePlanParams = zod.object({
+  "plan_id": zod.int()
+})
+
+
+export const updateMaintenancePlanBodyEveryMonthsMax = 120;
+
+export const updateMaintenancePlanBodyLastDoneKmMin = 0;
+
+
+
+export const UpdateMaintenancePlanBody = zod.object({
+  "every_km": zod.int().min(1).nullish(),
+  "every_months": zod.int().min(1).max(updateMaintenancePlanBodyEveryMonthsMax).nullish(),
+  "last_done_on": zod.iso.date().nullish(),
+  "last_done_km": zod.int().min(updateMaintenancePlanBodyLastDoneKmMin).nullish(),
+  "is_active": zod.boolean().optional()
+})
+
+export const updateMaintenancePlanResponseTypeNameMax = 100;
+
+export const updateMaintenancePlanResponseTypeEveryKmMin = 0;
+export const updateMaintenancePlanResponseTypeEveryKmMax = 2147483647;
+
+export const updateMaintenancePlanResponseTypeEveryMonthsMin = 0;
+export const updateMaintenancePlanResponseTypeEveryMonthsMax = 32767;
+
+export const updateMaintenancePlanResponseTypeWarnKmMin = 0;
+export const updateMaintenancePlanResponseTypeWarnKmMax = 2147483647;
+
+export const updateMaintenancePlanResponseTypeWarnDaysMin = 0;
+export const updateMaintenancePlanResponseTypeWarnDaysMax = 32767;
+
+
+
+export const UpdateMaintenancePlanResponse = zod.object({
+  "id": zod.int(),
+  "type": zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(updateMaintenancePlanResponseTypeNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(updateMaintenancePlanResponseTypeEveryKmMin).max(updateMaintenancePlanResponseTypeEveryKmMax).nullish(),
+  "every_months": zod.int().min(updateMaintenancePlanResponseTypeEveryMonthsMin).max(updateMaintenancePlanResponseTypeEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(updateMaintenancePlanResponseTypeWarnKmMin).max(updateMaintenancePlanResponseTypeWarnKmMax).optional(),
+  "warn_days": zod.int().min(updateMaintenancePlanResponseTypeWarnDaysMin).max(updateMaintenancePlanResponseTypeWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+}),
+  "truck": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('The truck or the cold room a plan is on.'),zod.null()]),
+  "location": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}).describe('The truck or the cold room a plan is on.'),zod.null()]),
+  "own_every_km": zod.int().nullable(),
+  "own_every_months": zod.int().nullable(),
+  "last_done_on": zod.iso.date().nullable(),
+  "last_done_km": zod.int().nullable(),
+  "every_km": zod.int().nullable(),
+  "every_months": zod.int().nullable(),
+  "current_km": zod.int().nullable(),
+  "due_km": zod.int().nullable(),
+  "km_left": zod.int().nullable(),
+  "due_on": zod.iso.date().nullable(),
+  "days_left": zod.int().nullable(),
+  "estimated_on": zod.iso.date().nullable(),
+  "state": zod.enum(['ok', 'soon', 'late', 'unknown']).describe('* `ok` - ok\n* `soon` - soon\n* `late` - late\n* `unknown` - unknown')
+}).describe('One `selectors.PlanStatus`: the plan and where it stands today.')
+
+
+/**
+ * The jobs done on the plan, the latest first.
+ */
+export const ListMaintenanceRecordsParams = zod.object({
+  "plan_id": zod.int()
+})
+
+export const listMaintenanceRecordsResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListMaintenanceRecordsResponseItem = zod.object({
+  "id": zod.int(),
+  "plan_id": zod.int(),
+  "done_on": zod.iso.date(),
+  "km": zod.int().nullable(),
+  "garage": zod.string(),
+  "note": zod.string(),
+  "cost": zod.stringFormat('decimal', listMaintenanceRecordsResponseCostRegExp),
+  "expense_id": zod.int().nullable(),
+  "expense_number": zod.string().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListMaintenanceRecordsResponse = zod.array(ListMaintenanceRecordsResponseItem)
+
+
+/**
+ * "Entretien effectué": the next one is due from here. A cost becomes an approved expense of the general
+ * overhead (not charged to the lots).
+ */
+export const RecordMaintenanceParams = zod.object({
+  "plan_id": zod.int()
+})
+
+export const recordMaintenanceBodyKmMin = 0;
+
+export const recordMaintenanceBodyGarageMax = 150;
+
+export const recordMaintenanceBodyNoteMax = 300;
+
+export const recordMaintenanceBodyPaymentMethodDefault = `cash`;
+
+export const RecordMaintenanceBody = zod.object({
+  "done_on": zod.iso.date(),
+  "km": zod.int().min(recordMaintenanceBodyKmMin).nullish(),
+  "garage": zod.string().max(recordMaintenanceBodyGarageMax).optional(),
+  "note": zod.string().max(recordMaintenanceBodyNoteMax).optional(),
+  "cost": zod.string().optional(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - cash\n* `cheque` - cheque\n* `transfer` - transfer\n* `bill` - bill\n* `other` - other').default(recordMaintenanceBodyPaymentMethodDefault)
+})
+
+export const recordMaintenanceResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordMaintenanceResponse = zod.object({
+  "id": zod.int(),
+  "plan_id": zod.int(),
+  "done_on": zod.iso.date(),
+  "km": zod.int().nullable(),
+  "garage": zod.string(),
+  "note": zod.string(),
+  "cost": zod.stringFormat('decimal', recordMaintenanceResponseCostRegExp),
+  "expense_id": zod.int().nullable(),
+  "expense_number": zod.string().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * The maintenance settings (Paramètres entretien).
  */
 export const getMaintenanceSettingsResponseMaxDayKmMin = 0;
@@ -10238,6 +10514,167 @@ export const updateMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
 
 export const UpdateMaintenanceSettingsResponse = zod.object({
   "max_day_km": zod.int().min(updateMaintenanceSettingsResponseMaxDayKmMin).max(updateMaintenanceSettingsResponseMaxDayKmMax)
+})
+
+
+/**
+ * The kinds of maintenance with their intervals (Paramètres entretien), archived ones included.
+ */
+export const ListMaintenanceTypesQueryParams = zod.object({
+  "target": zod.enum(['cold_room', 'frigo', 'truck']).optional()
+})
+
+export const listMaintenanceTypesResponseNameMax = 100;
+
+export const listMaintenanceTypesResponseEveryKmMin = 0;
+export const listMaintenanceTypesResponseEveryKmMax = 2147483647;
+
+export const listMaintenanceTypesResponseEveryMonthsMin = 0;
+export const listMaintenanceTypesResponseEveryMonthsMax = 32767;
+
+export const listMaintenanceTypesResponseWarnKmMin = 0;
+export const listMaintenanceTypesResponseWarnKmMax = 2147483647;
+
+export const listMaintenanceTypesResponseWarnDaysMin = 0;
+export const listMaintenanceTypesResponseWarnDaysMax = 32767;
+
+
+
+export const ListMaintenanceTypesResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(listMaintenanceTypesResponseNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(listMaintenanceTypesResponseEveryKmMin).max(listMaintenanceTypesResponseEveryKmMax).nullish(),
+  "every_months": zod.int().min(listMaintenanceTypesResponseEveryMonthsMin).max(listMaintenanceTypesResponseEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(listMaintenanceTypesResponseWarnKmMin).max(listMaintenanceTypesResponseWarnKmMax).optional(),
+  "warn_days": zod.int().min(listMaintenanceTypesResponseWarnDaysMin).max(listMaintenanceTypesResponseWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+export const ListMaintenanceTypesResponse = zod.array(ListMaintenanceTypesResponseItem)
+
+
+/**
+ * A new kind of maintenance: every X km and/or Y months, warned so many km or days before.
+ */
+export const createMaintenanceTypeBodyNameMax = 100;
+
+export const createMaintenanceTypeBodyEveryKmMin = 0;
+export const createMaintenanceTypeBodyEveryKmMax = 2147483647;
+
+export const createMaintenanceTypeBodyEveryMonthsMin = 0;
+export const createMaintenanceTypeBodyEveryMonthsMax = 32767;
+
+export const createMaintenanceTypeBodyWarnKmMin = 0;
+export const createMaintenanceTypeBodyWarnKmMax = 2147483647;
+
+export const createMaintenanceTypeBodyWarnDaysMin = 0;
+export const createMaintenanceTypeBodyWarnDaysMax = 32767;
+
+
+
+export const CreateMaintenanceTypeBody = zod.object({
+  "name": zod.string().max(createMaintenanceTypeBodyNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(createMaintenanceTypeBodyEveryKmMin).max(createMaintenanceTypeBodyEveryKmMax).nullish(),
+  "every_months": zod.int().min(createMaintenanceTypeBodyEveryMonthsMin).max(createMaintenanceTypeBodyEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(createMaintenanceTypeBodyWarnKmMin).max(createMaintenanceTypeBodyWarnKmMax).optional(),
+  "warn_days": zod.int().min(createMaintenanceTypeBodyWarnDaysMin).max(createMaintenanceTypeBodyWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const createMaintenanceTypeResponseNameMax = 100;
+
+export const createMaintenanceTypeResponseEveryKmMin = 0;
+export const createMaintenanceTypeResponseEveryKmMax = 2147483647;
+
+export const createMaintenanceTypeResponseEveryMonthsMin = 0;
+export const createMaintenanceTypeResponseEveryMonthsMax = 32767;
+
+export const createMaintenanceTypeResponseWarnKmMin = 0;
+export const createMaintenanceTypeResponseWarnKmMax = 2147483647;
+
+export const createMaintenanceTypeResponseWarnDaysMin = 0;
+export const createMaintenanceTypeResponseWarnDaysMax = 32767;
+
+
+
+export const CreateMaintenanceTypeResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(createMaintenanceTypeResponseNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(createMaintenanceTypeResponseEveryKmMin).max(createMaintenanceTypeResponseEveryKmMax).nullish(),
+  "every_months": zod.int().min(createMaintenanceTypeResponseEveryMonthsMin).max(createMaintenanceTypeResponseEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(createMaintenanceTypeResponseWarnKmMin).max(createMaintenanceTypeResponseWarnKmMax).optional(),
+  "warn_days": zod.int().min(createMaintenanceTypeResponseWarnDaysMin).max(createMaintenanceTypeResponseWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+
+/**
+ * Change a kind of maintenance, or archive it (`is_active` false). Its target never changes.
+ */
+export const UpdateMaintenanceTypeParams = zod.object({
+  "type_id": zod.int()
+})
+
+export const updateMaintenanceTypeBodyNameMax = 100;
+
+export const updateMaintenanceTypeBodyEveryKmMin = 0;
+export const updateMaintenanceTypeBodyEveryKmMax = 2147483647;
+
+export const updateMaintenanceTypeBodyEveryMonthsMin = 0;
+export const updateMaintenanceTypeBodyEveryMonthsMax = 32767;
+
+export const updateMaintenanceTypeBodyWarnKmMin = 0;
+export const updateMaintenanceTypeBodyWarnKmMax = 2147483647;
+
+export const updateMaintenanceTypeBodyWarnDaysMin = 0;
+export const updateMaintenanceTypeBodyWarnDaysMax = 32767;
+
+
+
+export const UpdateMaintenanceTypeBody = zod.object({
+  "name": zod.string().max(updateMaintenanceTypeBodyNameMax).optional(),
+  "every_km": zod.int().min(updateMaintenanceTypeBodyEveryKmMin).max(updateMaintenanceTypeBodyEveryKmMax).nullish(),
+  "every_months": zod.int().min(updateMaintenanceTypeBodyEveryMonthsMin).max(updateMaintenanceTypeBodyEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(updateMaintenanceTypeBodyWarnKmMin).max(updateMaintenanceTypeBodyWarnKmMax).optional(),
+  "warn_days": zod.int().min(updateMaintenanceTypeBodyWarnDaysMin).max(updateMaintenanceTypeBodyWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const updateMaintenanceTypeResponseNameMax = 100;
+
+export const updateMaintenanceTypeResponseEveryKmMin = 0;
+export const updateMaintenanceTypeResponseEveryKmMax = 2147483647;
+
+export const updateMaintenanceTypeResponseEveryMonthsMin = 0;
+export const updateMaintenanceTypeResponseEveryMonthsMax = 32767;
+
+export const updateMaintenanceTypeResponseWarnKmMin = 0;
+export const updateMaintenanceTypeResponseWarnKmMax = 2147483647;
+
+export const updateMaintenanceTypeResponseWarnDaysMin = 0;
+export const updateMaintenanceTypeResponseWarnDaysMax = 32767;
+
+
+
+export const UpdateMaintenanceTypeResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().max(updateMaintenanceTypeResponseNameMax),
+  "target": zod.enum(['truck', 'frigo', 'cold_room']).optional().describe('* `truck` - Camion\n* `frigo` - Groupe frigo du camion\n* `cold_room` - Chambre froide'),
+  "every_km": zod.int().min(updateMaintenanceTypeResponseEveryKmMin).max(updateMaintenanceTypeResponseEveryKmMax).nullish(),
+  "every_months": zod.int().min(updateMaintenanceTypeResponseEveryMonthsMin).max(updateMaintenanceTypeResponseEveryMonthsMax).nullish(),
+  "warn_km": zod.int().min(updateMaintenanceTypeResponseWarnKmMin).max(updateMaintenanceTypeResponseWarnKmMax).optional(),
+  "warn_days": zod.int().min(updateMaintenanceTypeResponseWarnDaysMin).max(updateMaintenanceTypeResponseWarnDaysMax).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+
+/**
+ * Add the suggested kinds of maintenance the organization does not have yet.
+ */
+export const AddDefaultMaintenanceTypesResponse = zod.object({
+  "added": zod.int()
 })
 
 

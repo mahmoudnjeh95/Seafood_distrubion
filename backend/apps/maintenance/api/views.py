@@ -2,8 +2,9 @@ from typing import TYPE_CHECKING
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import FileResponse, Http404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import status
+from django.utils.translation import gettext as _
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import exceptions, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -12,14 +13,24 @@ from rest_framework.views import APIView
 from apps.core.models import Membership, Organization
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.fleet import selectors as fleet
+from apps.inventory import selectors as inventory
 from apps.maintenance import selectors, services
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay
+    from apps.maintenance.models import MaintenancePlan
 
 from .serializers import (
+    AddedSerializer,
     FleetOdometerRowSerializer,
+    MaintenancePlanCreateSerializer,
+    MaintenancePlanSerializer,
+    MaintenancePlanUpdateSerializer,
+    MaintenanceRecordSerializer,
+    MaintenanceRecordWriteSerializer,
     MaintenanceSettingsSerializer,
+    MaintenanceTypeSerializer,
+    MaintenanceTypeUpdateSerializer,
     MyOdometerSerializer,
     MyOdometerWriteSerializer,
     OdometerCorrectionSerializer,
@@ -173,3 +184,178 @@ class MaintenanceSettingsView(OfficeView):
             max_day_km=serializer.validated_data["max_day_km"],
         )
         return Response(MaintenanceSettingsSerializer(found).data)
+
+
+# ---- Maintenance types, plans and records (P10-T02, P10-T03) ----
+
+
+class MaintenanceTypeListView(OfficeView):
+    @extend_schema(
+        operation_id="listMaintenanceTypes",
+        parameters=[OpenApiParameter("target", str, required=False, enum=["truck", "frigo", "cold_room"])],
+        responses=MaintenanceTypeSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The kinds of maintenance with their intervals (Paramètres entretien), archived ones included."""
+        target = request.query_params.get("target") or None
+        return Response(MaintenanceTypeSerializer(selectors.types_of(self.organization, target=target), many=True).data)
+
+    @extend_schema(
+        operation_id="createMaintenanceType",
+        request=MaintenanceTypeSerializer,
+        responses={201: MaintenanceTypeSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """A new kind of maintenance: every X km and/or Y months, warned so many km or days before."""
+        serializer = MaintenanceTypeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        kind = services.create_type(
+            organization=self.organization,
+            actor=self.membership.user,
+            name=data["name"],
+            target=data.get("target", "truck"),
+            every_km=data.get("every_km"),
+            every_months=data.get("every_months"),
+            warn_km=data.get("warn_km", 1000),
+            warn_days=data.get("warn_days", 15),
+        )
+        return Response(MaintenanceTypeSerializer(kind).data, status=status.HTTP_201_CREATED)
+
+
+class MaintenanceTypeDefaultsView(OfficeView):
+    @extend_schema(operation_id="addDefaultMaintenanceTypes", request=None, responses=AddedSerializer)
+    def post(self, request: Request) -> Response:
+        """Add the suggested kinds of maintenance the organization does not have yet."""
+        added = services.add_default_types(organization=self.organization, actor=self.membership.user)
+        return Response(AddedSerializer({"added": added}).data)
+
+
+class MaintenanceTypeDetailView(OfficeView):
+    @extend_schema(
+        operation_id="updateMaintenanceType",
+        request=MaintenanceTypeUpdateSerializer,
+        responses=MaintenanceTypeSerializer,
+    )
+    def patch(self, request: Request, type_id: int) -> Response:
+        """Change a kind of maintenance, or archive it (`is_active` false). Its target never changes."""
+        try:
+            kind = selectors.type_of(self.organization, type_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        serializer = MaintenanceTypeUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        kind = services.update_type(kind=kind, actor=self.membership.user, **serializer.validated_data)
+        return Response(MaintenanceTypeSerializer(kind).data)
+
+
+def _plan_answer(organization: Organization, plan_id: int, status_code: int = status.HTTP_200_OK) -> Response:
+    plan = selectors.plan_of(organization, plan_id)
+    found = selectors.plan_statuses(organization, truck_id=plan.truck_id, location_id=plan.location_id)
+    current = next((row for row in found if row.plan.pk == plan_id), None)
+    if current is None:  # a stopped plan is not in the list: worked out on its own
+        current = selectors.plan_status(plan, current_km=None, pace=None)
+    return Response(MaintenancePlanSerializer(current).data, status=status_code)
+
+
+class MaintenancePlanListView(OfficeView):
+    @extend_schema(
+        operation_id="listMaintenancePlans",
+        parameters=[
+            OpenApiParameter("truck", int, required=False),
+            OpenApiParameter("location", int, required=False),
+        ],
+        responses=MaintenancePlanSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The maintenance followed, with where each one stands today (ok, bientôt, en retard, à renseigner)."""
+        truck = request.query_params.get("truck")
+        location = request.query_params.get("location")
+        rows = selectors.plan_statuses(
+            self.organization,
+            truck_id=int(truck) if truck and truck.isdigit() else None,
+            location_id=int(location) if location and location.isdigit() else None,
+        )
+        return Response(MaintenancePlanSerializer(rows, many=True).data)
+
+    @extend_schema(
+        operation_id="createMaintenancePlan",
+        request=MaintenancePlanCreateSerializer,
+        responses={201: MaintenancePlanSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Follow a kind of maintenance on a truck (or its frigo unit) or a cold room."""
+        serializer = MaintenancePlanCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            kind = selectors.type_of(self.organization, data["type"])
+            truck = fleet.truck_of(self.organization, data["truck"]) if data.get("truck") else None
+            location = inventory.location_of(self.organization, data["location"]) if data.get("location") else None
+        except ObjectDoesNotExist:
+            raise exceptions.ValidationError({"type": _("Entretien, camion ou chambre froide inconnu.")}) from None
+        plan = services.create_plan(
+            organization=self.organization,
+            actor=self.membership.user,
+            kind=kind,
+            truck=truck,
+            location=location,
+            every_km=data.get("every_km"),
+            every_months=data.get("every_months"),
+            last_done_on=data.get("last_done_on"),
+            last_done_km=data.get("last_done_km"),
+        )
+        return _plan_answer(self.organization, plan.pk, status.HTTP_201_CREATED)
+
+
+class MaintenancePlanView(OfficeView):
+    def plan(self, plan_id: int) -> "MaintenancePlan":
+        try:
+            return selectors.plan_of(self.organization, plan_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+
+
+class MaintenancePlanDetailView(MaintenancePlanView):
+    @extend_schema(
+        operation_id="updateMaintenancePlan",
+        request=MaintenancePlanUpdateSerializer,
+        responses=MaintenancePlanSerializer,
+    )
+    def patch(self, request: Request, plan_id: int) -> Response:
+        """Change the plan's own interval or when it was last done, or stop following it (`is_active` false)."""
+        serializer = MaintenancePlanUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        services.update_plan(plan=self.plan(plan_id), actor=self.membership.user, **serializer.validated_data)
+        return _plan_answer(self.organization, plan_id)
+
+
+class MaintenanceRecordListView(MaintenancePlanView):
+    @extend_schema(operation_id="listMaintenanceRecords", responses=MaintenanceRecordSerializer(many=True))
+    def get(self, request: Request, plan_id: int) -> Response:
+        """The jobs done on the plan, the latest first."""
+        records = selectors.records_of_plan(self.organization, plan_id=self.plan(plan_id).pk)
+        return Response(MaintenanceRecordSerializer(records, many=True).data)
+
+    @extend_schema(
+        operation_id="recordMaintenance",
+        request=MaintenanceRecordWriteSerializer,
+        responses={201: MaintenanceRecordSerializer},
+    )
+    def post(self, request: Request, plan_id: int) -> Response:
+        """ "Entretien effectué": the next one is due from here. A cost becomes an approved expense of the general
+        overhead (not charged to the lots)."""
+        serializer = MaintenanceRecordWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        record = services.record_maintenance(
+            plan=self.plan(plan_id),
+            actor=self.membership.user,
+            done_on=data["done_on"],
+            km=data.get("km"),
+            garage=data.get("garage", ""),
+            note=data.get("note", ""),
+            cost=data.get("cost") or "0",
+            payment_method=data.get("payment_method", "cash"),
+        )
+        return Response(MaintenanceRecordSerializer(record).data, status=status.HTTP_201_CREATED)
