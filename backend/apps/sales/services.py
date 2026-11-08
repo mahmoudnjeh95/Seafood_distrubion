@@ -2623,6 +2623,21 @@ def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
         )
 
 
+def _require_seller_identity(version: FinanceSettings) -> None:
+    """Article 18 of the VAT code: an invoice names its seller with an address and a tax ID (D-296). The name
+    falls back to the organization's; the address and the matricule fiscal must be in Paramètres financiers."""
+    missing = [
+        label
+        for field, label in (("address", _("l'adresse")), ("tax_id", _("le matricule fiscal")))
+        if not getattr(version, field).strip()
+    ]
+    if missing:
+        raise ValidationError(
+            _("Avant d'émettre une facture, indiquez %(fields)s de la société dans Paramètres financiers.")
+            % {"fields": _(" et ").join(missing)}
+        )
+
+
 @transaction.atomic
 def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     """Number and freeze a draft, all in one transaction.
@@ -2642,6 +2657,7 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
         raise ValidationError(_("Cette facture n'a aucune ligne."))
     if not invoice.apply_vat:
         _refuse_no_vat_on_vat_lots(sales)
+    _require_seller_identity(version)
     customer = invoice.customer
     today = timezone.localdate()
     invoice.seller_name = version.legal_name or invoice.organization.name

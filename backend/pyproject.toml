@@ -40,6 +40,7 @@ package = false
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers"
+markers = ["blank_seller: the organization starts without an address or tax ID in its finance settings"]
 
 [tool.ruff]
 line-length = 120

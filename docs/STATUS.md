@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-296)_
+_Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-297)_
 
 ## Where we are
 
@@ -64,9 +64,13 @@ _Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; acc
 
 ## Next step
 
-0. **Market-readiness review (2026-11-08):** `docs/guides/market-readiness-review-2026-11-08.md` lists the gaps before
-   selling the app (TTN, seller identity required on invoices, withholding the company must make, payroll IRPP/CSS,
-   INPDP and hosting, contracts, partner-lot contract, traceability). Owner: take it to the accountant and a lawyer.
+0. **Phase 11 Conformité (D-296, owner 2026-11-08 "need all of them"):** every point of
+   `docs/guides/market-readiness-review-2026-11-08.md` is a task of `docs/phases/11-compliance.md`. **P11-T01 done on
+   branch `claude/fervent-bell-nn75az`:** no invoice issued without the seller's address and matricule fiscal; a
+   customer without tax ID or address warns. Check on staging: blank the address in Paramètres financiers, a draft
+   cannot be issued. Next code task: P11-T02 (withholding made by the company) once the accountant gives the rates;
+   meanwhile the owner starts P11-T03 (INPDP, hosting), P11-T04 (lawyer) and P11-T05 (TTN enrolment), and books the
+   accountant session P11-T06.
 0. P10-T02 to T05 (D-295): PR #333, merge once CI is green, then the staging checks above. Owner: confirm the
    suggested intervals against each truck's manual, and the paper list with the accountant or the ATTT.
 0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
