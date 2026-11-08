@@ -3686,7 +3686,10 @@ paths:
         everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
         amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
         `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
-        (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
+        (back, then written off on the same lot); a partial note may say it per line (`lines.<n>.stock`, D-284) and
+        a line with kilos must say it. When the invoice was paid, what it gives back beyond the debt left is a refund
+        (`refund`: `now` pays it from a caisse or bank account, `later` leaves it "À rembourser").
+        Errors: `lines.<index>.<field>`, `reason`, `stock`, `refund.<field>`.
       parameters:
       - in: path
         name: invoice_id
@@ -7695,6 +7698,88 @@ paths:
                 items:
                   $ref: '#/components/schemas/GeneralCost'
           description: ''
+  /api/v1/refunds:
+    get:
+      operationId: listCustomerRefunds
+      description: |-
+        The refunds of credit notes (D-284), newest first: planned, paid back, left and status, with their
+        payments. Filter by `status` (open, to_refund, partial, refunded), customer or `search`.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - open
+          - to_refund
+          - partial
+          - refunded
+          type: string
+          minLength: 1
+        description: |-
+          * `open` - open
+          * `to_refund` - to_refund
+          * `partial` - partial
+          * `refunded` - refunded
+      tags:
+      - refunds
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerRefund'
+          description: ''
+  /api/v1/refunds/{refund_id}/payments:
+    post:
+      operationId: payCustomerRefund
+      description: |-
+        Pay back all or part of what is left on a refund (owner or manager), from a caisse or a bank account:
+        the money leaves that account the day given. Never beyond what is left. Errors: `amount`, `method`,
+        `account`, `paid_on`.
+      parameters:
+      - in: path
+        name: refund_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - refunds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRefund'
+          description: ''
   /api/v1/reports/cash-flow:
     get:
       operationId: getCashFlowReport
@@ -10829,6 +10914,7 @@ paths:
           - salary
           - partner_settlement
           - field_purchase
+          - customer_refund
           type: string
           minLength: 1
         description: |-
@@ -10846,6 +10932,7 @@ paths:
           * `salary` - Salaire
           * `partner_settlement` - Règlement associé
           * `field_purchase` - Achat au port
+          * `customer_refund` - Remboursement client
       - in: query
         name: search
         schema:
@@ -10903,6 +10990,7 @@ paths:
           - salary
           - partner_settlement
           - field_purchase
+          - customer_refund
           type: string
           minLength: 1
         description: |-
@@ -10920,6 +11008,7 @@ paths:
           * `salary` - Salaire
           * `partner_settlement` - Règlement associé
           * `field_purchase` - Achat au port
+          * `customer_refund` - Remboursement client
       - in: query
         name: search
         schema:
@@ -14194,6 +14283,16 @@ components:
       required:
       - counted_quantity
       - line
+    CreditLineStockEnum:
+      enum:
+      - none
+      - restock
+      - loss
+      type: string
+      description: |-
+        * `none` - none
+        * `restock` - restock
+        * `loss` - loss
     CreditNote:
       type: object
       properties:
@@ -14276,6 +14375,11 @@ components:
         einvoice_reference:
           type: string
           readOnly: true
+        refund:
+          allOf:
+          - $ref: '#/components/schemas/RefundSummary'
+          nullable: true
+          readOnly: true
       required:
       - created_at
       - created_by
@@ -14291,6 +14395,7 @@ components:
       - net_amount
       - number
       - reason
+      - refund
       - stock
       - total_excl_tax
       - total_incl_tax
@@ -14345,6 +14450,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
           readOnly: true
+        stock:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteStockEnum'
+          readOnly: true
         vat_rate:
           type: string
           format: decimal
@@ -14373,6 +14482,7 @@ components:
       - product_name
       - product_reference
       - quantity
+      - stock
       - vat_amount
       - vat_rate
     CreditNoteLineWrite:
@@ -14387,18 +14497,51 @@ components:
         amount:
           type: string
           nullable: true
+        stock:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CreditLineStockEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - invoice_line
+    CreditNoteRefundWrite:
+      type: object
+      description: 'How the money given back is refunded (D-284): `now` (method, caisse
+        or bank account) or `later`.'
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/RefundMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
+        paid_on:
+          type: string
+          format: date
+          nullable: true
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+      required:
+      - mode
     CreditNoteStockEnum:
       enum:
       - none
       - restock
       - loss
+      - mixed
       type: string
       description: |-
         * `none` - Aucun mouvement de stock
         * `restock` - Remis en stock
         * `loss` - Mis en perte
+        * `mixed` - Selon la ligne
     CreditNoteWrite:
       type: object
       properties:
@@ -14408,9 +14551,14 @@ components:
           type: string
           maxLength: 255
         stock:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CreditLineStockEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        refund:
           allOf:
-          - $ref: '#/components/schemas/CreditNoteStockEnum'
-          default: none
+          - $ref: '#/components/schemas/CreditNoteRefundWrite'
+          nullable: true
         lines:
           type: array
           items:
@@ -15201,6 +15349,73 @@ components:
           default: false
       required:
       - customer
+    CustomerRefund:
+      type: object
+      description: 'A refund of a credit note (D-284): the customer, the invoice and
+        credit note, planned, paid back, left.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteInvoice'
+          readOnly: true
+        credit_note:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        refunded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        left:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RefundStatusEnum'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundPayment'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by
+      - credit_note
+      - customer
+      - id
+      - invoice
+      - left
+      - number
+      - payments
+      - refunded
+      - status
     CustomerType:
       type: object
       description: 'One customer type (D-283), with how many customers have it: a
@@ -19327,6 +19542,7 @@ components:
       - payment
       - unpaid
       - writeoff
+      - refund
       type: string
       description: |-
         * `sale` - sale
@@ -19334,6 +19550,7 @@ components:
         * `payment` - payment
         * `unpaid` - unpaid
         * `writeoff` - writeoff
+        * `refund` - refund
     IdTypeEnum:
       enum:
       - tax_id
@@ -22030,6 +22247,14 @@ components:
           maxLength: 128
       required:
       - new_password
+    ModeEnum:
+      enum:
+      - now
+      - later
+      type: string
+      description: |-
+        * `now` - now
+        * `later` - later
     Month:
       type: object
       properties:
@@ -22540,6 +22765,7 @@ components:
       - salary
       - partner_settlement
       - field_purchase
+      - customer_refund
       type: string
       description: |-
         * `customer_payment` - Règlement client
@@ -22556,6 +22782,7 @@ components:
         * `salary` - Salaire
         * `partner_settlement` - Règlement associé
         * `field_purchase` - Achat au port
+        * `customer_refund` - Remboursement client
     MovementOf:
       type: object
       properties:
@@ -23171,6 +23398,9 @@ components:
       required:
       - results
       - unread
+    NullEnum:
+      enum:
+      - null
     NumberLine:
       type: object
       properties:
@@ -27088,6 +27318,132 @@ components:
       - id
       - name
       - reference
+    RefundMethodEnum:
+      enum:
+      - cash
+      - transfer
+      - cheque
+      type: string
+      description: |-
+        * `cash` - Espèces
+        * `transfer` - Virement
+        * `cheque` - Chèque
+    RefundPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/RefundMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        account:
+          type: integer
+          readOnly: true
+        account_name:
+          type: string
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - account
+      - account_name
+      - amount
+      - created_at
+      - created_by
+      - id
+      - method
+      - paid_on
+      - reference
+    RefundPaymentWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        method:
+          $ref: '#/components/schemas/RefundMethodEnum'
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
+        paid_on:
+          type: string
+          format: date
+          nullable: true
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+      required:
+      - amount
+      - method
+    RefundStatusEnum:
+      enum:
+      - to_refund
+      - partial
+      - refunded
+      type: string
+      description: |-
+        * `to_refund` - to_refund
+        * `partial` - partial
+        * `refunded` - refunded
+    RefundSummary:
+      type: object
+      description: 'A credit note''s refund in short (D-284): planned, paid back,
+        left and where it stands.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        refunded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        left:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RefundStatusEnum'
+          readOnly: true
+      required:
+      - amount
+      - id
+      - left
+      - number
+      - refunded
+      - status
     RejectedEffet:
       type: object
       description: 'The rejet of a line (D-218): when and why.'

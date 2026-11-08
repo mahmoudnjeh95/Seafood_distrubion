@@ -845,6 +845,9 @@ export const listCreditNotesResponseResultsItemLinesItemVatRateRegExp = new RegE
 export const listCreditNotesResponseResultsItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listCreditNotesResponseResultsItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listCreditNotesResponseResultsItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCreditNotesResponseResultsItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCreditNotesResponseResultsItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCreditNotesResponseResultsItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const ListCreditNotesResponse = zod.object({
@@ -863,7 +866,7 @@ export const ListCreditNotesResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', listCreditNotesResponseResultsItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', listCreditNotesResponseResultsItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', listCreditNotesResponseResultsItemFiscalStampRegExp),
@@ -877,6 +880,7 @@ export const ListCreditNotesResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', listCreditNotesResponseResultsItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', listCreditNotesResponseResultsItemLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', listCreditNotesResponseResultsItemLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', listCreditNotesResponseResultsItemLinesItemVatAmountRegExp),
@@ -885,7 +889,15 @@ export const ListCreditNotesResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', listCreditNotesResponseResultsItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', listCreditNotesResponseResultsItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', listCreditNotesResponseResultsItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 }))
 })
 
@@ -909,6 +921,9 @@ export const getCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,
 export const getCreditNoteResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getCreditNoteResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCreditNoteResponseRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCreditNoteResponseRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getCreditNoteResponseRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetCreditNoteResponse = zod.object({
@@ -923,7 +938,7 @@ export const GetCreditNoteResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', getCreditNoteResponseTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', getCreditNoteResponseVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', getCreditNoteResponseFiscalStampRegExp),
@@ -937,6 +952,7 @@ export const GetCreditNoteResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', getCreditNoteResponseLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', getCreditNoteResponseLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', getCreditNoteResponseLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', getCreditNoteResponseLinesItemVatAmountRegExp),
@@ -945,7 +961,15 @@ export const GetCreditNoteResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', getCreditNoteResponseRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', getCreditNoteResponseRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', getCreditNoteResponseRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 })
 
 
@@ -2187,7 +2211,7 @@ export const GetCustomerBalanceResponse = zod.object({
   "estimated_extra": zod.stringFormat('decimal', getCustomerBalanceResponseOpenSalesItemEstimatedExtraRegExp)
 }).describe('A confirmed sale with something left to collect.')),
   "history": zod.array(zod.object({
-  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
+  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff', 'refund']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff\n* `refund` - refund'),
   "day": zod.iso.date(),
   "number": zod.string(),
   "object_id": zod.int(),
@@ -2413,7 +2437,7 @@ export const WriteOffCustomerBalanceResponse = zod.object({
   "estimated_extra": zod.stringFormat('decimal', writeOffCustomerBalanceResponseOpenSalesItemEstimatedExtraRegExp)
 }).describe('A confirmed sale with something left to collect.')),
   "history": zod.array(zod.object({
-  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff'),
+  "kind": zod.enum(['sale', 'on_spot', 'payment', 'unpaid', 'writeoff', 'refund']).describe('* `sale` - sale\n* `on_spot` - on_spot\n* `payment` - payment\n* `unpaid` - unpaid\n* `writeoff` - writeoff\n* `refund` - refund'),
   "day": zod.iso.date(),
   "number": zod.string(),
   "object_id": zod.int(),
@@ -6838,6 +6862,9 @@ export const createInvoiceResponseCreditNotesItemLinesItemVatRateRegExp = new Re
 export const createInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponseCreditNotesItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponseCreditNotesItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponseCreditNotesItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CreateInvoiceResponse = zod.object({
@@ -6984,7 +7011,7 @@ export const CreateInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -6998,6 +7025,7 @@ export const CreateInvoiceResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp),
@@ -7006,7 +7034,15 @@ export const CreateInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 }))
 })
 
@@ -7067,6 +7103,9 @@ export const getInvoiceResponseCreditNotesItemLinesItemVatRateRegExp = new RegEx
 export const getInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponseCreditNotesItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponseCreditNotesItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponseCreditNotesItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetInvoiceResponse = zod.object({
@@ -7213,7 +7252,7 @@ export const GetInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -7227,6 +7266,7 @@ export const GetInvoiceResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp),
@@ -7235,7 +7275,15 @@ export const GetInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 }))
 })
 
@@ -7315,6 +7363,9 @@ export const updateInvoiceResponseCreditNotesItemLinesItemVatRateRegExp = new Re
 export const updateInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponseCreditNotesItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponseCreditNotesItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponseCreditNotesItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateInvoiceResponse = zod.object({
@@ -7461,7 +7512,7 @@ export const UpdateInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -7475,6 +7526,7 @@ export const UpdateInvoiceResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp),
@@ -7483,7 +7535,15 @@ export const UpdateInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 }))
 })
 
@@ -7503,7 +7563,10 @@ export const DeleteInvoiceResponse = zod.void()
  * everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
  * amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
  * `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
- * (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
+ * (back, then written off on the same lot); a partial note may say it per line (`lines.<n>.stock`, D-284) and
+ * a line with kilos must say it. When the invoice was paid, what it gives back beyond the debt left is a refund
+ * (`refund`: `now` pays it from a caisse or bank account, `later` leaves it "À rembourser").
+ * Errors: `lines.<index>.<field>`, `reason`, `stock`, `refund.<field>`.
  */
 export const CreateCreditNoteParams = zod.object({
   "invoice_id": zod.int()
@@ -7511,17 +7574,29 @@ export const CreateCreditNoteParams = zod.object({
 
 export const createCreditNoteBodyReasonMax = 255;
 
-export const createCreditNoteBodyStockDefault = `none`;
+export const createCreditNoteBodyRefundOneMethodDefault = ``;
+export const createCreditNoteBodyRefundOneReferenceDefault = ``;
+export const createCreditNoteBodyRefundOneReferenceMax = 50;
+
+
 
 
 export const CreateCreditNoteBody = zod.object({
   "kind": zod.enum(['full', 'partial']).describe('* `full` - Totale\n* `partial` - Partielle'),
   "reason": zod.string().max(createCreditNoteBodyReasonMax),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte').default(createCreditNoteBodyStockDefault),
+  "stock": zod.union([zod.enum(['none', 'restock', 'loss']).describe('* `none` - none\n* `restock` - restock\n* `loss` - loss'),zod.literal(null),zod.null()]).optional(),
+  "refund": zod.union([zod.object({
+  "mode": zod.enum(['now', 'later']).describe('* `now` - now\n* `later` - later'),
+  "method": zod.union([zod.enum(['cash', 'transfer', 'cheque']).describe('* `cash` - Espèces\n* `transfer` - Virement\n* `cheque` - Chèque'),zod.enum([''])]).default(createCreditNoteBodyRefundOneMethodDefault),
+  "account": zod.int().min(1).nullish(),
+  "paid_on": zod.iso.date().nullish(),
+  "reference": zod.string().max(createCreditNoteBodyRefundOneReferenceMax).default(createCreditNoteBodyRefundOneReferenceDefault)
+}).describe('How the money given back is refunded (D-284): `now` (method, caisse or bank account) or `later`.'),zod.null()]).optional(),
   "lines": zod.array(zod.object({
   "invoice_line": zod.int().min(1),
   "quantity": zod.string().nullish(),
-  "amount": zod.string().nullish()
+  "amount": zod.string().nullish(),
+  "stock": zod.union([zod.enum(['none', 'restock', 'loss']).describe('* `none` - none\n* `restock` - restock\n* `loss` - loss'),zod.literal(null),zod.null()]).optional()
 })).optional()
 })
 
@@ -7537,6 +7612,9 @@ export const createCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d
 export const createCreditNoteResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createCreditNoteResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCreditNoteResponseRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCreditNoteResponseRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createCreditNoteResponseRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const CreateCreditNoteResponse = zod.object({
@@ -7551,7 +7629,7 @@ export const CreateCreditNoteResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', createCreditNoteResponseTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', createCreditNoteResponseVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', createCreditNoteResponseFiscalStampRegExp),
@@ -7565,6 +7643,7 @@ export const CreateCreditNoteResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', createCreditNoteResponseLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', createCreditNoteResponseLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', createCreditNoteResponseLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', createCreditNoteResponseLinesItemVatAmountRegExp),
@@ -7573,7 +7652,15 @@ export const CreateCreditNoteResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', createCreditNoteResponseRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', createCreditNoteResponseRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', createCreditNoteResponseRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 })
 
 
@@ -7652,6 +7739,9 @@ export const giveUpInvoiceGapResponseCreditNotesItemLinesItemVatRateRegExp = new
 export const giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const giveUpInvoiceGapResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseCreditNotesItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GiveUpInvoiceGapResponse = zod.object({
@@ -7798,7 +7888,7 @@ export const GiveUpInvoiceGapResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemFiscalStampRegExp),
@@ -7812,6 +7902,7 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemLinesItemVatAmountRegExp),
@@ -7820,7 +7911,15 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 }))
 })
 
@@ -7882,6 +7981,9 @@ export const issueInvoiceResponseCreditNotesItemLinesItemVatRateRegExp = new Reg
 export const issueInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponseCreditNotesItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponseCreditNotesItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponseCreditNotesItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const IssueInvoiceResponse = zod.object({
@@ -8028,7 +8130,7 @@ export const IssueInvoiceResponse = zod.object({
 }),
   "issued_on": zod.iso.date(),
   "reason": zod.string(),
-  "stock": zod.enum(['none', 'restock', 'loss']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte'),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "total_excl_tax": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemTotalExclTaxRegExp),
   "vat_total": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemVatTotalRegExp),
   "fiscal_stamp": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemFiscalStampRegExp),
@@ -8042,6 +8144,7 @@ export const IssueInvoiceResponse = zod.object({
   "product_reference": zod.string(),
   "product_name": zod.string(),
   "quantity": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
   "vat_rate": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemLinesItemVatRateRegExp),
   "amount_excl_tax": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
   "vat_amount": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemLinesItemVatAmountRegExp),
@@ -8050,7 +8153,15 @@ export const IssueInvoiceResponse = zod.object({
   "created_by": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
-  "einvoice_reference": zod.string()
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
 }))
 })
 
@@ -15908,6 +16019,149 @@ export const GenerateRecurringCostsResponse = zod.array(GenerateRecurringCostsRe
 
 
 /**
+ * The refunds of credit notes (D-284), newest first: planned, paid back, left and status, with their
+ * payments. Filter by `status` (open, to_refund, partial, refunded), customer or `search`.
+ */
+
+export const listCustomerRefundsQuerySearchDefault = ``;
+export const listCustomerRefundsQuerySearchMax = 100;
+
+
+
+export const ListCustomerRefundsQueryParams = zod.object({
+  "customer": zod.int().min(1).optional(),
+  "search": zod.string().max(listCustomerRefundsQuerySearchMax).default(listCustomerRefundsQuerySearchDefault),
+  "status": zod.enum(['open', 'to_refund', 'partial', 'refunded']).optional().describe('* `open` - open\n* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+})
+
+export const listCustomerRefundsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerRefundsResponseRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerRefundsResponseLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCustomerRefundsResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListCustomerRefundsResponseItem = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "id_type": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "issued_on": zod.iso.date()
+}),
+  "credit_note": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "amount": zod.stringFormat('decimal', listCustomerRefundsResponseAmountRegExp),
+  "refunded": zod.stringFormat('decimal', listCustomerRefundsResponseRefundedRegExp),
+  "left": zod.stringFormat('decimal', listCustomerRefundsResponseLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded'),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'transfer', 'cheque']).describe('* `cash` - Espèces\n* `transfer` - Virement\n* `cheque` - Chèque'),
+  "amount": zod.stringFormat('decimal', listCustomerRefundsResponsePaymentsItemAmountRegExp),
+  "account": zod.int(),
+  "account_name": zod.string(),
+  "reference": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('A refund of a credit note (D-284): the customer, the invoice and credit note, planned, paid back, left.')
+export const ListCustomerRefundsResponse = zod.array(ListCustomerRefundsResponseItem)
+
+
+/**
+ * Pay back all or part of what is left on a refund (owner or manager), from a caisse or a bank account:
+ * the money leaves that account the day given. Never beyond what is left. Errors: `amount`, `method`,
+ * `account`, `paid_on`.
+ */
+export const PayCustomerRefundParams = zod.object({
+  "refund_id": zod.int()
+})
+
+export const payCustomerRefundBodyAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+export const payCustomerRefundBodyReferenceDefault = ``;
+export const payCustomerRefundBodyReferenceMax = 50;
+
+
+
+export const PayCustomerRefundBody = zod.object({
+  "amount": zod.stringFormat('decimal', payCustomerRefundBodyAmountRegExp),
+  "method": zod.enum(['cash', 'transfer', 'cheque']).describe('* `cash` - Espèces\n* `transfer` - Virement\n* `cheque` - Chèque'),
+  "account": zod.int().min(1).nullish(),
+  "paid_on": zod.iso.date().nullish(),
+  "reference": zod.string().max(payCustomerRefundBodyReferenceMax).default(payCustomerRefundBodyReferenceDefault)
+})
+
+export const payCustomerRefundResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const payCustomerRefundResponseRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const payCustomerRefundResponseLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const payCustomerRefundResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const PayCustomerRefundResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "id_type": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "issued_on": zod.iso.date()
+}),
+  "credit_note": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "amount": zod.stringFormat('decimal', payCustomerRefundResponseAmountRegExp),
+  "refunded": zod.stringFormat('decimal', payCustomerRefundResponseRefundedRegExp),
+  "left": zod.stringFormat('decimal', payCustomerRefundResponseLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded'),
+  "payments": zod.array(zod.object({
+  "id": zod.int(),
+  "paid_on": zod.iso.date(),
+  "method": zod.enum(['cash', 'transfer', 'cheque']).describe('* `cash` - Espèces\n* `transfer` - Virement\n* `cheque` - Chèque'),
+  "amount": zod.stringFormat('decimal', payCustomerRefundResponsePaymentsItemAmountRegExp),
+  "account": zod.int(),
+  "account_name": zod.string(),
+  "reference": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('A refund of a credit note (D-284): the customer, the invoice and credit note, planned, paid back, left.')
+
+
+/**
  * Money in (paid at sales, customer payments) against money out (supplier payments, salaries paid, approved
  * expenses) by day, week or month.
  */
@@ -21365,7 +21619,7 @@ export const getAccountStatementQuerySearchMax = 100;
 export const GetAccountStatementQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).optional().describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).optional().describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "search": zod.string().max(getAccountStatementQuerySearchMax).default(getAccountStatementQuerySearchDefault)
 })
 
@@ -21412,7 +21666,7 @@ export const GetAccountStatementResponse = zod.object({
   "id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getAccountStatementResponseRowsItemAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "description": zod.string(),
   "reference": zod.string(),
   "created_by": zod.string(),
@@ -21437,7 +21691,7 @@ export const exportAccountStatementQuerySearchMax = 100;
 export const ExportAccountStatementQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).optional().describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).optional().describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "search": zod.string().max(exportAccountStatementQuerySearchMax).default(exportAccountStatementQuerySearchDefault)
 })
 
@@ -21474,7 +21728,7 @@ export const GetReconciliationSummaryResponse = zod.object({
   "id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getReconciliationSummaryResponseMovementsItemAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "label": zod.string(),
   "reference": zod.string()
 }).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).')),
@@ -21531,7 +21785,7 @@ export const ListStatementLinesResponse = zod.object({
   "id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listStatementLinesResponseResultsItemMovementOneAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "label": zod.string(),
   "reference": zod.string()
 }).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),zod.null()])
@@ -22409,7 +22663,7 @@ export const ListMovementsOfResponseItem = zod.object({
   "source_id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listMovementsOfResponseAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "account": zod.object({
   "id": zod.int(),
   "kind": zod.enum(['cash', 'bank', 'driver']).describe('* `cash` - Caisse\n* `bank` - Compte bancaire\n* `driver` - Caisse chauffeur'),
@@ -22488,7 +22742,7 @@ export const SetStatementLinePartyResponse = zod.object({
   "id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', setStatementLinePartyResponseMovementOneAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "label": zod.string(),
   "reference": zod.string()
 }).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),zod.null()])
@@ -22528,7 +22782,7 @@ export const ListMatchCandidatesResponseItem = zod.object({
   "id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listMatchCandidatesResponseMovementOneAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "label": zod.string(),
   "reference": zod.string()
 }).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),
@@ -22579,7 +22833,7 @@ export const MatchStatementLineResponse = zod.object({
   "id": zod.int(),
   "day": zod.iso.date(),
   "amount": zod.stringFormat('decimal', matchStatementLineResponseMovementOneAmountRegExp),
-  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port'),
+  "kind": zod.enum(['customer_payment', 'supplier_payment', 'effet_cashed', 'effet_unpaid', 'effet_debited', 'transfer', 'count_gap', 'sale_cash', 'driver_handover', 'driver_fund', 'expense', 'salary', 'partner_settlement', 'field_purchase', 'customer_refund']).describe('* `customer_payment` - Règlement client\n* `supplier_payment` - Règlement fournisseur\n* `effet_cashed` - Effet encaissé\n* `effet_unpaid` - Effet impayé\n* `effet_debited` - Effet débité\n* `transfer` - Mouvement entre comptes\n* `count_gap` - Écart de caisse\n* `sale_cash` - Vente au comptant\n* `driver_handover` - Remise du chauffeur\n* `driver_fund` - Fonds remis au chauffeur\n* `expense` - Dépense\n* `salary` - Salaire\n* `partner_settlement` - Règlement associé\n* `field_purchase` - Achat au port\n* `customer_refund` - Remboursement client'),
   "label": zod.string(),
   "reference": zod.string()
 }).describe('The movement of our ledger a statement line was matched to (rapprochement, D-265).'),zod.null()])

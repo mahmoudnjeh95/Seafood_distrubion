@@ -3919,3 +3919,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   a generated invoice opens at once ("Factures générées ici" removed).
 - **Not done, need the owner:** bug 11 (one delivery cycle for direct and load BL: the stock would leave at the delivery,
   not at the validation), bugs 5 and 6 (credit notes with refunds "À rembourser" and their central page).
+
+**D-284 · Credit notes say what becomes of each returned line, and refund a customer who had paid (P2-T16, bugs 05/06)** · accepted (owner answers 2026-11-07) · 2026-11-07
+- **Goods, per line:** `CreditNoteLine.stock` (restock, loss, none). On a partial credit note every line with kilos must
+  say it (`lines.<n>.stock`); the API's `stock` is required for a full one (no silent "none" any more). `CreditNote.stock`
+  is the lines' common choice or `mixed`. Loss = back in then written off on the original lot (the lot result and the
+  partner's share carry it, as D-070). Older lines got their note's choice by migration.
+- **Money:** after the credit note, what the invoice's BLs were paid beyond what they owe is a `CustomerRefund`
+  (RC-<year>-0001), at most the note's net amount. So a partly paid invoice has its debt cancelled first, only the excess
+  is refunded; an unpaid one gets no refund. The refund is taken from those BLs (`CustomerRefundAllocation`, like a
+  negative allocation), so the customer's credit does not stay and a BL invoiced again owes anew. Paid now (`refund.mode`
+  now: method cash/transfer/cheque, caisse or bank account, reference) or later from Trésorerie › Remboursements clients,
+  in one or several `CustomerRefundPayment`, never beyond what is left; each writes a `customer_refund` treasury
+  movement out of the account. The original payments are untouched. The customer's history shows "Remboursement d'avoir".
+- Not done: cancelling a planned refund (it is final, like the credit note), a credit note detail page.

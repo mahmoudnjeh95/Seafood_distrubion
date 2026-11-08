@@ -23,4 +23,5 @@ export const ExportAccountStatementKind = {
   salary: 'salary',
   partner_settlement: 'partner_settlement',
   field_purchase: 'field_purchase',
+  customer_refund: 'customer_refund',
 } as const;

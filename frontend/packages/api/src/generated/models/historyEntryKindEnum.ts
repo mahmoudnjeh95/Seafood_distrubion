@@ -11,6 +11,7 @@
  * * `payment` - payment
  * * `unpaid` - unpaid
  * * `writeoff` - writeoff
+ * * `refund` - refund
  */
 export type HistoryEntryKindEnum = typeof HistoryEntryKindEnum[keyof typeof HistoryEntryKindEnum];
 
@@ -21,4 +22,5 @@ export const HistoryEntryKindEnum = {
   payment: 'payment',
   unpaid: 'unpaid',
   writeoff: 'writeoff',
+  refund: 'refund',
 } as const;

@@ -160,9 +160,12 @@ _(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots befo
 - [~] 04 Paramètres › TVA (create, deactivate, delete if never used) and the product's VAT as a list of active rates.
       **Not done:** the column order Poids / Prix U HT / TVA / Prix U TTC / Remise / Prix net / Montant TTC on every
       document, PDF and print, and the TTC-based line amount (it changes how prices are typed: owner decision).
-- [ ] 05 Partial and total credit notes with "À rembourser" refunds and disbursements: not done (new refund model,
-      treasury movement, stock return or loss per line).
-- [ ] 06 Central "Avoirs clients" page with refund tracking: not done (depends on 05).
+- [x] 05 Credit notes (D-284, owner answers 2026-11-07): each line with kilos must say restock, loss (written off on
+      its lot) or not taken back; the debt left is cancelled first, the rest is a `CustomerRefund` paid now (caisse or
+      bank account, treasury movement) or "À rembourser", in one or several payments, never twice. A BL invoiced again
+      after a refunded total credit note owes its amount again.
+- [~] 06 Trésorerie › Remboursements clients: refunds with planned / refunded / left, status filter, search, "Rembourser".
+      **Not done:** a credit note detail page with its PDF from that list, and period/type filters.
 - [x] 07 Clients and suppliers open sorted by reference ascending (C-001, C-002…); a header click still changes it.
 - [x] 08 Paramètres › Types de clients: add, rename, deactivate (kept on its clients, no longer offered), delete
       only when unused; the client form and the clients filter read the list.

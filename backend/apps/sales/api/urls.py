@@ -37,6 +37,8 @@ urlpatterns = [
     path("invoices/<int:invoice_id>/issue", views.InvoiceIssueView.as_view(), name="invoice-issue"),
     path("invoices/<int:invoice_id>/credit-notes", views.InvoiceCreditNoteView.as_view(), name="invoice-credit-notes"),
     path("credit-notes", views.CreditNoteListView.as_view(), name="credit-note-list"),
+    path("refunds", views.RefundListView.as_view(), name="refund-list"),
+    path("refunds/<int:refund_id>/payments", views.RefundPayView.as_view(), name="refund-pay"),
     path("credit-notes/<int:credit_note_id>", views.CreditNoteDetailView.as_view(), name="credit-note-detail"),
     # P2-T06 · customer payments, balances, withholding certificates
     path("customer-payments", payment_views.CustomerPaymentListView.as_view(), name="customer-payment-list"),
