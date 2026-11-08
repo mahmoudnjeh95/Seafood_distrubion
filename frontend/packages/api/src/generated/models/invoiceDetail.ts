@@ -14,12 +14,15 @@ import type { InvoiceVatLine } from './invoiceVatLine';
 import type { Party } from './party';
 import type { PaymentStateEnum } from './paymentStateEnum';
 import type { QuoteCustomer } from './quoteCustomer';
+import type { RebilledFrom } from './rebilledFrom';
 import type { SaleRef } from './saleRef';
 
 export interface InvoiceDetail {
   readonly id: number;
   readonly number: string;
+  readonly draft_number: string;
   readonly status: InvoiceStatusEnum;
+  readonly rebilled_from: RebilledFrom | null;
   readonly sale: SaleRef;
   readonly sales: readonly SaleRef[];
   readonly customer: QuoteCustomer;

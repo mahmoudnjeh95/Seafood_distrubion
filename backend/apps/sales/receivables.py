@@ -24,6 +24,8 @@ from .models import (
     CreditNote,
     CustomerBalanceWriteOff,
     CustomerPayment,
+    CustomerRefund,
+    CustomerRefundAllocation,
     CustomerWriteOffAllocation,
     Invoice,
     InvoiceLine,
@@ -175,6 +177,11 @@ def sale_receivables(
     # What an impayé took back from a règlement's allocations: those sales owe it again (D-217).
     for release in UnpaidRelease.objects.filter(sale_id__in=ids).values("sale_id").annotate(total=Sum("amount")):
         allocated[release["sale_id"]] = allocated.get(release["sale_id"], ZERO) - release["total"]
+    # What a credit note's refund took back from a sale's overpayment (D-284): no longer paid on it.
+    for refunded in (
+        CustomerRefundAllocation.objects.filter(sale_id__in=ids).values("sale_id").annotate(total=Sum("amount"))
+    ):
+        allocated[refunded["sale_id"]] = allocated.get(refunded["sale_id"], ZERO) - refunded["total"]
     # What a balance write-off gave up on each sale: settled like a payment, but never paid (D-252).
     written_off = {
         row["sale_id"]: row["total"]
@@ -288,6 +295,9 @@ def customer_balances(
     write_offs = CustomerBalanceWriteOff.objects.filter(write_off_filter)
     for agg in write_offs.values("customer_id").annotate(total=Sum("amount")):
         entry(agg["customer_id"]).balance -= agg["total"]
+    # A credit note's refund (D-284): the credit it gives back is no longer held for the customer.
+    for agg in CustomerRefund.objects.filter(write_off_filter).values("customer_id").annotate(total=Sum("amount")):
+        entry(agg["customer_id"]).balance += agg["total"]
     for item in result.values():
         item.credit = max(item.open_total - item.balance, ZERO)
     if customer_id is not None:
@@ -383,7 +393,18 @@ def customer_history(organization: Organization, customer_id: int) -> list[Histo
                 note=write_off.reason,
             )
         )
-    kind_order = {"sale": 0, "on_spot": 1, "payment": 2, "unpaid": 3, "writeoff": 4}
+    for refund in CustomerRefund.objects.filter(organization=organization, customer_id=customer_id):
+        entries.append(
+            HistoryEntry(
+                "refund",
+                timezone.localtime(refund.created_at).date(),
+                refund.created_at,
+                refund.number,
+                refund.pk,
+                refund.amount,
+            )
+        )
+    kind_order = {"sale": 0, "on_spot": 1, "payment": 2, "unpaid": 3, "writeoff": 4, "refund": 5}
     entries.sort(key=lambda entry: (entry.day, kind_order[entry.kind], entry.at, entry.object_id))
     running = ZERO
     result: list[HistoryEntry] = []

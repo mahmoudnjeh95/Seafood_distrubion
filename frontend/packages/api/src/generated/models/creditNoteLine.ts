@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { CreditNoteStockEnum } from './creditNoteStockEnum';
 
 export interface CreditNoteLine {
   readonly id: number;
@@ -12,6 +13,7 @@ export interface CreditNoteLine {
   readonly product_name: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   readonly quantity: string;
+  readonly stock: CreditNoteStockEnum;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   readonly vat_rate: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

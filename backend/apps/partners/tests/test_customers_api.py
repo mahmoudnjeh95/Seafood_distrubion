@@ -107,7 +107,8 @@ def test_the_list_filters_by_search_status_and_kind(api, manager):
     assert names(status="archived") == ["Hôtel Thyna"]
     assert names(status="all", kind="hotel") == ["Hôtel Thyna"]
     assert names(search="sonia") == ["Restaurant Le Corail"]
-    assert api.get(reverse("customer-list"), {"kind": "gone"}).status_code == 400
+    # The types are the organization's own list (D-283): an unknown one simply finds nobody.
+    assert api.get(reverse("customer-list"), {"kind": "gone"}).json() == []
 
 
 def test_a_partial_update_keeps_the_other_fields_and_the_contacts(api):

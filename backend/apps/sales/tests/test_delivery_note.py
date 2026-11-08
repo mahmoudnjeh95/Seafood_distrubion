@@ -67,14 +67,17 @@ def test_validating_numbers_the_sale_as_a_delivery_note(organization, actor, cus
     first = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}])
     second = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}])
     year = timezone.localdate().year
-    assert first.number == "VE-0001"
+    # A draft BL has its provisional reference from its own yearly counter (D-283).
+    assert first.number == f"VE-{year}-0001"
 
     # Validated in the other order: numbers follow validation, not creation.
     assert services.confirm_sale(sale=second, actor=actor).number == f"BL-{year}-0001"
     assert services.confirm_sale(sale=first, actor=actor).number == f"BL-{year}-0002"
     audit = AuditLog.objects.filter(action="sale.confirmed", target_id=str(first.pk)).get()
     assert audit.after is not None
-    assert audit.after["draft_number"] == "VE-0001"
+    assert audit.after["draft_number"] == f"VE-{year}-0001"
+    first.refresh_from_db()
+    assert first.draft_number == f"VE-{year}-0001"
 
 
 def test_the_numbering_restarts_every_year(organization, actor, customer, counter, crevette, monkeypatch):
@@ -101,7 +104,7 @@ def test_a_refused_validation_leaves_no_gap_in_the_numbers(organization, actor, 
         services.confirm_sale(sale=too_much, actor=actor)
 
     too_much.refresh_from_db()
-    assert (too_much.number, too_much.status) == ("VE-0001", SaleStatus.DRAFT)
+    assert (too_much.number, too_much.status) == (f"VE-{timezone.localdate().year}-0001", SaleStatus.DRAFT)
     assert services.confirm_sale(sale=ok, actor=actor).number == f"BL-{timezone.localdate().year}-0001"
 
 
@@ -117,3 +120,63 @@ def test_only_a_validated_sale_has_a_delivery_note_pdf(organization, actor, cust
     assert printable.context["number"] == confirmed.number
     assert printable.context["total_kg"] == Decimal("2.000")
     assert printable.filename == f"bl-{confirmed.number.lower()}.pdf"
+
+
+# ---- D-283: draft prefix, BL to invoice per customer, opening balances apart from the BL ----
+
+
+def test_a_draft_prefix_gives_drafts_their_own_counter(organization, actor, customer, counter, crevette):
+    from apps.core import numbering
+    from apps.core import services as core
+
+    receive(organization, crevette, counter, "10")
+    year = timezone.localdate().year
+    core.set_number_prefixes(
+        organization=organization,
+        actor=actor,
+        prefixes=[("delivery_note", "BL")],
+        draft_prefixes={"delivery_note": "BBL"},
+    )
+    drafts = [sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}]) for _ in range(3)]
+    assert [draft.number for draft in drafts] == [f"BBL-{year}-000{n}" for n in (1, 2, 3)]
+
+    validated = services.confirm_sale(sale=drafts[2], actor=actor)
+
+    # The definitive counter never moved for the drafts: BBL-…-0003 becomes BL-…-0001, and keeps its draft reference.
+    assert (validated.number, validated.draft_number) == (f"BL-{year}-0001", f"BBL-{year}-0003")
+    assert numbering.next_draft_preview(organization, "delivery_note") == f"BBL-{year}-0004"
+
+
+def test_a_draft_prefix_may_not_repeat_another_prefix(organization, actor):
+    from apps.core import services as core
+
+    with pytest.raises(ValidationError) as caught:
+        core.set_number_prefixes(
+            organization=organization, actor=actor, prefixes=[("invoice", "FA")], draft_prefixes={"invoice": "BL"}
+        )
+    assert "prefixes.0.draft_prefix" in caught.value.message_dict
+    with pytest.raises(ValidationError):
+        core.set_number_prefixes(
+            organization=organization, actor=actor, prefixes=[("customer", "C")], draft_prefixes={"customer": "BC"}
+        )
+
+
+def test_the_bl_to_invoice_are_counted_per_customer_without_the_opening_balances(
+    organization, actor, customer, counter, crevette
+):
+    from apps.sales import selectors
+
+    receive(organization, crevette, counter, "10")
+    for _ in range(2):
+        services.confirm_sale(
+            sale=sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}]), actor=actor
+        )
+    sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}])  # a draft: not counted
+    opening = services.create_opening_receivable(
+        organization=organization, actor=actor, customer=customer, amount="500", owed_on=timezone.localdate()
+    )
+
+    assert selectors.uninvoiced_counts(organization) == {customer.pk: 2}
+    # The opening balance is not a BL: left out of the BL list, alone in its own list.
+    assert opening.pk not in set(selectors.sales_of(organization, opening="exclude").values_list("pk", flat=True))
+    assert list(selectors.sales_of(organization, opening="only").values_list("pk", flat=True)) == [opening.pk]

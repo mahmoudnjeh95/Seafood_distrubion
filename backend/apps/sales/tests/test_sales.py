@@ -113,8 +113,12 @@ def test_a_new_sale_is_a_numbered_draft_priced_at_the_customers_price_in_force(
     )
     second = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "1"}])
 
-    assert (draft.number, draft.status, draft.created_by) == ("VE-0001", SaleStatus.DRAFT, actor)
-    assert second.number == "VE-0002"
+    assert (draft.number, draft.status, draft.created_by) == (
+        f"VE-{timezone.localdate().year}-0001",
+        SaleStatus.DRAFT,
+        actor,
+    )
+    assert second.number == f"VE-{timezone.localdate().year}-0002"
     assert [
         (line.unit_price, line.price_source, line.discount_amount, line.amount) for line in draft.lines.order_by("id")
     ] == [
@@ -695,7 +699,11 @@ def test_an_accepted_quote_becomes_a_sale_at_its_own_prices(
         services.create_sale_from_quote(quote=accepted, actor=actor)
     services.cancel_sale(sale=converted, actor=actor, reason="Erreur de saisie")
     again = services.create_sale_from_quote(quote=accepted, actor=actor)
-    assert (again.number, again.quote, again.status) == ("VE-0002", accepted, SaleStatus.DRAFT)
+    assert (again.number, again.quote, again.status) == (
+        f"VE-{timezone.localdate().year}-0002",
+        accepted,
+        SaleStatus.DRAFT,
+    )
 
 
 def test_a_quote_is_delivered_in_several_bl(organization, actor, counter, crevette, calamar, accepted):

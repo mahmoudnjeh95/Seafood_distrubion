@@ -4,6 +4,8 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { CreditLineStockEnum } from './creditLineStockEnum';
+import type { NullEnum } from './nullEnum';
 
 export interface CreditNoteLineWrite {
   /** @minimum 1 */
@@ -12,4 +14,5 @@ export interface CreditNoteLineWrite {
   quantity?: string | null;
   /** @nullable */
   amount?: string | null;
+  stock?: CreditLineStockEnum | NullEnum | null;
 }

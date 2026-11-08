@@ -12,7 +12,7 @@ from apps.core.models import Membership, Organization
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.fleet import selectors as fleet
 from apps.partners import selectors, services
-from apps.partners.models import Customer, Supplier
+from apps.partners.models import Customer, CustomerType, Supplier
 from apps.sales import selectors as sales
 
 from .serializers import (
@@ -20,6 +20,8 @@ from .serializers import (
     CustomerFilterSerializer,
     CustomerLocationSerializer,
     CustomerSerializer,
+    CustomerTypeSerializer,
+    CustomerTypeWriteSerializer,
     CustomerWriteSerializer,
     MyCustomerWriteSerializer,
     SupplierFilterSerializer,
@@ -281,3 +283,61 @@ class MyCustomersView(APIView):
             "on_load": False,
         }
         return Response(CustomerChoiceSerializer(row).data, status=status.HTTP_201_CREATED)
+
+
+def _with_counts(organization: Organization, types: list[CustomerType]) -> list[CustomerType]:
+    counts = selectors.customer_type_counts(organization)
+    for row in types:
+        row.customer_count = counts.get(row.code, 0)  # type: ignore[attr-defined]
+    return types
+
+
+class CustomerTypeListView(CustomerView):
+    @extend_schema(operation_id="listCustomerTypes", responses=CustomerTypeSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The customer types (Paramètres › Types de clients, D-283), active and deactivated, in their order. The
+        customer form offers the active ones; a customer keeps a deactivated one."""
+        types = services.customer_types_of(self.organization)
+        return Response(CustomerTypeSerializer(_with_counts(self.organization, types), many=True).data)
+
+    @extend_schema(
+        operation_id="createCustomerType", request=CustomerTypeWriteSerializer, responses={201: CustomerTypeSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """A new customer type (owner or manager), active, at the end of the list."""
+        serializer = CustomerTypeWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        created = services.create_customer_type(
+            organization=self.organization,
+            actor=self.membership.user,
+            label=serializer.validated_data.get("label", ""),
+        )
+        return Response(
+            CustomerTypeSerializer(_with_counts(self.organization, [created])[0]).data, status=status.HTTP_201_CREATED
+        )
+
+
+class CustomerTypeDetailView(CustomerView):
+    def customer_type(self, type_id: int) -> CustomerType:
+        try:
+            return CustomerType.objects.for_organization(self.organization).get(pk=type_id)
+        except CustomerType.DoesNotExist:
+            raise Http404 from None
+
+    @extend_schema(
+        operation_id="updateCustomerType", request=CustomerTypeWriteSerializer, responses=CustomerTypeSerializer
+    )
+    def patch(self, request: Request, type_id: int) -> Response:
+        """Rename a customer type, deactivate it or bring it back. Its customers keep it either way."""
+        serializer = CustomerTypeWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_customer_type(
+            customer_type=self.customer_type(type_id), actor=self.membership.user, **serializer.validated_data
+        )
+        return Response(CustomerTypeSerializer(_with_counts(self.organization, [updated])[0]).data)
+
+    @extend_schema(operation_id="deleteCustomerType", request=None, responses={204: None})
+    def delete(self, request: Request, type_id: int) -> Response:
+        """Delete a customer type no customer has; one in use is refused (deactivate it instead)."""
+        services.delete_customer_type(customer_type=self.customer_type(type_id), actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

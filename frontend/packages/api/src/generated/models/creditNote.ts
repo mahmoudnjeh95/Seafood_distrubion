@@ -9,6 +9,8 @@ import type { CreditNoteKindEnum } from './creditNoteKindEnum';
 import type { CreditNoteLine } from './creditNoteLine';
 import type { CreditNoteStockEnum } from './creditNoteStockEnum';
 import type { EInvoiceStatusEnum } from './eInvoiceStatusEnum';
+import type { RebillRef } from './rebillRef';
+import type { RefundSummary } from './refundSummary';
 
 export interface CreditNote {
   readonly id: number;
@@ -37,4 +39,7 @@ export interface CreditNote {
   readonly created_at: string;
   readonly einvoice_status: EInvoiceStatusEnum;
   readonly einvoice_reference: string;
+  readonly refund: RefundSummary | null;
+  readonly rebillable: boolean;
+  readonly rebills: readonly RebillRef[];
 }

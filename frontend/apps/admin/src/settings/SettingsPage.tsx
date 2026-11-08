@@ -150,6 +150,18 @@ function NumberingCard() {
   );
 }
 
+function LinkCard({ title, hint, to, open }: { title: string; hint: string; to: string; open: string }) {
+  return (
+    <Card>
+      <CardTitle>{title}</CardTitle>
+      <p className="mb-4 text-[0.85rem] text-ink-2">{hint}</p>
+      <Link to={to} className="text-[0.9rem] font-semibold text-sea hover:underline">
+        {open}
+      </Link>
+    </Card>
+  );
+}
+
 /** "Paramètres": the company's logo and legal identity, and the accounts that log in. Owner only. */
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -164,6 +176,18 @@ export function SettingsPage() {
         <UsersCard />
         <BanksCard />
         <NumberingCard />
+        <LinkCard
+          title={t("admin.vatRates.title")}
+          hint={t("admin.vatRates.settingsHint")}
+          to="/parametres/tva"
+          open={t("admin.vatRates.open")}
+        />
+        <LinkCard
+          title={t("admin.customerTypes.title")}
+          hint={t("admin.customerTypes.settingsHint")}
+          to="/parametres/types-clients"
+          open={t("admin.customerTypes.open")}
+        />
         <ListDisplayCard />
       </div>
     </>

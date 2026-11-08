@@ -84,6 +84,15 @@ export function amountsOf(line: Line, price: string): Amounts | null {
   return { gross, discount, amount: subtract(gross, discount) };
 }
 
+/** The price per kg once the row's discount is taken off (25,000 at 8 % → 23,000), or null while the row cannot be
+ * priced. The quote and the sale show it beside the discount; it changes with the price and the discount. */
+export function netPriceOf(line: Line, price: string): string | null {
+  const unit = parseDecimalInput(price.trim(), 3);
+  const rate = line.discount_rate.trim() === "" ? "0" : parseDecimalInput(line.discount_rate.trim(), 2);
+  if (!unit || !rate || unit.startsWith("-") || rate.startsWith("-")) return null;
+  return subtract(unit, percentOf(unit, rate));
+}
+
 /** The price per kg once the row's discount is taken off, when that is under the product's minimum (D-163), else null.
  * The server decides: this only warns while typing. */
 export function netUnderMinimum(line: Line, price: string, minimum: string | null): string | null {

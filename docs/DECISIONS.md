@@ -3889,6 +3889,127 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
 
+**D-283 · Client bug list of 2026-11-06: draft prefixes, customer types, identification, VAT rates, opening balances apart (P2-T16)** · accepted (client document "13 bugs avec captures") · 2026-11-07
+- **Draft prefix (bug 13):** `NumberPrefix.draft_prefix` (+ `draft_prefix_set`) for the kinds with a draft step: quote, BL
+  (`delivery_note`), invoice, supplier invoice (`NumberKind.draft_default`). A draft takes a provisional reference from
+  its own counter (`NumberSeries` kind `<key>.draft`, same yearly format): BFA-2026-0007. Without a draft prefix it
+  reads `BROUILLON-2026-0007` (unique, so the `number` constraints stay). The definitive number is taken only at the
+  validation: a quote when sent (**changes D-120/D-223: a draft quote no longer has its DV number**), a BL when validated
+  (or issued with a load), an invoice when issued, a supplier invoice when posted (**changes the FF at creation**). The
+  provisional reference is kept in `draft_number`. The BL's default draft prefix is VE (the old "Vente (comptoir)"
+  counter, now hidden from Numérotation; a custom VE prefix moved to the BL's draft prefix by migration). No two
+  prefixes, draft or definitive, are the same.
+- **Customer types (bug 8):** `partners.CustomerType` per organization (code, label, active, position); the seven old
+  choices are the defaults (migration for existing organizations, signal for new ones). `Customer.kind` stores the code
+  (no fixed choices any more). A deactivated type stays on its customers and may be kept on save, not newly given; a
+  type is deleted only when no customer (archived included) has it. Read by the office, changed by owner/manager.
+- **Identification (bug 9):** `Customer.id_type` (tax_id, cin, passport, residence_card; default tax_id, so every
+  existing number is an MF) with the number still in `tax_id` (text). CIN = 8 digits; passport and residence card 5 to
+  20 letters or digits. Unique per organization by type and number. Invoices freeze `customer_id_type`; the documents
+  print "CIN", "Passeport"… instead of "MF".
+- **VAT rates (bug 4, part):** `catalog.VatRate` per organization (0, 7, 13, 19 + rates in use, by migration/signal). The
+  product's VAT is chosen among active rates; a product keeps a rate deactivated since. A rate is deleted, or its
+  percent changed, only while no product, BL line, invoice line or credit note line has it. Documents keep their own
+  percent, so nothing saved is recomputed. Office only (drivers 403). The document column order and TTC line amount of
+  the client's bug 4 are **not** done: they change how prices are typed (open for the owner).
+- **Opening balances (bug 12):** still `Sale(is_opening=True)` (no data moved, payments untouched); the sales/BL list
+  leaves them out (`opening=exclude` by default, `only` for Trésorerie › Soldes d'ouverture). Their detail page shows
+  amount, collected, left, origin and import, without delivery, invoice, cost or margin.
+- **BL to invoice (bug 3):** `GET /invoices/to-invoice-counts`, the same BL `uninvoiced=True` lists. **Redirect (bug 10):**
+  a generated invoice opens at once ("Factures générées ici" removed).
+- **Not done, need the owner:** bug 11 (one delivery cycle for direct and load BL: the stock would leave at the delivery,
+  not at the validation), bugs 5 and 6 (credit notes with refunds "À rembourser" and their central page).
+
+**D-284 · Credit notes say what becomes of each returned line, and refund a customer who had paid (P2-T16, bugs 05/06)** · accepted (owner answers 2026-11-07) · 2026-11-07
+- **Goods, per line:** `CreditNoteLine.stock` (restock, loss, none). On a partial credit note every line with kilos must
+  say it (`lines.<n>.stock`); the API's `stock` is required for a full one (no silent "none" any more). `CreditNote.stock`
+  is the lines' common choice or `mixed`. Loss = back in then written off on the original lot (the lot result and the
+  partner's share carry it, as D-070). Older lines got their note's choice by migration.
+- **Money:** after the credit note, what the invoice's BLs were paid beyond what they owe is a `CustomerRefund`
+  (RC-<year>-0001), at most the note's net amount. So a partly paid invoice has its debt cancelled first, only the excess
+  is refunded; an unpaid one gets no refund. The refund is taken from those BLs (`CustomerRefundAllocation`, like a
+  negative allocation), so the customer's credit does not stay and a BL invoiced again owes anew. Paid now (`refund.mode`
+  now: method cash/transfer/cheque, caisse or bank account, reference) or later from Trésorerie › Remboursements clients,
+  in one or several `CustomerRefundPayment`, never beyond what is left; each writes a `customer_refund` treasury
+  movement out of the account. The original payments are untouched. The customer's history shows "Remboursement d'avoir".
+- Not done: cancelling a planned refund (it is final, like the credit note), a credit note detail page.
+
+**D-285 · A goods receipt can be contested with its supplier; while contested it is not invoiced (P1-T18)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- From the Perfaxis manual's "Bon de réception contesté". Owner's choice: an open dispute **blocks invoicing** (not only a flag).
+- `GoodsReceipt.dispute_status` ("" / open / resolved) with the reason, the settlement, who and when. Contesting needs a
+  reason and is refused while an invoice (draft or posted) carries the receipt or a dispute is open; lifting needs how it
+  was settled. A lifted receipt can be contested again (the previous one stays in the audit log).
+- The stock is not touched: the goods are in either way. A weight or price the supplier agrees to change is corrected with
+  "Modifier la réception" (D-269), which stays allowed while contested.
+- Other Perfaxis gaps the owner kept (same day): "non facturable" BL, "Refacturer" after an avoir, attachments on
+  documents, supplier price comparison. Not wanted: Bureau d'ordre, exempt/export customers, internal purchase
+  requests, foreign currency, services.
+
+**D-286 · A BL can be "non facturable" (owed, never invoiced) or "offert" (given away) (P2-T17)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Non facturable" box. The owner wanted both meanings, chosen per BL: `Sale.billing` = invoice / no_invoice / free.
+- **Offert** is a BL whose lines all take a 100 % discount (the price stays, as the value given): total 0, nothing owed,
+  the minimum price does not apply, the FIFO cost stays on the lots, so the lot result shows the cost with no revenue
+  (no separate "gift" line for now). It is chosen on the draft only, since it changes what is owed; a confirmed gift is
+  cancelled and typed again to charge it.
+- **Non facturable** changes nothing in the amounts: the customer owes it and pays it as usual; it is left out of every
+  invoicing list and refused by `create_invoice`. It can be switched both ways on a confirmed BL while it is on no invoice.
+- Not for the walk-in customer (already never invoiced). The driver's phone does not choose: always "facturable".
+
+**D-287 · "Refacturer" makes a new draft from a full credit note that took no goods back (P2-T18)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Refacturer" (after a "facture avoir" whose lines were not changed = our full credit note). The new invoice is
+  a **draft** (not issued at once) so the office corrects what was wrong (customer data, VAT, stamp, fees), then issues
+  it with the next number. It copies what was typed on the original; what was not typed follows the settings in force.
+- `Invoice.rebilled_from` → the credit note (and through it the original invoice). Refused for a partial credit note (the
+  invoice is still valid), when the credit note took goods back (restock or loss: nothing left to bill), and while a BL
+  is on a live invoice again. Before this, the same was possible by hand from Nouvelle facture, without the link.
+
+**D-288 · Files can be attached to documents, without a Bureau d'ordre (P2-T19)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Documents associés" tab, minus its mail register: the owner said no Bureau d'ordre. A file goes straight
+  on the document. Kinds: quote, BL, invoice, credit note, purchase order, goods receipt, supplier invoice.
+- A PDF up to 8 MB kept as is; a photo (JPEG, PNG, WebP) turned upright, metadata dropped, shrunk to 2400 px (larger than
+  product photos so scans stay readable), stored as WebP. Anything else is refused.
+- The documents app owns `Attachment` and never reads other apps' tables: each app registers how to check a document
+  exists (`register_attachable`, like printables). Removing a file hides it; row and file stay with who removed it.
+- Not done: attachments on the driver app, on payments or expenses; Perfaxis's rule "an accepted quote needs its signed
+  document" (not asked).
+
+**D-289 · Price requests to several suppliers before ordering (P1-T19)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's demande de devis → devis reçu → bon de commande, in one screen: a `PriceRequest` (number DD, yearly) has
+  lines (product, kg) and one `SupplierOffer` per supplier asked, with a price per kg without VAT per line
+  (`SupplierOfferLine`), its reference and validity. Not Perfaxis's internal purchase request step (not wanted).
+- Choosing is per product: each line goes to one supplier; "Passer les commandes" makes one purchase order per supplier
+  (the existing `create_order`, D-076) and the request is "commandée" for good. Kilos are the request's; prices the
+  offer's. An offer past its validity cannot be chosen (Perfaxis's rule). Perfaxis asks for a comment under three
+  offers: here only a hint, not enforced.
+- No currency and no services (not wanted); no printing of the request yet.
+
+**D-290 · Training copy: same stack, only the database apart, reset by hand from production** · provisional · 2026-11-08
+- Owner request (2026-11-08): new employees practise on the same application without touching the real data, and
+  "keep everything the same, only the database separate". The training copy is `app1.fruttidelmare.com` (office) and
+  `ch1.fruttidelmare.com` (driver), served by the same stack (`compose.staging.yml`): the same images, the same
+  PostgreSQL server (database `frutti_training`), the same Redis (slots 2 and 3), the same web container (ports
+  8091/8092 send the API to `training-backend`). Apart: the database, the media volume `training_media`, and the
+  secret key (`TRAINING_SECRET_KEY`).
+- A second backend process (`training-backend`, `training-worker`) runs the same image: one Django process has one
+  database. Choosing the database per request inside one process was refused: `transaction.atomic()` and every
+  service write go to the default database, so one miss puts training data into the real books.
+- The web container looks the training backend up when asked (`resolver 127.0.0.11`, `$frutti_api` in
+  `frutti-app.inc`), so production's apps keep working while the training copy is down.
+- Printed documents and PDFs are exactly the real ones (owner's choice: the supervisor collects and destroys the papers
+  each day). Only a small "Formation" tag shows on screen (`TrainingTag`, `print:hidden`), from the public
+  `GET /api/v1/instance`; the answer is kept on the phone for offline use. Production's login screens link to the
+  training copy ("Se connecter en mode formation").
+- Never emptied automatically. `~/frutti-training/bin/reset-training.sh [--apply]` copies production's database into
+  `frutti_training` (`pg_dump | pg_restore`, production only read), the product photos and the logo; then
+  `prepare_training` keeps the master data (settings, numbering, products and prices, customers, suppliers, price
+  lists, locations, trucks, box holders, employees with their salaries, expense categories, day labourers, recurring
+  costs, site settings, banks and treasury accounts with opening balance 0) and deletes the work. The numbering is
+  kept, so training numbers continue production's.
+- Production's accounts are locked in the copy (no password, inactive); the trainees' logins (any account with a
+  usable password) are exported before and put back after, also saved in `~/frutti-training/logins/`. A `formation`
+  owner login is created when missing, its password printed once. The command refuses unless `FRUTTI_TRAINING=true`,
+  and refuses on a database named `frutti`. No mailbox in the copy. The nightly backup covers `frutti` only.
+
 **D-295 · Phase 10 Flotte & entretien; the compteur typed by the driver when sending the day (P10-T01)** · accepted (owner request and answers 2026-11-08) · 2026-11-08
 - New module, new app `apps.maintenance` (uses `fleet`, `notifications`, later `hr` and `expenses` through their services and selectors). Plan and the owner's seven answers in `docs/phases/10-fleet-maintenance.md`: compteur at the end of the day with an optional photo; maintenance every X km or Y months, every interval a setting; monthly frigo service for the truck units and the cold rooms, no temperatures; truck and person papers (no carte grise, no CIN); an expired assurance or visite technique blocks the truck, the owner may allow one day with a reason; costs are general overhead, not on the lots; owner and manager are warned.
 - No GPS for the km: `OdometerReading` (append-only) holds what the driver types on the "Clôture" screen, recorded just before the send (`POST /my-day/odometer`, multipart, optional photo kept as WebP like a loss photo). Asked once a day; asked again when a new load reopened the day.

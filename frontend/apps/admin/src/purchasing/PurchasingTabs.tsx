@@ -6,6 +6,7 @@ import { NavLink } from "react-router";
 export function PurchasingTabs() {
   const { t } = useTranslation();
   const tabs = [
+    { to: "/achats/demandes", label: t("admin.purchasing.priceRequests"), end: false },
     { to: "/achats/bons", label: t("admin.purchasing.orders"), end: false },
     { to: "/achats/terrain", label: t("admin.purchasing.fieldPurchases"), end: false },
     { to: "/achats", label: t("admin.purchasing.receipts"), end: true },

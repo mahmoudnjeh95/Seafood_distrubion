@@ -19,6 +19,7 @@ import {
   Field,
   Input,
   PageHeader,
+  Pill,
   Select,
   SelectContent,
   SelectItem,
@@ -41,7 +42,15 @@ import { addDays, DEFAULT_PAYMENT_DAYS, idFrom, refreshPurchasing } from "./shar
 
 type Errors = Record<string, string>;
 /** A receipt as the form lists it: from the receipts list, or already on the draft being changed. */
-type Choice = { id: number; number: string; received_on: string; supplier_reference: string; amount: string };
+type Choice = {
+  id: number;
+  number: string;
+  received_on: string;
+  supplier_reference: string;
+  amount: string;
+  // Contested with the supplier (D-285): shown, but it cannot be ticked until the dispute is lifted.
+  disputed?: boolean;
+};
 
 function choiceOf(receipt: Receipt): Choice {
   return {
@@ -50,6 +59,7 @@ function choiceOf(receipt: Receipt): Choice {
     received_on: receipt.received_on,
     supplier_reference: receipt.supplier_reference,
     amount: receipt.invoiced_total,
+    disputed: receipt.dispute_status === "open",
   };
 }
 
@@ -302,6 +312,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
                         id={id(`receipt-${choice.id}`)}
                         type="checkbox"
                         checked={chosen.has(choice.id)}
+                        disabled={choice.disputed && !chosen.has(choice.id)}
                         onChange={(event) => toggle(choice.id, event.target.checked)}
                         aria-label={t("admin.supplierInvoices.form.receiptLabel", {
                           number: choice.number,
@@ -314,6 +325,11 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
                       <label htmlFor={id(`receipt-${choice.id}`)} className="font-semibold">
                         {choice.number}
                       </label>
+                      {choice.disputed && (
+                        <Pill className="ms-2" tone="bad">
+                          {t("admin.receipts.dispute.pill")}
+                        </Pill>
+                      )}
                     </Td>
                     <Td className="num whitespace-nowrap">{formatDate(choice.received_on)}</Td>
                     <Td className="num max-[720px]:hidden">{choice.supplier_reference || "—"}</Td>

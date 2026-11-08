@@ -15,4 +15,5 @@ export interface Party {
   readonly phone: string;
   readonly tax_id: string;
   readonly trade_register: string;
+  readonly id_type: string;
 }

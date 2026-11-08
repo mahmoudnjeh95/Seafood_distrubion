@@ -231,3 +231,22 @@ class PriceListFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(
         choices=[("active", "active"), ("archived", "archived"), ("all", "all")], required=False, default="active"
     )
+
+
+class VatRateSerializer(serializers.Serializer[Any]):
+    """One VAT rate of Paramètres › TVA (D-283). `in_use`: a product or a document carries it, so it cannot be
+    deleted and its percent no longer changes."""
+
+    id = serializers.IntegerField(read_only=True)
+    rate = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    label = serializers.CharField(read_only=True)  # type: ignore[assignment]
+    is_active = serializers.BooleanField(read_only=True)
+    in_use = serializers.BooleanField(read_only=True)
+
+
+class VatRateWriteSerializer(serializers.Serializer[Any]):
+    rate = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100"), required=False
+    )
+    label = serializers.CharField(max_length=60, required=False, allow_blank=True)  # type: ignore[assignment]
+    is_active = serializers.BooleanField(required=False)

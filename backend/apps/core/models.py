@@ -192,6 +192,10 @@ class NumberPrefix(OrganizationScopedModel):
 
     kind = models.CharField(max_length=30)
     prefix = models.CharField(max_length=6)
+    # The prefix of the provisional reference of a draft (D-283), for the kinds with a draft step. Empty: no
+    # provisional reference. `draft_prefix_set` tells an empty choice from "never chosen" (the default applies).
+    draft_prefix = models.CharField(max_length=6, blank=True)
+    draft_prefix_set = models.BooleanField(default=False)
 
     class Meta:
         constraints = [

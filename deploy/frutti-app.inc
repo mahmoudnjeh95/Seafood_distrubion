@@ -4,7 +4,8 @@ client_max_body_size 10m;
 server_tokens off;
 
 location ~ ^/(api|django-admin|static)/ {
-    proxy_pass http://frutti_backend;
+    # Set by each server: production's backend, or the training copy's (D-290).
+    proxy_pass http://$frutti_api;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $forwarded_proto;

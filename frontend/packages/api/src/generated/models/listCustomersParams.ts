@@ -4,21 +4,14 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
-import type { ListCustomersKind } from './listCustomersKind';
 import type { ListCustomersStatus } from './listCustomersStatus';
 
 export type ListCustomersParams = {
 /**
- * * `restaurant` - Restaurant
- * * `hotel` - Hôtel
- * * `fish_shop` - Poissonnerie
- * * `supermarket` - Supermarché
- * * `wholesaler` - Grossiste
- * * `caterer` - Traiteur
- * * `individual` - Particulier
  * @minLength 1
+ * @maxLength 20
  */
-kind?: ListCustomersKind;
+kind?: string;
 /**
  * @maxLength 100
  */

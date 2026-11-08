@@ -105,7 +105,7 @@ def test_invoice_a_sale_type_values_issue_and_credit(api, sale):
     assert created.status_code == 201, created.json()
     invoice = created.json()
     assert invoice["status"] == "draft"
-    assert invoice["number"] == ""
+    assert invoice["number"].startswith("BROUILLON-")
     assert invoice["vat_total"] == "39.900"
     assert invoice["settings_vat_rate"] == "19.00"
     assert invoice["lines"][0]["default_vat_rate"] == "19.00"
@@ -155,12 +155,21 @@ def test_invoice_a_sale_type_values_issue_and_credit(api, sale):
     )
     assert wrong.status_code == 400
     assert "lines.0.quantity" in wrong.json()
-    note = api.post(
+    # Kilos given back must say what becomes of them (D-284).
+    unsaid = api.post(
         credit_url,
         {"kind": "partial", "reason": "Retour", "lines": [{"invoice_line": line_id, "quantity": "1"}]},
         format="json",
     )
+    assert unsaid.status_code == 400
+    assert "lines.0.stock" in unsaid.json()
+    note = api.post(
+        credit_url,
+        {"kind": "partial", "reason": "Retour", "lines": [{"invoice_line": line_id, "quantity": "1", "stock": "none"}]},
+        format="json",
+    )
     assert note.status_code == 201, note.json()
+    assert note.json()["refund"] is None
     assert note.json()["number"] == f"AV-{YEAR}-0001"
     assert note.json()["total_excl_tax"] == "42.000"
     assert note.json()["vat_total"] == "2.800"

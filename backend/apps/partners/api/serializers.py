@@ -3,7 +3,15 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.partners.models import Customer, CustomerContact, CustomerKind, Supplier, SupplierContact
+from apps.partners.models import (
+    Customer,
+    CustomerContact,
+    CustomerKind,
+    CustomerType,
+    IdentificationType,
+    Supplier,
+    SupplierContact,
+)
 
 
 class SupplierContactSerializer(serializers.ModelSerializer[SupplierContact]):
@@ -82,6 +90,7 @@ class CustomerSerializer(serializers.ModelSerializer[Customer]):
             "reference",
             "name",
             "kind",
+            "id_type",
             "tax_id",
             "phone",
             "email",
@@ -104,7 +113,12 @@ class CustomerWriteSerializer(serializers.Serializer[Any]):
     # Empty on creation: the server gives the next C-NNN.
     reference = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
     name = serializers.CharField(max_length=150)
-    kind = serializers.ChoiceField(choices=CustomerKind.choices, required=False, default=CustomerKind.RESTAURANT)
+    # The code of one of the organization's customer types (Paramètres › Types de clients, D-283).
+    kind = serializers.CharField(max_length=20, required=False, default=CustomerKind.RESTAURANT)
+    id_type = serializers.ChoiceField(
+        choices=IdentificationType.choices, required=False, default=IdentificationType.TAX_ID
+    )
+    # The identification number for `id_type`; a matricule fiscal by default.
     tax_id = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
     phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
     email = serializers.EmailField(required=False, allow_blank=True, default="")
@@ -124,7 +138,7 @@ class CustomerFilterSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(
         choices=[("active", "active"), ("archived", "archived"), ("all", "all")], required=False, default="active"
     )
-    kind = serializers.ChoiceField(choices=CustomerKind.choices, required=False)
+    kind = serializers.CharField(max_length=20, required=False)
 
 
 class MyCustomerWriteSerializer(serializers.Serializer[Any]):
@@ -151,3 +165,20 @@ class CustomerLocationSerializer(serializers.Serializer[Any]):
     # Both empty forget the place.
     latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90, allow_null=True)
     longitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-180, max_value=180, allow_null=True)
+
+
+class CustomerTypeSerializer(serializers.ModelSerializer[CustomerType]):
+    """One customer type (D-283), with how many customers have it: a type in use cannot be deleted."""
+
+    customer_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = CustomerType
+        fields = ("id", "code", "label", "is_active", "customer_count")
+        read_only_fields = fields
+
+
+class CustomerTypeWriteSerializer(serializers.Serializer[Any]):
+    # "label" is also a DRF field attribute; the API keeps the business word.
+    label = serializers.CharField(max_length=60, required=False)  # type: ignore[assignment]
+    is_active = serializers.BooleanField(required=False)

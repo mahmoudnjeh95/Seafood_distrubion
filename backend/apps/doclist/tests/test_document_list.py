@@ -154,7 +154,7 @@ def test_actions_follow_the_state_of_each_document(api, organization, customer, 
     # Already on a draft invoice: not invoiced twice, but it can still be cancelled.
     assert rows[f"BL:{confirmed.pk}"]["actions"] == ["cancel"]
     draft = rows[f"FA:{draft_invoice.pk}"]
-    assert (draft["number"], draft["actions"], draft["pdf"]) == ("", ["edit", "issue", "delete"], "")
+    assert (draft["number"][:10], draft["actions"], draft["pdf"]) == ("BROUILLON-", ["edit", "issue", "delete"], "")
 
 
 def test_a_quote_keeps_its_bl_action_until_it_is_delivered_in_full(api, organization, customer, counter, crevette):

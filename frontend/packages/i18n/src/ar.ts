@@ -46,6 +46,8 @@ export const ar: PartialTranslation = {
     submit: "ادخل",
     submitting: "قاعد يدخّل…",
     tooManyAttempts: "جرّبت برشا. عاود بعد دقيقة.",
+    trainingTag: "تكوين",
+    trainingLink: "ادخل في وضع التكوين",
     networkError: "ما تكونكتاش. شوف الريزو وعاود.",
     showPassword: "ورّي",
     hidePassword: "خبّي",

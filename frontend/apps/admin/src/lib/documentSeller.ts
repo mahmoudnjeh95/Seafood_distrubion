@@ -18,6 +18,8 @@ export type DocumentParty = {
   city: string;
   phone: string;
   tax_id: string;
+  /** What `tax_id` is (D-283): the row's label follows it ("MF", "CIN"…). */
+  id_type?: string;
 };
 
 /** The company as the finance settings in force describe it (what a quote or a BL prints, D-043). */

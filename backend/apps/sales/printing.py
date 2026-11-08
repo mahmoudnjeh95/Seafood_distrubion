@@ -18,11 +18,14 @@ from apps.documents import services as documents
 
 from . import selectors
 from .models import (
+    CreditNote,
     CreditNoteKind,
     CreditNoteStock,
     CustomerPaymentMethod,
     DeliveryStatus,
+    Invoice,
     InvoiceStatus,
+    Quote,
     QuoteStatus,
     Sale,
     SaleRevisionKind,
@@ -75,6 +78,14 @@ def customer_type(tax_id: str, kind: str) -> str:
     return ""
 
 
+# The short label printed before the client's identification number (D-283).
+_ID_LABELS = {"tax_id": "MF", "cin": "CIN", "passport": "Passeport", "residence_card": "Carte de séjour"}
+
+
+def id_label(id_type: str) -> str:
+    return _ID_LABELS.get(id_type or "tax_id", "MF")
+
+
 def _address(address: str, city: str) -> str:
     return f"{address}, {city}" if address and city else address or city
 
@@ -89,6 +100,7 @@ def _customer_party(customer: Any) -> dict[str, str]:
         "address": _address(customer.address, customer.city),
         "phone": customer.phone,
         "tax_id": customer.tax_id,
+        "tax_id_label": id_label(customer.id_type),
     }
 
 
@@ -103,6 +115,7 @@ def _invoiced_party(invoice: Any) -> dict[str, str]:
         "address": _address(invoice.customer_address, invoice.customer_city),
         "phone": customer.phone,
         "tax_id": invoice.customer_tax_id,
+        "tax_id_label": id_label(invoice.customer_id_type),
     }
 
 
@@ -329,3 +342,18 @@ def register_printables() -> None:
     documents.register(documents.DocumentKind.INVOICE, invoice_printable)
     documents.register(documents.DocumentKind.CREDIT_NOTE, credit_note_printable)
     documents.register(documents.DocumentKind.RECEIPT, receipt_printable)
+
+
+def _exists(model: Any) -> Any:
+    def exists(organization: Organization, object_id: int) -> bool:
+        return bool(model.objects.for_organization(organization).filter(pk=object_id).exists())
+
+    return exists
+
+
+def register_attachables() -> None:
+    """The sales documents files can be attached to (D-288)."""
+    documents.register_attachable("quote", _exists(Quote))
+    documents.register_attachable("delivery_note", _exists(Sale))
+    documents.register_attachable("invoice", _exists(Invoice))
+    documents.register_attachable("credit_note", _exists(CreditNote))
