@@ -1832,6 +1832,16 @@ export const fr = {
         collect: "Encaisser le reste (nouveau règlement)",
         giveUp: "Abandonner l'écart",
       },
+      // "Refacturer" a fully credited invoice (D-287)
+      rebill: {
+        action: "Refacturer",
+        hint: "Nouvelle facture brouillon pour les mêmes bons de livraison, avec les choix de cette facture.",
+        done: "Brouillon de refacturation prêt : corrigez-le puis émettez-le.",
+        failed: "La refacturation n'a pas pu être préparée.",
+        made: "Refacturée : {{number}}",
+        from: "Refacturation de",
+        note: "avoir {{number}}",
+      },
       detail: {
         print: "Imprimer",
         creditNote: "Faire un avoir",

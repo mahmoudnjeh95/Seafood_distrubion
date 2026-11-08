@@ -509,13 +509,15 @@ def invoices_of(
     invoices by what their BL still owe (D-256)."""
     credit_lines = CreditNoteLine.objects.select_related("invoice_line").order_by("id")
     credit_notes = (
-        CreditNote.objects.select_related("created_by")
-        .prefetch_related(Prefetch("lines", queryset=credit_lines))
+        CreditNote.objects.select_related("created_by", "invoice")
+        .prefetch_related(Prefetch("lines", queryset=credit_lines), "rebills")
         .order_by("id")
     )
     invoices = (
         Invoice.objects.for_organization(organization)
-        .select_related("organization", "customer", "settings_version", "created_by", "issued_by")
+        .select_related(
+            "organization", "customer", "settings_version", "created_by", "issued_by", "rebilled_from__invoice"
+        )
         .prefetch_related(Prefetch("sales", queryset=Sale.objects.order_by("sold_at", "id")))
         .prefetch_related(
             Prefetch("lines", queryset=InvoiceLine.objects.select_related("product", "sale_line__sale").order_by("id"))
@@ -620,7 +622,7 @@ def credit_notes_of(
     notes = (
         CreditNote.objects.for_organization(organization)
         .select_related("invoice", "invoice__customer", "created_by")
-        .prefetch_related(Prefetch("lines", queryset=CreditNoteLine.objects.select_related("invoice_line")))
+        .prefetch_related(Prefetch("lines", queryset=CreditNoteLine.objects.select_related("invoice_line")), "rebills")
         .order_by("-issued_on", "-id")
     )
     if customer_id is not None:

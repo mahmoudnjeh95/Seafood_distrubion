@@ -897,7 +897,14 @@ export const ListCreditNotesResponse = zod.object({
   "refunded": zod.stringFormat('decimal', listCreditNotesResponseResultsItemRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', listCreditNotesResponseResultsItemRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 }))
 })
 
@@ -969,7 +976,269 @@ export const GetCreditNoteResponse = zod.object({
   "refunded": zod.stringFormat('decimal', getCreditNoteResponseRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', getCreditNoteResponseRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
+})
+
+
+/**
+ * "Refacturer" (D-287): a new draft invoice for the BLs of a fully credited invoice, with what was typed on
+ * the original, pointing back to this credit note. Only for a full credit note that took no goods back, while
+ * the BLs are on no live invoice. Owner or manager.
+ */
+export const RebillCreditNoteParams = zod.object({
+  "credit_note_id": zod.int()
+})
+
+export const rebillCreditNoteResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponsePaidTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseExtraOverGoodsRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCertificateOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseSettingsVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseSettingsFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseSettingsWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseLinesItemDefaultVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseLinesItemUnitPriceExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemCreditedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseLinesItemCreditedAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseVatLinesItemRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseVatLinesItemBaseRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseVatLinesItemComputedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseVatLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemNetAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseCreditNotesItemLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemRefundOneAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemRefundOneRefundedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseCreditNotesItemRefundOneLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RebillCreditNoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
+  "sale": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).'),
+  "sales": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée')
+}).describe('A sale named from another document (the quote it came from, a lot\'s sales).')),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "id_type": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "issued_on": zod.iso.date().nullable(),
+  "due_on": zod.iso.date().nullable(),
+  "line_count": zod.int(),
+  "apply_vat": zod.boolean(),
+  "prices_include_vat": zod.boolean(),
+  "subtotal": zod.stringFormat('decimal', rebillCreditNoteResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', rebillCreditNoteResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', rebillCreditNoteResponseVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', rebillCreditNoteResponseFiscalStampRegExp),
+  "fees": zod.stringFormat('decimal', rebillCreditNoteResponseFeesRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseTotalInclTaxRegExp),
+  "withholding_applied": zod.boolean(),
+  "withholding_rate": zod.stringFormat('decimal', rebillCreditNoteResponseWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', rebillCreditNoteResponseWithholdingAmountRegExp),
+  "net_to_pay": zod.stringFormat('decimal', rebillCreditNoteResponseNetToPayRegExp),
+  "credited_total": zod.stringFormat('decimal', rebillCreditNoteResponseCreditedTotalRegExp),
+  "remaining_to_pay": zod.stringFormat('decimal', rebillCreditNoteResponseRemainingToPayRegExp),
+  "payment_state": zod.enum(['none', 'unpaid', 'partial', 'paid']).describe('* `none` - none\n* `unpaid` - unpaid\n* `partial` - partial\n* `paid` - paid'),
+  "paid_total": zod.stringFormat('decimal', rebillCreditNoteResponsePaidTotalRegExp),
+  "extra_over_goods": zod.stringFormat('decimal', rebillCreditNoteResponseExtraOverGoodsRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "issued_by": zod.string(),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
+  "einvoice_reference": zod.string(),
+  "certificate": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "issued_on": zod.iso.date(),
+  "amount": zod.stringFormat('decimal', rebillCreditNoteResponseCertificateOneAmountRegExp),
+  "file_url": zod.string().nullable(),
+  "file_type": zod.string(),
+  "is_voided": zod.boolean(),
+  "voided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "void_reason": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('The withholding certificate of an invoice (P2-T06, D-063).'),zod.null()]),
+  "gap_lots": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "product": zod.string()
+}).describe('A lot the gap of an invoice can be charged to (D-256, D-257): one of its BL\'s lots, not settled.')),
+  "notes": zod.string(),
+  "fiscal_stamp_overridden": zod.boolean(),
+  "withholding_rate_overridden": zod.boolean(),
+  "seller": zod.object({
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "phone": zod.string(),
+  "tax_id": zod.string(),
+  "trade_register": zod.string(),
+  "id_type": zod.string()
+}).describe('A seller or a customer as an invoice prints them.'),
+  "bill_to": zod.object({
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "phone": zod.string(),
+  "tax_id": zod.string(),
+  "trade_register": zod.string(),
+  "id_type": zod.string()
+}).describe('A seller or a customer as an invoice prints them.'),
+  "settings_valid_from": zod.iso.date().nullable(),
+  "settings_vat_rate": zod.stringFormat('decimal', rebillCreditNoteResponseSettingsVatRateRegExp).nullable(),
+  "settings_fiscal_stamp": zod.stringFormat('decimal', rebillCreditNoteResponseSettingsFiscalStampRegExp).nullable(),
+  "settings_withholding_rate": zod.stringFormat('decimal', rebillCreditNoteResponseSettingsWithholdingRateRegExp).nullable(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string()
+}),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "sale_number": zod.string(),
+  "lots": zod.string(),
+  "quantity": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemUnitPriceRegExp),
+  "discount_rate": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemVatRateRegExp),
+  "vat_rate_overridden": zod.boolean(),
+  "default_vat_rate": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemDefaultVatRateRegExp),
+  "unit_price_excl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemUnitPriceExclTaxRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemAmountInclTaxRegExp),
+  "credited_quantity": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemCreditedQuantityRegExp),
+  "credited_amount_excl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseLinesItemCreditedAmountExclTaxRegExp)
+})),
+  "vat_lines": zod.array(zod.object({
+  "rate": zod.stringFormat('decimal', rebillCreditNoteResponseVatLinesItemRateRegExp),
+  "base": zod.stringFormat('decimal', rebillCreditNoteResponseVatLinesItemBaseRegExp),
+  "computed_amount": zod.stringFormat('decimal', rebillCreditNoteResponseVatLinesItemComputedAmountRegExp),
+  "amount": zod.stringFormat('decimal', rebillCreditNoteResponseVatLinesItemAmountRegExp),
+  "amount_overridden": zod.boolean()
+})),
+  "credit_notes": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "kind": zod.enum(['full', 'partial']).describe('* `full` - Totale\n* `partial` - Partielle'),
+  "invoice": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "customer_name": zod.string(),
+  "issued_on": zod.iso.date()
+}),
+  "issued_on": zod.iso.date(),
+  "reason": zod.string(),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
+  "total_excl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemFiscalStampRegExp),
+  "fees": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemFeesRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemTotalInclTaxRegExp),
+  "withholding_amount": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemWithholdingAmountRegExp),
+  "net_amount": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemNetAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "invoice_line": zod.int(),
+  "product_reference": zod.string(),
+  "product_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemLinesItemQuantityRegExp),
+  "stock": zod.enum(['none', 'restock', 'loss', 'mixed']).describe('* `none` - Aucun mouvement de stock\n* `restock` - Remis en stock\n* `loss` - Mis en perte\n* `mixed` - Selon la ligne'),
+  "vat_rate": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemLinesItemVatRateRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemLinesItemAmountInclTaxRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "einvoice_status": zod.enum(['not_sent']).describe('* `not_sent` - Non transmise'),
+  "einvoice_reference": zod.string(),
+  "refund": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "amount": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemRefundOneAmountRegExp),
+  "refunded": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemRefundOneRefundedRegExp),
+  "left": zod.stringFormat('decimal', rebillCreditNoteResponseCreditNotesItemRefundOneLeftRegExp),
+  "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
+}))
 })
 
 
@@ -6731,6 +7000,12 @@ export const ListInvoicesResponse = zod.object({
   "number": zod.string(),
   "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
   "sale": zod.object({
   "id": zod.int(),
   "number": zod.string(),
@@ -6872,6 +7147,12 @@ export const CreateInvoiceResponse = zod.object({
   "number": zod.string(),
   "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
   "sale": zod.object({
   "id": zod.int(),
   "number": zod.string(),
@@ -7042,7 +7323,14 @@ export const CreateInvoiceResponse = zod.object({
   "refunded": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', createInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 }))
 })
 
@@ -7113,6 +7401,12 @@ export const GetInvoiceResponse = zod.object({
   "number": zod.string(),
   "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
   "sale": zod.object({
   "id": zod.int(),
   "number": zod.string(),
@@ -7283,7 +7577,14 @@ export const GetInvoiceResponse = zod.object({
   "refunded": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', getInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 }))
 })
 
@@ -7373,6 +7674,12 @@ export const UpdateInvoiceResponse = zod.object({
   "number": zod.string(),
   "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
   "sale": zod.object({
   "id": zod.int(),
   "number": zod.string(),
@@ -7543,7 +7850,14 @@ export const UpdateInvoiceResponse = zod.object({
   "refunded": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', updateInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 }))
 })
 
@@ -7660,7 +7974,14 @@ export const CreateCreditNoteResponse = zod.object({
   "refunded": zod.stringFormat('decimal', createCreditNoteResponseRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', createCreditNoteResponseRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 })
 
 
@@ -7749,6 +8070,12 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "number": zod.string(),
   "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
   "sale": zod.object({
   "id": zod.int(),
   "number": zod.string(),
@@ -7919,7 +8246,14 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "refunded": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditNotesItemRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 }))
 })
 
@@ -7991,6 +8325,12 @@ export const IssueInvoiceResponse = zod.object({
   "number": zod.string(),
   "draft_number": zod.string(),
   "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir'),
+  "rebilled_from": zod.union([zod.object({
+  "credit_note_id": zod.int(),
+  "credit_note_number": zod.string(),
+  "invoice_id": zod.int(),
+  "invoice_number": zod.string()
+}).describe('The credit note an invoice bills again, and the original invoice it cancelled (D-287).'),zod.null()]),
   "sale": zod.object({
   "id": zod.int(),
   "number": zod.string(),
@@ -8161,7 +8501,14 @@ export const IssueInvoiceResponse = zod.object({
   "refunded": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemRefundOneRefundedRegExp),
   "left": zod.stringFormat('decimal', issueInvoiceResponseCreditNotesItemRefundOneLeftRegExp),
   "status": zod.enum(['to_refund', 'partial', 'refunded']).describe('* `to_refund` - to_refund\n* `partial` - partial\n* `refunded` - refunded')
-}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()])
+}).describe('A credit note\'s refund in short (D-284): planned, paid back, left and where it stands.'),zod.null()]),
+  "rebillable": zod.boolean(),
+  "rebills": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "draft_number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice made again with "Refacturer" (D-287): draft or issued, with its reference.'))
 }))
 })
 

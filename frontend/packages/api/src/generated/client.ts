@@ -2764,6 +2764,79 @@ export function useGetCreditNote<TData = Awaited<ReturnType<typeof getCreditNote
 
 
 
+export const getRebillCreditNoteUrl = (creditNoteId: number,) => {
+
+
+
+
+  return `/api/v1/credit-notes/${creditNoteId}/rebill`
+}
+
+/**
+ * "Refacturer" (D-287): a new draft invoice for the BLs of a fully credited invoice, with what was typed on
+ * the original, pointing back to this credit note. Only for a full credit note that took no goods back, while
+ * the BLs are on no live invoice. Owner or manager.
+ */
+export const rebillCreditNote = async (creditNoteId: number, options?: Parameters<typeof apiFetch>[1]): Promise<InvoiceDetail> => {
+
+  return apiFetch<InvoiceDetail>(getRebillCreditNoteUrl(creditNoteId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRebillCreditNoteMutationKey = () => ['rebillCreditNote'] as const;
+
+export const getRebillCreditNoteMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rebillCreditNote>>, TError,RebillCreditNoteMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rebillCreditNote>>, TError,RebillCreditNoteMutationVariables, TContext> => {
+
+const mutationKey = getRebillCreditNoteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rebillCreditNote>>, RebillCreditNoteMutationVariables> = (props) => {
+          const {creditNoteId} = props ?? {};
+
+          return  rebillCreditNote(creditNoteId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RebillCreditNoteMutationResult = NonNullable<Awaited<ReturnType<typeof rebillCreditNote>>>
+
+    export type RebillCreditNoteMutationError = unknown
+    export type RebillCreditNoteMutationVariables = {creditNoteId: number}
+
+    export const useRebillCreditNote = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rebillCreditNote>>, TError,RebillCreditNoteMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rebillCreditNote>>,
+        TError,
+        RebillCreditNoteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRebillCreditNoteMutationOptions(options), queryClient);
+    }
+
 export const getRecordUnpaidEffetUrl = (instrumentId: number,) => {
 
 

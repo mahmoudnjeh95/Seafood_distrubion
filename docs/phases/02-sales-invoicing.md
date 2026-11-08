@@ -194,3 +194,10 @@ _(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots befo
       (`POST /sales/{id}/billing`, owner and manager, audited); "offert" stays offert. Pill on the page and in the list.
 - [ ] Check on staging: an "Offert" BL of 5 kg owes 0 and its lot result shows the cost with no revenue; a "Non
       facturable" BL is paid in Nouveau règlement and never shows in Nouvelle facture.
+
+### P2-T18 · "Refacturer" a fully credited invoice (D-287, Perfaxis gap) · S
+- [x] "Refacturer" on the invoice page's credit note, for a full credit note that took no goods back, while its BLs are
+      on no live invoice: a new draft for the same BLs with the original's choices (VAT or not, rates, VAT amounts,
+      stamp, fees, withholding rate, notes) (`services.rebill_credit_note`, `POST /credit-notes/{id}/rebill`, audited).
+- [x] The new invoice shows "Refacturation de FA-… · avoir AV-…" (`Invoice.rebilled_from`); the credit note links it.
+- [ ] Check on staging: issue an invoice, full credit note "aucun mouvement de stock", Refacturer, correct, issue.

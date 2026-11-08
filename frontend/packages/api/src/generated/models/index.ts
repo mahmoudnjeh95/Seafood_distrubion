@@ -625,6 +625,8 @@ export * from './quoteRef';
 export * from './quoteRefuse';
 export * from './quoteStatusEnum';
 export * from './quoteWrite';
+export * from './rebilledFrom';
+export * from './rebillRef';
 export * from './receipt';
 export * from './receiptBatch';
 export * from './receiptChange';

@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-07 (BL non facturable / offert, D-286; next free decision D-287)_
+_Last updated: 2026-11-07 (Refacturer, D-287; next free decision D-288)_
 
 ## Where we are
 
@@ -8,7 +8,8 @@ _Last updated: 2026-11-07 (BL non facturable / offert, D-286; next free decision
   five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch
   `receipt-dispute`, migration purchasing 0023): "Contester" with a motif, no supplier invoice takes it until "Lever la
   contestation"; (2) **P2-T17 BL "non facturable" or "offert"** (branch `bl-billing`, migration sales 0034, D-286):
-  owed but never invoiced, or given away at 100 % discount; (3) "Refacturer" after an avoir; (4) attachments on documents (no Bureau d'ordre); (5) supplier price comparison
+  owed but never invoiced, or given away at 100 % discount; (3) **P2-T18 "Refacturer"** (branch `rebill-credit-note`,
+  migration sales 0035, D-287): a draft from a full credit note that took no goods back; (4) attachments on documents (no Bureau d'ordre); (5) supplier price comparison
   (demande de devis to several suppliers, offers, pick one, purchase order). Not wanted: Bureau d'ordre, exempt/export
   customers, internal purchase requests, foreign currency, services.
 
@@ -119,8 +120,8 @@ _Last updated: 2026-11-07 (BL non facturable / offert, D-286; next free decision
 
 ## Next step
 
-0. Perfaxis gaps: merge `receipt-dispute` (P1-T18, #325) then `bl-billing` (P2-T17) once green, after #324; then build
-   (3) Refacturer, (4) attachments, (5) supplier price comparison, one stacked PR each (D-287 onwards).
+0. Perfaxis gaps: merge in order once green, after #324: `receipt-dispute` (#325), `bl-billing` (#326),
+   `rebill-credit-note`; then build (4) attachments, (5) supplier price comparison, one stacked PR each (D-288 onwards).
 0. D-284: merge #323 first, then the PR from `credit-note-refunds` once CI is green (retarget it to main).
 0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
    BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.

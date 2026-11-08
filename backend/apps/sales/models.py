@@ -698,6 +698,10 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     # TTN / El Fatoora hook (D-016, Phase 8): nothing is sent yet; the reference TTN gives will land here.
     einvoice_status = models.CharField(max_length=20, choices=EInvoiceStatus.choices, default=EInvoiceStatus.NOT_SENT)
     einvoice_reference = models.CharField(max_length=100, blank=True)
+    # "Refacturer" (D-287): the full credit note this invoice bills again; its invoice is the original one.
+    rebilled_from = models.ForeignKey(
+        "CreditNote", null=True, blank=True, on_delete=models.PROTECT, related_name="rebills"
+    )
 
     class Meta:
         ordering = ["-issued_on", "-id"]
