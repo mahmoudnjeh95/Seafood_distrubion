@@ -1566,6 +1566,13 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
     return [*parts, amount - sum(parts, Decimal("0.000"))]
 
 
+def _revenue_of(line: SaleLine) -> Decimal:
+    """What a line earns, without VAT (D-293): the lot result, the partner's share and the reports count revenue
+    without VAT. A line sold with VAT keeps its amount without VAT (with prices including VAT, the VAT is taken
+    out); a line without VAT, or written before D-224, earns its amount as charged."""
+    return line.amount_excl_tax if line.vat_rate is not None else line.amount
+
+
 def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_since: bool = False) -> None:
     """Take the line's kilos out of the sale's place and keep which batches went.
 
@@ -1588,7 +1595,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_sin
         picks=[(pick.batch_id, pick.quantity) for pick in line.picks.order_by("id")],
         held_since_then=stock_held_since,
     )
-    revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
+    revenues = _revenue_parts(_revenue_of(line), [movement.quantity for movement in movements])
     rows = [
         SaleLineBatch(
             organization_id=sale.organization_id,
@@ -2226,25 +2233,30 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
 
 def _default_rate(product: "Product", version: FinanceSettings) -> Decimal:
     """The rate a line takes when none is typed: the product's own (0 = exempt), else the settings'."""
-    own: Decimal | None = product.vat_rate
-    return own if own is not None else version.vat_rate
+    return selectors.product_vat_rate(product, version)
+
+
+def _proposed_rates(sale_lines: Sequence[SaleLine], version: FinanceSettings) -> list[Decimal]:
+    """The VAT rate proposed for each sale line on an invoice (`selectors.proposed_vat_rates`, D-291)."""
+    return selectors.proposed_vat_rates(sale_lines, version)
 
 
 def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) -> None:
     """Set every amount of a draft from its lines, the settings `version` and the typed values, and store
     which values were typed (`*_overridden`). Raises a ValidationError for a typed VAT amount above what
     its rate holds."""
-    lines = list(invoice.lines.select_related("product").order_by("id"))
+    lines = list(invoice.lines.select_related("product", "sale_line__product").order_by("id"))
     rates: list[Decimal] = []
     rate_typed: list[bool] = []
-    for line, typed in zip(lines, overrides.vat_rates, strict=True):
-        default = _default_rate(line.product, version)
+    proposed = _proposed_rates([line.sale_line for line in lines], version)
+    for typed, default in zip(overrides.vat_rates, proposed, strict=True):
         rates.append(typed if typed is not None else default)
         rate_typed.append(typed is not None and typed != default)
     stamp = overrides.fiscal_stamp if overrides.fiscal_stamp is not None else version.fiscal_stamp
     withholding_rate = (
         overrides.withholding_rate if overrides.withholding_rate is not None else version.withholding_rate
     )
+    withholds = invoice.customer.withholding_subject
     amounts = invoicing.compute(
         [
             invoicing.LineInput(amount=line.amount, vat_rate=rate, unit_price=line.unit_price)
@@ -2253,7 +2265,8 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         apply_vat=overrides.apply_vat,
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=stamp,
-        withholding_rate=withholding_rate,
+        # A customer who does not withhold (D-292) never has a withholding on their invoices.
+        withholding_rate=withholding_rate if withholds else None,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
     )
@@ -2309,7 +2322,8 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_incl_tax)
+    goods_incl_tax = amounts.total_excl_tax + amounts.vat_total
+    invoice.withholding_applied = withholds and invoicing.withholding_applies(goods_incl_tax)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
@@ -2407,9 +2421,9 @@ def _invoiceable_now(sale: Sale) -> bool:
 
 def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> InvoiceEstimate:
     """The invoice the given BL would make with the settings in force and the proposed choices (VAT only for
-    goods bought with VAT, D-246; each product's rate; one stamp; the withholding from 1 000 DT): the same
-    arithmetic as `create_invoice` (`invoicing.compute`), nothing saved. BL already invoiced or not invoiceable
-    are left out."""
+    goods bought with VAT, D-246; each line's rate as its BL showed it, D-291; one stamp; the withholding from
+    1 000 DT without the stamp and fees): the same arithmetic as `create_invoice` (`invoicing.compute`),
+    nothing saved. BL already invoiced or not invoiceable are left out."""
     open_sales = [sale for sale in sales if _invoiceable_now(sale)]
     if not open_sales:
         return InvoiceEstimate(ZERO, ZERO, [], ZERO, ZERO, ZERO, ZERO, {})
@@ -2417,15 +2431,13 @@ def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> In
     lines = [line for sale in open_sales for line in sale.lines.select_related("product").order_by("id")]
     amounts = invoicing.compute(
         [
-            invoicing.LineInput(
-                amount=line.amount, vat_rate=_default_rate(line.product, version), unit_price=line.unit_price
-            )
-            for line in lines
+            invoicing.LineInput(amount=line.amount, vat_rate=rate, unit_price=line.unit_price)
+            for line, rate in zip(lines, _proposed_rates(lines, version), strict=True)
         ],
         apply_vat=bool(_vat_product_names(open_sales)),
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=version.fiscal_stamp,
-        withholding_rate=version.withholding_rate,
+        withholding_rate=version.withholding_rate if open_sales[0].customer.withholding_subject else None,
     )
     held = [sum((line.amount for line in sale.lines.all()), ZERO) for sale in open_sales]
     extra = amounts.net_to_pay - sum(held, ZERO)

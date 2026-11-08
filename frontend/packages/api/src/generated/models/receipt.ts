@@ -27,6 +27,8 @@ export interface Receipt {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly invoiced_total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly invoiced_vat: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly accepted_total: string;
   readonly invoice: InvoiceRef | null;
   readonly created_by: string;

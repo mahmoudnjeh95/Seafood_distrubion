@@ -4010,6 +4010,55 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   owner login is created when missing, its password printed once. The command refuses unless `FRUTTI_TRAINING=true`,
   and refuses on a database named `frutti`. No mailbox in the copy. The nightly backup covers `frutti` only.
 
+**D-291 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T20)** · accepted, provisional parts marked · 2026-11-08
+- **VAT per line (fixes a bug):** an invoice used to put each product's rate (19 %) on **every** line as soon as one BL
+  line was bought with VAT, so the goods not bought with VAT were taxed and the invoice disagreed with its BL (D-224).
+  Now, when a line of the invoice carries a VAT rate snapshotted on its BL, each line proposes the rate its BL showed,
+  and a line its BL showed without VAT proposes 0 % (exempt). When no line carries one (a BL from before D-224, or VAT
+  ticked by hand), each product's rate is proposed as before. A rate typed on the draft still wins.
+  The rule is `sales.selectors.proposed_vat_rates`; `create_invoice`, `estimate_invoice` and the line's
+  `default_vat_rate` in the API use it, so the BL, the estimate and the invoice agree. The BL's rate is the one of the
+  sale's day, so a rate changed since then no longer moves an invoice of an older BL.
+- **Withholding threshold (changes D-250's provisional base):** an invoice carries the retenue à la source when its
+  total without VAT + VAT reaches 1 000 DT, the withholding's own base; the stamp and the fees no longer take it over.
+- Issued invoices keep what they had (D-057); a draft takes both rules when it is next saved.
+- Provisional: VAT per product (fresh fishing products are exempt in the VAT code) and a per-customer "subject to
+  withholding" flag are the next steps of the review (`docs/guides/accounting-review-2026-11-08.md`); the accountant confirms.
+
+**D-292 · A customer is subject to the withholding or not (accounting review B4, P2-T20)** · provisional · 2026-11-08
+- `Customer.withholding_subject` ("Soumis à la retenue à la source" on the customer form and card, migration
+  `partners 0006`). Off: the customer's invoices never carry a retenue à la source, whatever the rate in the settings or
+  typed on the draft; the net to pay is the total with VAT and stamp, and no certificate is awaited.
+- On: the D-250/D-291 rule (1 000 DT without VAT + VAT and more, at the rate in force).
+- Provisional: **on by default** for every customer, existing and new, so nothing changes until the office turns it off
+  for the customers who do not withhold (individuals, forfaitaires). The owner may prefer off by default; the accountant
+  confirms who withholds.
+- Issued invoices keep what they had (D-057); a draft takes the flag when it is next saved.
+
+**D-293 · A lot earns its sales without VAT, also with prices including VAT (accounting review B5, P2-T20)** · accepted · 2026-11-08
+- A sale line's revenue per lot (`SaleLineBatch.revenue_amount`) is now the line's amount **without VAT**
+  (`SaleLine.amount_excl_tax`) when the line is sold with VAT (D-224 snapshot); before, it was the amount as charged,
+  which holds the VAT when prices include VAT, so the lot result, the partner's share and the sales reports counted
+  VAT collected for the State as income. Credit notes already gave back amounts without VAT.
+- A line without VAT, and a line written before D-224 (no snapshot), earns its amount as charged, as before.
+- Sales confirmed before this change keep their rows (posted rows are immutable). With prices without VAT, the
+  default, nothing changes: the amount without VAT is the amount.
+
+**D-294 · A supplier invoice adds the VAT of receipts bought with VAT and the supplier's stamp (accounting review B1, P2-T20)** · accepted, provisional parts marked · 2026-11-08
+- Before, a supplier invoice owed only kg × cost (costs are without VAT), even for a receipt marked "Achat avec TVA":
+  the payable, the supplier balance and the payments were short of the VAT and the droit de timbre.
+- `SupplierInvoice` now keeps `total_excl_tax` (the receipts' invoiced amounts), `vat_total` and `fiscal_stamp`;
+  `total`, what is owed and paid, is the three together (migration `purchasing 0025`; invoices made before keep their
+  total, as their amount without VAT). Each link keeps its receipt's `vat_amount`; a receipt exposes `invoiced_vat`.
+- VAT of a receipt bought with VAT (`purchasing.selectors.receipt_vat`): its lines grouped by their product's rate
+  (the product's own, else the finance settings' on the receipt day), each rate rounded once. A receipt without VAT
+  carries none. The lot cost stays without VAT: the VAT is deductible, not a cost.
+- Stamp: typed on the invoice form as printed on the supplier's paper; empty, the settings' stamp when a receipt is
+  bought with VAT, else none (a fisherman at the port issues no invoice). `fiscal_stamp_overridden` says it was typed.
+- Provisional: no typed VAT amount yet (a supplier's VAT that differs by a millime is matched by the stamp or a
+  note); the supplier's "uninvoiced" total on their account is still without VAT. The deductible VAT is the base of
+  the coming VAT return screen (review, "Déclarations du mois").
+
 **D-295 · Phase 10 Flotte & entretien; the compteur typed by the driver when sending the day (P10-T01)** · accepted (owner request and answers 2026-11-08) · 2026-11-08
 - New module, new app `apps.maintenance` (uses `fleet`, `notifications`, later `hr` and `expenses` through their services and selectors). Plan and the owner's seven answers in `docs/phases/10-fleet-maintenance.md`: compteur at the end of the day with an optional photo; maintenance every X km or Y months, every interval a setting; monthly frigo service for the truck units and the cold rooms, no temperatures; truck and person papers (no carte grise, no CIN); an expired assurance or visite technique blocks the truck, the owner may allow one day with a reason; costs are general overhead, not on the lots; owner and manager are warned.
 - No GPS for the km: `OdometerReading` (append-only) holds what the driver types on the "Clôture" screen, recorded just before the send (`POST /my-day/odometer`, multipart, optional photo kept as WebP like a loss photo). Asked once a day; asked again when a new load reopened the day.

@@ -210,3 +210,10 @@ _(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots befo
       office reads, owner and manager add and remove; audited.
 - [x] "Documents associés" card on the quote, BL, invoice, purchase order, goods receipt and supplier invoice pages.
 - [ ] Check on staging: join a phone photo and a PDF to a goods receipt, open both, remove one.
+
+### P2-T20 · Accounting review fixes: invoice VAT per line, withholding threshold (D-291) · S
+- [x] An invoice's lines propose the VAT rate their BL showed; lines the BL showed without VAT are exempt (B2).
+- [x] The withholding threshold of 1 000 DT is on the total without VAT + VAT, stamp and fees left out (B3).
+- [x] Per-customer "soumis à retenue à la source" flag (B4, D-292): only the customers who withhold get it.
+- [x] Lot revenue without VAT when prices include VAT (B5, D-293).
+- [x] Supplier invoice VAT and stamp (B1, purchasing, D-294): VAT rate on the receipt, the payable with VAT and stamp.

@@ -33,5 +33,6 @@ export interface PatchedCustomerWrite {
      * @maximum 365
      */
   payment_terms_days?: number;
+  withholding_subject?: boolean;
   contacts?: CustomerContact[];
 }

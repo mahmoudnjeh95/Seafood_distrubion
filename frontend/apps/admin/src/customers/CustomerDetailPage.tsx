@@ -130,6 +130,9 @@ export function CustomerDetailPage() {
                   ? t("admin.customers.paymentOnDelivery")
                   : t("admin.customers.paymentTermsValue", { count: data.payment_terms_days })}
               </Detail>
+              <Detail label={t("admin.customers.form.withholdingSubject")}>
+                {data.withholding_subject ? t("admin.customers.withholdingYes") : t("admin.customers.withholdingNo")}
+              </Detail>
             </dl>
           </Card>
 

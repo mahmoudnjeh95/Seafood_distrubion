@@ -680,7 +680,11 @@ class InvoiceView(OfficeView):
 
     def answer(self, invoice_id: int, *, status_code: int = status.HTTP_200_OK) -> Response:
         invoice = self.invoice(invoice_id)
-        context = {"credited": selectors.credited_by_line(invoice), "gap_lots": self.gap_lots(invoice)}
+        context = {
+            "credited": selectors.credited_by_line(invoice),
+            "gap_lots": self.gap_lots(invoice),
+            "proposed_rates": selectors.proposed_rates_of(invoice),
+        }
         return Response(InvoiceDetailSerializer(invoice, context=context).data, status=status_code)
 
 

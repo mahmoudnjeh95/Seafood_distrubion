@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295; training copy D-290 #330; Perfaxis gaps and client bug list #323–#329; next free decision D-296)_
+_Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-296)_
 
 ## Where we are
 
@@ -10,6 +10,16 @@ _Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295; training 
   day; lower than the last reading is refused; a big jump is kept with a warning and the office is notified; the office
   sees and corrects it on the new menu entry **Flotte & entretien** (`/flotte`), with the setting "Km maximum par jour".
   Check on staging: send a day with 120 000 km, the next day 119 000 is refused, 130 000 is flagged; correct it on /flotte.
+- **P2-T20 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`, merged 2026-11-08 (#331)):** review in
+  `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
+  an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
+  and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
+  bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
+  B4 (D-292, migration `partners 0006`): "Soumis à la retenue à la source" on the customer (on by default); off, the
+  customer's invoices carry none. Check: untick it on a customer, invoice 1 200 DT, net to pay = TTC.
+  B5 (D-293): a lot's revenue is without VAT also when prices include VAT.
+  B1 (D-294, migration `purchasing 0025`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
+  Check: a receipt "Achat avec TVA" of 1 000 DT, its invoice shows TVA 190, timbre 1, total 1 191 to pay.
 - **D-290 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, merged 2026-11-08 (#330)):** same stack on
   `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, only the database apart (`frutti_training`, services
   `training-backend`/`training-worker` in `compose.staging.yml`), "Formation" tag on screen only, papers identical to
@@ -137,14 +147,10 @@ _Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295; training 
 
 0. P10-T01 (D-295): merged (#332). Next **P10-T02** (Paramètres
    entretien: maintenance types, plans per truck, "Entretien effectué", status from the readings).
-0. Perfaxis gaps: merge in order once green, after #324: `receipt-dispute` (#325), `bl-billing` (#326),
-   `rebill-credit-note` (#327), `document-attachments` (#328), `supplier-price-requests`. Each needs a staging check
-   (see the phase files P1-T18, P1-T19, P2-T17 to P2-T19).
-0. D-284: merge #323 first, then the PR from `credit-note-refunds` once CI is green (retarget it to main).
-0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
-   BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.
-   Then ask the owner about bug 11 (stock out at delivery for direct BL), bugs 5/6 (refund flow) and bug 4's columns.
-
+0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
+   owner or the accountant; then the "Déclarations du mois" screen); the accountant answers the "à confirmer" points of the review.
+0. Perfaxis gaps and the client bug list: merged 2026-11-08 (#323–#329). Staging checks: the phase files P1-T18,
+   P1-T19, P2-T16 to P2-T19; ask the owner about bug 11 (stock out at delivery for direct BL) and bug 4's columns.
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.
