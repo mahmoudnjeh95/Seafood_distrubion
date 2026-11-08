@@ -3044,10 +3044,13 @@ def rebill_credit_note(*, note: CreditNote, actor: User | None) -> Invoice:
     overrides = _stored_overrides(original)
     rates = {line.sale_line_id: line.vat_rate if line.vat_rate_overridden else None for line in original.lines.all()}
     lines = [line for sale in sales for line in sale.lines.order_by("id")]
+    vat_amounts: dict[Number, Number | None] = {}
+    for rate, amount in overrides.vat_amounts.items():
+        vat_amounts[rate] = amount
     choices: InvoiceChoices = {
         "apply_vat": overrides.apply_vat,
         "vat_rates": [rates.get(line.pk) for line in lines],
-        "vat_amounts": dict(overrides.vat_amounts),
+        "vat_amounts": vat_amounts,
         "fiscal_stamp": overrides.fiscal_stamp,
         "fees": overrides.fees,
         "withholding_rate": overrides.withholding_rate,

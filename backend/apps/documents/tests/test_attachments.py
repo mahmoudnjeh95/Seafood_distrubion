@@ -137,4 +137,4 @@ def test_the_office_attaches_reads_and_removes_through_the_api(media, manager, o
 
     assert client.delete(reverse("attachment-detail", args=[body["id"]])).status_code == 204
     assert client.get(body["file_url"]).status_code == 404
-    assert client.get(reverse("attachment-list"), {"kind": "goods_receipt", "object_id": 999999}).status_code == 404
+    assert client.get(reverse("attachment-list"), {"kind": "goods_receipt", "object_id": "999999"}).status_code == 404

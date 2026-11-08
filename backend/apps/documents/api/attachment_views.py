@@ -4,6 +4,7 @@ from typing import Any
 
 from django.http import FileResponse, Http404
 from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_field
 from rest_framework import serializers, status
 from rest_framework.parsers import MultiPartParser
@@ -56,11 +57,16 @@ class AttachmentFilterSerializer(serializers.Serializer[Any]):
     object_id = serializers.IntegerField(min_value=1)
 
 
+@extend_schema_field(OpenApiTypes.BINARY)
+class UploadedFileField(serializers.FileField):
+    """A file sent in a multipart form: a Blob in the generated client, not a URL."""
+
+
 class AttachmentWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=AttachmentKind.choices)
     object_id = serializers.IntegerField(min_value=1)
     # A PDF, or a photo (JPEG, PNG, WebP).
-    file = serializers.FileField()
+    file = UploadedFileField()
     note = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
 
 
