@@ -4,11 +4,19 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ListSalesBilling } from './listSalesBilling';
 import type { ListSalesDeliveryStatus } from './listSalesDeliveryStatus';
 import type { ListSalesOpening } from './listSalesOpening';
 import type { ListSalesStatus } from './listSalesStatus';
 
 export type ListSalesParams = {
+/**
+ * * `invoice` - Facturable
+ * * `no_invoice` - Non facturable
+ * * `free` - Offert
+ * @minLength 1
+ */
+billing?: ListSalesBilling;
 /**
  * @minimum 1
  */

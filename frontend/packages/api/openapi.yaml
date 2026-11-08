@@ -8827,6 +8827,19 @@ paths:
         sale (inclusive) or `search` (number, customer). A driver sees only their own sales, without costs.
       parameters:
       - in: query
+        name: billing
+        schema:
+          enum:
+          - invoice
+          - no_invoice
+          - free
+          type: string
+          minLength: 1
+        description: |-
+          * `invoice` - Facturable
+          * `no_invoice` - Non facturable
+          * `free` - Offert
+      - in: query
         name: customer
         schema:
           type: integer
@@ -9021,6 +9034,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/sales/{sale_id}/billing:
+    post:
+      operationId: setSaleBilling
+      description: |-
+        Mark a BL "facturable" or "non facturable" (owed, never invoiced), also once confirmed (D-286). Refused
+        while it is on an invoice, for an "offert" BL and for the walk-in customer. Owner or manager.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleBillingWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleBillingWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleBillingWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/sales/{sale_id}/cancel:
     post:
       operationId: cancelSale
@@ -9098,6 +9146,19 @@ paths:
       description: The sales of the same filters and sort as the list, every row,
         as an Excel file.
       parameters:
+      - in: query
+        name: billing
+        schema:
+          enum:
+          - invoice
+          - no_invoice
+          - free
+          type: string
+          minLength: 1
+        description: |-
+          * `invoice` - Facturable
+          * `no_invoice` - Non facturable
+          * `free` - Offert
       - in: query
         name: customer
         schema:
@@ -13324,6 +13385,16 @@ components:
       - id
       - name
       - reference
+    BillingEnum:
+      enum:
+      - invoice
+      - no_invoice
+      - free
+      type: string
+      description: |-
+        * `invoice` - Facturable
+        * `no_invoice` - Non facturable
+        * `free` - Offert
     BlankEnum:
       enum:
       - ''
@@ -28683,6 +28754,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/SaleStatusEnum'
           readOnly: true
+        billing:
+          allOf:
+          - $ref: '#/components/schemas/BillingEnum'
+          readOnly: true
         customer:
           allOf:
           - $ref: '#/components/schemas/SaleCustomer'
@@ -28868,6 +28943,7 @@ components:
       - amount_due
       - amount_excl_tax
       - amount_paid
+      - billing
       - cancel_reason
       - cancelled_at
       - cancelled_by
@@ -28922,6 +28998,13 @@ components:
       required:
       - id
       - number
+    SaleBillingWrite:
+      type: object
+      properties:
+        billing:
+          $ref: '#/components/schemas/BillingEnum'
+      required:
+      - billing
     SaleCancel:
       type: object
       properties:
@@ -28997,6 +29080,10 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/SaleStatusEnum'
+          readOnly: true
+        billing:
+          allOf:
+          - $ref: '#/components/schemas/BillingEnum'
           readOnly: true
         customer:
           allOf:
@@ -29203,6 +29290,7 @@ components:
       - amount_due
       - amount_excl_tax
       - amount_paid
+      - billing
       - boxes
       - cancel_reason
       - cancelled_at
@@ -29683,6 +29771,11 @@ components:
           type: string
           nullable: true
           maxLength: 255
+        billing:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/BillingEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - lines
       - location

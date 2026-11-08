@@ -267,6 +267,11 @@ export function SalesPage() {
                         {t(`admin.sales.statuses.${sale.status}`)}
                       </Pill>
                     )}
+                    {sale.billing !== "invoice" && (
+                      <Pill className="ms-2" tone={sale.billing === "free" ? "warn" : "neutral"}>
+                        {t(`admin.sales.billing.${sale.billing}`)}
+                      </Pill>
+                    )}
                   </Td>
                   <Td className="num whitespace-nowrap">{formatDateTime(sale.sold_at)}</Td>
                   <Td>

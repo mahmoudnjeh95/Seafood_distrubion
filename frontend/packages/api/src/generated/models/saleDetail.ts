@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { BillingEnum } from './billingEnum';
 import type { QuoteRef } from './quoteRef';
 import type { SaleCustomer } from './saleCustomer';
 import type { SaleDetailBoxes } from './saleDetailBoxes';
@@ -20,6 +21,7 @@ export interface SaleDetail {
   readonly id: number;
   readonly number: string;
   readonly status: SaleStatusEnum;
+  readonly billing: BillingEnum;
   readonly customer: SaleCustomer;
   readonly location: SaleLocation;
   readonly sold_at: string;

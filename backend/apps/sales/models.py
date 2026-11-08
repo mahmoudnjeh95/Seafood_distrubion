@@ -171,6 +171,18 @@ class DeliveryStatus(models.TextChoices):
     CANCELLED = "cancelled", _("Non livré")
 
 
+class SaleBilling(models.TextChoices):
+    """Whether a BL is invoiced (D-286, the Perfaxis "non facturable" box, both kinds the owner asked for)."""
+
+    # The usual BL: it goes on an invoice.
+    INVOICE = "invoice", _("Facturable")
+    # Owed and paid like any BL, but never invoiced ("sans facture").
+    NO_INVOICE = "no_invoice", _("Non facturable")
+    # Given away (a sample, a gift, a replacement): every line at 100 % discount, nothing owed, never invoiced. The lot
+    # carries the cost with no revenue.
+    FREE = "free", _("Offert")
+
+
 class SalePaymentMethod(models.TextChoices):
     """How the customer paid at the sale. Full customer payments are P2-T06's `CustomerPayment`."""
 
@@ -244,6 +256,8 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     transfer = models.ForeignKey(
         "inventory.Transfer", null=True, blank=True, on_delete=models.PROTECT, related_name="delivery_notes"
     )
+    # Invoiced, owed but never invoiced, or given away (D-286).
+    billing = models.CharField(max_length=20, choices=SaleBilling.choices, default=SaleBilling.INVOICE)
     # Totals computed by the services from the lines, as on quotes.
     subtotal = MoneyField(default=Decimal("0.000"))
     discount_total = MoneyField(default=Decimal("0.000"))

@@ -366,6 +366,7 @@ import type {
   SalaryPaymentAllocate,
   SalaryPaymentWrite,
   SalaryRecord,
+  SaleBillingWrite,
   SaleCancel,
   SaleConfirm,
   SaleDetail,
@@ -28465,6 +28466,93 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateSaleMutationOptions(options), queryClient);
+    }
+
+export const getSetSaleBillingUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/billing`
+}
+
+/**
+ * Mark a BL "facturable" or "non facturable" (owed, never invoiced), also once confirmed (D-286). Refused
+ * while it is on an invoice, for an "offert" BL and for the walk-in customer. Owner or manager.
+ */
+export const setSaleBilling = async (saleId: number,
+    saleBillingWrite: SaleBillingWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getSetSaleBillingUrl(saleId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saleBillingWrite)
+  }
+);}
+
+
+
+
+
+export const getSetSaleBillingMutationKey = () => ['setSaleBilling'] as const;
+
+export const getSetSaleBillingMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSaleBilling>>, TError,SetSaleBillingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setSaleBilling>>, TError,SetSaleBillingMutationVariables, TContext> => {
+
+const mutationKey = getSetSaleBillingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setSaleBilling>>, SetSaleBillingMutationVariables> = (props) => {
+          const {saleId,data} = props ?? {};
+
+          return  setSaleBilling(saleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetSaleBillingMutationResult = NonNullable<Awaited<ReturnType<typeof setSaleBilling>>>
+    export type SetSaleBillingMutationBody = SaleBillingWrite
+    export type SetSaleBillingMutationError = unknown
+    export type SetSaleBillingMutationVariables = {saleId: number;data: SaleBillingWrite}
+
+    export const useSetSaleBilling = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setSaleBilling>>, TError,SetSaleBillingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setSaleBilling>>,
+        TError,
+        SetSaleBillingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetSaleBillingMutationOptions(options), queryClient);
     }
 
 export const getCancelSaleUrl = (saleId: number,) => {

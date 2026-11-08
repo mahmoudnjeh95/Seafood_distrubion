@@ -29,6 +29,7 @@ from apps.sales.models import (
     QuoteStatus,
     RefundMethod,
     Sale,
+    SaleBilling,
     SaleLine,
     SaleLineBatch,
     SalePaymentMethod,
@@ -369,6 +370,8 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     # The BL of a truck load (D-178): to deliver, delivered, delivered in part, or not delivered. Empty otherwise.
     delivery_status = serializers.ChoiceField(choices=DeliveryStatus.choices, read_only=True, allow_blank=True)
     delivered_by = serializers.SerializerMethodField()
+    # Invoiced, "non facturable" (owed, never invoiced) or "offert" (given away, nothing owed) (D-286).
+    billing = serializers.ChoiceField(choices=SaleBilling.choices, read_only=True)
 
     class Meta:
         model = Sale
@@ -376,6 +379,7 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "id",
             "number",
             "status",
+            "billing",
             "customer",
             "location",
             "sold_at",
@@ -545,6 +549,14 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     delivery_address = serializers.CharField(
         required=False, allow_blank=True, allow_null=True, default=None, max_length=255
     )
+    # Invoiced (default), "non facturable" or "offert" (every line at 100 % discount) (D-286). Left out: "invoice" on a
+    # new sale, unchanged on a draft. Ignored from a driver's phone.
+    billing = serializers.ChoiceField(choices=SaleBilling.choices, required=False, allow_null=True, default=None)
+
+
+class SaleBillingWriteSerializer(serializers.Serializer[Any]):
+    # Only "invoice" or "no_invoice": "offert" changes what is owed and is chosen on the draft.
+    billing = serializers.ChoiceField(choices=SaleBilling.choices)
 
 
 class QuoteDeliveryLineSerializer(serializers.Serializer[Any]):
@@ -613,6 +625,8 @@ class SaleFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+    # Only one kind of BL: invoiced, "non facturable" or "offert" (D-286).
+    billing = serializers.ChoiceField(choices=SaleBilling.choices, required=False)
 
 
 class BatchSaleRowSerializer(serializers.Serializer[Any]):

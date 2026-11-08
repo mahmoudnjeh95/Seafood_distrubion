@@ -1,4 +1,4 @@
-import { ApiError, cancelSale, confirmSale, createInvoice, useGetSale } from "@frutti/api";
+import { ApiError, cancelSale, confirmSale, createInvoice, setSaleBilling, useGetSale } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import {
@@ -117,6 +117,20 @@ export function SaleDetailPage() {
     },
     onError: onFailure,
   });
+  // "Non facturable" or back to "facturable", also once confirmed, while on no invoice (D-286).
+  const billing = useMutation({
+    mutationFn: (value: "invoice" | "no_invoice") => setSaleBilling(id, { billing: value }),
+    onSuccess: async (saved) => {
+      toast.success(
+        t("admin.sales.billing.changed", {
+          number: saved.number,
+          billing: t(`admin.sales.billing.${saved.billing}`),
+        }),
+      );
+      await refreshAfterSale(queryClient);
+    },
+    onError: onFailure,
+  });
   const cancel = useMutation({
     mutationFn: () => cancelSale(id, { reason: reason.trim() }),
     onSuccess: async (saved) => {
@@ -153,7 +167,10 @@ export function SaleDetailPage() {
   // A customer's opening balance (OUV) is not a BL (D-283): its own page, without delivery, invoice or margin.
   if (data.is_opening) return <OpeningBalanceDetail sale={data} />;
   const canWrite = canSell(session);
-  const busy = confirm.isPending || cancel.isPending || invoice.isPending || validateAndPrint.isPending;
+  const busy =
+    confirm.isPending || cancel.isPending || invoice.isPending || validateAndPrint.isPending || billing.isPending;
+  const switchable =
+    canWrite && data.status !== "cancelled" && !data.invoice && data.billing !== "free" && !data.customer.is_walk_in;
   const hasDiscount = !isZero(data.discount_total);
   const showCosts = data.cost_total !== null;
   const fromLoad = data.transfer !== null;
@@ -173,6 +190,9 @@ export function SaleDetailPage() {
           <Pill tone={DELIVERY_TONES[delivery]}>{t(`admin.sales.deliveryStatuses.${delivery}`)}</Pill>
         ) : (
           <Pill tone={STATUS_TONES[data.status]}>{t(`admin.sales.statuses.${data.status}`)}</Pill>
+        )}
+        {data.billing !== "invoice" && (
+          <Pill tone={data.billing === "free" ? "warn" : "neutral"}>{t(`admin.sales.billing.${data.billing}`)}</Pill>
         )}
         {data.status === "draft" && fromLoad && (
           <PdfButton
@@ -210,7 +230,12 @@ export function SaleDetailPage() {
         {data.confirmed_at && (
           <PdfButton kind="delivery_note" id={data.id} label={t("admin.sales.detail.deliveryNote")} />
         )}
-        {canWrite && data.status === "confirmed" && !data.invoice && (
+        {switchable && (
+          <Button disabled={busy} onClick={() => billing.mutate(data.billing === "invoice" ? "no_invoice" : "invoice")}>
+            {t(data.billing === "invoice" ? "admin.sales.billing.changeNo" : "admin.sales.billing.change")}
+          </Button>
+        )}
+        {canWrite && data.status === "confirmed" && !data.invoice && data.billing === "invoice" && (
           <Button variant="primary" disabled={busy} onClick={() => invoice.mutate()}>
             <Icon name="receipt" />
             {t("admin.sales.detail.invoice")}

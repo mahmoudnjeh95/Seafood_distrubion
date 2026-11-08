@@ -1,5 +1,6 @@
 import {
   ApiError,
+  type BillingEnum,
   createSale,
   type SaleDetail,
   type SaleWrite,
@@ -106,6 +107,8 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   const [notes, setNotes] = useState(draft?.notes ?? "");
   // Where this delivery goes when it is not the client's own address: for this BL only (D-160).
   const [deliveryAddress, setDeliveryAddress] = useState(draft?.delivery_address ?? "");
+  // Facturable, non facturable (owed, never invoiced) or offert (given away, 100 % discount) (D-286).
+  const [billing, setBilling] = useState<BillingEnum>(draft?.billing ?? "invoice");
   const [lines, setLines] = useState<Line[]>(() =>
     withSpare(
       (draft?.lines ?? []).map((line) =>
@@ -190,19 +193,23 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
   // Rows whose price after the discount is under the product's minimum (D-163): the owner and the manager may
   // accept them with a reason, the others must correct them (D-193).
   const canApprove = session.role === "owner" || session.role === "manager";
-  const belowCount = filled(lines).filter((line) =>
-    netUnderMinimum(
-      line,
-      priceOf(line),
-      (products.data ?? []).find((product) => String(product.id) === line.product)?.min_price ?? null,
-    ),
-  ).length;
+  // A gift is below every minimum on purpose: no reason asked (D-286).
+  const free = billing === "free" && customer !== WALK_IN;
+  const belowCount = free
+    ? 0
+    : filled(lines).filter((line) =>
+        netUnderMinimum(
+          line,
+          priceOf(line),
+          (products.data ?? []).find((product) => String(product.id) === line.product)?.min_price ?? null,
+        ),
+      ).length;
 
   // Browser-side preview of the server's amounts: gross, discount, net per line.
   const priced = lines.flatMap((line) => amountsOf(line, priceOf(line)) ?? []);
   const subtotal = sum(priced.map((preview) => preview.gross));
   const discountTotal = sum(priced.map((preview) => preview.discount));
-  const totalExclTax = subtract(subtotal, discountTotal);
+  const totalExclTax = free ? "0.000" : subtract(subtotal, discountTotal);
 
   function submit(confirmNow: boolean) {
     const found: Errors = {};
@@ -262,6 +269,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
       sold_at: momentOf(soldAt),
       notes: notes.trim(),
       delivery_address: deliveryAddress.trim(),
+      billing: customer === WALK_IN ? "invoice" : billing,
       lines: payloadLines,
       confirm_now: confirmNow,
       below_minimum_reason: belowCount > 0 && canApprove ? belowReason.trim() : "",
@@ -339,6 +347,18 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
               {t("admin.sales.form.soldAtHint")}
             </p>
           </Field>
+          {customer !== WALK_IN &&
+            select(
+              "billing",
+              t("admin.sales.billing.label"),
+              billing,
+              (value) => setBilling(value as BillingEnum),
+              (["invoice", "no_invoice", "free"] as const).map((value) => ({
+                value,
+                label: t(`admin.sales.billing.${value}`),
+              })),
+            )}
+          {free && <p className="col-span-full text-[0.85rem] text-ink-2">{t("admin.sales.billing.freeHint")}</p>}
         </Card>
 
         <Card className="flex flex-col gap-3">

@@ -74,6 +74,7 @@ from .serializers import (
     QuoteWriteSerializer,
     RefundFilterSerializer,
     RefundPaymentWriteSerializer,
+    SaleBillingWriteSerializer,
     SaleCancelSerializer,
     SaleConfirmSerializer,
     SaleDetailSerializer,
@@ -393,6 +394,8 @@ class SaleView(OfficeView):
             "boxes": data["boxes"],
             "delivery_address": data["delivery_address"],
             "below_minimum_reason": data["below_minimum_reason"] if may_approve_below_minimum(self.membership) else "",
+            # The phone always sells to invoice (D-286): "non facturable" and "offert" are the office's choice.
+            **({} if self.is_driver or data["billing"] is None else {"billing": data["billing"]}),
         }
 
     def may_approve_credit(self, asked: bool) -> bool:
@@ -429,6 +432,7 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             uninvoiced=filters.validated_data["uninvoiced"],
             delivery_status=filters.validated_data.get("delivery_status"),
             opening=filters.validated_data["opening"],
+            billing=filters.validated_data.get("billing"),
             created_by_id=self.membership.user_id if self.is_driver else None,
             load_location_id=self.driver_truck_location(),
             date_from=filters.validated_data.get("date_from"),
@@ -493,6 +497,21 @@ class SaleDetailView(SaleView):
         data = self.sale_fields(serializer.validated_data)
         services.update_sale(sale=sale, actor=self.membership.user, **data)
         return self.answer(sale.pk)
+
+
+class SaleBillingView(SaleView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(operation_id="setSaleBilling", request=SaleBillingWriteSerializer, responses=SaleDetailSerializer)
+    def post(self, request: Request, sale_id: int) -> Response:
+        """Mark a BL "facturable" or "non facturable" (owed, never invoiced), also once confirmed (D-286). Refused
+        while it is on an invoice, for an "offert" BL and for the walk-in customer. Owner or manager."""
+        serializer = SaleBillingWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_sale_billing(
+            sale=self.sale(sale_id), actor=self.membership.user, billing=serializer.validated_data["billing"]
+        )
+        return self.answer(sale_id)
 
 
 class SaleConfirmView(SaleView):

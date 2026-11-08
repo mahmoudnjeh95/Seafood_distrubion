@@ -183,3 +183,14 @@ _(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots befo
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.
+
+### P2-T17 · A BL "non facturable" or "offert" (D-286, Perfaxis gap) · M
+- [x] `Sale.billing`: facturable (default), non facturable (owed and paid like any BL, never invoiced), offert (every
+      line at 100 % discount: nothing owed, never invoiced, the lot keeps the cost). Chosen on the office's BL form
+      ("Facturation", not for the walk-in customer); the driver's phone always sells "facturable".
+- [x] Neither kind is offered by Nouvelle facture, "À facturer", the BL counts nor the TTC estimate (D-256); invoicing one
+      is refused by the server. A gift needs no below-minimum reason.
+- [x] "Rendre non facturable" / "Rendre facturable" on the BL page, also once confirmed, while on no invoice
+      (`POST /sales/{id}/billing`, owner and manager, audited); "offert" stays offert. Pill on the page and in the list.
+- [ ] Check on staging: an "Offert" BL of 5 kg owes 0 and its lot result shows the cost with no revenue; a "Non
+      facturable" BL is paid in Nouveau règlement and never shows in Nouvelle facture.
