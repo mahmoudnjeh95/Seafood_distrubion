@@ -239,6 +239,19 @@ export function SupplierInvoiceDetailPage() {
           </Table>
         )}
         <dl className="flex flex-wrap justify-end gap-x-8 gap-y-2 border-t border-line px-2.5 py-3">
+          {(data.vat_total !== "0.000" || data.fiscal_stamp !== "0.000") && (
+            <>
+              <Detail label={t("admin.supplierInvoices.form.totalExclTax")} numeric>
+                {formatMoney(data.total_excl_tax)}
+              </Detail>
+              <Detail label={t("admin.supplierInvoices.form.vatTotal")} numeric>
+                {formatMoney(data.vat_total)}
+              </Detail>
+              <Detail label={t("admin.supplierInvoices.form.fiscalStamp")} numeric>
+                {formatMoney(data.fiscal_stamp)}
+              </Detail>
+            </>
+          )}
           <Detail label={t("admin.supplierInvoices.detail.total")} numeric>
             <b>{formatMoney(data.total)}</b>
           </Detail>

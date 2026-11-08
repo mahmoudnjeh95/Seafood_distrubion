@@ -15059,6 +15059,7 @@ export const listReceiptsResponseResultsItemLinesItemUnitCostRegExp = new RegExp
 export const listReceiptsResponseResultsItemLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listReceiptsResponseResultsItemInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -15109,6 +15110,7 @@ export const ListReceiptsResponse = zod.object({
 })),
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedTotalRegExp),
+  "invoiced_vat": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
   "id": zod.int(),
@@ -15192,6 +15194,7 @@ export const createReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0
 export const createReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -15238,6 +15241,7 @@ export const CreateReceiptResponse = zod.object({
 })),
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', createReceiptResponseInvoicedTotalRegExp),
+  "invoiced_vat": zod.stringFormat('decimal', createReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', createReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
   "id": zod.int(),
@@ -15274,6 +15278,7 @@ export const getReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11
 export const getReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -15320,6 +15325,7 @@ export const GetReceiptResponse = zod.object({
 })),
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', getReceiptResponseInvoicedTotalRegExp),
+  "invoiced_vat": zod.stringFormat('decimal', getReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', getReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
   "id": zod.int(),
@@ -15386,6 +15392,7 @@ export const reviseReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0
 export const reviseReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const reviseReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -15432,6 +15439,7 @@ export const ReviseReceiptResponse = zod.object({
 })),
   "has_differences": zod.boolean(),
   "invoiced_total": zod.stringFormat('decimal', reviseReceiptResponseInvoicedTotalRegExp),
+  "invoiced_vat": zod.stringFormat('decimal', reviseReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', reviseReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
   "id": zod.int(),
@@ -18857,10 +18865,14 @@ export const ListSupplierInvoicesQueryParams = zod.object({
   "supplier": zod.int().min(1).optional()
 })
 
+export const listSupplierInvoicesResponseResultsItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemPaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemReceiptsItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemPaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -18880,6 +18892,10 @@ export const ListSupplierInvoicesResponse = zod.object({
   "invoice_date": zod.iso.date(),
   "due_date": zod.iso.date(),
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total_excl_tax": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemFiscalStampRegExp),
+  "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemTotalRegExp),
   "paid_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemOutstandingRegExp),
@@ -18891,7 +18907,8 @@ export const ListSupplierInvoicesResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string()
 }),
-  "amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp),
+  "vat_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemReceiptsItemVatAmountRegExp)
 }).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -18922,6 +18939,7 @@ export const createSupplierInvoiceBodySupplierReferenceDefault = ``;
 export const createSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const createSupplierInvoiceBodyNotesDefault = ``;
+export const createSupplierInvoiceBodyFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceBodyPostDefault = false;
 export const createSupplierInvoiceBodyApplyAdvancesDefault = false;
 
@@ -18931,15 +18949,20 @@ export const CreateSupplierInvoiceBody = zod.object({
   "due_date": zod.iso.date(),
   "supplier_reference": zod.string().max(createSupplierInvoiceBodySupplierReferenceMax).default(createSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(createSupplierInvoiceBodyNotesDefault),
+  "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceBodyFiscalStampRegExp).nullish(),
   "post": zod.boolean().default(createSupplierInvoiceBodyPostDefault),
   "supplier": zod.int().min(1),
   "apply_advances": zod.boolean().default(createSupplierInvoiceBodyApplyAdvancesDefault)
 })
 
+export const createSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponseReceiptsItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -18955,6 +18978,10 @@ export const CreateSupplierInvoiceResponse = zod.object({
   "invoice_date": zod.iso.date(),
   "due_date": zod.iso.date(),
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total_excl_tax": zod.stringFormat('decimal', createSupplierInvoiceResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', createSupplierInvoiceResponseVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceResponseFiscalStampRegExp),
+  "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', createSupplierInvoiceResponseTotalRegExp),
   "paid_amount": zod.stringFormat('decimal', createSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', createSupplierInvoiceResponseOutstandingRegExp),
@@ -18966,7 +18993,8 @@ export const CreateSupplierInvoiceResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string()
 }),
-  "amount": zod.stringFormat('decimal', createSupplierInvoiceResponseReceiptsItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', createSupplierInvoiceResponseReceiptsItemAmountRegExp),
+  "vat_amount": zod.stringFormat('decimal', createSupplierInvoiceResponseReceiptsItemVatAmountRegExp)
 }).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -18991,10 +19019,14 @@ export const GetSupplierInvoiceParams = zod.object({
   "invoice_id": zod.int()
 })
 
+export const getSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponseReceiptsItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -19010,6 +19042,10 @@ export const GetSupplierInvoiceResponse = zod.object({
   "invoice_date": zod.iso.date(),
   "due_date": zod.iso.date(),
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total_excl_tax": zod.stringFormat('decimal', getSupplierInvoiceResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', getSupplierInvoiceResponseVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', getSupplierInvoiceResponseFiscalStampRegExp),
+  "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', getSupplierInvoiceResponseTotalRegExp),
   "paid_amount": zod.stringFormat('decimal', getSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierInvoiceResponseOutstandingRegExp),
@@ -19021,7 +19057,8 @@ export const GetSupplierInvoiceResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string()
 }),
-  "amount": zod.stringFormat('decimal', getSupplierInvoiceResponseReceiptsItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', getSupplierInvoiceResponseReceiptsItemAmountRegExp),
+  "vat_amount": zod.stringFormat('decimal', getSupplierInvoiceResponseReceiptsItemVatAmountRegExp)
 }).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -19055,6 +19092,7 @@ export const updateSupplierInvoiceBodySupplierReferenceDefault = ``;
 export const updateSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const updateSupplierInvoiceBodyNotesDefault = ``;
+export const updateSupplierInvoiceBodyFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceBodyPostDefault = false;
 
 export const UpdateSupplierInvoiceBody = zod.object({
@@ -19063,13 +19101,18 @@ export const UpdateSupplierInvoiceBody = zod.object({
   "due_date": zod.iso.date(),
   "supplier_reference": zod.string().max(updateSupplierInvoiceBodySupplierReferenceMax).default(updateSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(updateSupplierInvoiceBodyNotesDefault),
+  "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceBodyFiscalStampRegExp).nullish(),
   "post": zod.boolean().default(updateSupplierInvoiceBodyPostDefault)
 })
 
+export const updateSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponseReceiptsItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -19085,6 +19128,10 @@ export const UpdateSupplierInvoiceResponse = zod.object({
   "invoice_date": zod.iso.date(),
   "due_date": zod.iso.date(),
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total_excl_tax": zod.stringFormat('decimal', updateSupplierInvoiceResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', updateSupplierInvoiceResponseVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceResponseFiscalStampRegExp),
+  "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', updateSupplierInvoiceResponseTotalRegExp),
   "paid_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', updateSupplierInvoiceResponseOutstandingRegExp),
@@ -19096,7 +19143,8 @@ export const UpdateSupplierInvoiceResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string()
 }),
-  "amount": zod.stringFormat('decimal', updateSupplierInvoiceResponseReceiptsItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', updateSupplierInvoiceResponseReceiptsItemAmountRegExp),
+  "vat_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponseReceiptsItemVatAmountRegExp)
 }).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),
@@ -19197,10 +19245,14 @@ export const PostSupplierInvoiceParams = zod.object({
   "invoice_id": zod.int()
 })
 
+export const postSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponseReceiptsItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -19216,6 +19268,10 @@ export const PostSupplierInvoiceResponse = zod.object({
   "invoice_date": zod.iso.date(),
   "due_date": zod.iso.date(),
   "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée'),
+  "total_excl_tax": zod.stringFormat('decimal', postSupplierInvoiceResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', postSupplierInvoiceResponseVatTotalRegExp),
+  "fiscal_stamp": zod.stringFormat('decimal', postSupplierInvoiceResponseFiscalStampRegExp),
+  "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', postSupplierInvoiceResponseTotalRegExp),
   "paid_amount": zod.stringFormat('decimal', postSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', postSupplierInvoiceResponseOutstandingRegExp),
@@ -19227,7 +19283,8 @@ export const PostSupplierInvoiceResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string()
 }),
-  "amount": zod.stringFormat('decimal', postSupplierInvoiceResponseReceiptsItemAmountRegExp)
+  "amount": zod.stringFormat('decimal', postSupplierInvoiceResponseReceiptsItemAmountRegExp),
+  "vat_amount": zod.stringFormat('decimal', postSupplierInvoiceResponseReceiptsItemVatAmountRegExp)
 }).describe('A receipt charged on the invoice, with its invoiced amount (invoiced kg × cost of its lines).')),
   "payments": zod.array(zod.object({
   "id": zod.int(),

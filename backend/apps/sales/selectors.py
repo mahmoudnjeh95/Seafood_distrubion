@@ -441,6 +441,27 @@ def finance_settings_on(organization: Organization, day: dt.date | None = None) 
 DEFAULT_CASH_LIMIT = Decimal("5000.000")
 
 
+def _field_default(name: str) -> Decimal:
+    """The default of a FinanceSettings field, for an organization without any version yet."""
+    return Decimal(str(getattr(FinanceSettings._meta.get_field(name), "default")))  # noqa: B009
+
+
+def vat_rate_of_product_on(organization: Organization, product: Any, day: dt.date) -> Decimal:
+    """A product's VAT rate on `day` (its own, else the settings' in force, else the settings' default): what a
+    purchase bought with VAT pays on it (D-286)."""
+    own: Decimal | None = product.vat_rate
+    if own is not None:
+        return own
+    version = finance_settings_on(organization, day)
+    return version.vat_rate if version is not None else _field_default("vat_rate")
+
+
+def fiscal_stamp_on(organization: Organization, day: dt.date) -> Decimal:
+    """The droit de timbre of an invoice dated `day` (the settings in force, else their default), D-286."""
+    version = finance_settings_on(organization, day)
+    return version.fiscal_stamp if version is not None else _field_default("fiscal_stamp")
+
+
 def cash_limit_on(organization: Organization, day: dt.date | None = None) -> Decimal:
     """The amount from which a cash line of a payment needs confirming, in force on `day` (D-273)."""
     version = finance_settings_on(organization, day)

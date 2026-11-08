@@ -13,5 +13,10 @@ export interface SupplierInvoiceUpdate {
   /** @maxLength 50 */
   supplier_reference?: string;
   notes?: string;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  fiscal_stamp?: string | null;
   post?: boolean;
 }

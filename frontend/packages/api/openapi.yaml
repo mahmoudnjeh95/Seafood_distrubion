@@ -20297,9 +20297,15 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
       required:
       - amount
       - receipt
+      - vat_amount
     InvoiceReceiptRef:
       type: object
       properties:
@@ -26231,6 +26237,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        invoiced_vat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         accepted_total:
           type: string
           format: decimal
@@ -26268,6 +26279,7 @@ components:
       - id
       - invoice
       - invoiced_total
+      - invoiced_vat
       - lines
       - location
       - notes
@@ -30327,6 +30339,24 @@ components:
           allOf:
           - $ref: '#/components/schemas/SupplierInvoiceStatusEnum'
           readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fiscal_stamp_overridden:
+          type: boolean
+          readOnly: true
         total:
           type: string
           format: decimal
@@ -30378,6 +30408,8 @@ components:
       - created_at
       - created_by
       - due_date
+      - fiscal_stamp
+      - fiscal_stamp_overridden
       - id
       - invoice_date
       - is_overdue
@@ -30393,6 +30425,8 @@ components:
       - supplier
       - supplier_reference
       - total
+      - total_excl_tax
+      - vat_total
     SupplierInvoiceStatusEnum:
       enum:
       - draft
@@ -30426,6 +30460,11 @@ components:
         notes:
           type: string
           default: ''
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
         post:
           type: boolean
           default: false
@@ -30454,6 +30493,11 @@ components:
         notes:
           type: string
           default: ''
+        fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
         post:
           type: boolean
           default: false

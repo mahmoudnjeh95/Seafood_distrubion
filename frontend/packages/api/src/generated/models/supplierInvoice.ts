@@ -18,6 +18,13 @@ export interface SupplierInvoice {
   readonly due_date: string;
   readonly status: SupplierInvoiceStatusEnum;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly total_excl_tax: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly vat_total: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly fiscal_stamp: string;
+  readonly fiscal_stamp_overridden: boolean;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly paid_amount: string;

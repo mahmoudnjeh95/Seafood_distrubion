@@ -218,7 +218,8 @@ class SupplierInvoiceStatus(models.TextChoices):
 class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     """What a supplier charges for one or more goods receipts: a trade payable (P1-T08, D-043).
 
-    Its amount is the invoiced amount of its receipts (invoiced kg × cost, D-039), never typed. Once
+    Its amount without VAT is the invoiced amount of its receipts (invoiced kg × cost, D-039), never typed; the
+    receipts bought with VAT add their VAT, and the supplier's droit de timbre comes on top (D-286). Once
     posted it is immutable; payments change its status only. A partner's capital and profit share are
     other balances (D-040) and never pass through it.
     """
@@ -231,7 +232,14 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     invoice_date = models.DateField()
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=SupplierInvoiceStatus.choices, default=SupplierInvoiceStatus.DRAFT)
-    # The sum of its receipts' invoiced amounts, kept by the services; frozen once posted.
+    # The sum of its receipts' invoiced amounts, without VAT (D-286).
+    total_excl_tax = MoneyField(default=Decimal("0.000"))
+    # The VAT of its receipts bought with VAT (D-286): deductible VAT.
+    vat_total = MoneyField(default=Decimal("0.000"))
+    # The supplier's droit de timbre (D-286): typed, or the settings' stamp when a receipt is bought with VAT.
+    fiscal_stamp = MoneyField(default=Decimal("0.000"))
+    fiscal_stamp_overridden = models.BooleanField(default=False)
+    # What is owed: without VAT + VAT + stamp, kept by the services; frozen once posted.
     total = MoneyField(default=Decimal("0.000"))
     notes = models.TextField(blank=True)
     # What the supplier was owed when the system started (P4-T01, D-112): a posted invoice with no receipts.
@@ -263,8 +271,9 @@ class SupplierInvoiceReceipt(OrganizationScopedModel):
 
     invoice = models.ForeignKey(SupplierInvoice, on_delete=models.CASCADE, related_name="receipt_links")
     receipt = models.OneToOneField(GoodsReceipt, on_delete=models.PROTECT, related_name="invoice_link")
-    # The receipt's invoiced total when it was linked. Receipts never change, so neither does this.
+    # The receipt's invoiced total without VAT when it was linked, and its VAT (D-286).
     amount = MoneyField()
+    vat_amount = MoneyField(default=Decimal("0.000"))
 
     class Meta:
         ordering = ["invoice", "receipt__received_on", "receipt_id"]

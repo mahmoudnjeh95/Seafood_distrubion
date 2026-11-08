@@ -7,7 +7,7 @@ l'expert-comptable de la société avant d'être codés (voir `docs/OPEN_QUESTIO
 
 | # | État | Problème | Où |
 |---|---|---|---|
-| B1 | à faire | La facture fournisseur ne compte ni la TVA ni le timbre : le prix d'achat est hors TVA et le total = kg × prix, même « Achat avec TVA ». La dette fournisseur est trop basse. | `purchasing/services.py` `_set_receipts` |
+| B1 | **corrigé (D-286)** | La facture fournisseur ne compte ni la TVA ni le timbre : le prix d'achat est hors TVA et le total = kg × prix, même « Achat avec TVA ». La dette fournisseur est trop basse. | `purchasing/services.py` `_set_receipts` |
 | B2 | **corrigé (D-283)** | Une facture mêlant des lots avec et sans TVA mettait 19 % sur toutes les lignes ; le BL et la facture ne concordaient pas. | `sales/selectors.py` `proposed_vat_rates` |
 | B3 | **corrigé (D-283)** | Le seuil de 1 000 DT de la retenue comptait le timbre et les frais. | `sales/invoicing.py` |
 | B4 | **corrigé (D-284)** | La retenue s'applique à tout client dès 1 000 DT ; il faut un indicateur « soumis à retenue » par client. | `invoicing.withholding_applies`, D-250 |

@@ -13,4 +13,6 @@ export interface InvoiceReceipt {
   readonly receipt: InvoiceReceiptRef;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly vat_amount: string;
 }

@@ -3922,3 +3922,18 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A line without VAT, and a line written before D-224 (no snapshot), earns its amount as charged, as before.
 - Sales confirmed before this change keep their rows (posted rows are immutable). With prices without VAT, the
   default, nothing changes: the amount without VAT is the amount.
+
+**D-286 · A supplier invoice adds the VAT of receipts bought with VAT and the supplier's stamp (accounting review B1, P2-T16)** · accepted, provisional parts marked · 2026-11-08
+- Before, a supplier invoice owed only kg × cost (costs are without VAT), even for a receipt marked "Achat avec TVA":
+  the payable, the supplier balance and the payments were short of the VAT and the droit de timbre.
+- `SupplierInvoice` now keeps `total_excl_tax` (the receipts' invoiced amounts), `vat_total` and `fiscal_stamp`;
+  `total`, what is owed and paid, is the three together (migration `purchasing 0022`; invoices made before keep their
+  total, as their amount without VAT). Each link keeps its receipt's `vat_amount`; a receipt exposes `invoiced_vat`.
+- VAT of a receipt bought with VAT (`purchasing.selectors.receipt_vat`): its lines grouped by their product's rate
+  (the product's own, else the finance settings' on the receipt day), each rate rounded once. A receipt without VAT
+  carries none. The lot cost stays without VAT: the VAT is deductible, not a cost.
+- Stamp: typed on the invoice form as printed on the supplier's paper; empty, the settings' stamp when a receipt is
+  bought with VAT, else none (a fisherman at the port issues no invoice). `fiscal_stamp_overridden` says it was typed.
+- Provisional: no typed VAT amount yet (a supplier's VAT that differs by a millime is matched by the stamp or a
+  note); the supplier's "uninvoiced" total on their account is still without VAT. The deductible VAT is the base of
+  the coming VAT return screen (review, "Déclarations du mois").

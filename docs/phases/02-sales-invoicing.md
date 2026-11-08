@@ -160,4 +160,4 @@ _(owner's workflow of 2026-10-17, all twelve points agreed)_
 - [x] The withholding threshold of 1 000 DT is on the total without VAT + VAT, stamp and fees left out (B3).
 - [x] Per-customer "soumis à retenue à la source" flag (B4, D-284): only the customers who withhold get it.
 - [x] Lot revenue without VAT when prices include VAT (B5, D-285).
-- [ ] Supplier invoice VAT and stamp (B1, purchasing): VAT rate on the receipt, the payable with VAT and stamp.
+- [x] Supplier invoice VAT and stamp (B1, purchasing, D-286): VAT rate on the receipt, the payable with VAT and stamp.
