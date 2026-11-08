@@ -1226,10 +1226,8 @@ def price_requests_of(
     requests = (
         PriceRequest.objects.for_organization(organization)
         .select_related("created_by")
-        .prefetch_related(
-            Prefetch("lines", queryset=PriceRequestLine.objects.select_related("product").order_by("id")),
-            Prefetch("offers", queryset=offers),
-        )
+        .prefetch_related(Prefetch("lines", queryset=PriceRequestLine.objects.select_related("product").order_by("id")))
+        .prefetch_related(Prefetch("offers", queryset=offers))
         .order_by("-requested_on", "-id")
     )
     if status:

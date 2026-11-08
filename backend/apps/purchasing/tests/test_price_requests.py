@@ -53,7 +53,7 @@ def ask(organization, manager, setup):
 
 
 def test_the_cheapest_offers_become_one_order_per_supplier(organization, manager, setup):
-    port, farm, dorade, loup = setup
+    port, farm, _dorade, _loup = setup
     request = ask(organization, manager, setup)
     assert request.number.startswith("DD-")
     first, second = request.lines.order_by("id")
@@ -90,7 +90,7 @@ def test_the_cheapest_offers_become_one_order_per_supplier(organization, manager
 
 
 def test_no_order_without_a_price_or_after_the_offer_expired(organization, manager, setup):
-    port, farm, dorade, loup = setup
+    port, _farm, _dorade, _loup = setup
     request = ask(organization, manager, setup)
     first, second = request.lines.order_by("id")
     services.record_offer(
@@ -113,7 +113,7 @@ def test_no_order_without_a_price_or_after_the_offer_expired(organization, manag
 
 
 def test_a_request_needs_suppliers_and_lines_and_can_be_cancelled(organization, manager, setup):
-    port, farm, dorade, loup = setup
+    _port, _farm, _dorade, _loup = setup
     with pytest.raises(ValidationError) as refused:
         services.create_price_request(
             organization=organization, actor=manager.user, requested_on=TODAY(), lines=[], suppliers=[]
@@ -127,7 +127,7 @@ def test_a_request_needs_suppliers_and_lines_and_can_be_cancelled(organization, 
 
 
 def test_the_office_compares_and_orders_through_the_api(manager, organization, setup):
-    port, farm, dorade, loup = setup
+    port, farm, dorade, _loup = setup
     client = APIClient()
     client.force_authenticate(manager.user)
     created = client.post(
