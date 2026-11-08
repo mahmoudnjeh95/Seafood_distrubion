@@ -182,3 +182,20 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
 - [x] A receipt correction is the `receipt_correction` movement kind: the lot result counts it in kg received, the monthly closing in purchases; never spoilage.
 - [x] Hand-made stock adjustments (D-247) still count as spoilage.
 - [ ] Check on staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.
+
+### P1-T18 · A goods receipt contested with the supplier · S (added 2026-11-07, D-285, Perfaxis gap)
+- [x] "Contester" on the receipt page (owner and manager) with a required "motif de contestation", while no invoice
+      carries it; "Lever la contestation" with how it was settled (`services.dispute_receipt`, `resolve_receipt_dispute`).
+- [x] A contested receipt goes on no supplier invoice (refused by the server, greyed out in the invoice form); the stock
+      is untouched. "Contestée" pill and filter on the receipts list; the reason and the settlement shown on the page; audited.
+- [ ] Check on staging: contest a receipt, the invoice form greys it out; lift it, it can be invoiced.
+
+### P1-T19 · Price requests to several suppliers, offers compared, orders from the chosen ones · M (added 2026-11-07, D-289, Perfaxis gap)
+- [x] Achats › Demandes de prix: products and kilos asked to several suppliers (`PriceRequest`, DD-2026-0001); each
+      supplier's offer typed as it comes (reference, received on, valid until, a price per kg per product); a supplier
+      not asked at first can be added (`services.create_price_request`, `record_offer`).
+- [x] The comparison table proposes the cheapest valid offer per product; "Passer les commandes" makes one purchase
+      order per chosen supplier at the request's kilos and their price, links it to the offer and closes the request
+      (`order_from_offers`). Refused without a price or after the offer's validity. Cancel while open. Audited.
+- [ ] Not done: printing or e-mailing the request to the suppliers (Perfaxis "sur un ou plusieurs documents").
+- [ ] Check on staging: ask two suppliers for two products, type both offers, order the cheapest of each.

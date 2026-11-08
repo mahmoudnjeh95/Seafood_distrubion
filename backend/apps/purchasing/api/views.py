@@ -58,6 +58,8 @@ from .serializers import (
     PaymentTotalsSerializer,
     PaymentVoidSerializer,
     PlanWriteSerializer,
+    ReceiptDisputeResolveWriteSerializer,
+    ReceiptDisputeWriteSerializer,
     ReceiptFilterSerializer,
     ReceiptRevisionWriteSerializer,
     ReceiptSerializer,
@@ -155,6 +157,7 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
             with_differences=filters.validated_data["differences"],
             uninvoiced=filters.validated_data["uninvoiced"],
             purchase_order_id=filters.validated_data.get("purchase_order"),
+            disputed=filters.validated_data["disputed"],
         )
 
     @extend_schema(operation_id="listReceipts", parameters=[ReceiptFilterSerializer])
@@ -216,6 +219,42 @@ class ReceiptReviseView(PurchasingView):
             revision=data["revision"],
             reason=data["reason"],
             fields=data,
+        )
+        return Response(ReceiptSerializer(selectors.receipt_of(self.organization, receipt_id)).data)
+
+
+class ReceiptDisputeView(PurchasingView):
+    @extend_schema(operation_id="disputeReceipt", request=ReceiptDisputeWriteSerializer, responses=ReceiptSerializer)
+    def post(self, request: Request, receipt_id: int) -> Response:
+        """Contest a goods receipt with its supplier (D-285): `reason` is required. While contested it goes on no
+        supplier invoice. Refused while an invoice carries it or a dispute is already open."""
+        try:
+            receipt = selectors.receipt_of(self.organization, receipt_id)
+        except GoodsReceipt.DoesNotExist:
+            raise Http404 from None
+        serializer = ReceiptDisputeWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.dispute_receipt(
+            receipt=receipt, actor=self.membership.user, reason=serializer.validated_data["reason"]
+        )
+        return Response(ReceiptSerializer(selectors.receipt_of(self.organization, receipt_id)).data)
+
+
+class ReceiptResolveDisputeView(PurchasingView):
+    @extend_schema(
+        operation_id="resolveReceiptDispute", request=ReceiptDisputeResolveWriteSerializer, responses=ReceiptSerializer
+    )
+    def post(self, request: Request, receipt_id: int) -> Response:
+        """Lift a receipt's open dispute (D-285), saying how it was settled (`resolution`, required): it can then
+        be invoiced."""
+        try:
+            receipt = selectors.receipt_of(self.organization, receipt_id)
+        except GoodsReceipt.DoesNotExist:
+            raise Http404 from None
+        serializer = ReceiptDisputeResolveWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.resolve_receipt_dispute(
+            receipt=receipt, actor=self.membership.user, resolution=serializer.validated_data["resolution"]
         )
         return Response(ReceiptSerializer(selectors.receipt_of(self.organization, receipt_id)).data)
 

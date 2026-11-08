@@ -45,6 +45,9 @@ from .models import (
     CustomerPayment,
     CustomerPaymentLine,
     CustomerPaymentMethod,
+    CustomerRefund,
+    CustomerRefundAllocation,
+    CustomerRefundPayment,
     CustomerWriteOffAllocation,
     CustomerWriteOffLotShare,
     DeliveryStatus,
@@ -59,7 +62,9 @@ from .models import (
     Quote,
     QuoteLine,
     QuoteStatus,
+    RefundMethod,
     Sale,
+    SaleBilling,
     SaleBoxLine,
     SaleLine,
     SaleLineBatch,
@@ -230,8 +235,12 @@ def _checked_lines(
     errors: dict[str, str],
     typed_source: str = PriceSource.TYPED,
     below_minimum_reason: str = "",
+    free: bool = False,
 ) -> list[dict[str, Any]]:
     """The lines' values once checked and priced; each problem is added to `errors` under the line's keys.
+
+    `free` is a BL given away (D-286): every line at 100 % discount, so nothing is owed, and the minimum price does
+    not apply.
 
     Each line also says where its price comes from (`price_source`) and whether it is below the product's
     minimum price (`below_minimum`). A price once the discount is taken off may not go under that minimum: the
@@ -262,13 +271,15 @@ def _checked_lines(
                 checked["below_minimum"] = product is not None and catalog.is_below_minimum(product, price[0])
             else:
                 errors[line_error_key(index, "unit_price")] = price
-        rate = _checked_rate(line.get("discount_rate"))
+        rate = Decimal("100.00") if free else _checked_rate(line.get("discount_rate"))
         if rate is None:
             errors[line_error_key(index, "discount_rate")] = _(
                 "Indiquez une remise en %, de 0 à 100, avec 2 décimales au plus."
             )
         checked["discount_rate"] = rate
-        if rate is not None and "unit_price" in checked and product is not None and product.min_price is not None:
+        if free:
+            checked["below_minimum"] = False
+        elif rate is not None and "unit_price" in checked and product is not None and product.min_price is not None:
             net = checked["unit_price"] * (100 - rate) / 100
             if net < product.min_price:
                 if below_minimum_reason.strip():
@@ -422,7 +433,7 @@ def create_quote(
     )
     quote = Quote.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "quote"),
+        number=numbering.next_draft_number(organization, "quote"),
         customer=customer,
         location=location,
         quoted_on=quoted_on,
@@ -527,7 +538,10 @@ def send_quote(*, quote: Quote, actor: User | None) -> Quote:
     quote.status = QuoteStatus.SENT
     quote.sent_by = actor
     quote.sent_at = timezone.now()
-    quote.save(update_fields=["status", "sent_by", "sent_at", "updated_at"])
+    # The definitive number only now, once sent (D-283): a draft never uses one.
+    quote.draft_number = quote.number
+    quote.number = numbering.next_number(quote.organization, "quote")
+    quote.save(update_fields=["status", "sent_by", "sent_at", "number", "draft_number", "updated_at"])
     audit.record(organization=quote.organization, actor=actor, action="quote.sent", target=quote)
     return quote
 
@@ -747,12 +761,26 @@ def _prepared_sale(
     payment: PaymentFields,
     typed_source: str = PriceSource.TYPED,
     below_minimum_reason: str = "",
+    billing: str = SaleBilling.INVOICE,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """The checked lines and payment of a sale, or a ValidationError with every problem at once."""
     errors = _sale_header_errors(organization, customer, location, sold_at)
+    if billing not in SaleBilling.values:
+        errors["billing"] = _("Choisissez facturable, non facturable ou offert.")
+    elif billing != SaleBilling.INVOICE and customer.is_walk_in:
+        errors["billing"] = _("Une vente au client de passage ne se facture déjà pas : laissez « Facturable ».")
     if not lines:
         errors["lines"] = _("Ajoutez au moins un produit.")
-    checked_lines = _checked_lines(organization, customer, lines, sold_at, errors, typed_source, below_minimum_reason)
+    checked_lines = _checked_lines(
+        organization,
+        customer,
+        lines,
+        sold_at,
+        errors,
+        typed_source,
+        below_minimum_reason,
+        free=billing == SaleBilling.FREE,
+    )
     _checked_batches(organization, lines, checked_lines, errors)
     _checked_picks(organization, lines, checked_lines, errors)
     total = sum((values.get("amount", Decimal("0.000")) for values in checked_lines), Decimal("0.000"))
@@ -901,6 +929,7 @@ def _sale_snapshot(sale: Sale) -> dict[str, Any]:
         "sold_at": sale.sold_at.isoformat(),
         "quote": sale.quote.number if sale.quote is not None else None,
         "delivery_address": sale.delivery_address,
+        "billing": sale.billing,
         "lines": [
             {
                 "product": line.product.reference,
@@ -940,8 +969,11 @@ def create_sale(
     delivery_address: str | None = None,
     transfer: "Transfer | None" = None,
     below_minimum_reason: str = "",
+    billing: str = SaleBilling.INVOICE,
 ) -> Sale:
     """Type a sale as a draft; with `confirm`, also confirm it (one transaction: a refusal leaves nothing).
+
+    `billing` (D-286): invoiced as usual, owed but never invoiced, or given away (every line at 100 % discount).
 
     No customer means the walk-in customer (a counter sale, D-047). A line without a price takes what the
     customer is charged at `sold_at` (now by default), kept on the line. A `client_uuid` already used
@@ -957,12 +989,13 @@ def create_sale(
         customer = partners.ensure_walk_in_customer(organization=organization, actor=actor)
     sold_at = sold_at or timezone.now()
     checked_lines, paid = _prepared_sale(
-        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason
+        organization, customer, location, sold_at, lines, payment or {}, typed_source, below_minimum_reason, billing
     )
     box_counts = _checked_sale_boxes(boxes)
     sale = Sale.objects.create(
+        billing=billing,
         organization=organization,
-        number=numbering.next_number(organization, "sale"),
+        number=numbering.next_draft_number(organization, "delivery_note"),
         customer=customer,
         location=location,
         sold_at=sold_at,
@@ -1078,11 +1111,12 @@ def _add_revision(
 
 def _issue_load_bl(sale: Sale, actor: User | None) -> None:
     """The client's BL of a load gets its BL number now and is version 1, the one printed and taken on the road."""
+    sale.draft_number = sale.number
     sale.number = numbering.next_number(sale.organization, "delivery_note")
     sale.issued_at = timezone.now()
     sale.delivery_status = DeliveryStatus.TO_DELIVER
     sale.version = 1
-    sale.save(update_fields=["number", "issued_at", "delivery_status", "version", "updated_at"])
+    sale.save(update_fields=["number", "draft_number", "issued_at", "delivery_status", "version", "updated_at"])
     sale.lines.update(ordered_quantity=F("quantity"))
     _add_revision(sale, SaleRevisionKind.ISSUED, actor)
     audit.record(
@@ -1269,6 +1303,7 @@ def update_sale(
     boxes: Mapping[str, object] | None = None,
     delivery_address: str | None = None,
     below_minimum_reason: str = "",
+    billing: str | None = None,
 ) -> Sale:
     """Change a draft: customer, place, moment, notes, payment, lines and boxes (all replaced). With `confirm`,
     confirm it too. Without `sold_at` the draft keeps its moment, so its prices stay those of that moment.
@@ -1293,8 +1328,11 @@ def update_sale(
         payment if payment is not None else _kept_payment(sale),
         typed_source,
         below_minimum_reason,
+        billing if billing is not None else sale.billing,
     )
     box_counts = _checked_sale_boxes(boxes) if boxes is not None else None
+    if billing is not None:
+        sale.billing = billing
     sale.customer = customer
     sale.location = location
     sale.sold_at = sold_at
@@ -1338,6 +1376,42 @@ def update_sale(
     if confirm:
         return confirm_sale(sale=sale, actor=actor, approve_credit=approve_credit)
     return sale
+
+
+@transaction.atomic
+def set_sale_billing(*, sale: Sale, actor: User | None, billing: str) -> Sale:
+    """Mark a BL invoiced as usual or "non facturable" (owed, never invoiced), also once confirmed (D-286): its
+    amounts do not change. Refused while it is on an invoice (draft or issued), for the walk-in customer, and to or
+    from "offert", which changes what is owed: that is chosen on the draft."""
+    locked = _locked_sale(sale)
+    if billing not in (SaleBilling.INVOICE, SaleBilling.NO_INVOICE):
+        raise ValidationError({"billing": _("Choisissez facturable ou non facturable.")})
+    if locked.billing == SaleBilling.FREE:
+        raise ValidationError(_("Un bon offert le reste : annulez-le et refaites-le pour le facturer."))
+    if locked.status == SaleStatus.CANCELLED or locked.is_opening:
+        raise ValidationError(_("Ce bon ne se facture pas."))
+    if locked.customer.is_walk_in:
+        raise ValidationError(_("Une vente au client de passage ne se facture pas."))
+    live = locked.invoices.exclude(status=InvoiceStatus.CANCELLED).first()
+    if live is not None:
+        raise ValidationError(
+            _("Le bon est sur la facture %(number)s : supprimez le brouillon ou faites un avoir d'abord.")
+            % {"number": live.number or live.draft_number or _("(brouillon)")}
+        )
+    if locked.billing == billing:
+        return locked
+    before = {"billing": locked.billing}
+    locked.billing = billing
+    locked.save(update_fields=["billing", "updated_at"])
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="sale.billing_changed",
+        target=locked,
+        before=before,
+        after={"billing": billing},
+    )
+    return locked
 
 
 class CreditApprovalRequired(ValidationError):
@@ -1587,6 +1661,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
     draft_number = sale.number
     # The BL of a load has its number since the load (D-178).
     if sale.issued_at is None:
+        sale.draft_number = draft_number
         sale.number = numbering.next_number(organization, "delivery_note")
     lines = list(sale.lines.order_by("id"))
     for index, line in sorted(enumerate(lines), key=lambda pair: pair[1].product_id):
@@ -1619,6 +1694,7 @@ def _confirm_sale(*, sale: Sale, actor: User | None, approve_credit: bool, stock
             "delivered_at",
             "delivered_by",
             "number",
+            "draft_number",
             "cost_total",
             "amount_due",
             "status",
@@ -2285,6 +2361,11 @@ def _checked_sale_to_invoice(sale: Sale) -> None:
         raise ValidationError(_("Seule une vente confirmée se facture."))
     if sale.is_opening:
         raise ValidationError(_("Un solde d'ouverture ne se facture pas : la facture existe déjà sur papier."))
+    if sale.billing != SaleBilling.INVOICE:
+        raise ValidationError(
+            _("Le bon %(number)s est « %(billing)s » : il ne se facture pas.")
+            % {"number": sale.number, "billing": sale.get_billing_display()}
+        )
     if sale.customer.is_walk_in:
         raise ValidationError(
             {"customer": _("Une vente au client de passage ne se facture pas : la facture nomme son client.")}
@@ -2318,6 +2399,7 @@ def _invoiceable_now(sale: Sale) -> bool:
     return (
         sale.status == SaleStatus.CONFIRMED
         and not sale.is_opening
+        and sale.billing == SaleBilling.INVOICE
         and not sale.customer.is_walk_in
         and not sale.invoices.exclude(status=InvoiceStatus.CANCELLED).exists()
     )
@@ -2402,6 +2484,8 @@ def create_invoice(
     overrides = _checked_choices(choices, len(sale_lines), default_apply_vat=bool(_vat_product_names(locked)))
     invoice = Invoice.objects.create(
         organization=sale.organization,
+        # The provisional reference (BFA-2026-0007, or BROUILLON-2026-0007 without a draft prefix, D-283).
+        number=numbering.next_draft_number(sale.organization, "invoice"),
         customer=sale.customer,
         created_by=actor,
     )
@@ -2557,11 +2641,13 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     invoice.customer_address = customer.address
     invoice.customer_city = customer.city
     invoice.customer_tax_id = customer.tax_id
+    invoice.customer_id_type = customer.id_type
     invoice.issued_on = today
     invoice.due_on = today + dt.timedelta(days=customer.payment_terms_days)
     invoice.issued_by = actor
     invoice.issued_at = timezone.now()
     invoice.status = InvoiceStatus.ISSUED
+    invoice.draft_number = invoice.number
     invoice.number = numbering.next_number(invoice.organization, "invoice", year=today.year)
     invoice.save()
     lines = list(invoice.lines.select_related("product", "sale_line"))
@@ -2595,6 +2681,19 @@ class CreditLineFields(TypedDict, total=False):
     quantity: Number | None
     # Amount without VAT given back; empty = the kilos' share of the line.
     amount: Number | None
+    # What becomes of this line's kilos (D-284): "restock", "loss" or "none"; empty takes the credit note's `stock`.
+    stock: str
+
+
+class RefundFields(TypedDict, total=False):
+    """How the money a credit note gives back is refunded (D-284): "now" pays it at once from `account`, "later"
+    leaves it "À rembourser" for the treasurer."""
+
+    mode: str
+    method: str
+    account: "TreasuryAccount | None"
+    paid_on: dt.date | None
+    reference: str
 
 
 @dataclass(frozen=True)
@@ -2603,9 +2702,15 @@ class _CreditPart:
     quantity: Decimal
     excl: Decimal
     vat: Decimal
+    # What becomes of the kilos given back (D-284); "none" when no kilos come back.
+    stock: str = CreditNoteStock.NONE
 
 
-def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedLine]) -> list[_CreditPart]:
+# What a line may say about its kilos (D-284); "mixed" only describes a whole credit note.
+_LINE_STOCKS = (CreditNoteStock.NONE, CreditNoteStock.RESTOCK, CreditNoteStock.LOSS)
+
+
+def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedLine], stock: str) -> list[_CreditPart]:
     parts = []
     for line in invoice.lines.order_by("id"):
         done = credited.get(line.pk)
@@ -2613,15 +2718,20 @@ def _full_credit_parts(invoice: Invoice, credited: dict[int, selectors.CreditedL
         excl = line.amount_excl_tax - (done.amount_excl_tax if done else Decimal("0.000"))
         vat = line.vat_amount - (done.vat_amount if done else Decimal("0.000"))
         if quantity > 0 or excl > 0 or vat > 0:
-            parts.append(_CreditPart(line, max(quantity, Decimal("0.000")), excl, vat))
+            kilos = max(quantity, Decimal("0.000"))
+            parts.append(_CreditPart(line, kilos, excl, vat, stock if kilos > 0 else CreditNoteStock.NONE))
     return parts
 
 
 def _partial_credit_parts(
-    invoice: Invoice, lines: Sequence[CreditLineFields], credited: dict[int, selectors.CreditedLine]
+    invoice: Invoice,
+    lines: Sequence[CreditLineFields],
+    credited: dict[int, selectors.CreditedLine],
+    default_stock: str | None,
 ) -> list[_CreditPart]:
     """The kilos and amounts given back per line, checked against what each line still holds; problems come
-    back on `lines.<index>.<field>`."""
+    back on `lines.<index>.<field>`. Each line with kilos says what becomes of them (`stock`, D-284): its own
+    choice, else `default_stock`; with neither the line is refused, so returned goods are never forgotten."""
     errors: dict[str, str] = {}
     parts: list[_CreditPart] = []
     seen: set[int] = set()
@@ -2678,7 +2788,15 @@ def _partial_credit_parts(
             vat = min(money(line.vat_amount * excl / line.amount_excl_tax), vat_left)
         else:
             vat = Decimal("0.000")
-        parts.append(_CreditPart(line, quantity, excl, vat))
+        stock: str = CreditNoteStock.NONE
+        if quantity > 0:
+            stock = fields.get("stock") or default_stock or ""
+            if stock not in _LINE_STOCKS:
+                errors[line_error_key(index, "stock")] = _(
+                    "Indiquez ce que deviennent ces kilos : remis en stock, mis en perte ou non repris."
+                )
+                continue
+        parts.append(_CreditPart(line, quantity, excl, vat, stock))
     if errors:
         raise ValidationError(errors)
     return parts
@@ -2700,7 +2818,7 @@ def _take_back(
     )
     returned = selectors.returned_by_sale_batch([row.pk for row in batch_rows])
     taken: list[tuple[SaleLineBatch, Decimal]] = []
-    if note.stock != CreditNoteStock.NONE and part.quantity > 0:
+    if part.stock != CreditNoteStock.NONE and part.quantity > 0:
         needed = part.quantity
         for row in batch_rows:
             left = row.quantity - returned.get(row.pk, Decimal("0.000"))
@@ -2741,7 +2859,7 @@ def _take_back(
             reason=_("Retour client · avoir %(number)s") % {"number": note.number},
             source=credit_line,
         )
-        if note.stock == CreditNoteStock.LOSS:
+        if part.stock == CreditNoteStock.LOSS:
             inventory.post_movement(
                 organization=note.organization,
                 actor=actor,
@@ -2762,7 +2880,8 @@ def create_credit_note(
     kind: str,
     reason: str,
     lines: Sequence[CreditLineFields] = (),
-    stock: str = CreditNoteStock.NONE,
+    stock: str | None = CreditNoteStock.NONE,
+    refund: RefundFields | None = None,
 ) -> CreditNote:
     """Correct an issued invoice: the only way (D-057). Numbered AV-<year>-0001... at once, never changed.
 
@@ -2773,7 +2892,12 @@ def create_credit_note(
 
     `stock` says what happens to the kilos given back (customer returns, D-070): `none` moves nothing,
     `restock` puts them back in the sale's place on the batches they left, `loss` does the same and writes
-    them off. Either way the lot's revenue and cost of goods drop by what came back.
+    them off on that lot. Either way the lot's revenue and cost of goods drop by what came back. A partial
+    credit note may say it per line (D-284); `stock` None makes the choice required on every line with kilos.
+
+    Money (D-284): the credit note first cancels what the invoice's BLs still owe; what they were paid beyond
+    that is refunded to the customer (`CustomerRefund`): at once with `refund` mode "now" (from a caisse or a bank
+    account), else "À rembourser" for the treasurer. The original payments are not touched.
     """
     invoice = _locked_invoice(invoice)
     if invoice.status == InvoiceStatus.DRAFT:
@@ -2785,20 +2909,25 @@ def create_credit_note(
         raise ValidationError({"reason": _("Indiquez la raison de l'avoir.")})
     if kind not in CreditNoteKind.values:
         raise ValidationError({"kind": _("Type d'avoir inconnu.")})
-    if stock not in CreditNoteStock.values:
+    if (kind == CreditNoteKind.FULL or stock is not None) and stock not in _LINE_STOCKS:
         raise ValidationError({"stock": _("Indiquez ce que deviennent les kilos rendus.")})
+    refund_mode = (refund or {}).get("mode") or "later"
+    if refund_mode not in ("now", "later"):
+        raise ValidationError({"refund.mode": _("Remboursez maintenant ou plus tard.")})
+    if refund_mode == "now":
+        _checked_refund_payment(invoice.organization, refund or {}, key="refund")
     credited = selectors.credited_by_line(invoice)
     already = invoice.credit_notes.aggregate(
         stamp=Sum("fiscal_stamp"), fees=Sum("fees"), withholding=Sum("withholding_amount")
     )
     withholding_left = invoice.withholding_amount - (already["withholding"] or Decimal("0.000"))
     if kind == CreditNoteKind.FULL:
-        parts = _full_credit_parts(invoice, credited)
+        parts = _full_credit_parts(invoice, credited, stock or CreditNoteStock.NONE)
         stamp = invoice.fiscal_stamp - (already["stamp"] or Decimal("0.000"))
         fees = invoice.fees - (already["fees"] or Decimal("0.000"))
         withholding = withholding_left
     else:
-        parts = _partial_credit_parts(invoice, lines, credited)
+        parts = _partial_credit_parts(invoice, lines, credited, stock)
         stamp = Decimal("0.000")
         fees = Decimal("0.000")
         goods = sum((part.excl + part.vat for part in parts), Decimal("0.000"))
@@ -2808,6 +2937,8 @@ def create_credit_note(
     total_excl = sum((part.excl for part in parts), Decimal("0.000"))
     vat_total = sum((part.vat for part in parts), Decimal("0.000"))
     today = timezone.localdate()
+    stocks = {part.stock for part in parts if part.quantity > 0}
+    note_stock = stocks.pop() if len(stocks) == 1 else (CreditNoteStock.MIXED if stocks else CreditNoteStock.NONE)
     note = CreditNote.objects.create(
         organization=invoice.organization,
         number=numbering.next_number(invoice.organization, "credit_note", year=today.year),
@@ -2815,7 +2946,7 @@ def create_credit_note(
         kind=kind,
         issued_on=today,
         reason=reason,
-        stock=stock,
+        stock=note_stock,
         total_excl_tax=total_excl,
         vat_total=vat_total,
         fiscal_stamp=stamp,
@@ -2832,6 +2963,7 @@ def create_credit_note(
             credit_note=note,
             invoice_line=part.invoice_line,
             quantity=part.quantity,
+            stock=part.stock,
             vat_rate=part.invoice_line.vat_rate,
             amount_excl_tax=part.excl,
             vat_amount=part.vat,
@@ -2849,6 +2981,9 @@ def create_credit_note(
             sale.tax_amount = None
             sale.save(update_fields=["tax_amount", "updated_at"])
     refresh_invoice_sales(invoice)
+    planned = _plan_refund(note=note, actor=actor)
+    if planned is not None and refund_mode == "now":
+        pay_refund(refund=planned, actor=actor, amount=planned.amount, **_refund_payment_fields(refund or {}))
     audit.record(
         organization=invoice.organization,
         actor=actor,
@@ -2859,7 +2994,9 @@ def create_credit_note(
             "invoice": invoice.number,
             "kind": kind,
             "reason": reason,
-            "stock": stock,
+            "stock": note_stock,
+            "lines_stock": [part.stock for part in parts],
+            "refund": str(planned.amount) if planned is not None else "0.000",
             "total_excl_tax": str(note.total_excl_tax),
             "vat_total": str(note.vat_total),
             "fiscal_stamp": str(note.fiscal_stamp),
@@ -2869,6 +3006,216 @@ def create_credit_note(
         },
     )
     return note
+
+
+# ---- Refunds of credit notes (D-284) ----
+
+# The treasury movement of a refund payment: money out of a caisse or a bank account.
+REFUND_PAYMENT_SOURCE = "sales.refund_payment"
+
+
+def rebillable(note: CreditNote) -> bool:
+    """Whether "Refacturer" applies (D-287): a full credit note that took no goods back, whose BLs are on no live
+    invoice again yet."""
+    if note.kind != CreditNoteKind.FULL or note.stock != CreditNoteStock.NONE:
+        return False
+    return not Invoice.objects.filter(
+        sales__in=note.invoice.sales.all(), status__in=(InvoiceStatus.DRAFT, InvoiceStatus.ISSUED)
+    ).exists()
+
+
+@transaction.atomic
+def rebill_credit_note(*, note: CreditNote, actor: User | None) -> Invoice:
+    """ "Refacturer" (D-287, the Perfaxis button): a new draft invoice for the BLs of a fully credited invoice, with
+    what was typed on it (VAT or not, rates, VAT amounts, stamp, fees, withholding rate, notes), pointing to the
+    credit note (and through it to the original invoice). The office corrects what was wrong, then issues it.
+
+    Only for a full credit note that took no goods back (stock "none"): goods returned or written off are no longer
+    the customer's to pay. Refused while one of the BLs is on a live invoice again."""
+    note = CreditNote.objects.select_related("invoice", "invoice__customer").get(pk=note.pk)
+    if note.kind != CreditNoteKind.FULL:
+        raise ValidationError(_("Seul un avoir total se refacture : la facture partiellement créditée reste valable."))
+    if note.stock != CreditNoteStock.NONE:
+        raise ValidationError(
+            _("Cet avoir a repris la marchandise (remise en stock ou perte) : il n'y a plus rien à refacturer.")
+        )
+    original = note.invoice
+    sales = list(original.sales.order_by("sold_at", "id"))
+    overrides = _stored_overrides(original)
+    rates = {line.sale_line_id: line.vat_rate if line.vat_rate_overridden else None for line in original.lines.all()}
+    lines = [line for sale in sales for line in sale.lines.order_by("id")]
+    vat_amounts: dict[Number, Number | None] = {}
+    for rate, amount in overrides.vat_amounts.items():
+        vat_amounts[rate] = amount
+    choices: InvoiceChoices = {
+        "apply_vat": overrides.apply_vat,
+        "vat_rates": [rates.get(line.pk) for line in lines],
+        "vat_amounts": vat_amounts,
+        "fiscal_stamp": overrides.fiscal_stamp,
+        "fees": overrides.fees,
+        "withholding_rate": overrides.withholding_rate,
+        "notes": overrides.notes,
+    }
+    invoice = create_invoice(sales=sales, actor=actor, **choices)
+    invoice.rebilled_from = note
+    invoice.save(update_fields=["rebilled_from", "updated_at"])
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="invoice.rebilled",
+        target=invoice,
+        after={"invoice": original.number, "credit_note": note.number},
+    )
+    return invoice
+
+
+def _overpaid_sales(invoice: Invoice) -> list[tuple[int, Decimal]]:
+    """The invoice's BLs paid beyond what they owe now (credit notes and planned refunds taken off), oldest first."""
+    sale_ids = list(invoice.sale_links.values_list("sale_id", flat=True))
+    rows = receivables.sale_receivables(invoice.organization, sale_ids=sale_ids)
+    return [(row.sale_id, row.overpaid) for row in rows if row.overpaid > 0]
+
+
+def refundable_on(invoice: Invoice) -> Decimal:
+    """What a credit note on this invoice may refund now: what its BLs were paid beyond what they owe. A BL still
+    owing gives nothing back, so the debt is always cancelled first."""
+    return sum((amount for _sale, amount in _overpaid_sales(invoice)), Decimal("0.000"))
+
+
+def _plan_refund(*, note: CreditNote, actor: User | None) -> CustomerRefund | None:
+    """The refund a new credit note owes the customer (D-284): its net amount, at most what the invoice's BLs were
+    paid beyond what they owe now; taken from those BLs (`CustomerRefundAllocation`) so they no longer count it as
+    paid. None when nothing was overpaid: the credit note only cancelled debt."""
+    overpaid = _overpaid_sales(note.invoice)
+    amount = min(sum((value for _sale, value in overpaid), Decimal("0.000")), note.net_amount)
+    if amount <= 0:
+        return None
+    today = timezone.localdate()
+    refund = CustomerRefund.objects.create(
+        organization=note.organization,
+        number=numbering.next_number(note.organization, "customer_refund", year=today.year),
+        customer=note.invoice.customer,
+        invoice=note.invoice,
+        credit_note=note,
+        amount=amount,
+        created_by=actor,
+    )
+    left = amount
+    for sale_id, value in overpaid:
+        take = min(value, left)
+        if take <= 0:
+            break
+        CustomerRefundAllocation.objects.create(
+            organization_id=note.organization_id, refund=refund, sale_id=sale_id, amount=take
+        )
+        left -= take
+    audit.record(
+        organization=note.organization,
+        actor=actor,
+        action="customer_refund.planned",
+        target=refund,
+        after={"number": refund.number, "credit_note": note.number, "amount": str(amount)},
+    )
+    return refund
+
+
+def refunded_total(refund: CustomerRefund) -> Decimal:
+    """What was actually paid back on a refund so far."""
+    return refund.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.000")
+
+
+def _refund_payment_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "method": fields.get("method") or "",
+        "account": fields.get("account"),
+        "paid_on": fields.get("paid_on"),
+        "reference": fields.get("reference") or "",
+    }
+
+
+def _checked_refund_payment(organization: Organization, fields: Mapping[str, Any], *, key: str = "") -> None:
+    """How a refund is paid: a method, and a caisse for cash or a bank account for the rest (D-284)."""
+    prefix = f"{key}." if key else ""
+    errors: dict[str, str] = {}
+    method = fields.get("method") or ""
+    if method not in RefundMethod.values:
+        errors[f"{prefix}method"] = _("Choisissez comment le client est remboursé.")
+    else:
+        problem = treasury.line_account_error(organization, method, fields.get("account"))
+        if problem:
+            errors[f"{prefix}account"] = problem
+    paid_on = fields.get("paid_on")
+    if paid_on is not None and paid_on > timezone.localdate():
+        errors[f"{prefix}paid_on"] = _("La date ne peut pas être dans le futur.")
+    if errors:
+        raise ValidationError(errors)
+
+
+@transaction.atomic
+def pay_refund(
+    *,
+    refund: CustomerRefund,
+    actor: User | None,
+    amount: Number,
+    method: str,
+    account: "TreasuryAccount | None" = None,
+    paid_on: dt.date | None = None,
+    reference: str = "",
+) -> CustomerRefundPayment:
+    """Give money back on a refund (D-284): all of what is left or a part. It leaves the chosen caisse or bank
+    account (else the Caisse for cash, the main bank account otherwise) by a treasury movement the day it is paid.
+    Never beyond what is left, so a refund is never paid twice."""
+    refund = CustomerRefund.objects.select_for_update().get(pk=refund.pk)
+    organization = refund.organization
+    _checked_refund_payment(organization, {"method": method, "account": account, "paid_on": paid_on})
+    try:
+        value = checked_amount(amount)
+    except (ValueError, TypeError):
+        raise ValidationError({"amount": _("Indiquez un montant en DT, au millime près.")}) from None
+    left = refund.amount - refunded_total(refund)
+    if value <= 0:
+        raise ValidationError({"amount": _("Le montant doit être supérieur à 0.")})
+    if value > left:
+        raise ValidationError({"amount": _("Il reste %(amount)s DT à rembourser.") % {"amount": display_money(left)}})
+    day = paid_on or timezone.localdate()
+    chosen = treasury.line_account(organization, method, account)
+    payment = CustomerRefundPayment.objects.create(
+        organization=organization,
+        refund=refund,
+        paid_on=day,
+        method=method,
+        amount=value,
+        account=chosen,
+        reference=reference.strip()[:50],
+        created_by=actor,
+    )
+    treasury.post_movement(
+        organization=organization,
+        account=chosen,
+        day=day,
+        amount=-value,
+        kind="customer_refund",
+        label=f"{refund.number} · {refund.customer.name}",
+        reference=refund.number,
+        source=REFUND_PAYMENT_SOURCE,
+        source_id=payment.pk,
+        actor=actor,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer_refund.paid",
+        target=refund,
+        after={
+            "number": refund.number,
+            "amount": str(value),
+            "method": method,
+            "account": chosen.name,
+            "paid_on": day.isoformat(),
+            "reference": payment.reference,
+        },
+    )
+    return payment
 
 
 # ---- Customer payments, balance, credit, withholding certificates (P2-T06, D-062, D-063) ----

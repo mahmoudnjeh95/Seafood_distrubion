@@ -4,14 +4,17 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { CreditLineStockEnum } from './creditLineStockEnum';
 import type { CreditNoteKindEnum } from './creditNoteKindEnum';
 import type { CreditNoteLineWrite } from './creditNoteLineWrite';
-import type { CreditNoteStockEnum } from './creditNoteStockEnum';
+import type { CreditNoteRefundWrite } from './creditNoteRefundWrite';
+import type { NullEnum } from './nullEnum';
 
 export interface CreditNoteWrite {
   kind: CreditNoteKindEnum;
   /** @maxLength 255 */
   reason: string;
-  stock?: CreditNoteStockEnum;
+  stock?: CreditLineStockEnum | NullEnum | null;
+  refund?: CreditNoteRefundWrite | null;
   lines?: CreditNoteLineWrite[];
 }

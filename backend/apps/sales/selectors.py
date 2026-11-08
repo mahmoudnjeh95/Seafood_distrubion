@@ -35,6 +35,8 @@ from .models import (
     CreditNoteLine,
     CreditNoteLineBatch,
     CustomerPayment,
+    CustomerRefund,
+    CustomerRefundPayment,
     CustomerWriteOffLotShare,
     DeliveryStatus,
     FinanceSettings,
@@ -47,6 +49,7 @@ from .models import (
     QuoteLine,
     QuoteStatus,
     Sale,
+    SaleBilling,
     SaleLine,
     SaleLineBatch,
     SaleRevision,
@@ -193,11 +196,15 @@ def sales_of(
     search: str = "",
     uninvoiced: bool = False,
     delivery_status: str | None = None,
+    opening: str = "all",
+    billing: str | None = None,
 ) -> QuerySet[Sale]:
     """Sales newest first, each with `line_count`, its customer, place, quote and lines (product, batches).
     Days are those of `sold_at` in local time, both included; `search` matches the number and the
     customer's name or reference. `uninvoiced`: the BL still to invoice (confirmed, of a named customer,
-    on no live invoice)."""
+    on no live invoice, and not "non facturable" or "offert", D-286). `billing` keeps one kind.
+    `opening` (D-283): "exclude" leaves out the customers' opening balances (OUV, not BL),
+    "only" keeps them alone, "all" both."""
     lines = (
         SaleLine.objects.select_related("product")
         .prefetch_related(Prefetch("batches", queryset=SaleLineBatch.objects.select_related("batch").order_by("id")))
@@ -246,15 +253,35 @@ def sales_of(
         sales = sales.filter(sold_at__date__gte=date_from)
     if date_to is not None:
         sales = sales.filter(sold_at__date__lte=date_to)
+    if billing:
+        sales = sales.filter(billing=billing)
+    if opening == "exclude":
+        sales = sales.filter(is_opening=False)
+    elif opening == "only":
+        sales = sales.filter(is_opening=True)
     if uninvoiced:
-        sales = sales.filter(status=SaleStatus.CONFIRMED, customer__is_walk_in=False, is_opening=False).exclude(
-            Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True))
-        )
+        sales = sales.filter(
+            status=SaleStatus.CONFIRMED, customer__is_walk_in=False, is_opening=False, billing=SaleBilling.INVOICE
+        ).exclude(Exists(InvoiceSale.objects.filter(sale=OuterRef("pk"), is_live=True)))
     if search := search.strip():
         sales = sales.filter(
             Q(number__icontains=search) | Q(customer__name__icontains=search) | Q(customer__reference__icontains=search)
         )
     return sales
+
+
+def uninvoiced_counts(organization: Organization) -> dict[int, int]:
+    """For each customer with BL still to invoice, how many: the same BL `sales_of(uninvoiced=True)` offers once the
+    customer is chosen in "Nouvelle facture" (validated, not cancelled, not an opening balance, on no live invoice)."""
+    rows = (
+        Sale.objects.for_organization(organization)
+        .filter(pk__in=sales_of(organization, uninvoiced=True).values("pk"))
+        .order_by()
+        .values("customer_id")
+        .annotate(count=Count("pk"))
+        .values_list("customer_id", "count")
+    )
+    return {customer_id: count for customer_id, count in rows if customer_id is not None}
 
 
 def sale_of(organization: Organization, sale_id: int) -> Sale:
@@ -482,13 +509,15 @@ def invoices_of(
     invoices by what their BL still owe (D-256)."""
     credit_lines = CreditNoteLine.objects.select_related("invoice_line").order_by("id")
     credit_notes = (
-        CreditNote.objects.select_related("created_by")
-        .prefetch_related(Prefetch("lines", queryset=credit_lines))
+        CreditNote.objects.select_related("created_by", "invoice")
+        .prefetch_related(Prefetch("lines", queryset=credit_lines), "rebills")
         .order_by("id")
     )
     invoices = (
         Invoice.objects.for_organization(organization)
-        .select_related("organization", "customer", "settings_version", "created_by", "issued_by")
+        .select_related(
+            "organization", "customer", "settings_version", "created_by", "issued_by", "rebilled_from__invoice"
+        )
         .prefetch_related(Prefetch("sales", queryset=Sale.objects.order_by("sold_at", "id")))
         .prefetch_related(
             Prefetch("lines", queryset=InvoiceLine.objects.select_related("product", "sale_line__sale").order_by("id"))
@@ -593,7 +622,7 @@ def credit_notes_of(
     notes = (
         CreditNote.objects.for_organization(organization)
         .select_related("invoice", "invoice__customer", "created_by")
-        .prefetch_related(Prefetch("lines", queryset=CreditNoteLine.objects.select_related("invoice_line")))
+        .prefetch_related(Prefetch("lines", queryset=CreditNoteLine.objects.select_related("invoice_line")), "rebills")
         .order_by("-issued_on", "-id")
     )
     if customer_id is not None:
@@ -1182,3 +1211,46 @@ def customer_documents(organization: Organization) -> dict[int, PartyDocuments]:
         current = documents.get(row["customer_id"], PartyDocuments(party_id=row["customer_id"]))
         documents[row["customer_id"]] = replace(current, invoices=row["count"], total=row["total"])
     return documents
+
+
+def vat_rate_in_use(organization: Organization, rate: Decimal) -> bool:
+    """Whether a BL line, an invoice line or a credit note line carries this VAT rate (Paramètres › TVA, D-283)."""
+    return (
+        SaleLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
+        or InvoiceLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
+        or CreditNoteLine.objects.for_organization(organization).filter(vat_rate=rate).exists()
+    )
+
+
+def refunds_of(
+    organization: Organization, *, status: str | None = None, customer_id: int | None = None, search: str = ""
+) -> QuerySet[CustomerRefund]:
+    """The refunds of credit notes (D-284), newest first, with their payments. `status`: "open" (something left),
+    "to_refund" (nothing paid back yet), "partial" or "refunded"."""
+    refunds = (
+        CustomerRefund.objects.for_organization(organization)
+        .select_related("customer", "invoice", "credit_note", "created_by")
+        .prefetch_related(
+            Prefetch("payments", queryset=CustomerRefundPayment.objects.select_related("account", "created_by"))
+        )
+        .annotate(paid=Coalesce(Sum("payments__amount"), Value(Decimal("0.000")), output_field=DecimalField()))
+        .order_by("-created_at", "-id")
+    )
+    if customer_id is not None:
+        refunds = refunds.filter(customer_id=customer_id)
+    if search := search.strip():
+        refunds = refunds.filter(
+            Q(number__icontains=search)
+            | Q(invoice__number__icontains=search)
+            | Q(credit_note__number__icontains=search)
+            | Q(customer__name__icontains=search)
+        )
+    if status == "open":
+        refunds = refunds.filter(paid__lt=F("amount"))
+    elif status == "to_refund":
+        refunds = refunds.filter(paid=0)
+    elif status == "partial":
+        refunds = refunds.filter(paid__gt=0, paid__lt=F("amount"))
+    elif status == "refunded":
+        refunds = refunds.filter(paid__gte=F("amount"))
+    return refunds

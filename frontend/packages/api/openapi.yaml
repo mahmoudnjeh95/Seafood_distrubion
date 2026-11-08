@@ -3,6 +3,96 @@ info:
   title: Frutti Del Mare ERP API
   version: 1.0.0
 paths:
+  /api/v1/attachments:
+    get:
+      operationId: listAttachments
+      description: The files attached to one document (`kind`, `object_id`), oldest
+        first.
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          enum:
+          - quote
+          - delivery_note
+          - invoice
+          - credit_note
+          - purchase_order
+          - goods_receipt
+          - supplier_invoice
+          type: string
+          minLength: 1
+        description: |-
+          * `quote` - Devis
+          * `delivery_note` - Bon de livraison
+          * `invoice` - Facture
+          * `credit_note` - Avoir
+          * `purchase_order` - Bon de commande fournisseur
+          * `goods_receipt` - Bon de réception
+          * `supplier_invoice` - Facture fournisseur
+        required: true
+      - in: query
+        name: object_id
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - attachments
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachment'
+          description: ''
+    post:
+      operationId: addAttachment
+      description: |-
+        Attach a file to a document (D-288): a PDF of 8 MB at most, or a photo turned upright and shrunk. Owner or
+        manager.
+      tags:
+      - attachments
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachmentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+          description: ''
+        '400':
+          description: Not a PDF or a photo
+  /api/v1/attachments/{attachment_id}:
+    delete:
+      operationId: removeAttachment
+      description: |-
+        Take a file off its document: hidden from now on; the file is kept with who removed it. Owner or
+        manager.
+      parameters:
+      - in: path
+        name: attachment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - attachments
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/auth/csrf:
     get:
       operationId: getCsrfCookie
@@ -721,6 +811,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreditNote'
           description: ''
+  /api/v1/credit-notes/{credit_note_id}/rebill:
+    post:
+      operationId: rebillCreditNote
+      description: |-
+        "Refacturer" (D-287): a new draft invoice for the BLs of a fully credited invoice, with what was typed on
+        the original, pointing back to this credit note. Only for a full credit note that took no goods back, while
+        the BLs are on no live invoice. Owner or manager.
+      parameters:
+      - in: path
+        name: credit_note_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+          description: ''
   /api/v1/customer-effets/{instrument_id}/unpaid:
     post:
       operationId: recordUnpaidEffet
@@ -1116,6 +1230,101 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomerPaymentTotals'
           description: ''
+  /api/v1/customer-types:
+    get:
+      operationId: listCustomerTypes
+      description: |-
+        The customer types (Paramètres › Types de clients, D-283), active and deactivated, in their order. The
+        customer form offers the active ones; a customer keeps a deactivated one.
+      tags:
+      - customer-types
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerType'
+          description: ''
+    post:
+      operationId: createCustomerType
+      description: A new customer type (owner or manager), active, at the end of the
+        list.
+      tags:
+      - customer-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerTypeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerTypeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerTypeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerType'
+          description: ''
+  /api/v1/customer-types/{type_id}:
+    patch:
+      operationId: updateCustomerType
+      description: Rename a customer type, deactivate it or bring it back. Its customers
+        keep it either way.
+      parameters:
+      - in: path
+        name: type_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerTypeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerTypeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerTypeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerType'
+          description: ''
+    delete:
+      operationId: deleteCustomerType
+      description: Delete a customer type no customer has; one in use is refused (deactivate
+        it instead).
+      parameters:
+      - in: path
+        name: type_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-types
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/customers:
     get:
       operationId: listCustomers
@@ -1126,24 +1335,9 @@ paths:
       - in: query
         name: kind
         schema:
-          enum:
-          - restaurant
-          - hotel
-          - fish_shop
-          - supermarket
-          - wholesaler
-          - caterer
-          - individual
           type: string
+          maxLength: 20
           minLength: 1
-        description: |-
-          * `restaurant` - Restaurant
-          * `hotel` - Hôtel
-          * `fish_shop` - Poissonnerie
-          * `supermarket` - Supermarché
-          * `wholesaler` - Grossiste
-          * `caterer` - Traiteur
-          * `individual` - Particulier
       - in: query
         name: search
         schema:
@@ -3410,7 +3604,7 @@ paths:
   /api/v1/instance:
     get:
       operationId: getInstance
-      description: 'Which copy of the application this is (D-283). Public: the login
+      description: 'Which copy of the application this is (D-290). Public: the login
         screen shows the tag and the link too.'
       tags:
       - instance
@@ -3622,7 +3816,10 @@ paths:
         everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
         amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
         `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
-        (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`.
+        (back, then written off on the same lot); a partial note may say it per line (`lines.<n>.stock`, D-284) and
+        a line with kilos must say it. When the invoice was paid, what it gives back beyond the debt left is a refund
+        (`refund`: `now` pays it from a caisse or bank account, `later` leaves it "À rembourser").
+        Errors: `lines.<index>.<field>`, `reason`, `stock`, `refund.<field>`.
       parameters:
       - in: path
         name: invoice_id
@@ -3846,6 +4043,25 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/v1/invoices/to-invoice-counts:
+    get:
+      operationId: listUninvoicedCounts
+      description: |-
+        How many BL each customer has still to invoice (validated, not cancelled, on no invoice): the count shown
+        beside the customer in "Nouvelle facture". Customers with none are left out.
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UninvoicedCount'
           description: ''
   /api/v1/locations:
     get:
@@ -5171,24 +5387,9 @@ paths:
       - in: query
         name: kind
         schema:
-          enum:
-          - restaurant
-          - hotel
-          - fish_shop
-          - supermarket
-          - wholesaler
-          - caterer
-          - individual
           type: string
+          maxLength: 20
           minLength: 1
-        description: |-
-          * `restaurant` - Restaurant
-          * `hotel` - Hôtel
-          * `fish_shop` - Poissonnerie
-          * `supermarket` - Supermarché
-          * `wholesaler` - Grossiste
-          * `caterer` - Traiteur
-          * `individual` - Particulier
       - in: query
         name: search
         schema:
@@ -6573,6 +6774,196 @@ paths:
               schema:
                 $ref: '#/components/schemas/PriceList'
           description: ''
+  /api/v1/price-requests:
+    get:
+      operationId: listPriceRequests
+      description: |-
+        Price requests ("demandes de prix", D-289), newest first, paginated, with their lines and the suppliers'
+        offers. Filter by status or `search` (number, product, supplier).
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - open
+          - ordered
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `open` - En cours
+          * `ordered` - Commandée
+          * `cancelled` - Annulée
+      tags:
+      - price-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPriceRequestList'
+          description: ''
+    post:
+      operationId: createPriceRequest
+      description: |-
+        Ask several suppliers for their prices on products and kilos. Errors on `suppliers`, `lines`,
+        `lines.<index>.<field>`, `requested_on`. Owner or manager.
+      tags:
+      - price-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRequestWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PriceRequestWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PriceRequestWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}:
+    get:
+      operationId: getPriceRequest
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}/cancel:
+    post:
+      operationId: cancelPriceRequest
+      description: 'Give up a price request still open: nothing is ordered.'
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}/offers:
+    post:
+      operationId: recordSupplierOffer
+      description: |-
+        Type a supplier's answer: a price per kg per request line (empty: not offered), their reference, the
+        day it came and how long it holds. A supplier not asked yet is added. Replaces their earlier answer.
+        Errors on `prices.<line id>`, `supplier`, `received_on`, `valid_until`. Only while the request is open.
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfferWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfferWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}/order:
+    post:
+      operationId: orderFromOffers
+      description: |-
+        Turn the chosen offers into purchase orders, one per supplier: `choices` gives the supplier retained per
+        request line; a line left out is not ordered. Refused (`choices.<line id>`) without a price from that
+        supplier or when their offer is no longer valid. The request is then "commandée".
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderFromOffersWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderFromOffersWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderFromOffersWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
   /api/v1/products:
     get:
       operationId: listProducts
@@ -7286,6 +7677,11 @@ paths:
         schema:
           type: boolean
           default: false
+      - in: query
+        name: disputed
+        schema:
+          type: boolean
+          default: false
       - name: limit
         required: false
         in: query
@@ -7378,6 +7774,76 @@ paths:
         required: true
       tags:
       - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/{receipt_id}/dispute:
+    post:
+      operationId: disputeReceipt
+      description: |-
+        Contest a goods receipt with its supplier (D-285): `reason` is required. While contested it goes on no
+        supplier invoice. Refused while an invoice carries it or a dispute is already open.
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/{receipt_id}/resolve-dispute:
+    post:
+      operationId: resolveReceiptDispute
+      description: |-
+        Lift a receipt's open dispute (D-285), saying how it was settled (`resolution`, required): it can then
+        be invoiced.
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeResolveWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeResolveWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeResolveWrite'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -7626,6 +8092,88 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/GeneralCost'
+          description: ''
+  /api/v1/refunds:
+    get:
+      operationId: listCustomerRefunds
+      description: |-
+        The refunds of credit notes (D-284), newest first: planned, paid back, left and status, with their
+        payments. Filter by `status` (open, to_refund, partial, refunded), customer or `search`.
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - open
+          - to_refund
+          - partial
+          - refunded
+          type: string
+          minLength: 1
+        description: |-
+          * `open` - open
+          * `to_refund` - to_refund
+          * `partial` - partial
+          * `refunded` - refunded
+      tags:
+      - refunds
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerRefund'
+          description: ''
+  /api/v1/refunds/{refund_id}/payments:
+    post:
+      operationId: payCustomerRefund
+      description: |-
+        Pay back all or part of what is left on a refund (owner or manager), from a caisse or a bank account:
+        the money leaves that account the day given. Never beyond what is left. Errors: `amount`, `method`,
+        `account`, `paid_on`.
+      parameters:
+      - in: path
+        name: refund_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - refunds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRefund'
           description: ''
   /api/v1/reports/cash-flow:
     get:
@@ -8599,6 +9147,19 @@ paths:
         sale (inclusive) or `search` (number, customer). A driver sees only their own sales, without costs.
       parameters:
       - in: query
+        name: billing
+        schema:
+          enum:
+          - invoice
+          - no_invoice
+          - free
+          type: string
+          minLength: 1
+        description: |-
+          * `invoice` - Facturable
+          * `no_invoice` - Non facturable
+          * `free` - Offert
+      - in: query
         name: customer
         schema:
           type: integer
@@ -8645,6 +9206,20 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - in: query
+        name: opening
+        schema:
+          enum:
+          - exclude
+          - only
+          - all
+          type: string
+          default: exclude
+          minLength: 1
+        description: |-
+          * `exclude` - exclude
+          * `only` - only
+          * `all` - all
       - name: ordering
         required: false
         in: query
@@ -8779,6 +9354,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/sales/{sale_id}/billing:
+    post:
+      operationId: setSaleBilling
+      description: |-
+        Mark a BL "facturable" or "non facturable" (owed, never invoiced), also once confirmed (D-286). Refused
+        while it is on an invoice, for an "offert" BL and for the walk-in customer. Owner or manager.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleBillingWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleBillingWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleBillingWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/sales/{sale_id}/cancel:
     post:
       operationId: cancelSale
@@ -8857,6 +9467,19 @@ paths:
         as an Excel file.
       parameters:
       - in: query
+        name: billing
+        schema:
+          enum:
+          - invoice
+          - no_invoice
+          - free
+          type: string
+          minLength: 1
+        description: |-
+          * `invoice` - Facturable
+          * `no_invoice` - Non facturable
+          * `free` - Offert
+      - in: query
         name: customer
         schema:
           type: integer
@@ -8891,6 +9514,20 @@ paths:
         schema:
           type: integer
           minimum: 1
+      - in: query
+        name: opening
+        schema:
+          enum:
+          - exclude
+          - only
+          - all
+          type: string
+          default: exclude
+          minLength: 1
+        description: |-
+          * `exclude` - exclude
+          * `only` - only
+          * `all` - all
       - in: query
         name: ordering
         schema:
@@ -10733,6 +11370,7 @@ paths:
           - salary
           - partner_settlement
           - field_purchase
+          - customer_refund
           type: string
           minLength: 1
         description: |-
@@ -10750,6 +11388,7 @@ paths:
           * `salary` - Salaire
           * `partner_settlement` - Règlement associé
           * `field_purchase` - Achat au port
+          * `customer_refund` - Remboursement client
       - in: query
         name: search
         schema:
@@ -10807,6 +11446,7 @@ paths:
           - salary
           - partner_settlement
           - field_purchase
+          - customer_refund
           type: string
           minLength: 1
         description: |-
@@ -10824,6 +11464,7 @@ paths:
           * `salary` - Salaire
           * `partner_settlement` - Règlement associé
           * `field_purchase` - Achat au port
+          * `customer_refund` - Remboursement client
       - in: query
         name: search
         schema:
@@ -12028,6 +12669,100 @@ paths:
               schema:
                 $ref: '#/components/schemas/VatProducts'
           description: ''
+  /api/v1/vat-rates:
+    get:
+      operationId: listVatRates
+      description: |-
+        The VAT rates (Paramètres › TVA, D-283), lowest first, active and deactivated. The product form offers
+        the active ones.
+      tags:
+      - vat-rates
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VatRate'
+          description: ''
+    post:
+      operationId: createVatRate
+      description: A new VAT rate (owner or manager), active at once.
+      tags:
+      - vat-rates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VatRateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VatRateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VatRateWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VatRate'
+          description: ''
+  /api/v1/vat-rates/{rate_id}:
+    patch:
+      operationId: updateVatRate
+      description: Change a VAT rate's label, deactivate it or bring it back; its
+        percent only while nothing uses it.
+      parameters:
+      - in: path
+        name: rate_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vat-rates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVatRateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVatRateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVatRateWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VatRate'
+          description: ''
+    delete:
+      operationId: deleteVatRate
+      description: Delete a VAT rate never used; one in use is refused (deactivate
+        it instead).
+      parameters:
+      - in: path
+        name: rate_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vat-rates
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/web-requests:
     get:
       operationId: listWebRequests
@@ -12541,6 +13276,89 @@ components:
       required:
       - approved
       - month
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/AttachmentKindEnum'
+          readOnly: true
+        object_id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        uploaded_by:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        file_url:
+          type: string
+          readOnly: true
+      required:
+      - content_type
+      - file_url
+      - id
+      - kind
+      - name
+      - note
+      - object_id
+      - size
+      - uploaded_at
+      - uploaded_by
+    AttachmentKindEnum:
+      enum:
+      - quote
+      - delivery_note
+      - invoice
+      - credit_note
+      - purchase_order
+      - goods_receipt
+      - supplier_invoice
+      type: string
+      description: |-
+        * `quote` - Devis
+        * `delivery_note` - Bon de livraison
+        * `invoice` - Facture
+        * `credit_note` - Avoir
+        * `purchase_order` - Bon de commande fournisseur
+        * `goods_receipt` - Bon de réception
+        * `supplier_invoice` - Facture fournisseur
+    AttachmentWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/AttachmentKindEnum'
+        object_id:
+          type: integer
+          minimum: 1
+        file:
+          type: string
+          format: binary
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - file
+      - kind
+      - object_id
     AwaitingInvoice:
       type: object
       description: An issued invoice that planned a withholding and has no certificate
@@ -12970,6 +13788,16 @@ components:
       - id
       - name
       - reference
+    BillingEnum:
+      enum:
+      - invoice
+      - no_invoice
+      - free
+      type: string
+      description: |-
+        * `invoice` - Facturable
+        * `no_invoice` - Non facturable
+        * `free` - Offert
     BlankEnum:
       enum:
       - ''
@@ -14004,6 +14832,16 @@ components:
       required:
       - counted_quantity
       - line
+    CreditLineStockEnum:
+      enum:
+      - none
+      - restock
+      - loss
+      type: string
+      description: |-
+        * `none` - none
+        * `restock` - restock
+        * `loss` - loss
     CreditNote:
       type: object
       properties:
@@ -14086,6 +14924,19 @@ components:
         einvoice_reference:
           type: string
           readOnly: true
+        refund:
+          allOf:
+          - $ref: '#/components/schemas/RefundSummary'
+          nullable: true
+          readOnly: true
+        rebillable:
+          type: boolean
+          readOnly: true
+        rebills:
+          type: array
+          items:
+            $ref: '#/components/schemas/RebillRef'
+          readOnly: true
       required:
       - created_at
       - created_by
@@ -14101,6 +14952,9 @@ components:
       - net_amount
       - number
       - reason
+      - rebillable
+      - rebills
+      - refund
       - stock
       - total_excl_tax
       - total_incl_tax
@@ -14155,6 +15009,10 @@ components:
           format: decimal
           pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
           readOnly: true
+        stock:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteStockEnum'
+          readOnly: true
         vat_rate:
           type: string
           format: decimal
@@ -14183,6 +15041,7 @@ components:
       - product_name
       - product_reference
       - quantity
+      - stock
       - vat_amount
       - vat_rate
     CreditNoteLineWrite:
@@ -14197,18 +15056,51 @@ components:
         amount:
           type: string
           nullable: true
+        stock:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CreditLineStockEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - invoice_line
+    CreditNoteRefundWrite:
+      type: object
+      description: 'How the money given back is refunded (D-284): `now` (method, caisse
+        or bank account) or `later`.'
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/RefundMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
+        paid_on:
+          type: string
+          format: date
+          nullable: true
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+      required:
+      - mode
     CreditNoteStockEnum:
       enum:
       - none
       - restock
       - loss
+      - mixed
       type: string
       description: |-
         * `none` - Aucun mouvement de stock
         * `restock` - Remis en stock
         * `loss` - Mis en perte
+        * `mixed` - Selon la ligne
     CreditNoteWrite:
       type: object
       properties:
@@ -14218,9 +15110,14 @@ components:
           type: string
           maxLength: 255
         stock:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CreditLineStockEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        refund:
           allOf:
-          - $ref: '#/components/schemas/CreditNoteStockEnum'
-          default: none
+          - $ref: '#/components/schemas/CreditNoteRefundWrite'
+          nullable: true
         lines:
           type: array
           items:
@@ -14251,8 +15148,11 @@ components:
           type: string
           readOnly: true
         kind:
+          type: string
+          readOnly: true
+        id_type:
           allOf:
-          - $ref: '#/components/schemas/CustomerKindEnum'
+          - $ref: '#/components/schemas/IdTypeEnum'
           readOnly: true
         tax_id:
           type: string
@@ -14315,6 +15215,7 @@ components:
       - credit_limit
       - email
       - id
+      - id_type
       - is_active
       - is_walk_in
       - kind
@@ -14511,24 +15412,6 @@ components:
             maxLength: 0
       required:
       - name
-    CustomerKindEnum:
-      enum:
-      - restaurant
-      - hotel
-      - fish_shop
-      - supermarket
-      - wholesaler
-      - caterer
-      - individual
-      type: string
-      description: |-
-        * `restaurant` - Restaurant
-        * `hotel` - Hôtel
-        * `fish_shop` - Poissonnerie
-        * `supermarket` - Supermarché
-        * `wholesaler` - Grossiste
-        * `caterer` - Traiteur
-        * `individual` - Particulier
     CustomerLine:
       type: object
       properties:
@@ -15025,6 +15908,107 @@ components:
           default: false
       required:
       - customer
+    CustomerRefund:
+      type: object
+      description: 'A refund of a credit note (D-284): the customer, the invoice and
+        credit note, planned, paid back, left.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        customer:
+          allOf:
+          - $ref: '#/components/schemas/QuoteCustomer'
+          readOnly: true
+        invoice:
+          allOf:
+          - $ref: '#/components/schemas/CreditNoteInvoice'
+          readOnly: true
+        credit_note:
+          allOf:
+          - $ref: '#/components/schemas/SaleRef'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        refunded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        left:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RefundStatusEnum'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundPayment'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by
+      - credit_note
+      - customer
+      - id
+      - invoice
+      - left
+      - number
+      - payments
+      - refunded
+      - status
+    CustomerType:
+      type: object
+      description: 'One customer type (D-283), with how many customers have it: a
+        type in use cannot be deleted.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        customer_count:
+          type: integer
+          readOnly: true
+      required:
+      - code
+      - customer_count
+      - id
+      - is_active
+      - label
+    CustomerTypeWrite:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     CustomerWrite:
       type: object
       properties:
@@ -15036,9 +16020,13 @@ components:
           type: string
           maxLength: 150
         kind:
-          allOf:
-          - $ref: '#/components/schemas/CustomerKindEnum'
+          type: string
           default: restaurant
+          maxLength: 20
+        id_type:
+          allOf:
+          - $ref: '#/components/schemas/IdTypeEnum'
+          default: tax_id
         tax_id:
           type: string
           default: ''
@@ -17171,6 +18159,15 @@ components:
       - product
       - receipt
       - unit_cost
+    DisputeStatusEnum:
+      enum:
+      - open
+      - resolved
+      type: string
+      description: |-
+        * `` - Aucune
+        * `open` - Contestée
+        * `resolved` - Contestation levée
     DocumentList:
       type: object
       properties:
@@ -19113,6 +20110,7 @@ components:
       - payment
       - unpaid
       - writeoff
+      - refund
       type: string
       description: |-
         * `sale` - sale
@@ -19120,6 +20118,19 @@ components:
         * `payment` - payment
         * `unpaid` - unpaid
         * `writeoff` - writeoff
+        * `refund` - refund
+    IdTypeEnum:
+      enum:
+      - tax_id
+      - cin
+      - passport
+      - residence_card
+      type: string
+      description: |-
+        * `tax_id` - Matricule fiscal
+        * `cin` - Carte d'identité nationale (CIN)
+        * `passport` - Passeport
+        * `residence_card` - Carte de séjour
     IllustrationEnum:
       enum:
       - shrimp
@@ -19546,10 +20557,18 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/InvoiceStatusEnum'
           readOnly: true
+        rebilled_from:
+          allOf:
+          - $ref: '#/components/schemas/RebilledFrom'
+          readOnly: true
+          nullable: true
         sale:
           allOf:
           - $ref: '#/components/schemas/SaleRef'
@@ -19694,6 +20713,7 @@ components:
       - credited_total
       - customer
       - discount_total
+      - draft_number
       - due_on
       - einvoice_reference
       - einvoice_status
@@ -19710,6 +20730,7 @@ components:
       - paid_total
       - payment_state
       - prices_include_vat
+      - rebilled_from
       - remaining_to_pay
       - sale
       - sales
@@ -19856,10 +20877,18 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/InvoiceStatusEnum'
           readOnly: true
+        rebilled_from:
+          allOf:
+          - $ref: '#/components/schemas/RebilledFrom'
+          readOnly: true
+          nullable: true
         sale:
           allOf:
           - $ref: '#/components/schemas/SaleRef'
@@ -20072,6 +21101,7 @@ components:
       - credited_total
       - customer
       - discount_total
+      - draft_number
       - due_on
       - einvoice_reference
       - einvoice_status
@@ -20092,6 +21122,7 @@ components:
       - paid_total
       - payment_state
       - prices_include_vat
+      - rebilled_from
       - remaining_to_pay
       - sale
       - sales
@@ -21812,6 +22843,14 @@ components:
           maxLength: 128
       required:
       - new_password
+    ModeEnum:
+      enum:
+      - now
+      - later
+      type: string
+      description: |-
+        * `now` - now
+        * `later` - later
     Month:
       type: object
       properties:
@@ -22322,6 +23361,7 @@ components:
       - salary
       - partner_settlement
       - field_purchase
+      - customer_refund
       type: string
       description: |-
         * `customer_payment` - Règlement client
@@ -22338,6 +23378,7 @@ components:
         * `salary` - Salaire
         * `partner_settlement` - Règlement associé
         * `field_purchase` - Achat au port
+        * `customer_refund` - Remboursement client
     MovementOf:
       type: object
       properties:
@@ -22953,6 +23994,9 @@ components:
       required:
       - results
       - unread
+    NullEnum:
+      enum:
+      - null
     NumberLine:
       type: object
       properties:
@@ -22970,10 +24014,19 @@ components:
           type: boolean
         next_number:
           type: string
+        has_draft:
+          type: boolean
+        draft_prefix:
+          type: string
+        next_draft_number:
+          type: string
       required:
       - default_prefix
+      - draft_prefix
       - group
+      - has_draft
       - kind
+      - next_draft_number
       - next_number
       - prefix
       - title
@@ -22985,6 +24038,9 @@ components:
           type: string
           maxLength: 30
         prefix:
+          type: string
+          maxLength: 6
+        draft_prefix:
           type: string
           maxLength: 6
       required:
@@ -23011,6 +24067,64 @@ components:
             $ref: '#/components/schemas/NumberPrefixRow'
       required:
       - prefixes
+    OfferOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PurchaseOrderStatusEnum'
+          readOnly: true
+      required:
+      - id
+      - number
+      - status
+    OfferPriceWrite:
+      type: object
+      properties:
+        request_line:
+          type: integer
+          minimum: 1
+        unit_cost:
+          type: string
+          nullable: true
+          maxLength: 20
+      required:
+      - request_line
+      - unit_cost
+    OfferWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+        prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferPriceWrite'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        received_on:
+          type: string
+          format: date
+          nullable: true
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+      required:
+      - prices
+      - supplier
     OfficeSiteProduct:
       type: object
       description: |-
@@ -23213,6 +24327,35 @@ components:
       - receipts
       - status
       - supplier
+    OrderChoiceWrite:
+      type: object
+      properties:
+        request_line:
+          type: integer
+          minimum: 1
+        supplier:
+          type: integer
+          minimum: 1
+      required:
+      - request_line
+      - supplier
+    OrderFromOffersWrite:
+      type: object
+      properties:
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderChoiceWrite'
+        ordered_on:
+          type: string
+          format: date
+        expected_on:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - choices
+      - ordered_on
     OrderLine:
       type: object
       properties:
@@ -23756,6 +24899,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Order'
+    PaginatedPriceRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceRequest'
     PaginatedQuoteList:
       type: object
       required:
@@ -24220,9 +25386,13 @@ components:
         trade_register:
           type: string
           readOnly: true
+        id_type:
+          type: string
+          readOnly: true
       required:
       - address
       - city
+      - id_type
       - name
       - phone
       - tax_id
@@ -24292,6 +25462,14 @@ components:
         name:
           type: string
           maxLength: 100
+    PatchedCustomerTypeWrite:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     PatchedCustomerWrite:
       type: object
       properties:
@@ -24303,9 +25481,13 @@ components:
           type: string
           maxLength: 150
         kind:
-          allOf:
-          - $ref: '#/components/schemas/CustomerKindEnum'
+          type: string
           default: restaurant
+          maxLength: 20
+        id_type:
+          allOf:
+          - $ref: '#/components/schemas/IdTypeEnum'
+          default: tax_id
         tax_id:
           type: string
           default: ''
@@ -24609,6 +25791,18 @@ components:
         last_name:
           type: string
           maxLength: 150
+    PatchedVatRateWrite:
+      type: object
+      properties:
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     PaymentAllocate:
       type: object
       properties:
@@ -25187,6 +26381,116 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PriceRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        requested_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PriceRequestStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceRequestLine'
+          readOnly: true
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierOffer'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - lines
+      - notes
+      - number
+      - offers
+      - requested_on
+      - status
+    PriceRequestLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - product
+      - quantity
+    PriceRequestLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          maxLength: 20
+      required:
+      - product
+      - quantity
+    PriceRequestStatusEnum:
+      enum:
+      - open
+      - ordered
+      - cancelled
+      type: string
+      description: |-
+        * `open` - En cours
+        * `ordered` - Commandée
+        * `cancelled` - Annulée
+    PriceRequestWrite:
+      type: object
+      properties:
+        requested_on:
+          type: string
+          format: date
+        suppliers:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceRequestLineWrite'
+        notes:
+          type: string
+          default: ''
+      required:
+      - lines
+      - requested_on
+      - suppliers
     PrimeWrite:
       type: object
       properties:
@@ -25671,6 +26975,9 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/QuoteStatusEnum'
@@ -25777,6 +27084,7 @@ components:
       - created_by
       - customer
       - discount_total
+      - draft_number
       - expired_at
       - id
       - line_count
@@ -25851,6 +27159,9 @@ components:
         tax_id:
           type: string
           readOnly: true
+        id_type:
+          type: string
+          readOnly: true
         phone:
           type: string
           readOnly: true
@@ -25861,6 +27172,7 @@ components:
       - address
       - city
       - id
+      - id_type
       - is_walk_in
       - name
       - phone
@@ -25885,6 +27197,9 @@ components:
           type: integer
           readOnly: true
         number:
+          type: string
+          readOnly: true
+        draft_number:
           type: string
           readOnly: true
         status:
@@ -25998,6 +27313,7 @@ components:
       - created_by
       - customer
       - discount_total
+      - draft_number
       - expired_at
       - id
       - line_count
@@ -26205,6 +27521,51 @@ components:
       - customer
       - lines
       - quoted_on
+    RebillRef:
+      type: object
+      description: 'An invoice made again with "Refacturer" (D-287): draft or issued,
+        with its reference.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+      required:
+      - draft_number
+      - id
+      - number
+      - status
+    RebilledFrom:
+      type: object
+      description: The credit note an invoice bills again, and the original invoice
+        it cancelled (D-287).
+      properties:
+        credit_note_id:
+          type: integer
+          readOnly: true
+        credit_note_number:
+          type: string
+          readOnly: true
+        invoice_id:
+          type: integer
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+      required:
+      - credit_note_id
+      - credit_note_number
+      - invoice_id
+      - invoice_number
     Receipt:
       type: object
       properties:
@@ -26281,10 +27642,44 @@ components:
         editable:
           type: boolean
           readOnly: true
+        dispute_status:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/DisputeStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        dispute_reason:
+          type: string
+          readOnly: true
+        disputed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        disputed_by:
+          type: string
+          readOnly: true
+        dispute_resolution:
+          type: string
+          readOnly: true
+        dispute_resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        dispute_resolved_by:
+          type: string
+          readOnly: true
       required:
       - accepted_total
       - created_at
       - created_by
+      - dispute_reason
+      - dispute_resolution
+      - dispute_resolved_at
+      - dispute_resolved_by
+      - dispute_status
+      - disputed_at
+      - disputed_by
       - editable
       - has_differences
       - id
@@ -26342,6 +27737,22 @@ components:
       - before
       - field
       - line
+    ReceiptDisputeResolveWrite:
+      type: object
+      properties:
+        resolution:
+          type: string
+          maxLength: 1000
+      required:
+      - resolution
+    ReceiptDisputeWrite:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+      required:
+      - reason
     ReceiptHeader:
       type: object
       description: The seller printed at the top of the driver's receipts (D-281),
@@ -26818,6 +28229,132 @@ components:
       - id
       - name
       - reference
+    RefundMethodEnum:
+      enum:
+      - cash
+      - transfer
+      - cheque
+      type: string
+      description: |-
+        * `cash` - Espèces
+        * `transfer` - Virement
+        * `cheque` - Chèque
+    RefundPayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        paid_on:
+          type: string
+          format: date
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/RefundMethodEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        account:
+          type: integer
+          readOnly: true
+        account_name:
+          type: string
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - account
+      - account_name
+      - amount
+      - created_at
+      - created_by
+      - id
+      - method
+      - paid_on
+      - reference
+    RefundPaymentWrite:
+      type: object
+      properties:
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        method:
+          $ref: '#/components/schemas/RefundMethodEnum'
+        account:
+          type: integer
+          minimum: 1
+          nullable: true
+        paid_on:
+          type: string
+          format: date
+          nullable: true
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+      required:
+      - amount
+      - method
+    RefundStatusEnum:
+      enum:
+      - to_refund
+      - partial
+      - refunded
+      type: string
+      description: |-
+        * `to_refund` - to_refund
+        * `partial` - partial
+        * `refunded` - refunded
+    RefundSummary:
+      type: object
+      description: 'A credit note''s refund in short (D-284): planned, paid back,
+        left and where it stands.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        refunded:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        left:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RefundStatusEnum'
+          readOnly: true
+      required:
+      - amount
+      - id
+      - left
+      - number
+      - refunded
+      - status
     RejectedEffet:
       type: object
       description: 'The rejet of a line (D-218): when and why.'
@@ -27923,6 +29460,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/SaleStatusEnum'
           readOnly: true
+        billing:
+          allOf:
+          - $ref: '#/components/schemas/BillingEnum'
+          readOnly: true
         customer:
           allOf:
           - $ref: '#/components/schemas/SaleCustomer'
@@ -28098,10 +29639,17 @@ components:
         delivery_note:
           type: string
           readOnly: true
+        is_opening:
+          type: boolean
+          readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
       required:
       - amount_due
       - amount_excl_tax
       - amount_paid
+      - billing
       - cancel_reason
       - cancelled_at
       - cancelled_by
@@ -28121,8 +29669,10 @@ components:
       - delivery_note
       - delivery_status
       - discount_total
+      - draft_number
       - id
       - invoice
+      - is_opening
       - issued_at
       - line_count
       - location
@@ -28154,6 +29704,13 @@ components:
       required:
       - id
       - number
+    SaleBillingWrite:
+      type: object
+      properties:
+        billing:
+          $ref: '#/components/schemas/BillingEnum'
+      required:
+      - billing
     SaleCancel:
       type: object
       properties:
@@ -28198,6 +29755,9 @@ components:
         tax_id:
           type: string
           readOnly: true
+        id_type:
+          type: string
+          readOnly: true
         phone:
           type: string
           readOnly: true
@@ -28208,6 +29768,7 @@ components:
       - address
       - city
       - id
+      - id_type
       - is_walk_in
       - name
       - phone
@@ -28225,6 +29786,10 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/SaleStatusEnum'
+          readOnly: true
+        billing:
+          allOf:
+          - $ref: '#/components/schemas/BillingEnum'
           readOnly: true
         customer:
           allOf:
@@ -28401,6 +29966,12 @@ components:
         delivery_note:
           type: string
           readOnly: true
+        is_opening:
+          type: boolean
+          readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         lines:
           type: array
           items:
@@ -28425,6 +29996,7 @@ components:
       - amount_due
       - amount_excl_tax
       - amount_paid
+      - billing
       - boxes
       - cancel_reason
       - cancelled_at
@@ -28445,9 +30017,11 @@ components:
       - delivery_note
       - delivery_status
       - discount_total
+      - draft_number
       - estimated_extra
       - id
       - invoice
+      - is_opening
       - issued_at
       - line_count
       - lines
@@ -28903,6 +30477,11 @@ components:
           type: string
           nullable: true
           maxLength: 255
+        billing:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/BillingEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - lines
       - location
@@ -30330,6 +31909,9 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         supplier:
           allOf:
           - $ref: '#/components/schemas/Ref'
@@ -30399,6 +31981,7 @@ components:
       required:
       - created_at
       - created_by
+      - draft_number
       - due_date
       - id
       - invoice_date
@@ -30536,6 +32119,69 @@ components:
       - paid
       - supplier_id
       - uninvoiced
+    SupplierOffer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        valid_until:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierOfferLine'
+          readOnly: true
+        order:
+          allOf:
+          - $ref: '#/components/schemas/OfferOrder'
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - lines
+      - notes
+      - order
+      - received_on
+      - reference
+      - supplier
+      - valid_until
+    SupplierOfferLine:
+      type: object
+      properties:
+        request_line:
+          type: integer
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        retained:
+          type: boolean
+          readOnly: true
+      required:
+      - request_line
+      - retained
+      - unit_cost
     SupplierPayment:
       type: object
       properties:
@@ -31919,6 +33565,17 @@ components:
       required:
       - name
       - plate
+    UninvoicedCount:
+      type: object
+      description: A customer and the number of their BL still to invoice.
+      properties:
+        customer:
+          type: integer
+        count:
+          type: integer
+      required:
+      - count
+      - customer
     UnpaidEffet:
       type: object
       description: 'The impayé of a line (D-217): when, why, the bank''s charges and
@@ -32039,6 +33696,47 @@ components:
           readOnly: true
       required:
       - products
+    VatRate:
+      type: object
+      description: |-
+        One VAT rate of Paramètres › TVA (D-283). `in_use`: a product or a document carries it, so it cannot be
+        deleted and its percent no longer changes.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        in_use:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - in_use
+      - is_active
+      - label
+      - rate
+    VatRateWrite:
+      type: object
+      properties:
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     VoidTransfer:
       type: object
       properties:

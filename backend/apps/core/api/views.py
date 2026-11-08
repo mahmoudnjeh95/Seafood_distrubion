@@ -84,7 +84,7 @@ def health(request: Request) -> Response:
 @authentication_classes([])
 @permission_classes([AllowAny])
 def instance(request: Request) -> Response:
-    """Which copy of the application this is (D-283). Public: the login screen shows the tag and the link too."""
+    """Which copy of the application this is (D-290). Public: the login screen shows the tag and the link too."""
     return Response(
         {
             "training": settings.TRAINING_MODE,
@@ -503,5 +503,10 @@ class NumberingView(APIView):
             organization=membership.organization,
             actor=membership.user,
             prefixes=[(row["kind"], row["prefix"]) for row in serializer.validated_data["prefixes"]],
+            draft_prefixes={
+                row["kind"]: row["draft_prefix"]
+                for row in serializer.validated_data["prefixes"]
+                if "draft_prefix" in row
+            },
         )
         return Response(NumberLineSerializer(selectors.number_lines(membership.organization), many=True).data)

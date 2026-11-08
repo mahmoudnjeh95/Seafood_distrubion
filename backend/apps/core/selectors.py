@@ -79,10 +79,15 @@ class NumberLine:
     default_prefix: str
     yearly: bool
     next_number: str
+    # D-283: whether the kind has a draft step, its draft prefix (empty: none) and the next provisional reference.
+    has_draft: bool = False
+    draft_prefix: str = ""
+    next_draft_number: str = ""
 
 
 def number_lines(organization: Organization) -> list[NumberLine]:
     prefixes = numbering.prefixes_of(organization)
+    drafts = numbering.draft_prefixes_of(organization)
     return [
         NumberLine(
             kind=item.key,
@@ -92,6 +97,12 @@ def number_lines(organization: Organization) -> list[NumberLine]:
             default_prefix=item.prefix,
             yearly=item.yearly,
             next_number=numbering.next_preview(organization, item.key, prefixes),
+            has_draft=item.key in drafts,
+            draft_prefix=drafts.get(item.key, ""),
+            next_draft_number=numbering.next_draft_preview(organization, item.key, drafts)
+            if item.key in drafts
+            else "",
         )
         for item in numbering.NUMBER_KINDS
+        if item.shown
     ]

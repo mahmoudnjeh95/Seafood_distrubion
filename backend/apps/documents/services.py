@@ -11,7 +11,7 @@ import smtplib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -22,11 +22,16 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.core import audit
+from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 
 from . import rendering
+from .models import Attachment, AttachmentKind, GeneratedDocument, SentEmail
 from .models import DocumentKind as DocumentKind  # re-exported for the apps that register documents
-from .models import GeneratedDocument, SentEmail
+
+if TYPE_CHECKING:
+    from django.core.files.uploadedfile import UploadedFile
 
 logger = logging.getLogger(__name__)
 
@@ -282,3 +287,109 @@ def record_failure(*, organization: Organization, kind: str, object_id: int, err
     GeneratedDocument.objects.for_organization(organization).update_or_create(
         kind=kind, object_id=object_id, defaults={"organization": organization, "error": error[:255]}
     )
+
+
+# ---- Files attached to a document (D-288) ----
+# An app that owns a document kind says how to find one: `register_attachable(kind, exists)`, `exists` answering
+# whether that id is a document of the organization. This app never reads the other apps' tables.
+
+MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+# Scans and photos of papers stay readable: larger than a product photo.
+ATTACHMENT_PHOTO_SIDE = 2400
+
+_attachables: dict[str, Callable[[Organization, int], bool]] = {}
+
+
+def register_attachable(kind: str, exists: Callable[[Organization, int], bool]) -> None:
+    _attachables[kind] = exists
+
+
+def is_attachable(organization: Organization, kind: str, object_id: int) -> bool:
+    """Whether files may be attached to this document: a known kind, and a document of the organization."""
+    exists = _attachables.get(kind)
+    return kind in AttachmentKind.values and exists is not None and exists(organization, object_id)
+
+
+def attachments_of(organization: Organization, kind: str, object_id: int) -> list[Attachment]:
+    """The files of one document still attached, oldest first."""
+    return list(
+        Attachment.objects.for_organization(organization)
+        .filter(kind=kind, object_id=object_id, removed_at__isnull=True)
+        .select_related("uploaded_by")
+        .order_by("uploaded_at", "id")
+    )
+
+
+def _attachment_snapshot(attachment: Attachment) -> dict[str, Any]:
+    return {
+        "kind": attachment.kind,
+        "object_id": attachment.object_id,
+        "name": attachment.name,
+        "size": attachment.size,
+        "note": attachment.note,
+    }
+
+
+@transaction.atomic
+def add_attachment(
+    *,
+    organization: Organization,
+    actor: User | None,
+    kind: str,
+    object_id: int,
+    upload: "UploadedFile[bytes]",
+    note: str = "",
+) -> Attachment:
+    """Attach a file to a document: a PDF (8 MB at most) kept as it is, or a photo (JPEG, PNG, WebP) turned upright,
+    shrunk to 2400 px and stored as WebP. Refused on `file` otherwise; an unknown document is a `kind` error."""
+    if not is_attachable(organization, kind, object_id):
+        raise ValidationError({"kind": _("Document inconnu.")})
+    head = upload.read(5)
+    upload.seek(0)
+    if head == b"%PDF-":
+        if upload.size is not None and upload.size > MAX_ATTACHMENT_BYTES:
+            raise ValidationError({"file": _("Le fichier dépasse 8 Mo.")})
+        content = ContentFile(upload.read())
+        content_type, stored_name = "application/pdf", "document.pdf"
+    else:
+        content = reencoded_photo(upload, field="file", side=ATTACHMENT_PHOTO_SIDE)
+        content_type, stored_name = "image/webp", "document.webp"
+    attachment = Attachment(
+        organization=organization,
+        kind=kind,
+        object_id=object_id,
+        name=(upload.name or stored_name)[-200:],
+        content_type=content_type,
+        size=content.size,
+        note=note.strip()[:255],
+        uploaded_by=actor,
+    )
+    attachment.file.save(stored_name, content, save=False)
+    attachment.save()
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="attachment.added",
+        target=attachment,
+        after=_attachment_snapshot(attachment),
+    )
+    return attachment
+
+
+@transaction.atomic
+def remove_attachment(*, attachment: Attachment, actor: User | None) -> Attachment:
+    """Take a file off its document: it no longer shows; the row and the file are kept with who removed it."""
+    locked = Attachment.objects.select_for_update().get(pk=attachment.pk)
+    if locked.removed_at is not None:
+        return locked
+    locked.removed_at = timezone.now()
+    locked.removed_by = actor
+    locked.save(update_fields=["removed_at", "removed_by"])
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="attachment.removed",
+        target=locked,
+        before=_attachment_snapshot(locked),
+    )
+    return locked

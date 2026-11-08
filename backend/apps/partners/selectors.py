@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from django.db.models import Prefetch, Q, QuerySet
+from django.db.models import Count, Prefetch, Q, QuerySet
 
 from apps.core.models import Organization
 
@@ -84,3 +84,15 @@ def customer_places(organization: Organization) -> list[Customer]:
             is_active=True, latitude__isnull=False, longitude__isnull=False
         )
     )
+
+
+def customer_type_counts(organization: Organization) -> dict[str, int]:
+    """How many customers, archived included, have each customer type code (D-283)."""
+    rows = (
+        Customer.objects.for_organization(organization)
+        .order_by()
+        .values("kind")
+        .annotate(count=Count("pk"))
+        .values_list("kind", "count")
+    )
+    return dict(rows)

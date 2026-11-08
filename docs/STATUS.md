@@ -1,15 +1,41 @@
 # Project status
 
-_Last updated: 2026-11-08 (training copy app1/ch1, D-283; next free decision D-284)_
+_Last updated: 2026-11-08 (training copy app1/ch1, D-290; Perfaxis gaps and client bug list merged #323–#329; next free decision D-291)_
 
 ## Where we are
 
-- **D-283 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, not merged):** same stack on
+- **D-290 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, merged 2026-11-08 (#330)):** same stack on
   `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, only the database apart (`frutti_training`, services
   `training-backend`/`training-worker` in `compose.staging.yml`), "Formation" tag on screen only, papers identical to
   the real ones, reset by hand with `reset-training.sh` (runbook "Training copy"). Next: owner adds the DNS records
-  (`app1`, `ch1` → 217.182.205.137), merge, deploy, run `~/frutti-training/bin/reset-training.sh --apply` once and
+  (`app1`, `ch1` → 217.182.205.137), then run `~/frutti-training/bin/reset-training.sh --apply` once and
   check the tag, a PDF and a driver receipt on app1/ch1.
+
+- **Perfaxis gaps (owner answers 2026-11-07, D-285):** the owner compared the Perfaxis Achat/Vente/Avoir manual and kept
+  five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch
+  `receipt-dispute`, migration purchasing 0023): "Contester" with a motif, no supplier invoice takes it until "Lever la
+  contestation"; (2) **P2-T17 BL "non facturable" or "offert"** (branch `bl-billing`, migration sales 0034, D-286):
+  owed but never invoiced, or given away at 100 % discount; (3) **P2-T18 "Refacturer"** (branch `rebill-credit-note`,
+  migration sales 0035, D-287): a draft from a full credit note that took no goods back; (4) **P2-T19 attachments** (branch `document-attachments`,
+  migration documents 0007, D-288): "Documents associés" on quotes, BL, invoices, purchase orders, receipts, supplier
+  invoices; (5) **P1-T19 supplier price requests** (branch `supplier-price-requests`, migration purchasing 0024,
+  D-289): Achats › Demandes de prix, offers compared, one order per chosen supplier. Not wanted: Bureau d'ordre, exempt/export
+  customers, internal purchase requests, foreign currency, services.
+
+- **D-284 (branch `credit-note-refunds`, stacked on #323, migrations sales 0033, treasury 0008):** an avoir asks, per line
+  with kilos, remis en stock / mis en perte / non repris; when the invoice was paid it asks "Rembourser maintenant"
+  (caisse or bank) or "À rembourser plus tard". Debt first, then refund. Trésorerie › Remboursements clients lists and
+  pays them. Check on staging: pay an invoice, avoir partiel with one line back in stock and one in loss, refund later,
+  then pay it from Remboursements clients and see the caisse journal.
+
+- **P2-T16 / D-283 (client document "13 bugs avec captures", branch `claude/jolly-feynman-76x5xb`, migrations core 0007,
+  partners 0005, catalog 0007, sales 0032, purchasing 0022):** done 01 net price column, 02 "Bons de livraison" wording,
+  03 "— n BL" per client in Nouvelle facture, 07 clients/suppliers sorted by Réf., 08 Paramètres › Types de clients,
+  09 identification type + number, 10 open the new invoice, 12 Trésorerie › Soldes d'ouverture (OUV out of the BL
+  list), 13 draft prefix with its own counter (drafts read BROUILLON-… or BFA-…; definitive number at validation).
+  Part of 04: Paramètres › TVA and the product's VAT as a list. **Not done:** 04's document columns/TTC amounts,
+  05 and 06 (credit notes with refunds), 11 (one delivery cycle for every BL): they need owner decisions (D-283).
+
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
@@ -102,6 +128,14 @@ _Last updated: 2026-11-08 (training copy app1/ch1, D-283; next free decision D-2
   Several sessions work at once; recheck decision and migration numbers right before merging.
 
 ## Next step
+
+0. Perfaxis gaps: merge in order once green, after #324: `receipt-dispute` (#325), `bl-billing` (#326),
+   `rebill-credit-note` (#327), `document-attachments` (#328), `supplier-price-requests`. Each needs a staging check
+   (see the phase files P1-T18, P1-T19, P2-T17 to P2-T19).
+0. D-284: merge #323 first, then the PR from `credit-note-refunds` once CI is green (retarget it to main).
+0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
+   BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.
+   Then ask the owner about bug 11 (stock out at delivery for direct BL), bugs 5/6 (refund flow) and bug 4's columns.
 
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.

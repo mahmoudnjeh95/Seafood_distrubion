@@ -32,8 +32,11 @@ class Quote(OrganizationScopedModel, TimeStampedModel):
     (expired) closes it. An accepted quote becomes one or several sales (BL, D-115). Nothing is reserved in the stock.
     """
 
-    # "DV-0001", "DV-0002"... per organization, given by `services.create_quote`.
+    # "DV-2026-0001"... per organization: the provisional reference while a draft, the definitive number once
+    # sent (D-283), given by `services.create_quote` and `services.send_quote`.
     number = models.CharField(max_length=20)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=QuoteStatus.choices, default=QuoteStatus.DRAFT)
     # By name, not by import: an app only uses another app's services and selectors (ARCHITECTURE §3).
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="quotes")
@@ -168,6 +171,18 @@ class DeliveryStatus(models.TextChoices):
     CANCELLED = "cancelled", _("Non livré")
 
 
+class SaleBilling(models.TextChoices):
+    """Whether a BL is invoiced (D-286, the Perfaxis "non facturable" box, both kinds the owner asked for)."""
+
+    # The usual BL: it goes on an invoice.
+    INVOICE = "invoice", _("Facturable")
+    # Owed and paid like any BL, but never invoiced ("sans facture").
+    NO_INVOICE = "no_invoice", _("Non facturable")
+    # Given away (a sample, a gift, a replacement): every line at 100 % discount, nothing owed, never invoiced. The lot
+    # carries the cost with no revenue.
+    FREE = "free", _("Offert")
+
+
 class SalePaymentMethod(models.TextChoices):
     """How the customer paid at the sale. Full customer payments are P2-T06's `CustomerPayment`."""
 
@@ -218,8 +233,10 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     sale stays, marked cancelled. Never deleted.
     """
 
-    # "VE-0001", "VE-0002"... per organization, given when the draft is created.
+    # The provisional reference while a draft (VE-2026-0001, D-283), the BL number once validated.
     number = models.CharField(max_length=20)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=SaleStatus.choices, default=SaleStatus.DRAFT)
     # The walk-in customer ("Client de passage") for counter sales without a name (D-047).
     customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="sales")
@@ -239,6 +256,8 @@ class Sale(OrganizationScopedModel, TimeStampedModel):
     transfer = models.ForeignKey(
         "inventory.Transfer", null=True, blank=True, on_delete=models.PROTECT, related_name="delivery_notes"
     )
+    # Invoiced, owed but never invoiced, or given away (D-286).
+    billing = models.CharField(max_length=20, choices=SaleBilling.choices, default=SaleBilling.INVOICE)
     # Totals computed by the services from the lines, as on quotes.
     subtotal = MoneyField(default=Decimal("0.000"))
     discount_total = MoneyField(default=Decimal("0.000"))
@@ -613,8 +632,11 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     issued invoice is never edited or deleted: a `CreditNote` corrects it.
     """
 
-    # "FA-2026-0001"..., per organization and year; empty while a draft (taken only when issued: no gaps).
+    # "FA-2026-0001"..., per organization and year, taken only when issued (no gaps). A draft carries its
+    # provisional reference (BFA-2026-0007, or BROUILLON-2026-0007 without a draft prefix, D-283); older drafts none.
     number = models.CharField(max_length=20, blank=True)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT)
     # The delivery notes (BL) this invoice bills, all of its customer (D-101): usually one, several for a
     # "facture récapitulative". Each line points to its own sale line.
@@ -642,6 +664,8 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     customer_address = models.CharField(max_length=255, blank=True)
     customer_city = models.CharField(max_length=100, blank=True)
     customer_tax_id = models.CharField(max_length=20, blank=True)
+    # What `customer_tax_id` is (D-283): "tax_id", "cin", "passport" or "residence_card".
+    customer_id_type = models.CharField(max_length=20, blank=True, default="tax_id")
     # Totals, computed by the services from the lines and the VAT per rate.
     # kg × price before discounts, and the discounts, as charged on the sale.
     subtotal = MoneyField(default=Decimal("0.000"))
@@ -674,6 +698,10 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     # TTN / El Fatoora hook (D-016, Phase 8): nothing is sent yet; the reference TTN gives will land here.
     einvoice_status = models.CharField(max_length=20, choices=EInvoiceStatus.choices, default=EInvoiceStatus.NOT_SENT)
     einvoice_reference = models.CharField(max_length=100, blank=True)
+    # "Refacturer" (D-287): the full credit note this invoice bills again; its invoice is the original one.
+    rebilled_from = models.ForeignKey(
+        "CreditNote", null=True, blank=True, on_delete=models.PROTECT, related_name="rebills"
+    )
 
     class Meta:
         ordering = ["-issued_on", "-id"]
@@ -818,6 +846,8 @@ class CreditNoteStock(models.TextChoices):
     RESTOCK = "restock", _("Remis en stock")
     # The goods come back but cannot be sold again: they are written off, on the lot they came from.
     LOSS = "loss", _("Mis en perte")
+    # A partial credit note whose lines say different things (D-284): each line's own `stock` decides.
+    MIXED = "mixed", _("Selon la ligne")
 
 
 class CreditNote(OrganizationScopedModel, TimeStampedModel):
@@ -880,6 +910,8 @@ class CreditNoteLine(OrganizationScopedModel):
     credit_note = models.ForeignKey(CreditNote, on_delete=models.CASCADE, related_name="lines")
     invoice_line = models.ForeignKey(InvoiceLine, on_delete=models.PROTECT, related_name="credit_lines")
     quantity = QuantityField(default=Decimal("0.000"))
+    # What became of this line's kilos (D-284): back in stock, written off as a loss, or not taken back.
+    stock = models.CharField(max_length=20, choices=CreditNoteStock.choices, default=CreditNoteStock.NONE)
     vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
     amount_excl_tax = MoneyField()
     vat_amount = MoneyField(default=Decimal("0.000"))
@@ -1213,3 +1245,80 @@ class WithholdingCertificate(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.number
+
+
+class RefundMethod(models.TextChoices):
+    CASH = "cash", _("Espèces")
+    TRANSFER = "transfer", _("Virement")
+    CHEQUE = "cheque", _("Chèque")
+
+
+class CustomerRefund(OrganizationScopedModel, TimeStampedModel):
+    """Money a credit note gives back to a customer who had already paid (D-284), "À rembourser" until paid.
+
+    Made with the credit note when the invoice's BLs were paid beyond what they owe once credited: the debt left
+    is cancelled first, only the rest is refunded. Paid at once or later, in one or several payments
+    (`CustomerRefundPayment`), never beyond `amount`. The original payments stay as they were.
+    """
+
+    number = models.CharField(max_length=20)
+    customer = models.ForeignKey("partners.Customer", on_delete=models.PROTECT, related_name="refunds")
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="refunds")
+    credit_note = models.OneToOneField(CreditNote, on_delete=models.PROTECT, related_name="refund")
+    amount = MoneyField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="customer_refund_number_unique"),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_refund_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class CustomerRefundAllocation(OrganizationScopedModel):
+    """The part of a refund taken from one BL's overpayment (D-284): that BL no longer counts it as paid, so a BL
+    invoiced again after a total credit note owes its amount anew. Written once with the refund."""
+
+    refund = models.ForeignKey(CustomerRefund, on_delete=models.PROTECT, related_name="allocations")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="refund_allocations")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["refund", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_refund_allocation_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.refund} · {self.sale} · {self.amount}"
+
+
+class CustomerRefundPayment(OrganizationScopedModel):
+    """Money actually given back on a refund: the day, how, from which caisse or bank account (D-284). It writes a
+    treasury movement out of that account. Written once, never changed."""
+
+    refund = models.ForeignKey(CustomerRefund, on_delete=models.PROTECT, related_name="payments")
+    paid_on = models.DateField()
+    method = models.CharField(max_length=20, choices=RefundMethod.choices)
+    amount = MoneyField()
+    account = models.ForeignKey("treasury.TreasuryAccount", on_delete=models.PROTECT, related_name="+")
+    reference = models.CharField(max_length=50, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["refund", "paid_on", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="customer_refund_payment_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.refund} · {self.amount}"

@@ -60,7 +60,7 @@ services:
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-contact@fruttidelmare.com}
       SENTRY_ENVIRONMENT: staging
       SENTRY_RELEASE: ${RELEASE}
-      # The training copy (D-283), linked from the login screens; written into .env by remote-deploy.sh.
+      # The training copy (D-290), linked from the login screens; written into .env by remote-deploy.sh.
       FRUTTI_TRAINING_ADMIN_URL: ${FRUTTI_TRAINING_ADMIN_URL:-}
       FRUTTI_TRAINING_DRIVER_URL: ${FRUTTI_TRAINING_DRIVER_URL:-}
     volumes: [media:/app/media] # product photos and PDFs, served by the API to members only
@@ -91,7 +91,7 @@ services:
       backend: { condition: service_healthy }
       redis: { condition: service_healthy }
 
-  # ---- The training copy (D-283): the same image, connected to its own database `frutti_training` on the same
+  # ---- The training copy (D-290): the same image, connected to its own database `frutti_training` on the same
   # PostgreSQL server, its own Redis slots and its own media volume. Started by the same deploy; its data is changed
   # only by ~/frutti-training/bin/reset-training.sh. A second process is needed: one Django process has one database.
   training-backend:
@@ -128,7 +128,7 @@ services:
       timeout: 5s
       retries: 12
 
-  # The training copy's PDFs: exactly like the real ones (owner's choice, D-283).
+  # The training copy's PDFs: exactly like the real ones (owner's choice, D-290).
   training-worker:
     image: frutti-backend:${RELEASE}
     restart: unless-stopped
@@ -153,7 +153,7 @@ services:
       - "127.0.0.1:18081:8081" # admin app
       - "127.0.0.1:18082:8082" # driver app
       - "127.0.0.1:18083:8083" # public site (D-186); the host nginx gets a name for it once DNS exists
-      - "127.0.0.1:18091:8091" # training admin app, app1.fruttidelmare.com (D-283)
+      - "127.0.0.1:18091:8091" # training admin app, app1.fruttidelmare.com (D-290)
       - "127.0.0.1:18092:8092" # training driver app, ch1.fruttidelmare.com
     depends_on:
       backend: { condition: service_healthy }
@@ -185,4 +185,4 @@ services:
 volumes:
   pgdata:
   media:
-  training_media: # the training copy's photos and PDFs (D-283)
+  training_media: # the training copy's photos and PDFs (D-290)

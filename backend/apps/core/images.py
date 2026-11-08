@@ -14,7 +14,7 @@ PHOTO_SIDE = 1200  # stored photos fit in 1200 × 1200 px
 PHOTO_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 
-def reencoded_photo(upload: UploadedFile[bytes], *, field: str = "photo") -> ContentFile[bytes]:
+def reencoded_photo(upload: UploadedFile[bytes], *, field: str = "photo", side: int = PHOTO_SIDE) -> ContentFile[bytes]:
     """The photo turned upright, shrunk and saved again as WebP; refused on `field` when it is not one.
 
     Saving again keeps only the pixels: the GPS position and other metadata of the phone, and anything
@@ -32,7 +32,7 @@ def reencoded_photo(upload: UploadedFile[bytes], *, field: str = "photo") -> Con
             # A palette PNG keeps its transparent colour in `info`: without RGBA it turns black (seen on a logo, D-282).
             see_through = "A" in upright.getbands() or "transparency" in upright.info
             upright = upright.convert("RGBA" if see_through else "RGB")
-            upright.thumbnail((PHOTO_SIDE, PHOTO_SIDE))
+            upright.thumbnail((side, side))
             buffer = io.BytesIO()
             upright.save(buffer, format="WEBP", quality=82, method=4)
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError):

@@ -11,3 +11,5 @@ class PurchasingConfig(AppConfig):
 
         # The PDF receipt of a supplier règlement (P9-T03c).
         printing.register_printables()
+        # The documents files can be attached to (D-288).
+        printing.register_attachables()

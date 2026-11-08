@@ -24,6 +24,7 @@ date_to?: string;
  * * `salary` - Salaire
  * * `partner_settlement` - Règlement associé
  * * `field_purchase` - Achat au port
+ * * `customer_refund` - Remboursement client
  * @minLength 1
  */
 kind?: ExportAccountStatementKind;

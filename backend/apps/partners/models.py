@@ -75,6 +75,9 @@ class SupplierContact(OrganizationScopedModel):
 
 
 class CustomerKind(models.TextChoices):
+    """The customer types every organization starts with (D-283). The list itself is `CustomerType`, set in
+    Paramètres › Types de clients; these codes stay because the documents read "individual" (a person)."""
+
     RESTAURANT = "restaurant", "Restaurant"
     HOTEL = "hotel", "Hôtel"
     FISH_SHOP = "fish_shop", "Poissonnerie"
@@ -82,6 +85,36 @@ class CustomerKind(models.TextChoices):
     WHOLESALER = "wholesaler", "Grossiste"
     CATERER = "caterer", "Traiteur"
     INDIVIDUAL = "individual", "Particulier"
+
+
+class CustomerType(OrganizationScopedModel, TimeStampedModel):
+    """One entry of the customer types list (Paramètres › Types de clients, D-283). `code` is what a customer
+    stores in `kind`; the label can change without touching the customers. A deactivated type stays on the
+    customers that have it but is no longer offered; a type is deleted only while no customer uses it."""
+
+    code = models.CharField(max_length=20)
+    label = models.CharField(max_length=60)
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "label", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "code"], name="customer_type_code_unique"),
+            models.UniqueConstraint("organization", Lower("label"), name="customer_type_label_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class IdentificationType(models.TextChoices):
+    """What the identification number of a customer is (D-283). Existing numbers are tax IDs."""
+
+    TAX_ID = "tax_id", "Matricule fiscal"
+    CIN = "cin", "Carte d'identité nationale (CIN)"
+    PASSPORT = "passport", "Passeport"
+    RESIDENCE_CARD = "residence_card", "Carte de séjour"
 
 
 class Customer(OrganizationScopedModel, TimeStampedModel):
@@ -93,8 +126,12 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
 
     reference = models.CharField(max_length=30)
     name = models.CharField(max_length=150)
-    kind = models.CharField(max_length=20, choices=CustomerKind.choices, default=CustomerKind.RESTAURANT)
-    # Tunisian "matricule fiscal", stored as 1234567A/A/M/000 (or 1234567A alone). Empty when unknown.
+    # The code of one of the organization's `CustomerType` (D-283).
+    kind = models.CharField(max_length=20, default=CustomerKind.RESTAURANT)
+    # What `tax_id` is (D-283): a tax ID, a national ID card, a passport or a residence card.
+    id_type = models.CharField(max_length=20, choices=IdentificationType.choices, default=IdentificationType.TAX_ID)
+    # The identification number, as text so leading zeros stay. A Tunisian "matricule fiscal" is stored as
+    # 1234567A/A/M/000 (or 1234567A alone); a CIN as its 8 digits. Empty when unknown.
     tax_id = models.CharField(max_length=20, blank=True)
     phone = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
@@ -120,9 +157,9 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
                 "organization", Lower("reference"), name="customer_reference_unique_per_organization"
             ),
             models.UniqueConstraint(
-                fields=["organization", "tax_id"],
+                fields=["organization", "id_type", "tax_id"],
                 condition=~models.Q(tax_id=""),
-                name="customer_tax_id_unique_per_organization",
+                name="customer_identification_unique_per_organization",
             ),
             models.UniqueConstraint(
                 fields=["organization"],

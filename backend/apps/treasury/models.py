@@ -266,6 +266,8 @@ class MovementKind(models.TextChoices):
     SALARY = "salary", _("Salaire")
     PARTNER_SETTLEMENT = "partner_settlement", _("Règlement associé")
     FIELD_PURCHASE = "field_purchase", _("Achat au port")
+    # Money given back to a customer on a credit note (D-284).
+    CUSTOMER_REFUND = "customer_refund", _("Remboursement client")
 
 
 class TreasuryMovement(OrganizationScopedModel):

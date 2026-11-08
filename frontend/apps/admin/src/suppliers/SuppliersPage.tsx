@@ -51,13 +51,17 @@ export function SuppliersPage() {
   );
   const filtering = query !== "" || status !== "active" || kind !== "all";
 
-  const view = useTableView(list, {
-    reference: (supplier) => supplier.reference,
-    name: (supplier) => supplier.name,
-    phone: (supplier) => supplier.phone,
-    taxId: (supplier) => supplier.tax_id,
-    contacts: (supplier) => supplier.contacts.length,
-  });
+  const view = useTableView(
+    list,
+    {
+      reference: (supplier) => supplier.reference,
+      name: (supplier) => supplier.name,
+      phone: (supplier) => supplier.phone,
+      taxId: (supplier) => supplier.tax_id,
+      contacts: (supplier) => supplier.contacts.length,
+    },
+    { defaultSort: { key: "reference", direction: "asc" } },
+  );
   const sorting = { sort: view.sort, onSort: view.toggleSort };
 
   return (

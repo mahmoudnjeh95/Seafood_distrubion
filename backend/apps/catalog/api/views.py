@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors, services
-from apps.catalog.models import Category, PriceList, Product
+from apps.catalog.models import Category, PriceList, Product, VatRate
 from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadMemberWriteOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
 
@@ -29,6 +29,8 @@ from .serializers import (
     ProductUpdateSerializer,
     SetPriceSerializer,
     SetPricesSerializer,
+    VatRateSerializer,
+    VatRateWriteSerializer,
 )
 
 
@@ -314,3 +316,72 @@ class PriceListDetailView(PriceListBaseView):
             items=data["items"],
         )
         return Response(PriceListSerializer(self.price_list(price_list_id)).data)
+
+
+def _vat_rows(organization: Organization, rates: list[VatRate]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": row.pk,
+            "rate": row.rate,
+            "label": row.label,
+            "is_active": row.is_active,
+            "in_use": services.vat_rate_in_use(organization, row.rate),
+        }
+        for row in rates
+    ]
+
+
+class VatRateView(CatalogView):
+    # The office reads the VAT rates; owners and managers change them. Drivers have no use for them.
+    permission_classes = (ReadOfficeWriteOwnerOrManager,)  # type: ignore[assignment]
+
+
+class VatRateListView(VatRateView):
+    @extend_schema(operation_id="listVatRates", responses=VatRateSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The VAT rates (Paramètres › TVA, D-283), lowest first, active and deactivated. The product form offers
+        the active ones."""
+        return Response(
+            VatRateSerializer(_vat_rows(self.organization, services.vat_rates_of(self.organization)), many=True).data
+        )
+
+    @extend_schema(operation_id="createVatRate", request=VatRateWriteSerializer, responses={201: VatRateSerializer})
+    def post(self, request: Request) -> Response:
+        """A new VAT rate (owner or manager), active at once."""
+        serializer = VatRateWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if "rate" not in serializer.validated_data:
+            raise ValidationError({"rate": _("Indiquez le taux en %.")})
+        created = services.create_vat_rate(
+            organization=self.organization,
+            actor=self.membership.user,
+            rate=serializer.validated_data["rate"],
+            label=serializer.validated_data.get("label", ""),
+        )
+        return Response(
+            VatRateSerializer(_vat_rows(self.organization, [created])[0]).data, status=status.HTTP_201_CREATED
+        )
+
+
+class VatRateDetailView(VatRateView):
+    def vat_rate(self, rate_id: int) -> VatRate:
+        try:
+            return VatRate.objects.for_organization(self.organization).get(pk=rate_id)
+        except VatRate.DoesNotExist:
+            raise Http404 from None
+
+    @extend_schema(operation_id="updateVatRate", request=VatRateWriteSerializer, responses=VatRateSerializer)
+    def patch(self, request: Request, rate_id: int) -> Response:
+        """Change a VAT rate's label, deactivate it or bring it back; its percent only while nothing uses it."""
+        serializer = VatRateWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_vat_rate(
+            vat_rate=self.vat_rate(rate_id), actor=self.membership.user, **serializer.validated_data
+        )
+        return Response(VatRateSerializer(_vat_rows(self.organization, [updated])[0]).data)
+
+    @extend_schema(operation_id="deleteVatRate", request=None, responses={204: None})
+    def delete(self, request: Request, rate_id: int) -> Response:
+        """Delete a VAT rate never used; one in use is refused (deactivate it instead)."""
+        services.delete_vat_rate(vat_rate=self.vat_rate(rate_id), actor=self.membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

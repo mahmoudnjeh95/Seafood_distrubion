@@ -11,7 +11,7 @@ import { useLogin, useSession } from "./session";
 /**
  * Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"); `withLanguage` offers
  * French or Arabic; `logoUrl` is the company logo to show in place of the default mark (before login, only a copy kept
- * on the phone can be shown: D-154). `app` picks the training copy this login screen links to (D-283).
+ * on the phone can be shown: D-154). `app` picks the training copy this login screen links to (D-290).
  */
 export function LoginPage({
   title,

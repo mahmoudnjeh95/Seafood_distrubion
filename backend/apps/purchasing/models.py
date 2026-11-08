@@ -10,6 +10,17 @@ from apps.core.models import OrganizationScopedModel, TimeStampedModel
 from apps.core.money import MoneyField, QuantityField, line_total
 
 
+class ReceiptDisputeStatus(models.TextChoices):
+    """Where a goods receipt stands against its supplier (D-285). The stock is in either way."""
+
+    # Nothing contested.
+    NONE = "", _("Aucune")
+    # Contested ("contesté"): wrong weight, quality, price... It goes on no supplier invoice until resolved.
+    OPEN = "open", _("Contestée")
+    # The dispute was settled (a correction, the supplier's answer): it can be invoiced again.
+    RESOLVED = "resolved", _("Contestation levée")
+
+
 class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     """Goods received from a supplier on one day into one location, with their real net weight (Q12).
 
@@ -40,12 +51,32 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # A dispute with the supplier (D-285): while open, no supplier invoice takes this receipt.
+    dispute_status = models.CharField(
+        max_length=10, choices=ReceiptDisputeStatus.choices, default=ReceiptDisputeStatus.NONE, blank=True
+    )
+    # The "motif de contestation", required to open one.
+    dispute_reason = models.TextField(blank=True)
+    disputed_at = models.DateTimeField(null=True, blank=True)
+    disputed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # How it was settled, required to lift it.
+    dispute_resolution = models.TextField(blank=True)
+    dispute_resolved_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
 
     class Meta:
         ordering = ["-received_on", "-id"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "number"], name="receipt_number_unique_per_organization"),
         ]
+
+    @property
+    def is_disputed(self) -> bool:
+        return self.dispute_status == ReceiptDisputeStatus.OPEN
 
     def __str__(self) -> str:
         return self.number
@@ -206,6 +237,93 @@ class PurchaseOrderLine(OrganizationScopedModel):
         return line_total(self.ordered_quantity, self.unit_cost)
 
 
+class PriceRequestStatus(models.TextChoices):
+    # Asked to the suppliers: offers are typed as they come.
+    OPEN = "open", _("En cours")
+    # The chosen offers became purchase orders.
+    ORDERED = "ordered", _("Commandée")
+    CANCELLED = "cancelled", _("Annulée")
+
+
+class PriceRequest(OrganizationScopedModel, TimeStampedModel):
+    """A "demande de prix" (D-289, Perfaxis's demande de devis / devis reçu): products and kilos asked to several
+    suppliers, their offers side by side, then the chosen ones become purchase orders, one per supplier."""
+
+    # "DD-2026-0001"... per organization, given by `services.create_price_request`.
+    number = models.CharField(max_length=20)
+    requested_on = models.DateField()
+    status = models.CharField(max_length=20, choices=PriceRequestStatus.choices, default=PriceRequestStatus.OPEN)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-requested_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="price_request_number_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class PriceRequestLine(OrganizationScopedModel):
+    """One product of a price request and the kilos wanted."""
+
+    request = models.ForeignKey(PriceRequest, on_delete=models.CASCADE, related_name="lines")
+    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="+")
+    quantity = QuantityField()
+
+    class Meta:
+        ordering = ["request", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["request", "product"], name="price_request_line_one_per_product"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="price_request_line_quantity_positive"),
+        ]
+
+
+class SupplierOffer(OrganizationScopedModel, TimeStampedModel):
+    """What one supplier answered to a price request: their reference, how long the prices hold, a price per kg for
+    the products they offer. Asked but not answered yet while it has no price."""
+
+    request = models.ForeignKey(PriceRequest, on_delete=models.CASCADE, related_name="offers")
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="+")
+    # The supplier's own quote number, as printed on their paper.
+    reference = models.CharField(max_length=50, blank=True)
+    received_on = models.DateField(null=True, blank=True)
+    # The last day its prices hold; empty when the supplier gave none.
+    valid_until = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    # The purchase order made from it, once chosen.
+    order = models.OneToOneField(
+        "PurchaseOrder", null=True, blank=True, on_delete=models.PROTECT, related_name="supplier_offer"
+    )
+
+    class Meta:
+        ordering = ["request", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["request", "supplier"], name="supplier_offer_one_per_supplier"),
+        ]
+
+
+class SupplierOfferLine(OrganizationScopedModel):
+    """A supplier's price per kg (without VAT) for one line of the request; `retained` once ordered from them."""
+
+    offer = models.ForeignKey(SupplierOffer, on_delete=models.CASCADE, related_name="lines")
+    request_line = models.ForeignKey(PriceRequestLine, on_delete=models.CASCADE, related_name="offer_lines")
+    unit_cost = MoneyField()
+    retained = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["offer", "request_line_id"]
+        constraints = [
+            models.UniqueConstraint(fields=["offer", "request_line"], name="supplier_offer_line_one_per_line"),
+            models.CheckConstraint(condition=models.Q(unit_cost__gt=0), name="supplier_offer_line_cost_positive"),
+        ]
+
+
 class SupplierInvoiceStatus(models.TextChoices):
     # Typed but not checked yet: its receipts, dates and reference can still change, or it can be deleted.
     DRAFT = "draft", _("Brouillon")
@@ -223,8 +341,11 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     other balances (D-040) and never pass through it.
     """
 
-    # "FF-0001", "FF-0002"... per organization, given by `services.create_invoice`.
+    # "FF-0001", "FF-0002"... per organization, given when the invoice is validated (D-283); a draft carries its
+    # provisional reference (BFF-0007, or BROUILLON-0007 without a draft prefix).
     number = models.CharField(max_length=20)
+    # The provisional reference the document carried as a draft (D-283), kept once it has its definitive number.
+    draft_number = models.CharField(max_length=20, blank=True)
     supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="invoices")
     # The number printed on the supplier's invoice.
     supplier_reference = models.CharField(max_length=50, blank=True)

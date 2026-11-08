@@ -8,12 +8,15 @@ import type { EInvoiceStatusEnum } from './eInvoiceStatusEnum';
 import type { InvoiceStatusEnum } from './invoiceStatusEnum';
 import type { PaymentStateEnum } from './paymentStateEnum';
 import type { QuoteCustomer } from './quoteCustomer';
+import type { RebilledFrom } from './rebilledFrom';
 import type { SaleRef } from './saleRef';
 
 export interface Invoice {
   readonly id: number;
   readonly number: string;
+  readonly draft_number: string;
   readonly status: InvoiceStatusEnum;
+  readonly rebilled_from: RebilledFrom | null;
   readonly sale: SaleRef;
   readonly sales: readonly SaleRef[];
   readonly customer: QuoteCustomer;

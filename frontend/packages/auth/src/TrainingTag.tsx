@@ -4,7 +4,7 @@ import { useInstance } from "./instance";
 
 /**
  * The small "Formation" tag of the training copy, on every screen and the login screen. Never printed: the papers
- * look exactly like the real ones (owner's choice, D-283).
+ * look exactly like the real ones (owner's choice, D-290).
  */
 export function TrainingTag() {
   const { t } = useTranslation();

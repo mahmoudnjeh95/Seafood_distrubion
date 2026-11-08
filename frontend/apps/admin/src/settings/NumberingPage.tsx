@@ -6,21 +6,30 @@ import { Fragment, useState } from "react";
 import { Link } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
-import { nextWithPrefix } from "./numbering";
+import { DRAFT_WORD, nextWithPrefix } from "./numbering";
 
 /** The prefix in front of the numbers and the number the next record gets. Owners and managers change it (D-223). */
 function NumberingForm({ lines }: { lines: NumberLine[] }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [prefixes, setPrefixes] = useState(() => lines.map((line) => line.prefix));
+  const [drafts, setDrafts] = useState(() => lines.map((line) => line.draft_prefix));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const save = useMutation({
     mutationFn: () =>
-      updateNumbering({ prefixes: lines.map((line, index) => ({ kind: line.kind, prefix: prefixes[index] ?? "" })) }),
+      updateNumbering({
+        prefixes: lines.map((line, index) => ({
+          kind: line.kind,
+          prefix: prefixes[index] ?? "",
+          // Only the documents with a draft step have a draft prefix (D-283).
+          ...(line.has_draft ? { draft_prefix: drafts[index] ?? "" } : {}),
+        })),
+      }),
     onSuccess: (saved) => {
       setErrors({});
       setPrefixes(saved.map((line) => line.prefix));
+      setDrafts(saved.map((line) => line.draft_prefix));
       queryClient.setQueryData(getGetNumberingQueryKey(), saved);
       toast.success(t("admin.numbering.saved"));
     },
@@ -38,6 +47,7 @@ function NumberingForm({ lines }: { lines: NumberLine[] }) {
           <tr>
             <Th>{t("admin.numbering.kind")}</Th>
             <Th>{t("admin.numbering.prefix")}</Th>
+            <Th>{t("admin.numbering.draftPrefix")}</Th>
             <Th>{t("admin.numbering.defaultPrefix")}</Th>
             <Th>{t("admin.numbering.next")}</Th>
           </tr>
@@ -46,11 +56,13 @@ function NumberingForm({ lines }: { lines: NumberLine[] }) {
           {lines.map((line, index) => {
             const prefix = prefixes[index] ?? "";
             const error = errors[`prefixes.${index}.prefix`];
+            const draft = drafts[index] ?? "";
+            const draftError = errors[`prefixes.${index}.draft_prefix`];
             return (
               <Fragment key={line.kind}>
                 {(index === 0 || lines[index - 1]?.group !== line.group) && (
                   <tr>
-                    <td colSpan={4} className="bg-surface-2 px-3 pt-4 pb-1 text-[0.82rem] font-semibold text-ink-2">
+                    <td colSpan={5} className="bg-surface-2 px-3 pt-4 pb-1 text-[0.82rem] font-semibold text-ink-2">
                       {line.group}
                     </td>
                   </tr>
@@ -82,8 +94,43 @@ function NumberingForm({ lines }: { lines: NumberLine[] }) {
                       </p>
                     )}
                   </Td>
+                  <Td>
+                    {line.has_draft ? (
+                      <>
+                        <Input
+                          aria-label={`${t("admin.numbering.draftPrefix")} · ${line.title}`}
+                          name={`draft-prefix-${line.kind}`}
+                          value={draft}
+                          maxLength={6}
+                          className="w-28 uppercase"
+                          aria-invalid={draftError ? true : undefined}
+                          onChange={(event) =>
+                            setDrafts((current) =>
+                              current.map((value, position) => (position === index ? event.target.value : value)),
+                            )
+                          }
+                        />
+                        {draftError && (
+                          <p role="alert" className="mt-1 text-[0.8rem] text-bad">
+                            {draftError}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-ink-2">{t("admin.numbering.draftNone")}</span>
+                    )}
+                  </Td>
                   <Td className="num text-ink-2">{line.default_prefix}</Td>
-                  <Td className="num font-semibold">{nextWithPrefix(line, prefix)}</Td>
+                  <Td className="num font-semibold">
+                    {nextWithPrefix(line, prefix)}
+                    {line.has_draft && (
+                      <span className="block text-[0.8rem] font-normal text-ink-2">
+                        {t("admin.numbering.nextDraft", {
+                          number: nextWithPrefix(line, draft.trim().toUpperCase() || DRAFT_WORD, true),
+                        })}
+                      </span>
+                    )}
+                  </Td>
                 </tr>
               </Fragment>
             );

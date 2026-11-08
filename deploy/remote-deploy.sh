@@ -13,7 +13,7 @@ DRIVER_HOST="ch.fruttidelmare.com"
 # The public site (D-186); the bare name only redirects to it (nginx-host-staging.conf).
 SITE_HOST="www.fruttidelmare.com"
 SITE_BARE_HOST="fruttidelmare.com"
-# The training copy (D-283): same stack, its own database. Must match nginx-host-staging.conf and compose.staging.yml.
+# The training copy (D-290): same stack, its own database. Must match nginx-host-staging.conf and compose.staging.yml.
 TRAINING_ADMIN_HOST="app1.fruttidelmare.com"
 TRAINING_DRIVER_HOST="ch1.fruttidelmare.com"
 TRAINING_BASE="$HOME/frutti-training"
@@ -51,7 +51,7 @@ set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$ADMIN_HOST,https://$DRIVER_HOST,ht
 set_env FRUTTI_TRAINING_ADMIN_URL "https://$TRAINING_ADMIN_HOST"
 set_env FRUTTI_TRAINING_DRIVER_URL "https://$TRAINING_DRIVER_HOST"
 
-# The training copy's own secret key, made once (D-283).
+# The training copy's own secret key, made once (D-290).
 grep -q "^TRAINING_SECRET_KEY=" "$ENV_FILE" || echo "TRAINING_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')" >> "$ENV_FILE"
 install -d -m 700 "$TRAINING_BASE" "$TRAINING_BASE/bin"
 export RELEASE
@@ -61,7 +61,7 @@ cd "$RELEASE_DIR/deploy"
 # The VPS is shared with other clients' production: build one image at a time, at low CPU priority.
 export COMPOSE_PARALLEL_LIMIT=1
 sudo -E nice -n 19 ionice -c3 docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml build
-# The training copy's database, on the same PostgreSQL server, created empty the first time (D-283). A deploy never
+# The training copy's database, on the same PostgreSQL server, created empty the first time (D-290). A deploy never
 # changes its data afterwards: only reset-training.sh does.
 sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --wait db
 if ! sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml exec -T db \
@@ -90,7 +90,7 @@ fi
 
 # 3b. The public site's names in the certificate (D-186), once: the port-80 block above answers the challenge.
 #     A failure (DNS not there yet, Let's Encrypt limit) does not stop the deploy; the next deploy tries again.
-#     The training names (D-283) are added the same way once their DNS records exist.
+#     The training names (D-290) are added the same way once their DNS records exist.
 CERT_NAMES="$(sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -ext subjectAltName 2>/dev/null || true)"
 if ! echo "$CERT_NAMES" | grep -q "DNS:$SITE_HOST\b" || ! echo "$CERT_NAMES" | grep -q "DNS:$TRAINING_ADMIN_HOST\b" \
   || ! echo "$CERT_NAMES" | grep -q "DNS:$TRAINING_DRIVER_HOST\b"; then

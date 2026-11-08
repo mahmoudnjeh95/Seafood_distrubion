@@ -13,7 +13,15 @@ from django.utils.translation import gettext as _
 from apps.core import audit, numbering
 from apps.core.models import Organization, User
 
-from .models import Customer, CustomerContact, CustomerKind, Supplier, SupplierContact
+from .models import (
+    Customer,
+    CustomerContact,
+    CustomerKind,
+    CustomerType,
+    IdentificationType,
+    Supplier,
+    SupplierContact,
+)
 
 # 7 digits and a key letter, then the VAT code, the category and the establishment number (000 = head office).
 _TAX_ID = re.compile(r"^(\d{6,7})([A-Z])(?:([A-Z])([A-Z])(\d{3}))?$")
@@ -209,6 +217,7 @@ class CustomerFields(TypedDict, total=False):
     reference: str
     name: str
     kind: str
+    id_type: str
     tax_id: str
     phone: str
     email: str
@@ -224,6 +233,7 @@ def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) 
         "reference": customer.reference,
         "name": customer.name,
         "kind": customer.kind,
+        "id_type": customer.id_type,
         "tax_id": customer.tax_id,
         "phone": customer.phone,
         "email": customer.email,
@@ -239,8 +249,33 @@ def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) 
     }
 
 
-def _clean_customer(customer: Customer) -> None:
-    """Business rules shared by creation and update. Raises ValidationError with one message per field."""
+# A CIN is 8 digits; a passport or a residence card, letters and digits (D-283).
+_CIN = re.compile(r"^\d{8}$")
+_DOCUMENT_NUMBER = re.compile(r"^[A-Z0-9]{5,20}$")
+
+
+def normalized_identification(id_type: str, value: str) -> str:
+    """The identification number of a customer written the usual way for its type (D-283). Kept as text, so the
+    leading zeros of a CIN stay. Raises ValueError when it does not have that shape. Empty stays empty."""
+    if id_type == IdentificationType.TAX_ID:
+        return normalized_tax_id(value)
+    compact = re.sub(r"[\s.-]", "", value.upper())
+    if not compact:
+        return ""
+    if id_type == IdentificationType.CIN:
+        if not _CIN.match(compact):
+            raise ValueError(_("Numéro de CIN invalide : 8 chiffres attendus, par exemple 01234567."))
+        return compact
+    if not _DOCUMENT_NUMBER.match(compact):
+        if id_type == IdentificationType.PASSPORT:
+            raise ValueError(_("Numéro de passeport invalide : 5 à 20 lettres ou chiffres."))
+        raise ValueError(_("Numéro de carte de séjour invalide : 5 à 20 lettres ou chiffres."))
+    return compact
+
+
+def _clean_customer(customer: Customer, *, previous_kind: str | None = None) -> None:
+    """Business rules shared by creation and update. Raises ValidationError with one message per field.
+    `previous_kind`: the type the customer had, still accepted even when deactivated since (D-283)."""
     errors: dict[str, str] = {}
     for field in ("reference", "name", "phone", "email", "address", "city", "notes"):
         setattr(customer, field, getattr(customer, field).strip())
@@ -251,15 +286,22 @@ def _clean_customer(customer: Customer) -> None:
         errors["reference"] = _("Un autre client porte déjà cette référence.")
     if not customer.name:
         errors["name"] = _("Le nom est obligatoire.")
-    if customer.kind not in CustomerKind.values:
+    types = {row.code: row for row in customer_types_of(customer.organization)}
+    chosen_type = types.get(customer.kind)
+    if chosen_type is None:
         errors["kind"] = _("Type de client inconnu.")
-    try:
-        customer.tax_id = normalized_tax_id(customer.tax_id)
-    except ValueError as error:
-        errors["tax_id"] = str(error)
+    elif not chosen_type.is_active and customer.kind != previous_kind:
+        errors["kind"] = _("Ce type de client est désactivé : choisissez-en un autre.")
+    if customer.id_type not in IdentificationType.values:
+        errors["id_type"] = _("Type d'identification inconnu.")
     else:
-        if customer.tax_id and others.filter(tax_id=customer.tax_id).exists():
-            errors["tax_id"] = _("Un autre client a déjà ce matricule fiscal.")
+        try:
+            customer.tax_id = normalized_identification(customer.id_type, customer.tax_id)
+        except ValueError as error:
+            errors["tax_id"] = str(error)
+        else:
+            if customer.tax_id and others.filter(id_type=customer.id_type, tax_id=customer.tax_id).exists():
+                errors["tax_id"] = _("Un autre client a déjà ce numéro d'identification.")
     if customer.email and _email_error(customer.email):
         errors["email"] = _("Adresse e-mail invalide.")
     limit = Decimal(customer.credit_limit)
@@ -337,9 +379,10 @@ def update_customer(
     customer = Customer.objects.select_for_update().get(pk=customer.pk)
     old_contacts = list(customer.contacts.order_by("id"))
     before = _customer_snapshot(customer, old_contacts)
+    previous_kind = customer.kind
     for field, value in fields.items():
         setattr(customer, field, value)
-    _clean_customer(customer)
+    _clean_customer(customer, previous_kind=previous_kind)
     new_contacts = old_contacts if contacts is None else _cleaned_customer_contacts(customer, contacts)
     customer.save()
     if contacts is not None:
@@ -415,3 +458,110 @@ def ensure_walk_in_customer(*, organization: Organization, actor: User | None = 
         name=WALK_IN_NAME,
         kind=CustomerKind.INDIVIDUAL,
     )
+
+
+# ---- customer types (Paramètres › Types de clients, D-283) ----
+
+_TYPE_CODE = re.compile(r"[^a-z0-9]+")
+
+
+def ensure_default_customer_types(*, organization: Organization) -> None:
+    """The seven customer types a new organization starts with (signal); those made before D-283 got them from
+    the migration. Nothing changes when the organization already has types."""
+    if CustomerType.objects.for_organization(organization).exists():
+        return
+    CustomerType.objects.bulk_create(
+        [
+            CustomerType(organization=organization, code=choice.value, label=str(choice.label), position=index)
+            for index, choice in enumerate(CustomerKind)
+        ],
+        ignore_conflicts=True,
+    )
+
+
+def customer_types_of(organization: Organization) -> list[CustomerType]:
+    """The organization's customer types, in their order (read only)."""
+    return list(CustomerType.objects.for_organization(organization))
+
+
+def _clean_type_label(organization: Organization, label: str, *, exclude: int | None = None) -> str:
+    label = label.strip()
+    if not label:
+        raise ValidationError({"label": _("Le libellé est obligatoire.")})
+    if len(label) > 60:
+        raise ValidationError({"label": _("60 caractères au plus.")})
+    others = CustomerType.objects.for_organization(organization)
+    if exclude is not None:
+        others = others.exclude(pk=exclude)
+    if others.filter(label__iexact=label).exists():
+        raise ValidationError({"label": _("Ce type de client existe déjà.")})
+    return label
+
+
+@transaction.atomic
+def create_customer_type(*, organization: Organization, actor: User | None, label: str) -> CustomerType:
+    """A new customer type, active, at the end of the list. Its code is made from the label once and never changes."""
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()
+    existing = customer_types_of(organization)
+    label = _clean_type_label(organization, label)
+    base = _TYPE_CODE.sub("_", label.lower()).strip("_")[:16] or "type"
+    codes = {row.code for row in existing}
+    code, suffix = base, 2
+    while code in codes:
+        code, suffix = f"{base}_{suffix}"[:20], suffix + 1
+    created = CustomerType.objects.create(
+        organization=organization,
+        code=code,
+        label=label,
+        position=max((row.position for row in existing), default=-1) + 1,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="customer_type.created",
+        target=created,
+        after={"code": code, "label": label},
+    )
+    return created
+
+
+@transaction.atomic
+def update_customer_type(
+    *, customer_type: CustomerType, actor: User | None, label: str | None = None, is_active: bool | None = None
+) -> CustomerType:
+    """Rename a customer type, or deactivate it (still shown on its customers, no longer offered) or bring it back."""
+    locked = CustomerType.objects.select_for_update().get(pk=customer_type.pk)
+    before = {"label": locked.label, "is_active": locked.is_active}
+    if label is not None:
+        locked.label = _clean_type_label(locked.organization, label, exclude=locked.pk)
+    if is_active is not None:
+        locked.is_active = is_active
+    locked.save(update_fields=["label", "is_active", "updated_at"])
+    after = {"label": locked.label, "is_active": locked.is_active}
+    if after != before:
+        audit.record(
+            organization=locked.organization,
+            actor=actor,
+            action="customer_type.updated",
+            target=locked,
+            before=before,
+            after=after,
+        )
+    return locked
+
+
+@transaction.atomic
+def delete_customer_type(*, customer_type: CustomerType, actor: User | None) -> None:
+    """Delete a customer type that no customer has, archived ones included; else deactivate it instead."""
+    locked = CustomerType.objects.select_for_update().get(pk=customer_type.pk)
+    if Customer.objects.for_organization(locked.organization).filter(kind=locked.code).exists():
+        raise ValidationError(
+            {"detail": _("Des clients ont ce type : il ne peut pas être supprimé. Désactivez-le plutôt.")}
+        )
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="customer_type.deleted",
+        before={"code": locked.code, "label": locked.label},
+    )
+    locked.delete()

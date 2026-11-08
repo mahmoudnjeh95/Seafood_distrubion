@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Empties the training copy (D-283) and starts it again from today's production master data. Run by hand ON the
+# Empties the training copy (D-290) and starts it again from today's production master data. Run by hand ON the
 # server, never by a deploy: ~/frutti-training/bin/reset-training.sh          (shows what it would do)
 #                                ~/frutti-training/bin/reset-training.sh --apply
 # The training copy runs in the production stack, on the same PostgreSQL server, with its own database

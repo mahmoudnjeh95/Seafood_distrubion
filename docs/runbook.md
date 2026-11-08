@@ -300,7 +300,7 @@ deletion runs in one transaction and checks every foreign key before it commits:
 Once `real_data_since` is set, `seed_dev` adds nothing. To undo, restore the backup
 (Emergency restore above).
 
-## Training copy (D-283)
+## Training copy (D-290)
 
 `https://app1.fruttidelmare.com` (office) and `https://ch1.fruttidelmare.com` (driver), inside the `frutti-staging`
 project: services `training-backend` and `training-worker`, database `frutti_training` on the same `db` container,

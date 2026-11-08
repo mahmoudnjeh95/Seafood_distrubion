@@ -1,4 +1,4 @@
-"""Turn a fresh copy of the production database into the training database (D-283).
+"""Turn a fresh copy of the production database into the training database (D-290).
 
 Run only by `deploy/reset-training.sh`, on the training stack, right after it loaded a copy of production. It refuses
 to run unless the settings say this is the training copy (`FRUTTI_TRAINING=true`), so it can never empty production.
@@ -80,7 +80,7 @@ PRODUCTION_DATABASE = "frutti"
 
 class Command(BaseCommand):
     help = (
-        "Training copy only (D-283): keep production's master data, delete the work, put the training logins back. "
+        "Training copy only (D-290): keep production's master data, delete the work, put the training logins back. "
         "Without --apply it only reports, and rolls back. --export-logins prints the training logins as JSON."
     )
 

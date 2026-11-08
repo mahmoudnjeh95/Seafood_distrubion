@@ -21,7 +21,7 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 # The company the public site sells for (D-186); empty: the oldest active organization.
 PUBLIC_SITE_ORGANIZATION_ID = env.int("PUBLIC_SITE_ORGANIZATION_ID", default=None)
-# The training copy (D-283): its own database, a "Formation" tag on screen, and the only place
+# The training copy (D-290): its own database, a "Formation" tag on screen, and the only place
 # `prepare_training` runs. The production apps link to it from their login screens when the addresses are set.
 TRAINING_MODE = env.bool("FRUTTI_TRAINING", default=False)
 TRAINING_ADMIN_URL = env("FRUTTI_TRAINING_ADMIN_URL", default="")
@@ -204,6 +204,8 @@ SPECTACULAR_SETTINGS = {
     # Choice sets get stable names after their model, not their field: several models have a `kind`,
     # and "status" and "method" will exist on sales documents too.
     "ENUM_NAME_OVERRIDES": {
+        # D-288 · files attached to a document
+        "AttachmentKindEnum": "apps.documents.models.AttachmentKind",
         # D-186 · public site
         "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
@@ -244,6 +246,11 @@ SPECTACULAR_SETTINGS = {
         "InvoiceStatusEnum": "apps.sales.models.InvoiceStatus",
         "EInvoiceStatusEnum": "apps.sales.models.EInvoiceStatus",
         "CreditNoteKindEnum": "apps.sales.models.CreditNoteKind",
+        # D-284 · credit note refunds and per-line stock
+        "RefundMethodEnum": "apps.sales.models.RefundMethod",
+        "RefundStatusEnum": "apps.sales.api.serializers.REFUND_STATUSES",
+        "RefundFilterStatusEnum": "apps.sales.api.serializers.REFUND_FILTER_STATUSES",
+        "CreditLineStockEnum": "apps.sales.api.serializers.LINE_STOCKS",
         # P2-T07 · customer returns
         "CreditNoteStockEnum": "apps.sales.models.CreditNoteStock",
         # P2-T06 · customer credit

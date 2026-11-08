@@ -5,6 +5,7 @@ import {
   giveUpInvoiceGap,
   type InvoiceDetail,
   type InvoiceLine,
+  rebillCreditNote,
   updateInvoice,
   useGetInvoice,
 } from "@frutti/api";
@@ -43,6 +44,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
@@ -563,8 +565,23 @@ function PaymentGap({ invoice, owner }: { invoice: InvoiceDetail; owner: boolean
   );
 }
 
-function CreditNotesCard({ notes }: { notes: readonly CreditNote[] }) {
+function CreditNotesCard({ notes, canWrite }: { notes: readonly CreditNote[]; canWrite: boolean }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  // "Refacturer" (D-287): a new draft for the same BL, with what was typed on this invoice.
+  const rebill = useMutation({
+    mutationFn: (noteId: number) => rebillCreditNote(noteId),
+    onSuccess: async (saved) => {
+      toast.success(t("admin.invoices.rebill.done"));
+      await refreshAfterInvoice(queryClient);
+      void navigate(`/factures/${saved.id}`);
+    },
+    onError: (failure) =>
+      toast.error(
+        fieldErrors(failure).detail ?? fieldErrors(failure).non_field_errors ?? t("admin.invoices.rebill.failed"),
+      ),
+  });
   if (notes.length === 0) return null;
   return (
     <Card>
@@ -581,6 +598,46 @@ function CreditNotesCard({ notes }: { notes: readonly CreditNote[] }) {
               {note.reason}
               {note.stock !== "none" && ` · ${t(`admin.invoices.creditDialog.stocks.${note.stock}`)}`}
             </span>
+            {note.lines.some((line) => line.stock !== "none") && note.stock === "mixed" && (
+              <span className="w-full text-[0.82rem] text-ink-2">
+                {note.lines
+                  .filter((line) => line.stock !== "none")
+                  .map(
+                    (line) =>
+                      `${line.product_name} ${formatQuantity(line.quantity)} : ${t(`admin.invoices.creditDialog.stocks.${line.stock}`)}`,
+                  )
+                  .join(" · ")}
+              </span>
+            )}
+            {note.rebills.map((again) => (
+              <Link
+                key={again.id}
+                to={`/factures/${again.id}`}
+                className="num w-full text-[0.85rem] text-sea hover:underline"
+              >
+                {t("admin.invoices.rebill.made", { number: again.number || again.draft_number })}
+              </Link>
+            ))}
+            {canWrite && note.rebillable && (
+              <Button
+                className="print:hidden"
+                disabled={rebill.isPending}
+                onClick={() => rebill.mutate(note.id)}
+                title={t("admin.invoices.rebill.hint")}
+              >
+                {t("admin.invoices.rebill.action")}
+              </Button>
+            )}
+            {note.refund && (
+              <Link to="/tresorerie/remboursements" className="w-full text-[0.85rem] text-sea hover:underline">
+                {t("admin.refunds.onNote", {
+                  number: note.refund.number,
+                  status: t(`admin.refunds.statuses.${note.refund.status}`),
+                  amount: formatMoney(note.refund.amount),
+                  left: formatMoney(note.refund.left),
+                })}
+              </Link>
+            )}
           </li>
         ))}
       </ul>
@@ -727,6 +784,22 @@ export function InvoicePage() {
                   })}
                 </Detail>
               )}
+              {invoice.rebilled_from && (
+                <Detail label={t("admin.invoices.rebill.from")}>
+                  <Link
+                    to={`/factures/${invoice.rebilled_from.invoice_id}`}
+                    className="num font-semibold text-sea hover:underline"
+                  >
+                    {invoice.rebilled_from.invoice_number}
+                  </Link>{" "}
+                  · {t("admin.invoices.rebill.note", { number: invoice.rebilled_from.credit_note_number })}
+                </Detail>
+              )}
+              {invoice.draft_number && (
+                <Detail label={t("admin.numbering.draftReference")}>
+                  <span className="num">{invoice.draft_number}</span>
+                </Detail>
+              )}
               <Detail label={t("admin.invoices.detail.createdBy")}>
                 {invoice.created_by || "—"} · <span className="num">{formatDateTime(invoice.created_at)}</span>
               </Detail>
@@ -742,11 +815,12 @@ export function InvoicePage() {
             </dl>
           </Card>
           <CertificateCard invoice={invoice} canWrite={writer} />
-          <CreditNotesCard notes={invoice.credit_notes} />
+          <CreditNotesCard notes={invoice.credit_notes} canWrite={writer} />
         </div>
       </div>
 
       {crediting && <CreditNoteDialog invoice={invoice} onClose={() => setCrediting(false)} />}
+      <AttachmentsCard kind="invoice" objectId={invoice.id} canWrite={writer} />
     </>
   );
 }

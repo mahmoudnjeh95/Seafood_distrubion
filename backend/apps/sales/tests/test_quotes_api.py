@@ -76,7 +76,7 @@ def test_creating_a_quote_answers_it_with_amounts_as_strings(api, customer, crev
 
     assert response.status_code == 201
     body = response.json()
-    assert (body["number"], body["status"], body["notes"]) == (f"DV-{YEAR}-0001", "draft", "Merci")
+    assert (body["number"], body["status"], body["notes"]) == (f"BROUILLON-{YEAR}-0001", "draft", "Merci")
     assert body["customer"]["name"] == "Restaurant Le Corail"
     assert body["location"] == {"id": room.pk, "name": "Chambre froide 1"}
     assert body["valid_until"] == (timezone.localdate() + dt.timedelta(days=3)).isoformat()
@@ -179,12 +179,13 @@ def test_the_list_filters_by_current_status_customer_and_search(api, customer, c
         assert response.status_code == 200
         return [row["number"] for row in response.json()["results"]]
 
-    assert numbers() == [f"DV-{YEAR}-0002", f"DV-{YEAR}-0001", f"DV-{YEAR}-0003"]
+    # Only the sent quote has its DV number; the drafts keep their provisional reference (D-283).
+    assert numbers() == [f"DV-{YEAR}-0001", f"BROUILLON-{YEAR}-0001", f"BROUILLON-{YEAR}-0003"]
     assert numbers(status="sent") == [sent["number"]]
     assert numbers(status="expired") == [old["number"]]
-    assert numbers(customer=customer.pk) == [f"DV-{YEAR}-0001"]
-    assert numbers(search="thyna") == [f"DV-{YEAR}-0002", f"DV-{YEAR}-0003"]
-    assert numbers(date_to=(timezone.localdate() - dt.timedelta(days=1)).isoformat()) == [f"DV-{YEAR}-0003"]
+    assert numbers(customer=customer.pk) == [f"BROUILLON-{YEAR}-0001"]
+    assert numbers(search="thyna") == [f"DV-{YEAR}-0001", f"BROUILLON-{YEAR}-0003"]
+    assert numbers(date_to=(timezone.localdate() - dt.timedelta(days=1)).isoformat()) == [f"BROUILLON-{YEAR}-0003"]
 
 
 @pytest.mark.parametrize(

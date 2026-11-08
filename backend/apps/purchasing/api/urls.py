@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import driver_views, views
+from . import driver_views, price_request_views, views
 
 urlpatterns = [
     path("receipts", views.ReceiptListView.as_view(), name="receipt-list"),
@@ -8,6 +8,33 @@ urlpatterns = [
     path("receipts/last-costs", views.LastCostListView.as_view(), name="receipt-last-costs"),
     path("receipts/<int:receipt_id>", views.ReceiptDetailView.as_view(), name="receipt-detail"),
     path("receipts/<int:receipt_id>/revise", views.ReceiptReviseView.as_view(), name="receipt-revise"),
+    path("receipts/<int:receipt_id>/dispute", views.ReceiptDisputeView.as_view(), name="receipt-dispute"),
+    path(
+        "receipts/<int:receipt_id>/resolve-dispute",
+        views.ReceiptResolveDisputeView.as_view(),
+        name="receipt-resolve-dispute",
+    ),
+    path("price-requests", price_request_views.PriceRequestListView.as_view(), name="price-request-list"),
+    path(
+        "price-requests/<int:request_id>",
+        price_request_views.PriceRequestDetailView.as_view(),
+        name="price-request-detail",
+    ),
+    path(
+        "price-requests/<int:request_id>/offers",
+        price_request_views.PriceRequestOfferView.as_view(),
+        name="price-request-offers",
+    ),
+    path(
+        "price-requests/<int:request_id>/order",
+        price_request_views.PriceRequestOrderView.as_view(),
+        name="price-request-order",
+    ),
+    path(
+        "price-requests/<int:request_id>/cancel",
+        price_request_views.PriceRequestCancelView.as_view(),
+        name="price-request-cancel",
+    ),
     path("purchase-orders", views.OrderListView.as_view(), name="purchase-order-list"),
     path("purchase-orders/<int:order_id>", views.OrderDetailView.as_view(), name="purchase-order-detail"),
     path("purchase-orders/<int:order_id>/cancel", views.OrderCancelView.as_view(), name="purchase-order-cancel"),

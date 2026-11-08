@@ -1,7 +1,7 @@
 import { getInstance, type Instance } from "@frutti/api";
 import { useQuery } from "@tanstack/react-query";
 
-// The last answer, kept on the device: the driver's phone is often offline and must still show the tag (D-283).
+// The last answer, kept on the device: the driver's phone is often offline and must still show the tag (D-290).
 const STORAGE_KEY = "frutti.instance";
 
 function remembered(): Instance | undefined {
@@ -23,7 +23,7 @@ async function fetchInstance(): Promise<Instance> {
   return instance;
 }
 
-/** Which copy of the application this is: production, or the training copy (D-283). */
+/** Which copy of the application this is: production, or the training copy (D-290). */
 export function useInstance(): Instance | undefined {
   return useQuery({
     queryKey: ["instance"],
