@@ -353,6 +353,24 @@ def test_the_withholding_is_taken_from_1000_dt_with_tax_and_not_below(organizati
     assert big.net_to_pay == D("1272.783")
 
 
+def test_a_customer_who_does_not_withhold_never_has_a_withholding(organization, actor, customer, big_sale):
+    """D-284: a customer not subject to the retenue à la source (an individual, a forfaitaire) pays the total with
+    VAT, whatever the rate in the settings and the invoice's size."""
+    services.save_finance_settings(organization=organization, actor=actor, withholding_rate="1.5")
+    customer.withholding_subject = False
+    customer.save(update_fields=["withholding_subject"])
+    big_sale.customer.refresh_from_db()
+
+    estimate = services.estimate_invoice(organization=organization, sales=[big_sale])
+    invoice = services.create_invoice(apply_vat=True, sale=big_sale, actor=actor, withholding_rate="1.5")
+
+    assert invoice.total_incl_tax == D("1292.150")
+    assert (invoice.withholding_applied, invoice.withholding_amount) == (False, D("0.000"))
+    assert invoice.net_to_pay == invoice.total_incl_tax
+    # The estimate proposes no VAT here (nothing bought with VAT): 1 085 + 1 stamp, nothing withheld.
+    assert (estimate.withholding_amount, estimate.net_to_pay) == (D("0.000"), D("1086.000"))
+
+
 def test_only_a_confirmed_sale_with_a_named_customer_is_invoiced_once(
     organization, actor, customer, counter, crevette, sale
 ):

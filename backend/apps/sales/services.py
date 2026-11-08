@@ -2173,6 +2173,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     withholding_rate = (
         overrides.withholding_rate if overrides.withholding_rate is not None else version.withholding_rate
     )
+    withholds = invoice.customer.withholding_subject
     amounts = invoicing.compute(
         [
             invoicing.LineInput(amount=line.amount, vat_rate=rate, unit_price=line.unit_price)
@@ -2181,7 +2182,8 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         apply_vat=overrides.apply_vat,
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=stamp,
-        withholding_rate=withholding_rate,
+        # A customer who does not withhold (D-284) never has a withholding on their invoices.
+        withholding_rate=withholding_rate if withholds else None,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
     )
@@ -2237,7 +2239,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_excl_tax + amounts.vat_total)
+    invoice.withholding_applied = withholds and invoicing.withholding_applies(amounts.total_excl_tax + amounts.vat_total)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
@@ -2345,7 +2347,7 @@ def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> In
         apply_vat=bool(_vat_product_names(open_sales)),
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=version.fiscal_stamp,
-        withholding_rate=version.withholding_rate,
+        withholding_rate=version.withholding_rate if open_sales[0].customer.withholding_subject else None,
     )
     held = [sum((line.amount for line in sale.lines.all()), ZERO) for sale in open_sales]
     extra = amounts.net_to_pay - sum(held, ZERO)

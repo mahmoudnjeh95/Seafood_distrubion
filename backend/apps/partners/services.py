@@ -217,6 +217,7 @@ class CustomerFields(TypedDict, total=False):
     notes: str
     credit_limit: Decimal
     payment_terms_days: int
+    withholding_subject: bool
 
 
 def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) -> dict[str, Any]:
@@ -232,6 +233,7 @@ def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) 
         "notes": customer.notes,
         "credit_limit": str(Decimal(customer.credit_limit).quantize(_MILLIME)),
         "payment_terms_days": customer.payment_terms_days,
+        "withholding_subject": customer.withholding_subject,
         "contacts": [
             {"name": contact.name, "role": contact.role, "phone": contact.phone, "email": contact.email}
             for contact in contacts

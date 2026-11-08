@@ -92,6 +92,7 @@ class CustomerSerializer(serializers.ModelSerializer[Customer]):
             "longitude",
             "credit_limit",
             "payment_terms_days",
+            "withholding_subject",
             "contacts",
             "is_walk_in",
             "is_active",
@@ -116,6 +117,8 @@ class CustomerWriteSerializer(serializers.Serializer[Any]):
         max_digits=12, decimal_places=3, min_value=0, required=False, default=Decimal("0"), coerce_to_string=True
     )
     payment_terms_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=0)
+    # Withholds the retenue à la source on invoices of 1 000 DT and more (D-284).
+    withholding_subject = serializers.BooleanField(required=False, default=True)
     contacts = CustomerContactSerializer(many=True, required=False)
 
 

@@ -51,6 +51,18 @@ def test_creating_a_customer_answers_it_with_money_as_strings(api):
     assert (body["is_active"], body["is_walk_in"]) == (True, False)
 
 
+def test_a_customer_withholds_by_default_and_the_flag_can_be_turned_off(api):
+    """D-284: "Soumis à la retenue à la source" starts on, as before; the office turns it off for a customer
+    who does not withhold."""
+    created = create(api)
+    assert created.json()["withholding_subject"] is True
+
+    url = reverse("customer-detail", args=[created.json()["id"]])
+    changed = api.patch(url, {"withholding_subject": False}, format="json")
+    assert changed.status_code == 200, changed.json()
+    assert changed.json()["withholding_subject"] is False
+
+
 def test_a_negative_limit_or_unknown_kind_is_a_400_on_its_field(api):
     assert list(create(api, credit_limit="-5").json()) == ["credit_limit"]
     assert list(create(api, kind="martian").json()) == ["kind"]

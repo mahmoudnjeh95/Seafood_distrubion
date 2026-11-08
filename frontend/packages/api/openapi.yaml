@@ -14277,6 +14277,9 @@ components:
         payment_terms_days:
           type: integer
           readOnly: true
+        withholding_subject:
+          type: boolean
+          readOnly: true
         contacts:
           type: array
           items:
@@ -14311,6 +14314,7 @@ components:
       - reference
       - tax_id
       - updated_at
+      - withholding_subject
     CustomerAllocationWrite:
       type: object
       properties:
@@ -15060,6 +15064,9 @@ components:
           maximum: 365
           minimum: 0
           default: 0
+        withholding_subject:
+          type: boolean
+          default: true
         contacts:
           type: array
           items:
@@ -24311,6 +24318,9 @@ components:
           maximum: 365
           minimum: 0
           default: 0
+        withholding_subject:
+          type: boolean
+          default: true
         contacts:
           type: array
           items:

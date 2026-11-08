@@ -1326,6 +1326,8 @@ export const fr = {
       paymentTermsValue_one: "{{count}} jour",
       paymentTermsValue_other: "{{count}} jours",
       noCredit: "Pas de crédit",
+      withholdingYes: "Oui, sur les factures de 1 000 DT et plus",
+      withholdingNo: "Non",
       detail: {
         identity: "Fiche",
         credit: "Crédit",
@@ -1358,6 +1360,9 @@ export const fr = {
         creditLimitHint: "Le plus que ce client peut devoir. 0 : il paie comptant.",
         paymentTerms: "Délai de paiement (jours)",
         paymentTermsHint: "0 : à la livraison.",
+        withholdingSubject: "Soumis à la retenue à la source",
+        withholdingSubjectHint:
+          "Le client retient la retenue sur ses factures de 1 000 DT et plus (sociétés, État). Décochez pour un particulier ou un forfaitaire.",
         contacts: "Contacts",
         addContact: "Ajouter un contact",
         removeContact: "Retirer ce contact",

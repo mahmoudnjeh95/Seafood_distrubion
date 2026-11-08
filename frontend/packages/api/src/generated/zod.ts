@@ -1682,6 +1682,7 @@ export const ListCustomersResponseItem = zod.object({
   "longitude": zod.stringFormat('decimal', listCustomersResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', listCustomersResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(listCustomersResponseContactsItemNameMax),
   "role": zod.string().max(listCustomersResponseContactsItemRoleMax).default(listCustomersResponseContactsItemRoleDefault),
@@ -1728,6 +1729,7 @@ export const createCustomerBodyPaymentTermsDaysDefault = 0;
 export const createCustomerBodyPaymentTermsDaysMin = 0;
 export const createCustomerBodyPaymentTermsDaysMax = 365;
 
+export const createCustomerBodyWithholdingSubjectDefault = true;
 export const createCustomerBodyContactsItemNameMax = 150;
 
 export const createCustomerBodyContactsItemRoleDefault = ``;
@@ -1755,6 +1757,7 @@ export const CreateCustomerBody = zod.object({
   "notes": zod.string().max(createCustomerBodyNotesMax).default(createCustomerBodyNotesDefault),
   "credit_limit": zod.stringFormat('decimal', createCustomerBodyCreditLimitRegExp).default(createCustomerBodyCreditLimitDefault),
   "payment_terms_days": zod.int().min(createCustomerBodyPaymentTermsDaysMin).max(createCustomerBodyPaymentTermsDaysMax).default(createCustomerBodyPaymentTermsDaysDefault),
+  "withholding_subject": zod.boolean().default(createCustomerBodyWithholdingSubjectDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createCustomerBodyContactsItemNameMax),
   "role": zod.string().max(createCustomerBodyContactsItemRoleMax).default(createCustomerBodyContactsItemRoleDefault),
@@ -1796,6 +1799,7 @@ export const CreateCustomerResponse = zod.object({
   "longitude": zod.stringFormat('decimal', createCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', createCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createCustomerResponseContactsItemNameMax),
   "role": zod.string().max(createCustomerResponseContactsItemRoleMax).default(createCustomerResponseContactsItemRoleDefault),
@@ -1845,6 +1849,7 @@ export const GetCustomerResponse = zod.object({
   "longitude": zod.stringFormat('decimal', getCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', getCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(getCustomerResponseContactsItemNameMax),
   "role": zod.string().max(getCustomerResponseContactsItemRoleMax).default(getCustomerResponseContactsItemRoleDefault),
@@ -1894,6 +1899,7 @@ export const updateCustomerBodyPaymentTermsDaysDefault = 0;
 export const updateCustomerBodyPaymentTermsDaysMin = 0;
 export const updateCustomerBodyPaymentTermsDaysMax = 365;
 
+export const updateCustomerBodyWithholdingSubjectDefault = true;
 export const updateCustomerBodyContactsItemNameMax = 150;
 
 export const updateCustomerBodyContactsItemRoleDefault = ``;
@@ -1921,6 +1927,7 @@ export const UpdateCustomerBody = zod.object({
   "notes": zod.string().max(updateCustomerBodyNotesMax).default(updateCustomerBodyNotesDefault),
   "credit_limit": zod.stringFormat('decimal', updateCustomerBodyCreditLimitRegExp).default(updateCustomerBodyCreditLimitDefault),
   "payment_terms_days": zod.int().min(updateCustomerBodyPaymentTermsDaysMin).max(updateCustomerBodyPaymentTermsDaysMax).default(updateCustomerBodyPaymentTermsDaysDefault),
+  "withholding_subject": zod.boolean().default(updateCustomerBodyWithholdingSubjectDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateCustomerBodyContactsItemNameMax),
   "role": zod.string().max(updateCustomerBodyContactsItemRoleMax).default(updateCustomerBodyContactsItemRoleDefault),
@@ -1962,6 +1969,7 @@ export const UpdateCustomerResponse = zod.object({
   "longitude": zod.stringFormat('decimal', updateCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', updateCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateCustomerResponseContactsItemNameMax),
   "role": zod.string().max(updateCustomerResponseContactsItemRoleMax).default(updateCustomerResponseContactsItemRoleDefault),
@@ -2014,6 +2022,7 @@ export const ArchiveCustomerResponse = zod.object({
   "longitude": zod.stringFormat('decimal', archiveCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', archiveCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(archiveCustomerResponseContactsItemNameMax),
   "role": zod.string().max(archiveCustomerResponseContactsItemRoleMax).default(archiveCustomerResponseContactsItemRoleDefault),
@@ -2170,6 +2179,7 @@ export const SetCustomerLocationResponse = zod.object({
   "longitude": zod.stringFormat('decimal', setCustomerLocationResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', setCustomerLocationResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(setCustomerLocationResponseContactsItemNameMax),
   "role": zod.string().max(setCustomerLocationResponseContactsItemRoleMax).default(setCustomerLocationResponseContactsItemRoleDefault),
@@ -2219,6 +2229,7 @@ export const RestoreCustomerResponse = zod.object({
   "longitude": zod.stringFormat('decimal', restoreCustomerResponseLongitudeRegExp).nullable(),
   "credit_limit": zod.stringFormat('decimal', restoreCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
+  "withholding_subject": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(restoreCustomerResponseContactsItemNameMax),
   "role": zod.string().max(restoreCustomerResponseContactsItemRoleMax).default(restoreCustomerResponseContactsItemRoleDefault),
