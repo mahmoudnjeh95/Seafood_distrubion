@@ -18,6 +18,7 @@ from apps.core.money import checked_amount
 from apps.expenses import selectors as expense_selectors
 from apps.expenses import services as expenses
 from apps.fleet import selectors as fleet
+from apps.notifications import services as notifications
 
 from . import selectors
 from .models import (
@@ -28,6 +29,7 @@ from .models import (
     MaintenanceSettings,
     MaintenanceTarget,
     MaintenanceType,
+    MaintenanceWarningSent,
     OdometerReading,
     OdometerSource,
     OdometerWarning,
@@ -707,3 +709,58 @@ def update_paper_warnings(*, organization: Organization, actor: User, days: list
         after={"paper_warn_days": cleaned},
     )
     return found
+
+
+# ---- Warnings everywhere (P10-T05) ----
+
+
+def _send_once(organization: Organization, key: str, *, kind: str, params: dict[str, object], link: str) -> bool:
+    _sent, created = MaintenanceWarningSent.objects.get_or_create(organization=organization, key=key[:120])
+    if created:
+        notifications.tell_office_of(organization=organization, actor=None, kind=kind, params=params, link=link)
+    return created
+
+
+@transaction.atomic
+def send_warnings(*, organization: Organization, today: dt.date | None = None) -> int:
+    """The daily check (P10-T05): tell the owner and the managers once when a maintenance turns orange or red, and
+    when a paper reaches each warning day, its last day and its expiry. Returns how many notifications were sent."""
+    today = today or timezone.localdate()
+    thresholds = sorted(set(selectors.settings_of(organization).paper_warn_days or []) | {0})
+    sent = 0
+    for status in selectors.plan_statuses(organization):
+        if status.state not in ("soon", "late"):
+            continue
+        plan = status.plan
+        subject = plan.truck.location.name if plan.truck is not None else (plan.location.name if plan.location else "")
+        link = f"/flotte?camion={plan.truck_id}" if plan.truck_id else "/flotte"
+        # Once per state and per job: a new "Entretien effectué" starts again.
+        key = f"plan:{plan.pk}:{status.state}:{plan.last_done_on}:{plan.last_done_km}"
+        kind = "maintenance_late" if status.state == "late" else "maintenance_soon"
+        sent += _send_once(organization, key, kind=kind, params={"subject": subject, "type": plan.type.name}, link=link)
+    for row in selectors.paper_board(organization, today=today):
+        paper, days = row.paper, row.days_left
+        if paper is None or days is None:
+            continue
+        link = f"/flotte?camion={row.truck_id}" if row.truck_id else "/flotte"
+        params: dict[str, object] = {
+            "subject": row.subject,
+            "paper": str(PaperKind(row.kind).label),
+            "date": paper.expires_on.isoformat(),
+        }
+        if days < 0:
+            sent += _send_once(
+                organization, f"paper:{paper.pk}:expired", kind="paper_expired", params=params, link=link
+            )
+            continue
+        crossed = [limit for limit in thresholds if days <= limit]
+        if crossed:
+            limit = min(crossed)
+            sent += _send_once(
+                organization,
+                f"paper:{paper.pk}:{limit}",
+                kind="paper_expires",
+                params={**params, "days": days},
+                link=link,
+            )
+    return sent

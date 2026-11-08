@@ -356,3 +356,95 @@ def allowances_of(organization: Organization, *, truck_id: int) -> QuerySet[Truc
         .select_related("allowed_by")
         .order_by("-date", "-id")
     )
+
+
+# ---- Warnings everywhere (P10-T05) ----
+
+type AlertState = Literal["ok", "soon", "late"]
+RANK: dict[str, int] = {"ok": 0, "unknown": 0, "missing": 0, "soon": 1, "late": 2, "expired": 2}
+
+
+@dataclass(frozen=True)
+class Alert:
+    """One thing to do soon or late: a maintenance or a paper, on a truck, a cold room or a person."""
+
+    what: Literal["plan", "paper"]
+    state: AlertState
+    subject: str
+    truck_id: int | None
+    location_id: int | None
+    employee_id: int | None
+    # The maintenance type's name, or the paper kind's label.
+    label: str
+    # The day it falls due (a plan by date or at the truck's pace, a paper's end of validity), if known.
+    due_on: dt.date | None
+    km_left: int | None
+    days_left: int | None
+    object_id: int
+
+
+def alerts_of(organization: Organization, *, today: dt.date | None = None) -> list[Alert]:
+    """Every maintenance and paper that is soon or late, the latest first."""
+    today = today or timezone.localdate()
+    alerts: list[Alert] = []
+    for status in plan_statuses(organization):
+        if status.state not in ("soon", "late"):
+            continue
+        plan = status.plan
+        subject = plan.truck.location.name if plan.truck is not None else (plan.location.name if plan.location else "")
+        candidates = [day for day in (status.due_on, status.estimated_on) if day is not None]
+        alerts.append(
+            Alert(
+                what="plan",
+                state="late" if status.state == "late" else "soon",
+                subject=subject,
+                truck_id=plan.truck_id,
+                location_id=plan.location_id,
+                employee_id=None,
+                label=plan.type.name,
+                due_on=min(candidates) if candidates else None,
+                km_left=status.km_left,
+                days_left=status.days_left,
+                object_id=plan.pk,
+            )
+        )
+    for row in paper_board(organization, today=today):
+        if row.state not in ("soon", "expired") or row.paper is None:
+            continue
+        alerts.append(
+            Alert(
+                what="paper",
+                state="late" if row.state == "expired" else "soon",
+                subject=row.subject,
+                truck_id=row.truck_id,
+                location_id=None,
+                employee_id=row.employee_id,
+                label=str(PaperKind(row.kind).label),
+                due_on=row.paper.expires_on,
+                km_left=None,
+                days_left=row.days_left,
+                object_id=row.paper.pk,
+            )
+        )
+    alerts.sort(key=lambda alert: (-RANK[alert.state], alert.due_on or dt.date.max, alert.subject))
+    return alerts
+
+
+def truck_alert_states(organization: Organization) -> dict[int, AlertState]:
+    """The worst state of each truck that has something soon or late: the badge on its icon (owner answer 1)."""
+    worst: dict[int, AlertState] = {}
+    for alert in alerts_of(organization):
+        if alert.truck_id is not None and RANK[alert.state] > RANK[worst.get(alert.truck_id, "ok")]:
+            worst[alert.truck_id] = alert.state
+    return worst
+
+
+def driver_alerts(organization: Organization, *, user_id: int, truck_id: int | None) -> list[Alert]:
+    """What the driver sees on the phone: his truck's maintenance and papers, and his own papers."""
+    employee = hr.employees_of(organization).filter(user_id=user_id).first()
+    return [
+        alert
+        for alert in alerts_of(organization)
+        if (truck_id is not None and alert.truck_id == truck_id)
+        or (employee is not None and alert.employee_id == employee.pk)
+    ]

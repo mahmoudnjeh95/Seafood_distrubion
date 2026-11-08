@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 from .serializers import (
     AddedSerializer,
+    AlertSerializer,
     FleetOdometerRowSerializer,
     MaintenancePlanCreateSerializer,
     MaintenancePlanSerializer,
@@ -486,3 +487,29 @@ class TruckDayAllowanceView(OfficeView):
             reason=serializer.validated_data["reason"],
         )
         return Response(TruckDayAllowanceSerializer(allowance).data, status=status.HTTP_201_CREATED)
+
+
+# ---- Warnings everywhere (P10-T05) ----
+
+
+class FleetAlertsView(OfficeView):
+    @extend_schema(operation_id="listFleetAlerts", responses=AlertSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """Every maintenance and paper soon (orange) or late (red), the red ones first: the badges on the trucks and
+        the "Flotte & conformité" overview."""
+        return Response(AlertSerializer(selectors.alerts_of(self.organization), many=True).data)
+
+
+class MyAlertsView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(operation_id="listMyAlerts", responses=AlertSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """What the driver sees on the phone: his truck's maintenance and papers due, and his own papers."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        truck = fleet.truck_of_driver(membership)
+        rows = selectors.driver_alerts(
+            membership.organization, user_id=membership.user_id, truck_id=truck.pk if truck is not None else None
+        )
+        return Response(AlertSerializer(rows, many=True).data)

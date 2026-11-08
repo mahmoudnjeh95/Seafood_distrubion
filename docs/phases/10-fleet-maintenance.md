@@ -88,8 +88,14 @@ medical renewal.
 
 ### P10-T05 · Warnings everywhere
 
-- [ ] Notifications to owner and manager when a plan turns orange or red and when a paper reaches a threshold
+- [x] Notifications to owner and manager when a plan turns orange or red and when a paper reaches a threshold
       (once per threshold, a daily task).
-- [ ] Badge on the truck icon (orange / red) in the admin lists and on "Camions du jour"; "Flotte & conformité"
+- [x] Badge on the truck icon (orange / red) in the admin lists and on "Camions du jour"; "Flotte & conformité"
       overview (per truck and per person, green / orange / red, what falls due this month).
-- [ ] Phone: the driver sees his own truck's warnings and his own papers.
+- [x] Phone: the driver sees his own truck's warnings and his own papers.
+- Done as: `maintenance_warnings` (nightly, in the staging loop after `expire_quotes`) sends each step once
+  (`MaintenanceWarningSent`): a plan turning orange, then red (again after its next job); a paper at each warning day,
+  on its last day, and when expired. `GET /fleet/alerts` feeds the menu badge, the Flotte table, Camions du jour and
+  the overview; `GET /my-day/alerts` the phone's "Entretien et papiers" card (his truck of the day and his own papers,
+  through `hr.Employee.user`).
+

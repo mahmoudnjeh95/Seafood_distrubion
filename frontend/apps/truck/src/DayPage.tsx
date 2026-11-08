@@ -21,6 +21,7 @@ import { Link } from "react-router";
 
 import { formatBoxCount } from "./boxes";
 import { FoldCard } from "./FoldCard";
+import { MyAlertsCard } from "./MyAlertsCard";
 import { TodayAtAGlance } from "./TodayAtAGlance";
 
 // "Ma journée", three steps and nothing else: pick the truck, check the load, start the day.
@@ -293,6 +294,7 @@ function TruckDay({ truck }: { truck: { name: string; plate: string } }) {
         <p className="text-2xl font-bold">{truck.name}</p>
         <p className="text-ink-2">{truck.plate}</p>
       </Card>
+      <MyAlertsCard />
       {/* Until the day starts, the cash form is the first thing here, not at the bottom (D-171). */}
       {day.isLoading ? null : restart ? (
         <Card className="space-y-3 border-2 border-warn">

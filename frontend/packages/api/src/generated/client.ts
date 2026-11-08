@@ -29,6 +29,7 @@ import type {
   AccountTransferWrite,
   Added,
   AdjustmentWrite,
+  Alert,
   AllocateWrite,
   ApprovedMonth,
   Attachment,
@@ -10379,6 +10380,105 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSaveFinanceSettingsMutationOptions(options), queryClient);
     }
 
+export const getListFleetAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/fleet/alerts`
+}
+
+/**
+ * Every maintenance and paper soon (orange) or late (red), the red ones first: the badges on the trucks and
+ * the "Flotte & conformité" overview.
+ */
+export const listFleetAlerts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Alert[]> => {
+
+  return apiFetch<Alert[]>(getListFleetAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFleetAlertsQueryKey = () => {
+    return [
+    `/api/v1/fleet/alerts`
+    ] as const;
+    }
+
+
+export const getListFleetAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listFleetAlerts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFleetAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFleetAlerts>>> = ({ signal }) => listFleetAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFleetAlerts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFleetAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listFleetAlerts>>>
+export type ListFleetAlertsQueryError = unknown
+
+
+export function useListFleetAlerts<TData = Awaited<ReturnType<typeof listFleetAlerts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetAlerts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFleetAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listFleetAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFleetAlerts<TData = Awaited<ReturnType<typeof listFleetAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetAlerts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFleetAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listFleetAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFleetAlerts<TData = Awaited<ReturnType<typeof listFleetAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListFleetAlerts<TData = Awaited<ReturnType<typeof listFleetAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFleetAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListFleetOdometerUrl = () => {
 
 
@@ -18132,6 +18232,104 @@ export function useGetMyDaySummary<TData = Awaited<ReturnType<typeof getMyDaySum
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetMyDaySummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMyAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/alerts`
+}
+
+/**
+ * What the driver sees on the phone: his truck's maintenance and papers due, and his own papers.
+ */
+export const listMyAlerts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Alert[]> => {
+
+  return apiFetch<Alert[]>(getListMyAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyAlertsQueryKey = () => {
+    return [
+    `/api/v1/my-day/alerts`
+    ] as const;
+    }
+
+
+export const getListMyAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listMyAlerts>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyAlerts>>> = ({ signal }) => listMyAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyAlerts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyAlerts>>>
+export type ListMyAlertsQueryError = unknown
+
+
+export function useListMyAlerts<TData = Awaited<ReturnType<typeof listMyAlerts>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyAlerts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listMyAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyAlerts<TData = Awaited<ReturnType<typeof listMyAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyAlerts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listMyAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyAlerts<TData = Awaited<ReturnType<typeof listMyAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListMyAlerts<TData = Awaited<ReturnType<typeof listMyAlerts>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyAlerts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyAlertsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

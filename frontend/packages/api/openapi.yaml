@@ -3457,6 +3457,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/FinanceSettingsOverview'
           description: ''
+  /api/v1/fleet/alerts:
+    get:
+      operationId: listFleetAlerts
+      description: |-
+        Every maintenance and paper soon (orange) or late (red), the red ones first: the badges on the trucks and
+        the "Flotte & conformité" overview.
+      tags:
+      - fleet
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+          description: ''
   /api/v1/fleet/odometer:
     get:
       operationId: listFleetOdometer
@@ -5835,6 +5854,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-day/alerts:
+    get:
+      operationId: listMyAlerts
+      description: 'What the driver sees on the phone: his truck''s maintenance and
+        papers due, and his own papers.'
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
           description: ''
   /api/v1/my-day/fund:
     get:
@@ -13768,6 +13805,60 @@ components:
       - credit_limit
       - customer
       - overdue
+    Alert:
+      type: object
+      description: 'One `selectors.Alert`: a maintenance or a paper that is soon (orange)
+        or late (red).'
+      properties:
+        what:
+          $ref: '#/components/schemas/WhatEnum'
+        state:
+          $ref: '#/components/schemas/AlertStateEnum'
+        subject:
+          type: string
+        truck_id:
+          type: integer
+          nullable: true
+        location_id:
+          type: integer
+          nullable: true
+        employee_id:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        due_on:
+          type: string
+          format: date
+          nullable: true
+        km_left:
+          type: integer
+          nullable: true
+        days_left:
+          type: integer
+          nullable: true
+        object_id:
+          type: integer
+      required:
+      - days_left
+      - due_on
+      - employee_id
+      - km_left
+      - location_id
+      - object_id
+      - state
+      - subject
+      - title
+      - truck_id
+      - what
+    AlertStateEnum:
+      enum:
+      - soon
+      - late
+      type: string
+      description: |-
+        * `soon` - soon
+        * `late` - late
     AllocateWrite:
       type: object
       properties:
@@ -35152,6 +35243,14 @@ components:
         * `new` - Nouvelle
         * `handled` - Traitée
         * `cancelled` - Annulée
+    WhatEnum:
+      enum:
+      - plan
+      - paper
+      type: string
+      description: |-
+        * `plan` - plan
+        * `paper` - paper
     WithholdingCertificate:
       type: object
       description: The withholding certificate of an invoice (P2-T06, D-063).

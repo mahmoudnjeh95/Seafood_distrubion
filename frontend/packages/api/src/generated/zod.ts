@@ -6878,6 +6878,26 @@ export const SaveFinanceSettingsResponse = zod.object({
 
 
 /**
+ * Every maintenance and paper soon (orange) or late (red), the red ones first: the badges on the trucks and
+ * the "Flotte & conformité" overview.
+ */
+export const ListFleetAlertsResponseItem = zod.object({
+  "what": zod.enum(['plan', 'paper']).describe('* `plan` - plan\n* `paper` - paper'),
+  "state": zod.enum(['soon', 'late']).describe('* `soon` - soon\n* `late` - late'),
+  "subject": zod.string(),
+  "truck_id": zod.int().nullable(),
+  "location_id": zod.int().nullable(),
+  "employee_id": zod.int().nullable(),
+  "title": zod.string(),
+  "due_on": zod.iso.date().nullable(),
+  "km_left": zod.int().nullable(),
+  "days_left": zod.int().nullable(),
+  "object_id": zod.int()
+}).describe('One `selectors.Alert`: a maintenance or a paper that is soon (orange) or late (red).')
+export const ListFleetAlertsResponse = zod.array(ListFleetAlertsResponseItem)
+
+
+/**
  * Each active truck with its last compteur and how many of its readings carry a warning.
  */
 export const ListFleetOdometerResponseItem = zod.object({
@@ -12063,6 +12083,25 @@ export const GetMyDaySummaryResponse = zod.object({
   "changed_since_sent": zod.boolean()
 }).describe('What the driver sees of their closing: what they should hold. The office counts the cash (D-213).'),zod.null()])
 })
+
+
+/**
+ * What the driver sees on the phone: his truck's maintenance and papers due, and his own papers.
+ */
+export const ListMyAlertsResponseItem = zod.object({
+  "what": zod.enum(['plan', 'paper']).describe('* `plan` - plan\n* `paper` - paper'),
+  "state": zod.enum(['soon', 'late']).describe('* `soon` - soon\n* `late` - late'),
+  "subject": zod.string(),
+  "truck_id": zod.int().nullable(),
+  "location_id": zod.int().nullable(),
+  "employee_id": zod.int().nullable(),
+  "title": zod.string(),
+  "due_on": zod.iso.date().nullable(),
+  "km_left": zod.int().nullable(),
+  "days_left": zod.int().nullable(),
+  "object_id": zod.int()
+}).describe('One `selectors.Alert`: a maintenance or a paper that is soon (orange) or late (red).')
+export const ListMyAlertsResponse = zod.array(ListMyAlertsResponseItem)
 
 
 /**

@@ -276,3 +276,16 @@ class TruckDayAllowance(OrganizationScopedModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(fields=["organization", "truck", "date"], name="one_allowance_per_truck_day"),
         ]
+
+
+class MaintenanceWarningSent(OrganizationScopedModel):
+    """A warning the daily check already sent (P10-T05), so each one is sent once: a plan turning orange or red
+    (until its next job), a paper reaching each warning day, then expiring."""
+
+    key = models.CharField(max_length=120)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "key"], name="maintenance_warning_sent_once"),
+        ]

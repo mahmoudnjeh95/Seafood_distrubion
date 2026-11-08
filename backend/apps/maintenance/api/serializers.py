@@ -293,3 +293,22 @@ class TruckDayAllowanceSerializer(serializers.ModelSerializer[TruckDayAllowance]
 
     def get_allowed_by(self, allowance: TruckDayAllowance) -> str:
         return person_name(allowance.allowed_by)
+
+
+# ---- Warnings everywhere (P10-T05) ----
+
+
+class AlertSerializer(serializers.Serializer[Any]):
+    """One `selectors.Alert`: a maintenance or a paper that is soon (orange) or late (red)."""
+
+    what = serializers.ChoiceField(choices=["plan", "paper"])
+    state = serializers.ChoiceField(choices=["soon", "late"])
+    subject = serializers.CharField()
+    truck_id = serializers.IntegerField(allow_null=True)
+    location_id = serializers.IntegerField(allow_null=True)
+    employee_id = serializers.IntegerField(allow_null=True)
+    title = serializers.CharField(source="label")
+    due_on = serializers.DateField(allow_null=True)
+    km_left = serializers.IntegerField(allow_null=True)
+    days_left = serializers.IntegerField(allow_null=True)
+    object_id = serializers.IntegerField()

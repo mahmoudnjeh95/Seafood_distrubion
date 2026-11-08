@@ -6,12 +6,13 @@ import {
   getListTruckOdometerQueryKey,
   updateMaintenanceSettings,
   useGetMaintenanceSettings,
+  useListFleetAlerts,
   useListFleetOdometer,
   useListLocations,
   useListTruckOdometer,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDateTime, useTranslation } from "@frutti/i18n";
+import { formatDate, formatDateTime, useTranslation } from "@frutti/i18n";
 import { Button, Card, Field, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -20,7 +21,7 @@ import { useOutletContext, useSearchParams } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { DayAllowance, PapersPanel } from "./PapersPanel";
 import { PlansPanel } from "./PlansPanel";
-import { digits, formatKm } from "./shared";
+import { digits, formatKm, truckStates } from "./shared";
 import { TypesCard } from "./TypesCard";
 
 /** The office sets a truck's compteur, with its reason (a typo, a new truck, a compteur replaced). */
@@ -256,6 +257,54 @@ function ColdRooms({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+/** "Flotte & conformité": everything soon (orange) or late (red), the red first (P10-T05). */
+function Overview({ onTruck }: { onTruck: (truckId: number) => void }) {
+  const { t } = useTranslation();
+  const alerts = useListFleetAlerts();
+  const list = alerts.data ?? [];
+  const late = list.filter((alert) => alert.state === "late").length;
+  return (
+    <Card className={list.length === 0 ? "space-y-2" : late > 0 ? "space-y-2 border-bad" : "space-y-2 border-warn"}>
+      <p className="font-semibold">{t("admin.fleet.overview")}</p>
+      {list.length === 0 ? (
+        <p className="text-ink-2">{t(alerts.isPending ? "common.loading" : "admin.fleet.allGood")}</p>
+      ) : (
+        <>
+          <p className="text-ink-2">{t("admin.fleet.overviewCounts", { late, soon: list.length - late })}</p>
+          <ul className="space-y-1">
+            {list.map((alert) => (
+              <li key={`${alert.what}-${alert.object_id}`} className="flex flex-wrap items-center gap-2">
+                <Pill tone={alert.state === "late" ? "bad" : "warn"}>
+                  {t(`admin.maintenance.states.${alert.state}`)}
+                </Pill>
+                {alert.truck_id === null ? (
+                  <span className="font-semibold">{alert.subject}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="font-semibold text-sea underline-offset-2 hover:underline"
+                    onClick={() => onTruck(alert.truck_id ?? 0)}
+                  >
+                    {alert.subject}
+                  </button>
+                )}
+                <span>{alert.title}</span>
+                <span className="text-ink-2">
+                  {alert.km_left !== null
+                    ? t("admin.maintenance.kmLeft", { km: formatKm(alert.km_left) })
+                    : alert.due_on !== null
+                      ? formatDate(alert.due_on)
+                      : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
+  );
+}
+
 /** "Flotte & entretien" (Phase 10, D-295): each truck's compteur as the driver types it when sending the day. */
 export function FleetPage() {
   const { t } = useTranslation();
@@ -263,12 +312,14 @@ export function FleetPage() {
   const canEdit = session.role === "owner" || session.role === "manager";
   const [params, setParams] = useSearchParams();
   const fleet = useListFleetOdometer();
+  const states = truckStates(useListFleetAlerts().data);
   const rows = fleet.data ?? [];
   const chosen = rows.find((row) => String(row.truck_id) === params.get("camion"));
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.fleet.title")} />
       <p className="text-ink-2">{t("admin.fleet.intro")}</p>
+      <Overview onTruck={(truckId) => setParams({ camion: String(truckId) })} />
       {rows.length === 0 ? (
         <p className="text-ink-2">{t(fleet.isPending ? "common.loading" : "admin.fleet.noTrucks")}</p>
       ) : (
@@ -294,6 +345,11 @@ export function FleetPage() {
                   <Td>{row.last ? formatDateTime(row.last.created_at) : "—"}</Td>
                   <Td>{row.last?.recorded_by ?? "—"}</Td>
                   <Td>
+                    {states.has(row.truck_id) && (
+                      <Pill tone={states.get(row.truck_id) === "late" ? "bad" : "warn"} className="me-2">
+                        {t(`admin.fleet.badge.${states.get(row.truck_id) ?? "soon"}`)}
+                      </Pill>
+                    )}
                     {row.warnings > 0 ? (
                       <Pill tone="bad">{t("admin.fleet.warningCount", { count: row.warnings })}</Pill>
                     ) : row.last === null ? (

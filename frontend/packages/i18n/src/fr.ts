@@ -78,6 +78,10 @@ export const fr = {
       payment_recorded: "{{driver}} a encaissé {{amount}} de {{customer}}",
       expense_created: "{{driver}} a saisi une dépense : {{category}}, {{amount}}",
       loss_recorded: "{{driver}} a déclaré une perte : {{product}}, {{quantity}}",
+      maintenance_soon: "Entretien bientôt : {{type}} sur {{subject}}",
+      maintenance_late: "Entretien en retard : {{type}} sur {{subject}}",
+      paper_expires: "{{paper}} de {{subject}} expire le {{date}}",
+      paper_expired: "{{paper}} de {{subject}} a expiré le {{date}}",
       odometer_jump:
         "{{driver}} a tapé {{km}} km au compteur de {{truck}} : {{driven}} km depuis le dernier relevé, à vérifier",
       loss_waiting: "{{driver}} a déclaré une perte à valider : {{product}}, {{quantity}}",
@@ -1458,6 +1462,10 @@ export const fr = {
       corrected: "Compteur enregistré.",
       settings: "Paramètres entretien",
       compteurSettings: "Compteur",
+      overview: "Flotte & conformité",
+      allGood: "Rien à faire : les entretiens et les papiers suivis sont à jour.",
+      overviewCounts: "{{late}} en retard, {{soon}} bientôt",
+      badge: { soon: "Entretien / papier bientôt", late: "Entretien / papier en retard" },
       maxDayKm: "Km maximum par jour",
       maxDayKmHint: "Au-delà (multiplié par les jours depuis le dernier relevé), le relevé est signalé au bureau.",
       save: "Enregistrer",
@@ -6075,6 +6083,14 @@ export const fr = {
       denied:
         "Position refusée : le bureau ne peut pas suivre la tournée. Autorisez la position pour ce site dans les réglages du navigateur.",
       unavailable: "Position introuvable : vérifiez que le GPS du téléphone est activé.",
+    },
+    alerts: {
+      title: "Entretien et papiers",
+      late: "en retard",
+      soon: "bientôt",
+      kmLeft: "dans {{km}} km",
+      before: "avant le {{date}}",
+      hint: "Le bureau s'en occupe : prévenez-le si le camion a un souci.",
     },
     odometer: {
       label: "Compteur (km)",
