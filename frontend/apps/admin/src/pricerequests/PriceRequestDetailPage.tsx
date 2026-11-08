@@ -82,10 +82,10 @@ function OfferCard({ request, offer, canWrite }: { request: PriceRequest; offer:
         reference: reference.trim(),
         received_on: receivedOn || null,
         valid_until: validUntil || null,
-        prices: request.lines.map((line) => ({
-          request_line: line.id,
-          unit_cost: prices[line.id]?.trim() ? (parseDecimalInput(prices[line.id].trim(), 3) ?? prices[line.id]) : null,
-        })),
+        prices: request.lines.map((line) => {
+          const typed = prices[line.id]?.trim() ?? "";
+          return { request_line: line.id, unit_cost: typed ? (parseDecimalInput(typed, 3) ?? typed) : null };
+        }),
       }),
     onSuccess: async () => {
       setErrors({});
