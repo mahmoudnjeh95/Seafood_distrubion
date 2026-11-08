@@ -30,7 +30,7 @@ from .serializers import (
 TRUCK_READINGS_SHOWN = 100
 
 
-# Base of the office's maintenance views: everyone in the office reads, owners and managers write (D-283).
+# Base of the office's maintenance views: everyone in the office reads, owners and managers write (D-295).
 # A comment, not a docstring: a docstring would become the description of every endpoint in the schema.
 class OfficeView(APIView):
     permission_classes = (ReadOfficeWriteOwnerOrManager,)

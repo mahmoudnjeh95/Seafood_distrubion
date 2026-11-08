@@ -5,7 +5,7 @@ import { Input } from "@frutti/ui";
 import { formatKm, parseOdometer } from "./odometer";
 import { PaperPhotoInput } from "./PaperPhotoInput";
 
-/** The compteur typed when the day is sent (P10-T01, D-283): what the dashboard shows, in km, and an optional photo
+/** The compteur typed when the day is sent (P10-T01, D-295): what the dashboard shows, in km, and an optional photo
  * of it. The truck's last reading is shown so a typo stands out; the server refuses a lower number. */
 export function OdometerCard({
   odometer,

@@ -22,7 +22,7 @@ import { sendError } from "./sendError";
 // figures, the wait for the phone's unsent sales and the form are in DayReport, shared with the history). The office
 // counts the cash when the driver is back (D-213). Sending closes the day; it opens again when the office loads the
 // truck again that date (D-134). The compteur of the day is asked first, once a day, and recorded just before the
-// send (P10-T01, D-283).
+// send (P10-T01, D-295).
 export function ClosingPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();

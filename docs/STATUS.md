@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-08 (Phase 10 Flotte & entretien planned, P10-T01 compteur readings, D-283; next free decision D-284)_
+_Last updated: 2026-11-08 (Phase 10 Flotte & entretien planned, P10-T01 compteur readings, D-295; next free decision D-296)_
 
 ## Where we are
 
-- **Phase 10 · Flotte & entretien (D-283, owner request 2026-11-08, branch `claude/dreamy-carson-bztvxg`, migration
+- **Phase 10 · Flotte & entretien (D-295, owner request 2026-11-08, branch `claude/dreamy-carson-bztvxg`, migration
   `maintenance 0001`)** — plan and the owner's answers in `docs/phases/10-fleet-maintenance.md`. **P10-T01 done on the
   branch:** new app `apps.maintenance`; the driver types the compteur (optional photo) on "Clôture" before sending the
   day; lower than the last reading is refused; a big jump is kept with a warning and the office is notified; the office
@@ -103,7 +103,7 @@ _Last updated: 2026-11-08 (Phase 10 Flotte & entretien planned, P10-T01 compteur
 
 ## Next step
 
-0. P10-T01 (D-283): open the PR from `claude/dreamy-carson-bztvxg`, merge once green. Then **P10-T02** (Paramètres
+0. P10-T01 (D-295): open the PR from `claude/dreamy-carson-bztvxg`, merge once green. Then **P10-T02** (Paramètres
    entretien: maintenance types, plans per truck, "Entretien effectué", status from the readings).
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.

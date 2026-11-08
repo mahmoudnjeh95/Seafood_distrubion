@@ -1,4 +1,4 @@
-"""Every write of the maintenance module goes through these functions (ARCHITECTURE §3, P10, D-283)."""
+"""Every write of the maintenance module goes through these functions (ARCHITECTURE §3, P10, D-295)."""
 
 from typing import TYPE_CHECKING
 

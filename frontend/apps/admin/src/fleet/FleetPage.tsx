@@ -146,7 +146,7 @@ function TruckReadings({ row, canEdit }: { row: FleetOdometerRow; canEdit: boole
   );
 }
 
-/** Paramètres entretien (D-283): for now the km a truck may drive in a day before a reading is flagged. */
+/** Paramètres entretien (D-295): for now the km a truck may drive in a day before a reading is flagged. */
 function SettingsCard({ canEdit }: { canEdit: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -195,7 +195,7 @@ function SettingsCard({ canEdit }: { canEdit: boolean }) {
   );
 }
 
-/** "Flotte & entretien" (Phase 10, D-283): each truck's compteur as the driver types it when sending the day. */
+/** "Flotte & entretien" (Phase 10, D-295): each truck's compteur as the driver types it when sending the day. */
 export function FleetPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

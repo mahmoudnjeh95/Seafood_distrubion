@@ -99,7 +99,7 @@ def _loss_recorded(entry: AuditLog) -> None:
 
 
 def _odometer_recorded(entry: AuditLog) -> None:
-    # Only a reading far above what a truck drives in a day tells the office (P10-T01, D-283): a typo or a long trip.
+    # Only a reading far above what a truck drives in a day tells the office (P10-T01, D-295): a typo or a long trip.
     after = entry.after or {}
     if after.get("warning") != "big_jump":
         return

@@ -1,4 +1,4 @@
-// The compteur typed on the "Clôture" screen (P10-T01, D-283).
+// The compteur typed on the "Clôture" screen (P10-T01, D-295).
 
 /** The typed compteur as a number, or null while empty. */
 export function parseOdometer(km: string): number | null {

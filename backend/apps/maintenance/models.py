@@ -6,12 +6,12 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 
-# Defaults of the maintenance settings (P10-T01, D-283): a light delivery truck rarely drives more in a day.
+# Defaults of the maintenance settings (P10-T01, D-295): a light delivery truck rarely drives more in a day.
 DEFAULT_MAX_DAY_KM = 600
 
 
 class MaintenanceSettings(OrganizationScopedModel, TimeStampedModel):
-    """The organization's maintenance settings (Paramètres entretien, D-283). One row per organization, made with
+    """The organization's maintenance settings (Paramètres entretien, D-295). One row per organization, made with
     the defaults the first time it is read. P10-T02 adds the maintenance types and their intervals."""
 
     # Above this many km per day since the last reading, a compteur reading is kept with a warning for the office.
@@ -41,7 +41,7 @@ def odometer_photo_path(reading: "OdometerReading", filename: str) -> str:
 
 class OdometerReading(OrganizationScopedModel, TimeStampedModel):
     """The compteur (odometer) of a truck at a moment, typed by the driver when he sends his day or by the office
-    (P10-T01, D-283). There is no GPS for the km: these readings are the base of the km-based maintenance.
+    (P10-T01, D-295). There is no GPS for the km: these readings are the base of the km-based maintenance.
 
     Append-only: a wrong reading is never changed. The office types a correction (a new reading with a reason,
     which may be lower) and the truck's latest reading is the reference for the next one.

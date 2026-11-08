@@ -106,7 +106,7 @@ def _is_driver_area(path: str, method: str) -> bool:
     reading = method == "get"
     if path.startswith(("/api/v1/categories", "/api/v1/products", "/api/v1/price-lists")):
         return reading
-    # A truck's compteur history is the office's (D-283): the driver types his own on /my-day/odometer.
+    # A truck's compteur history is the office's (D-295): the driver types his own on /my-day/odometer.
     if path.endswith("/odometer-readings"):
         return False
     if path.startswith(("/api/v1/trucks", "/api/v1/truck-assignments")):
