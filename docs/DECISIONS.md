@@ -3962,3 +3962,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `Invoice.rebilled_from` → the credit note (and through it the original invoice). Refused for a partial credit note (the
   invoice is still valid), when the credit note took goods back (restock or loss: nothing left to bill), and while a BL
   is on a live invoice again. Before this, the same was possible by hand from Nouvelle facture, without the link.
+
+**D-288 · Files can be attached to documents, without a Bureau d'ordre (P2-T19)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Documents associés" tab, minus its mail register: the owner said no Bureau d'ordre. A file goes straight
+  on the document. Kinds: quote, BL, invoice, credit note, purchase order, goods receipt, supplier invoice.
+- A PDF up to 8 MB kept as is; a photo (JPEG, PNG, WebP) turned upright, metadata dropped, shrunk to 2400 px (larger than
+  product photos so scans stay readable), stored as WebP. Anything else is refused.
+- The documents app owns `Attachment` and never reads other apps' tables: each app registers how to check a document
+  exists (`register_attachable`, like printables). Removing a file hides it; row and file stay with who removed it.
+- Not done: attachments on the driver app, on payments or expenses; Perfaxis's rule "an accepted quote needs its signed
+  document" (not asked).

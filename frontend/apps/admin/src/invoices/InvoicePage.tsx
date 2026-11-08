@@ -44,6 +44,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { fieldErrors } from "../lib/errors";
 import { PdfButton } from "../lib/PdfButton";
@@ -819,6 +820,7 @@ export function InvoicePage() {
       </div>
 
       {crediting && <CreditNoteDialog invoice={invoice} onClose={() => setCrediting(false)} />}
+      <AttachmentsCard kind="invoice" objectId={invoice.id} canWrite={writer} />
     </>
   );
 }

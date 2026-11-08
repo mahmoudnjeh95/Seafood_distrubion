@@ -26,6 +26,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { BOX_TYPES, formatBoxCount } from "../boxes/shared";
 import { DocumentFooter, DocumentHeader } from "../lib/DocumentFrame";
 import { useSeller } from "../lib/documentSeller";
@@ -594,6 +595,7 @@ export function SaleDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AttachmentsCard kind="delivery_note" objectId={data.id} canWrite={canWrite} />
     </>
   );
 }

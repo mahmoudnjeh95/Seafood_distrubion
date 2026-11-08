@@ -18,11 +18,14 @@ from apps.documents import services as documents
 
 from . import selectors
 from .models import (
+    CreditNote,
     CreditNoteKind,
     CreditNoteStock,
     CustomerPaymentMethod,
     DeliveryStatus,
+    Invoice,
     InvoiceStatus,
+    Quote,
     QuoteStatus,
     Sale,
     SaleRevisionKind,
@@ -339,3 +342,18 @@ def register_printables() -> None:
     documents.register(documents.DocumentKind.INVOICE, invoice_printable)
     documents.register(documents.DocumentKind.CREDIT_NOTE, credit_note_printable)
     documents.register(documents.DocumentKind.RECEIPT, receipt_printable)
+
+
+def _exists(model: Any) -> Any:
+    def exists(organization: Organization, object_id: int) -> bool:
+        return bool(model.objects.for_organization(organization).filter(pk=object_id).exists())
+
+    return exists
+
+
+def register_attachables() -> None:
+    """The sales documents files can be attached to (D-288)."""
+    documents.register_attachable("quote", _exists(Quote))
+    documents.register_attachable("delivery_note", _exists(Sale))
+    documents.register_attachable("invoice", _exists(Invoice))
+    documents.register_attachable("credit_note", _exists(CreditNote))

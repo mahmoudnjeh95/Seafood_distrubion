@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { subtract } from "../lib/decimal";
 import { canRecordReceipts } from "./shared";
 import { ReceiptDisputeDialog } from "./ReceiptDisputeDialog";
@@ -283,6 +284,7 @@ export function ReceiptDetailPage() {
       <p className="text-[0.85rem] text-ink-2">
         {t(data.editable ? "admin.receipts.detail.changeable" : "admin.receipts.detail.locked")}
       </p>
+      <AttachmentsCard kind="goods_receipt" objectId={data.id} canWrite={canRecordReceipts(session)} />
     </>
   );
 }

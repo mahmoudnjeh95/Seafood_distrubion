@@ -199,6 +199,8 @@ SPECTACULAR_SETTINGS = {
     # Choice sets get stable names after their model, not their field: several models have a `kind`,
     # and "status" and "method" will exist on sales documents too.
     "ENUM_NAME_OVERRIDES": {
+        # D-288 · files attached to a document
+        "AttachmentKindEnum": "apps.documents.models.AttachmentKind",
         # D-186 · public site
         "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
