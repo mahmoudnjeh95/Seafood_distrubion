@@ -1,8 +1,15 @@
 # Project status
 
-_Last updated: 2026-11-07 (supplier price requests, D-289; next free decision D-290)_
+_Last updated: 2026-11-08 (training copy app1/ch1, D-290; Perfaxis gaps and client bug list merged #323–#329; next free decision D-291)_
 
 ## Where we are
+
+- **D-290 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, merged 2026-11-08 (#330)):** same stack on
+  `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, only the database apart (`frutti_training`, services
+  `training-backend`/`training-worker` in `compose.staging.yml`), "Formation" tag on screen only, papers identical to
+  the real ones, reset by hand with `reset-training.sh` (runbook "Training copy"). Next: owner adds the DNS records
+  (`app1`, `ch1` → 217.182.205.137), then run `~/frutti-training/bin/reset-training.sh --apply` once and
+  check the tag, a PDF and a driver receipt on app1/ch1.
 
 - **Perfaxis gaps (owner answers 2026-11-07, D-285):** the owner compared the Perfaxis Achat/Vente/Avoir manual and kept
   five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch

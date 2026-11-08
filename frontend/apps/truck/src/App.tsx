@@ -2,6 +2,7 @@ import {
   createQueryClient,
   LanguageSwitch,
   LoginPage,
+  TrainingTag,
   NotificationCenter,
   RequireRole,
   type Session,
@@ -171,7 +172,10 @@ function AppRoutes() {
   useFavicon(logo);
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage title={t("truck.appName")} withLanguage logoUrl={logo} />} />
+      <Route
+        path="/login"
+        element={<LoginPage title={t("truck.appName")} withLanguage logoUrl={logo} app="driver" />}
+      />
       <Route
         element={
           <RequireRole allow={["driver"]} wrongAppMessage={t("truck.wrongApp")}>
@@ -204,6 +208,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <Sprite />
       <Toaster />
+      <TrainingTag />
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>

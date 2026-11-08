@@ -300,6 +300,25 @@ deletion runs in one transaction and checks every foreign key before it commits:
 Once `real_data_since` is set, `seed_dev` adds nothing. To undo, restore the backup
 (Emergency restore above).
 
+## Training copy (D-290)
+
+`https://app1.fruttidelmare.com` (office) and `https://ch1.fruttidelmare.com` (driver), inside the `frutti-staging`
+project: services `training-backend` and `training-worker`, database `frutti_training` on the same `db` container,
+volume `frutti-staging_training_media`, web ports 18091/18092, server blocks in the Frutti nginx site, folder
+`~/frutti-training` (reset script and saved logins). The first deploy creates the empty database; a deploy never
+changes its data. Not in the nightly backup.
+
+- **DNS (owner, once):** `A` records `app1` and `ch1` → 217.182.205.137. The next deploy adds both names to the
+  certificate (a warning until the DNS answers).
+- **First start and every reset, by hand:**
+  ```bash
+  ~/frutti-training/bin/reset-training.sh           # lists the trainee logins kept, changes nothing
+  ~/frutti-training/bin/reset-training.sh --apply   # fresh copy of production's master data, work deleted
+  ```
+  The first `--apply` prints the password of the `formation` owner login. Trainee logins are created by that owner in
+  the app and survive resets (copy in `~/frutti-training/logins/`; if a reset stops halfway, run it again).
+- Production's own logins do not work on the training copy.
+
 ## Production
 
 Not set up yet (P4-T02). It needs a domain and HTTPS: staging runs on plain HTTP (D-027).

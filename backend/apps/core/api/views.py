@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.db import connection
 from django.db.models import QuerySet
@@ -66,6 +67,31 @@ def health(request: Request) -> Response:
         database = "unavailable"
     status_code = 200 if database == "ok" else 503
     return Response({"status": "ok" if status_code == 200 else "degraded", "database": database}, status=status_code)
+
+
+@extend_schema(
+    operation_id="getInstance",
+    responses=inline_serializer(
+        "Instance",
+        fields={
+            "training": serializers.BooleanField(help_text="This is the training copy: show the Formation tag."),
+            "training_admin_url": serializers.CharField(help_text="The training copy's office app; empty: none."),
+            "training_driver_url": serializers.CharField(help_text="The training copy's driver app; empty: none."),
+        },
+    ),
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def instance(request: Request) -> Response:
+    """Which copy of the application this is (D-290). Public: the login screen shows the tag and the link too."""
+    return Response(
+        {
+            "training": settings.TRAINING_MODE,
+            "training_admin_url": "" if settings.TRAINING_MODE else settings.TRAINING_ADMIN_URL,
+            "training_driver_url": "" if settings.TRAINING_MODE else settings.TRAINING_DRIVER_URL,
+        }
+    )
 
 
 _STOCK_CHECK_HEALTH = inline_serializer(

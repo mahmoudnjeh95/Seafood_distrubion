@@ -44,6 +44,8 @@ export const fr = {
     networkError: "Connexion impossible. Vérifiez le réseau puis réessayez.",
     showPassword: "Afficher",
     hidePassword: "Masquer",
+    trainingTag: "Formation",
+    trainingLink: "Se connecter en mode formation",
   },
   roles: {
     owner: "Propriétaire",
