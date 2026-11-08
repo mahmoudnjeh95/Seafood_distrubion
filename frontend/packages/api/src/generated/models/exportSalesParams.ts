@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ExportSalesDeliveryStatus } from './exportSalesDeliveryStatus';
+import type { ExportSalesOpening } from './exportSalesOpening';
 import type { ExportSalesStatus } from './exportSalesStatus';
 
 export type ExportSalesParams = {
@@ -26,6 +27,13 @@ delivery_status?: ExportSalesDeliveryStatus;
  * @minimum 1
  */
 location?: number;
+/**
+ * * `exclude` - exclude
+ * * `only` - only
+ * * `all` - all
+ * @minLength 1
+ */
+opening?: ExportSalesOpening;
 /**
  * Column to sort by; a leading `-` sorts descending.
  */

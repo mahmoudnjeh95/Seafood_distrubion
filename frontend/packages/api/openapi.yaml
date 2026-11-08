@@ -1116,6 +1116,101 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomerPaymentTotals'
           description: ''
+  /api/v1/customer-types:
+    get:
+      operationId: listCustomerTypes
+      description: |-
+        The customer types (Paramètres › Types de clients, D-283), active and deactivated, in their order. The
+        customer form offers the active ones; a customer keeps a deactivated one.
+      tags:
+      - customer-types
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerType'
+          description: ''
+    post:
+      operationId: createCustomerType
+      description: A new customer type (owner or manager), active, at the end of the
+        list.
+      tags:
+      - customer-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerTypeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerTypeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerTypeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerType'
+          description: ''
+  /api/v1/customer-types/{type_id}:
+    patch:
+      operationId: updateCustomerType
+      description: Rename a customer type, deactivate it or bring it back. Its customers
+        keep it either way.
+      parameters:
+      - in: path
+        name: type_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerTypeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerTypeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerTypeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerType'
+          description: ''
+    delete:
+      operationId: deleteCustomerType
+      description: Delete a customer type no customer has; one in use is refused (deactivate
+        it instead).
+      parameters:
+      - in: path
+        name: type_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - customer-types
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/customers:
     get:
       operationId: listCustomers
@@ -1126,24 +1221,9 @@ paths:
       - in: query
         name: kind
         schema:
-          enum:
-          - restaurant
-          - hotel
-          - fish_shop
-          - supermarket
-          - wholesaler
-          - caterer
-          - individual
           type: string
+          maxLength: 20
           minLength: 1
-        description: |-
-          * `restaurant` - Restaurant
-          * `hotel` - Hôtel
-          * `fish_shop` - Poissonnerie
-          * `supermarket` - Supermarché
-          * `wholesaler` - Grossiste
-          * `caterer` - Traiteur
-          * `individual` - Particulier
       - in: query
         name: search
         schema:
@@ -3831,6 +3911,25 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/invoices/to-invoice-counts:
+    get:
+      operationId: listUninvoicedCounts
+      description: |-
+        How many BL each customer has still to invoice (validated, not cancelled, on no invoice): the count shown
+        beside the customer in "Nouvelle facture". Customers with none are left out.
+      tags:
+      - invoices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UninvoicedCount'
+          description: ''
   /api/v1/locations:
     get:
       operationId: listLocations
@@ -5155,24 +5254,9 @@ paths:
       - in: query
         name: kind
         schema:
-          enum:
-          - restaurant
-          - hotel
-          - fish_shop
-          - supermarket
-          - wholesaler
-          - caterer
-          - individual
           type: string
+          maxLength: 20
           minLength: 1
-        description: |-
-          * `restaurant` - Restaurant
-          * `hotel` - Hôtel
-          * `fish_shop` - Poissonnerie
-          * `supermarket` - Supermarché
-          * `wholesaler` - Grossiste
-          * `caterer` - Traiteur
-          * `individual` - Particulier
       - in: query
         name: search
         schema:
@@ -8629,6 +8713,20 @@ paths:
         description: L'index initial depuis lequel retourner les résultats.
         schema:
           type: integer
+      - in: query
+        name: opening
+        schema:
+          enum:
+          - exclude
+          - only
+          - all
+          type: string
+          default: exclude
+          minLength: 1
+        description: |-
+          * `exclude` - exclude
+          * `only` - only
+          * `all` - all
       - name: ordering
         required: false
         in: query
@@ -8875,6 +8973,20 @@ paths:
         schema:
           type: integer
           minimum: 1
+      - in: query
+        name: opening
+        schema:
+          enum:
+          - exclude
+          - only
+          - all
+          type: string
+          default: exclude
+          minLength: 1
+        description: |-
+          * `exclude` - exclude
+          * `only` - only
+          * `all` - all
       - in: query
         name: ordering
         schema:
@@ -12012,6 +12124,100 @@ paths:
               schema:
                 $ref: '#/components/schemas/VatProducts'
           description: ''
+  /api/v1/vat-rates:
+    get:
+      operationId: listVatRates
+      description: |-
+        The VAT rates (Paramètres › TVA, D-283), lowest first, active and deactivated. The product form offers
+        the active ones.
+      tags:
+      - vat-rates
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VatRate'
+          description: ''
+    post:
+      operationId: createVatRate
+      description: A new VAT rate (owner or manager), active at once.
+      tags:
+      - vat-rates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VatRateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VatRateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VatRateWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VatRate'
+          description: ''
+  /api/v1/vat-rates/{rate_id}:
+    patch:
+      operationId: updateVatRate
+      description: Change a VAT rate's label, deactivate it or bring it back; its
+        percent only while nothing uses it.
+      parameters:
+      - in: path
+        name: rate_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vat-rates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVatRateWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVatRateWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVatRateWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VatRate'
+          description: ''
+    delete:
+      operationId: deleteVatRate
+      description: Delete a VAT rate never used; one in use is refused (deactivate
+        it instead).
+      parameters:
+      - in: path
+        name: rate_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vat-rates
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/web-requests:
     get:
       operationId: listWebRequests
@@ -14235,8 +14441,11 @@ components:
           type: string
           readOnly: true
         kind:
+          type: string
+          readOnly: true
+        id_type:
           allOf:
-          - $ref: '#/components/schemas/CustomerKindEnum'
+          - $ref: '#/components/schemas/IdTypeEnum'
           readOnly: true
         tax_id:
           type: string
@@ -14299,6 +14508,7 @@ components:
       - credit_limit
       - email
       - id
+      - id_type
       - is_active
       - is_walk_in
       - kind
@@ -14495,24 +14705,6 @@ components:
             maxLength: 0
       required:
       - name
-    CustomerKindEnum:
-      enum:
-      - restaurant
-      - hotel
-      - fish_shop
-      - supermarket
-      - wholesaler
-      - caterer
-      - individual
-      type: string
-      description: |-
-        * `restaurant` - Restaurant
-        * `hotel` - Hôtel
-        * `fish_shop` - Poissonnerie
-        * `supermarket` - Supermarché
-        * `wholesaler` - Grossiste
-        * `caterer` - Traiteur
-        * `individual` - Particulier
     CustomerLine:
       type: object
       properties:
@@ -15009,6 +15201,40 @@ components:
           default: false
       required:
       - customer
+    CustomerType:
+      type: object
+      description: 'One customer type (D-283), with how many customers have it: a
+        type in use cannot be deleted.'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        customer_count:
+          type: integer
+          readOnly: true
+      required:
+      - code
+      - customer_count
+      - id
+      - is_active
+      - label
+    CustomerTypeWrite:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     CustomerWrite:
       type: object
       properties:
@@ -15020,9 +15246,13 @@ components:
           type: string
           maxLength: 150
         kind:
-          allOf:
-          - $ref: '#/components/schemas/CustomerKindEnum'
+          type: string
           default: restaurant
+          maxLength: 20
+        id_type:
+          allOf:
+          - $ref: '#/components/schemas/IdTypeEnum'
+          default: tax_id
         tax_id:
           type: string
           default: ''
@@ -19104,6 +19334,18 @@ components:
         * `payment` - payment
         * `unpaid` - unpaid
         * `writeoff` - writeoff
+    IdTypeEnum:
+      enum:
+      - tax_id
+      - cin
+      - passport
+      - residence_card
+      type: string
+      description: |-
+        * `tax_id` - Matricule fiscal
+        * `cin` - Carte d'identité nationale (CIN)
+        * `passport` - Passeport
+        * `residence_card` - Carte de séjour
     IllustrationEnum:
       enum:
       - shrimp
@@ -19514,6 +19756,9 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/InvoiceStatusEnum'
@@ -19662,6 +19907,7 @@ components:
       - credited_total
       - customer
       - discount_total
+      - draft_number
       - due_on
       - einvoice_reference
       - einvoice_status
@@ -19822,6 +20068,9 @@ components:
           type: integer
           readOnly: true
         number:
+          type: string
+          readOnly: true
+        draft_number:
           type: string
           readOnly: true
         status:
@@ -20040,6 +20289,7 @@ components:
       - credited_total
       - customer
       - discount_total
+      - draft_number
       - due_on
       - einvoice_reference
       - einvoice_status
@@ -22938,10 +23188,19 @@ components:
           type: boolean
         next_number:
           type: string
+        has_draft:
+          type: boolean
+        draft_prefix:
+          type: string
+        next_draft_number:
+          type: string
       required:
       - default_prefix
+      - draft_prefix
       - group
+      - has_draft
       - kind
+      - next_draft_number
       - next_number
       - prefix
       - title
@@ -22953,6 +23212,9 @@ components:
           type: string
           maxLength: 30
         prefix:
+          type: string
+          maxLength: 6
+        draft_prefix:
           type: string
           maxLength: 6
       required:
@@ -24188,9 +24450,13 @@ components:
         trade_register:
           type: string
           readOnly: true
+        id_type:
+          type: string
+          readOnly: true
       required:
       - address
       - city
+      - id_type
       - name
       - phone
       - tax_id
@@ -24260,6 +24526,14 @@ components:
         name:
           type: string
           maxLength: 100
+    PatchedCustomerTypeWrite:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     PatchedCustomerWrite:
       type: object
       properties:
@@ -24271,9 +24545,13 @@ components:
           type: string
           maxLength: 150
         kind:
-          allOf:
-          - $ref: '#/components/schemas/CustomerKindEnum'
+          type: string
           default: restaurant
+          maxLength: 20
+        id_type:
+          allOf:
+          - $ref: '#/components/schemas/IdTypeEnum'
+          default: tax_id
         tax_id:
           type: string
           default: ''
@@ -24577,6 +24855,18 @@ components:
         last_name:
           type: string
           maxLength: 150
+    PatchedVatRateWrite:
+      type: object
+      properties:
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     PaymentAllocate:
       type: object
       properties:
@@ -25639,6 +25929,9 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/QuoteStatusEnum'
@@ -25745,6 +26038,7 @@ components:
       - created_by
       - customer
       - discount_total
+      - draft_number
       - expired_at
       - id
       - line_count
@@ -25819,6 +26113,9 @@ components:
         tax_id:
           type: string
           readOnly: true
+        id_type:
+          type: string
+          readOnly: true
         phone:
           type: string
           readOnly: true
@@ -25829,6 +26126,7 @@ components:
       - address
       - city
       - id
+      - id_type
       - is_walk_in
       - name
       - phone
@@ -25853,6 +26151,9 @@ components:
           type: integer
           readOnly: true
         number:
+          type: string
+          readOnly: true
+        draft_number:
           type: string
           readOnly: true
         status:
@@ -25966,6 +26267,7 @@ components:
       - created_by
       - customer
       - discount_total
+      - draft_number
       - expired_at
       - id
       - line_count
@@ -28066,6 +28368,12 @@ components:
         delivery_note:
           type: string
           readOnly: true
+        is_opening:
+          type: boolean
+          readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
       required:
       - amount_due
       - amount_excl_tax
@@ -28089,8 +28397,10 @@ components:
       - delivery_note
       - delivery_status
       - discount_total
+      - draft_number
       - id
       - invoice
+      - is_opening
       - issued_at
       - line_count
       - location
@@ -28166,6 +28476,9 @@ components:
         tax_id:
           type: string
           readOnly: true
+        id_type:
+          type: string
+          readOnly: true
         phone:
           type: string
           readOnly: true
@@ -28176,6 +28489,7 @@ components:
       - address
       - city
       - id
+      - id_type
       - is_walk_in
       - name
       - phone
@@ -28369,6 +28683,12 @@ components:
         delivery_note:
           type: string
           readOnly: true
+        is_opening:
+          type: boolean
+          readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         lines:
           type: array
           items:
@@ -28413,9 +28733,11 @@ components:
       - delivery_note
       - delivery_status
       - discount_total
+      - draft_number
       - estimated_extra
       - id
       - invoice
+      - is_opening
       - issued_at
       - line_count
       - lines
@@ -30298,6 +30620,9 @@ components:
         number:
           type: string
           readOnly: true
+        draft_number:
+          type: string
+          readOnly: true
         supplier:
           allOf:
           - $ref: '#/components/schemas/Ref'
@@ -30367,6 +30692,7 @@ components:
       required:
       - created_at
       - created_by
+      - draft_number
       - due_date
       - id
       - invoice_date
@@ -31887,6 +32213,17 @@ components:
       required:
       - name
       - plate
+    UninvoicedCount:
+      type: object
+      description: A customer and the number of their BL still to invoice.
+      properties:
+        customer:
+          type: integer
+        count:
+          type: integer
+      required:
+      - count
+      - customer
     UnpaidEffet:
       type: object
       description: 'The impayé of a line (D-217): when, why, the bank''s charges and
@@ -32007,6 +32344,47 @@ components:
           readOnly: true
       required:
       - products
+    VatRate:
+      type: object
+      description: |-
+        One VAT rate of Paramètres › TVA (D-283). `in_use`: a product or a document carries it, so it cannot be
+        deleted and its percent no longer changes.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        in_use:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - in_use
+      - is_active
+      - label
+      - rate
+    VatRateWrite:
+      type: object
+      properties:
+        rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        label:
+          type: string
+          maxLength: 60
+        is_active:
+          type: boolean
     VoidTransfer:
       type: object
       properties:

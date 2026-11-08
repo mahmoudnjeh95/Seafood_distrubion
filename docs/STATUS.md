@@ -1,8 +1,16 @@
 # Project status
 
-_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; receipt picture with logo and Arabic names, Tunisian Arabic, D-282; next free decision D-283)_
+_Last updated: 2026-11-07 (client bug list of 2026-11-06, P2-T16, D-283; next free decision D-284)_
 
 ## Where we are
+
+- **P2-T16 / D-283 (client document "13 bugs avec captures", branch `claude/jolly-feynman-76x5xb`, migrations core 0007,
+  partners 0005, catalog 0007, sales 0032, purchasing 0022):** done 01 net price column, 02 "Bons de livraison" wording,
+  03 "— n BL" per client in Nouvelle facture, 07 clients/suppliers sorted by Réf., 08 Paramètres › Types de clients,
+  09 identification type + number, 10 open the new invoice, 12 Trésorerie › Soldes d'ouverture (OUV out of the BL
+  list), 13 draft prefix with its own counter (drafts read BROUILLON-… or BFA-…; definitive number at validation).
+  Part of 04: Paramètres › TVA and the product's VAT as a list. **Not done:** 04's document columns/TTC amounts,
+  05 and 06 (credit notes with refunds), 11 (one delivery cycle for every BL): they need owner decisions (D-283).
 
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
@@ -96,6 +104,10 @@ _Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, relo
   Several sessions work at once; recheck decision and migration numbers right before merging.
 
 ## Next step
+
+0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
+   BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.
+   Then ask the owner about bug 11 (stock out at delivery for direct BL), bugs 5/6 (refund flow) and bug 4's columns.
 
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.

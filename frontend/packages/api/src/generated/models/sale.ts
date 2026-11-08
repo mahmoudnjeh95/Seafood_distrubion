@@ -84,4 +84,6 @@ export interface Sale {
   readonly delivered_at: string | null;
   readonly delivered_by: string;
   readonly delivery_note: string;
+  readonly is_opening: boolean;
+  readonly draft_number: string;
 }

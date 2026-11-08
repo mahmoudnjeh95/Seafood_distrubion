@@ -13,6 +13,7 @@ import type { SaleRef } from './saleRef';
 export interface QuoteDetail {
   readonly id: number;
   readonly number: string;
+  readonly draft_number: string;
   readonly status: QuoteStatusEnum;
   readonly customer: QuoteCustomer;
   readonly location: QuoteLocation | null;

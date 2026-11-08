@@ -62,6 +62,7 @@ from .serializers import (
     SaleFilterSerializer,
     SaleSerializer,
     SaleWriteSerializer,
+    UninvoicedCountSerializer,
 )
 
 
@@ -409,6 +410,7 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             location_id=filters.validated_data.get("location"),
             uninvoiced=filters.validated_data["uninvoiced"],
             delivery_status=filters.validated_data.get("delivery_status"),
+            opening=filters.validated_data["opening"],
             created_by_id=self.membership.user_id if self.is_driver else None,
             load_location_id=self.driver_truck_location(),
             date_from=filters.validated_data.get("date_from"),
@@ -720,6 +722,16 @@ class InvoiceGiveUpGapView(InvoiceView):
             lot_shares=serializer.validated_data.get("lot_shares", []),
         )
         return self.answer(invoice_id)
+
+
+class InvoiceToInvoiceCountsView(OfficeView):
+    @extend_schema(operation_id="listUninvoicedCounts", responses=UninvoicedCountSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """How many BL each customer has still to invoice (validated, not cancelled, on no invoice): the count shown
+        beside the customer in "Nouvelle facture". Customers with none are left out."""
+        counts = selectors.uninvoiced_counts(self.organization)
+        rows = [{"customer": customer, "count": count} for customer, count in sorted(counts.items())]
+        return Response(UninvoicedCountSerializer(rows, many=True).data)
 
 
 class InvoiceEstimateView(OfficeView):

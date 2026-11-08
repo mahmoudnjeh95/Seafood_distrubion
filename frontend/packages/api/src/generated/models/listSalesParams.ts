@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ListSalesDeliveryStatus } from './listSalesDeliveryStatus';
+import type { ListSalesOpening } from './listSalesOpening';
 import type { ListSalesStatus } from './listSalesStatus';
 
 export type ListSalesParams = {
@@ -34,6 +35,13 @@ location?: number;
  * L'index initial depuis lequel retourner les résultats.
  */
 offset?: number;
+/**
+ * * `exclude` - exclude
+ * * `only` - only
+ * * `all` - all
+ * @minLength 1
+ */
+opening?: ListSalesOpening;
 /**
  * Column to sort by; a leading `-` sorts descending.
  */

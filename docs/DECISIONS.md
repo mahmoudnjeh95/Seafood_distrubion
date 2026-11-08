@@ -3888,3 +3888,34 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Product names**: the French name, then the product's Arabic name (`Product.name_ar`, now in the driver's sale lines `product.name_ar`, `my-stock` `product_name_ar` and the purchase lines `product_name_ar`) on its own row; a product without one prints the French name only. Everything else on the paper stays in French (Q13).
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
+
+**D-283 · Client bug list of 2026-11-06: draft prefixes, customer types, identification, VAT rates, opening balances apart (P2-T16)** · accepted (client document "13 bugs avec captures") · 2026-11-07
+- **Draft prefix (bug 13):** `NumberPrefix.draft_prefix` (+ `draft_prefix_set`) for the kinds with a draft step: quote, BL
+  (`delivery_note`), invoice, supplier invoice (`NumberKind.draft_default`). A draft takes a provisional reference from
+  its own counter (`NumberSeries` kind `<key>.draft`, same yearly format): BFA-2026-0007. Without a draft prefix it
+  reads `BROUILLON-2026-0007` (unique, so the `number` constraints stay). The definitive number is taken only at the
+  validation: a quote when sent (**changes D-120/D-223: a draft quote no longer has its DV number**), a BL when validated
+  (or issued with a load), an invoice when issued, a supplier invoice when posted (**changes the FF at creation**). The
+  provisional reference is kept in `draft_number`. The BL's default draft prefix is VE (the old "Vente (comptoir)"
+  counter, now hidden from Numérotation; a custom VE prefix moved to the BL's draft prefix by migration). No two
+  prefixes, draft or definitive, are the same.
+- **Customer types (bug 8):** `partners.CustomerType` per organization (code, label, active, position); the seven old
+  choices are the defaults (migration for existing organizations, signal for new ones). `Customer.kind` stores the code
+  (no fixed choices any more). A deactivated type stays on its customers and may be kept on save, not newly given; a
+  type is deleted only when no customer (archived included) has it. Read by the office, changed by owner/manager.
+- **Identification (bug 9):** `Customer.id_type` (tax_id, cin, passport, residence_card; default tax_id, so every
+  existing number is an MF) with the number still in `tax_id` (text). CIN = 8 digits; passport and residence card 5 to
+  20 letters or digits. Unique per organization by type and number. Invoices freeze `customer_id_type`; the documents
+  print "CIN", "Passeport"… instead of "MF".
+- **VAT rates (bug 4, part):** `catalog.VatRate` per organization (0, 7, 13, 19 + rates in use, by migration/signal). The
+  product's VAT is chosen among active rates; a product keeps a rate deactivated since. A rate is deleted, or its
+  percent changed, only while no product, BL line, invoice line or credit note line has it. Documents keep their own
+  percent, so nothing saved is recomputed. Office only (drivers 403). The document column order and TTC line amount of
+  the client's bug 4 are **not** done: they change how prices are typed (open for the owner).
+- **Opening balances (bug 12):** still `Sale(is_opening=True)` (no data moved, payments untouched); the sales/BL list
+  leaves them out (`opening=exclude` by default, `only` for Trésorerie › Soldes d'ouverture). Their detail page shows
+  amount, collected, left, origin and import, without delivery, invoice, cost or margin.
+- **BL to invoice (bug 3):** `GET /invoices/to-invoice-counts`, the same BL `uninvoiced=True` lists. **Redirect (bug 10):**
+  a generated invoice opens at once ("Factures générées ici" removed).
+- **Not done, need the owner:** bug 11 (one delivery cycle for direct and load BL: the stock would leave at the delivery,
+  not at the validation), bugs 5 and 6 (credit notes with refunds "À rembourser" and their central page).

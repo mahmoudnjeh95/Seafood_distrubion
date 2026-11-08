@@ -59,6 +59,8 @@ class QuoteCustomerSerializer(serializers.Serializer[Any]):
     address = serializers.CharField(read_only=True)
     city = serializers.CharField(read_only=True)
     tax_id = serializers.CharField(read_only=True)
+    # What `tax_id` is: tax_id, cin, passport or residence_card (D-283).
+    id_type = serializers.CharField(read_only=True)
     # Printed in the client block of every document's header (D-131).
     phone = serializers.CharField(read_only=True)
     # The "Client de passage": pays every sale on the spot (D-047).
@@ -135,6 +137,7 @@ class QuoteSerializer(serializers.ModelSerializer[Quote]):
         fields: tuple[str, ...] = (
             "id",
             "number",
+            "draft_number",
             "status",
             "customer",
             "location",
@@ -411,6 +414,10 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "delivered_at",
             "delivered_by",
             "delivery_note",
+            # A customer's opening balance (OUV, D-283): not a BL, no goods, no margin, never delivered nor invoiced.
+            "is_opening",
+            # The provisional reference it had as a draft, kept once validated (D-283).
+            "draft_number",
         )
         read_only_fields: tuple[str, ...] = fields
 
@@ -428,7 +435,7 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
     def get_margin(self, sale: Sale) -> str | None:
         # A string like every amount of the API ("110.000"), never a JSON number.
-        if sale.cost_total is None:
+        if sale.cost_total is None or sale.is_opening:
             return None
         return str(sale.total_excl_tax - sale.cost_total)
 
@@ -595,6 +602,11 @@ class SaleFilterSerializer(serializers.Serializer[Any]):
     location = serializers.IntegerField(required=False, min_value=1)
     # True: only the BL still to invoice (confirmed, named customer, on no live invoice).
     uninvoiced = serializers.BooleanField(required=False, default=False)
+    # The customers' opening balances (OUV) are not BL (D-283): left out of the BL list unless asked; "only" is
+    # the list of Trésorerie › Soldes d'ouverture.
+    opening = serializers.ChoiceField(
+        choices=[("exclude", "exclude"), ("only", "only"), ("all", "all")], required=False, default="exclude"
+    )
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
@@ -708,6 +720,8 @@ class PartySerializer(serializers.Serializer[Any]):
     phone = serializers.CharField(read_only=True)
     tax_id = serializers.CharField(read_only=True)
     trade_register = serializers.CharField(read_only=True)
+    # The customer's identification type (D-283); absent for the seller.
+    id_type = serializers.CharField(read_only=True, required=False)
 
 
 class InvoiceLineSerializer(serializers.ModelSerializer[InvoiceLine]):
@@ -865,6 +879,7 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
         fields: tuple[str, ...] = (
             "id",
             "number",
+            "draft_number",
             "status",
             "sale",
             "sales",
@@ -1077,6 +1092,7 @@ class InvoiceDetailSerializer(InvoiceSerializer):
                 "address": customer.address,
                 "city": customer.city,
                 "tax_id": customer.tax_id,
+                "id_type": customer.id_type,
             }
         else:
             values = {
@@ -1084,6 +1100,7 @@ class InvoiceDetailSerializer(InvoiceSerializer):
                 "address": invoice.customer_address,
                 "city": invoice.customer_city,
                 "tax_id": invoice.customer_tax_id,
+                "id_type": invoice.customer_id_type,
             }
         return {**values, "phone": "", "trade_register": ""}
 
@@ -1185,3 +1202,10 @@ class CreditNoteFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class UninvoicedCountSerializer(serializers.Serializer[Any]):
+    """A customer and the number of their BL still to invoice."""
+
+    customer = serializers.IntegerField()
+    count = serializers.IntegerField()

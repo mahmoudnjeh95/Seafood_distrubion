@@ -13,4 +13,7 @@ export interface NumberLine {
   default_prefix: string;
   yearly: boolean;
   next_number: string;
+  has_draft: boolean;
+  draft_prefix: string;
+  next_draft_number: string;
 }

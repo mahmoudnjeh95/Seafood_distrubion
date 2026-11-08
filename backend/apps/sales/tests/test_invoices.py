@@ -162,7 +162,8 @@ def test_a_draft_takes_the_sale_lines_and_the_settings(sale, actor):
     invoice = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
 
     assert invoice.status == InvoiceStatus.DRAFT
-    assert invoice.number == ""
+    # A provisional reference from the draft counter, never an FA number (D-283).
+    assert invoice.number == f"BROUILLON-{YEAR}-0001"
     lines = list(invoice.lines.order_by("id"))
     assert [(line.product_reference, line.quantity, line.unit_price, line.amount) for line in lines] == [
         ("CR-001", D("5.000"), D("42.000"), D("210.000")),
@@ -466,9 +467,10 @@ def test_numbers_follow_each_other_and_a_failed_issue_uses_none(
 
     first.refresh_from_db()
     assert first.status == InvoiceStatus.DRAFT
-    assert first.number == ""
+    assert first.number == f"BROUILLON-{YEAR}-0001"
     assert services.issue_invoice(invoice=second, actor=actor).number == f"FA-{YEAR}-0001"
-    assert services.issue_invoice(invoice=first, actor=actor).number == f"FA-{YEAR}-0002"
+    issued = services.issue_invoice(invoice=first, actor=actor)
+    assert (issued.number, issued.draft_number) == (f"FA-{YEAR}-0002", f"BROUILLON-{YEAR}-0001")
 
 
 def test_each_organization_has_its_own_series(actor, counter):

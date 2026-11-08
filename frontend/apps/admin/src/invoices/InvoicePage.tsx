@@ -727,6 +727,11 @@ export function InvoicePage() {
                   })}
                 </Detail>
               )}
+              {invoice.draft_number && (
+                <Detail label={t("admin.numbering.draftReference")}>
+                  <span className="num">{invoice.draft_number}</span>
+                </Detail>
+              )}
               <Detail label={t("admin.invoices.detail.createdBy")}>
                 {invoice.created_by || "—"} · <span className="num">{formatDateTime(invoice.created_at)}</span>
               </Detail>

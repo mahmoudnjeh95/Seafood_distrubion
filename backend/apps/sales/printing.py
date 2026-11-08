@@ -75,6 +75,14 @@ def customer_type(tax_id: str, kind: str) -> str:
     return ""
 
 
+# The short label printed before the client's identification number (D-283).
+_ID_LABELS = {"tax_id": "MF", "cin": "CIN", "passport": "Passeport", "residence_card": "Carte de séjour"}
+
+
+def id_label(id_type: str) -> str:
+    return _ID_LABELS.get(id_type or "tax_id", "MF")
+
+
 def _address(address: str, city: str) -> str:
     return f"{address}, {city}" if address and city else address or city
 
@@ -89,6 +97,7 @@ def _customer_party(customer: Any) -> dict[str, str]:
         "address": _address(customer.address, customer.city),
         "phone": customer.phone,
         "tax_id": customer.tax_id,
+        "tax_id_label": id_label(customer.id_type),
     }
 
 
@@ -103,6 +112,7 @@ def _invoiced_party(invoice: Any) -> dict[str, str]:
         "address": _address(invoice.customer_address, invoice.customer_city),
         "phone": customer.phone,
         "tax_id": invoice.customer_tax_id,
+        "tax_id_label": id_label(invoice.customer_id_type),
     }
 
 

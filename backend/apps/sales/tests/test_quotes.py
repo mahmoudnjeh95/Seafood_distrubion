@@ -78,8 +78,9 @@ def test_a_new_quote_is_a_numbered_draft_priced_at_the_price_in_force(organizati
         organization, actor, customer, [{"product": crevette, "quantity": "5"}, {"product": calamar, "quantity": "3"}]
     )
 
-    assert (first.number, first.status, first.created_by) == (f"DV-{YEAR}-0001", QuoteStatus.DRAFT, actor)
-    assert second.number == f"DV-{YEAR}-0002"
+    # A draft has a provisional reference from its own counter; the DV number comes when it is sent (D-283).
+    assert (first.number, first.status, first.created_by) == (f"BROUILLON-{YEAR}-0001", QuoteStatus.DRAFT, actor)
+    assert second.number == f"BROUILLON-{YEAR}-0002"
     assert [(line.unit_price, line.amount) for line in second.lines.order_by("id")] == [
         (Decimal("42.000"), Decimal("210.000")),
         (Decimal("29.000"), Decimal("87.000")),
@@ -95,6 +96,18 @@ def test_a_new_quote_is_a_numbered_draft_priced_at_the_price_in_force(organizati
     assert AuditLog.objects.filter(action="quote.created", target_id=str(second.pk)).exists()
 
 
+def test_a_quote_gets_its_dv_number_only_when_sent(organization, actor, customer, crevette):
+    first = quote(organization, actor, customer, [{"product": crevette, "quantity": "5"}])
+    second = quote(organization, actor, customer, [{"product": crevette, "quantity": "5"}])
+
+    sent = services.send_quote(quote=second, actor=actor)
+
+    # D-283: the second draft is the first quote sent, so it is DV-…-0001; its draft reference is kept.
+    assert (sent.number, sent.draft_number) == (f"DV-{YEAR}-0001", f"BROUILLON-{YEAR}-0002")
+    first.refresh_from_db()
+    assert first.number == f"BROUILLON-{YEAR}-0001"
+
+
 def test_numbers_are_per_organization(organization, actor, customer, crevette):
     other = OrganizationFactory.create()
     other_product = ProductFactory.create(organization=other)
@@ -105,7 +118,7 @@ def test_numbers_are_per_organization(organization, actor, customer, crevette):
         other, actor, CustomerFactory.create(organization=other), [{"product": other_product, "quantity": "1"}]
     )
 
-    assert elsewhere.number == f"DV-{YEAR}-0001"
+    assert elsewhere.number == f"BROUILLON-{YEAR}-0001"
 
 
 def test_a_typed_price_and_a_discount_are_kept_and_rounded_once_per_line(organization, actor, customer, crevette):
@@ -255,7 +268,7 @@ def test_a_draft_changes_as_a_whole_and_keeps_its_number(organization, actor, cu
     )
 
     assert (changed.number, changed.customer, changed.location, changed.notes) == (
-        f"DV-{YEAR}-0001",
+        f"BROUILLON-{YEAR}-0001",
         hotel,
         room,
         "Livraison mardi",
@@ -437,7 +450,7 @@ def test_quotes_saved_at_once_never_share_a_number():
         thread.join()
 
     assert failures == []
-    assert sorted(numbers) == [f"DV-{YEAR}-0001", f"DV-{YEAR}-0002", f"DV-{YEAR}-0003", f"DV-{YEAR}-0004"]
+    assert sorted(numbers) == [f"BROUILLON-{YEAR}-000{n}" for n in range(1, 5)]
 
 
 def test_a_quote_line_under_the_minimum_is_refused_unless_a_reason_is_given(organization, actor, customer, crevette):

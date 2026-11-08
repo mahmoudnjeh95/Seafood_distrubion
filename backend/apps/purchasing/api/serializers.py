@@ -459,6 +459,7 @@ class SupplierInvoiceSerializer(serializers.ModelSerializer[SupplierInvoice]):
         fields = (
             "id",
             "number",
+            "draft_number",
             "supplier",
             "supplier_reference",
             "invoice_date",

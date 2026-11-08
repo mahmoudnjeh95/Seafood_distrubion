@@ -9,6 +9,9 @@ import { type DocumentParty, type DocumentSeller, uniqueIdentifier } from "./doc
  * right; the address and phone at the foot.
  */
 
+// The identification types with their own short label (D-283); a tax ID prints "MF".
+const ID_SHORT = { cin: true, passport: true, residence_card: true } as const;
+
 function oneLine(text: string): string {
   return text
     .split("\n")
@@ -67,7 +70,9 @@ export function DocumentHeader({
       </span>,
     ],
     [
-      t("admin.documents.frame.taxId"),
+      party.id_type && party.id_type !== "tax_id" && party.id_type in ID_SHORT
+        ? t(`admin.customers.idShort.${party.id_type as keyof typeof ID_SHORT}`)
+        : t("admin.documents.frame.taxId"),
       <span key="taxId" className="num">
         {party.tax_id}
       </span>,

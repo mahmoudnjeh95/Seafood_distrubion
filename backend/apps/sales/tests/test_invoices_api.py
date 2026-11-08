@@ -105,7 +105,7 @@ def test_invoice_a_sale_type_values_issue_and_credit(api, sale):
     assert created.status_code == 201, created.json()
     invoice = created.json()
     assert invoice["status"] == "draft"
-    assert invoice["number"] == ""
+    assert invoice["number"].startswith("BROUILLON-")
     assert invoice["vat_total"] == "39.900"
     assert invoice["settings_vat_rate"] == "19.00"
     assert invoice["lines"][0]["default_vat_rate"] == "19.00"

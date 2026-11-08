@@ -21,7 +21,7 @@ from apps.inventory import selectors as inventory_selectors
 from apps.partners import selectors as partner_selectors
 
 from . import selectors
-from .models import Category, Illustration, PriceList, PriceListItem, Product, ProductPrice
+from .models import Category, Illustration, PriceList, PriceListItem, Product, ProductPrice, VatRate
 
 
 class ProductFields(TypedDict, total=False):
@@ -93,8 +93,9 @@ def rename_category(*, category: Category, actor: User | None, name: str) -> Cat
     return category
 
 
-def _clean_product(product: Product) -> None:
-    """Business rules shared by creation and update. Raises ValidationError with one message per field."""
+def _clean_product(product: Product, *, previous_rate: Decimal | None = None) -> None:
+    """Business rules shared by creation and update. Raises ValidationError with one message per field.
+    `previous_rate`: the VAT rate the product had, kept even when deactivated since (D-283)."""
     errors: dict[str, str] = {}
     product.reference = product.reference.strip()
     product.name = product.name.strip()
@@ -124,6 +125,10 @@ def _clean_product(product: Product) -> None:
     rate = product.vat_rate
     if rate is not None and (rate != rate.quantize(Decimal("0.01")) or not 0 <= rate <= 100):
         errors["vat_rate"] = _("Indiquez un taux de TVA en %, de 0 à 100, ou laissez vide (taux de la société).")
+    elif rate is not None and rate != previous_rate:
+        active = {row.rate for row in vat_rates_of(product.organization) if row.is_active}
+        if rate not in active:
+            errors["vat_rate"] = _("Choisissez un taux de TVA actif de Paramètres › TVA.")
     if errors:
         raise ValidationError(errors)
 
@@ -157,9 +162,10 @@ def update_product(*, product: Product, actor: User | None, **fields: Unpack[Pro
     """Change the description of a product. Its price changes with `set_sale_price`, never here."""
     product = Product.objects.select_for_update().select_related("category").get(pk=product.pk)
     before = _snapshot(product)
+    previous_rate = product.vat_rate
     for field, value in fields.items():
         setattr(product, field, value)
-    _clean_product(product)
+    _clean_product(product, previous_rate=previous_rate)
     product.save()
     after = _snapshot(product)
     changed = [field for field in after if after[field] != before[field]]
@@ -600,3 +606,120 @@ def set_product_codes(
             update_product(product=product, actor=actor, reference=code)
         outcomes.append(ProductCodeOutcome(code, name, "set", product.pk, product.reference))
     return outcomes
+
+
+# ---- VAT rates (Paramètres › TVA, D-283) ----
+
+# The Tunisian rates every organization starts with.
+DEFAULT_VAT_RATES = (Decimal("0.00"), Decimal("7.00"), Decimal("13.00"), Decimal("19.00"))
+_RATE_STEP = Decimal("0.01")
+
+
+def vat_rates_of(organization: Organization) -> list[VatRate]:
+    """The organization's VAT rates, lowest first (read only)."""
+    return list(VatRate.objects.for_organization(organization))
+
+
+def ensure_default_vat_rates(*, organization: Organization) -> None:
+    """The usual Tunisian rates a new organization starts with (signal), and every rate a product already has;
+    those made before D-283 got them from the migration. Nothing changes when the organization has rates."""
+    if VatRate.objects.for_organization(organization).exists():
+        return
+    in_use = {
+        rate
+        for rate in Product.objects.for_organization(organization).values_list("vat_rate", flat=True)
+        if rate is not None
+    }
+    VatRate.objects.bulk_create(
+        [VatRate(organization=organization, rate=rate) for rate in sorted(set(DEFAULT_VAT_RATES) | in_use)],
+        ignore_conflicts=True,
+    )
+
+
+def _checked_rate(organization: Organization, rate: Decimal, *, exclude: int | None = None) -> Decimal:
+    if rate != rate.quantize(_RATE_STEP) or not 0 <= rate <= 100:
+        raise ValidationError({"rate": _("Un taux en %, de 0 à 100, 2 décimales au plus.")})
+    same = VatRate.objects.for_organization(organization).filter(rate=rate)
+    if exclude is not None:
+        same = same.exclude(pk=exclude)
+    if same.exists():
+        raise ValidationError({"rate": _("Ce taux existe déjà.")})
+    return rate.quantize(_RATE_STEP)
+
+
+@transaction.atomic
+def create_vat_rate(*, organization: Organization, actor: User | None, rate: Decimal, label: str = "") -> VatRate:
+    """A new VAT rate, active: the product form offers it at once."""
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()
+    created = VatRate.objects.create(
+        organization=organization, rate=_checked_rate(organization, rate), label=label.strip()[:60]
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="vat_rate.created",
+        target=created,
+        after={"rate": str(created.rate), "label": created.label},
+    )
+    return created
+
+
+@transaction.atomic
+def update_vat_rate(
+    *,
+    vat_rate: VatRate,
+    actor: User | None,
+    rate: Decimal | None = None,
+    label: str | None = None,
+    is_active: bool | None = None,
+) -> VatRate:
+    """Change a VAT rate's label, deactivate it (no longer offered; products and documents keep it) or bring it
+    back. Its percent changes only while nothing uses it: a saved document is never recomputed."""
+    locked = VatRate.objects.select_for_update().get(pk=vat_rate.pk)
+    before = {"rate": str(locked.rate), "label": locked.label, "is_active": locked.is_active}
+    if rate is not None and rate != locked.rate:
+        if vat_rate_in_use(locked.organization, locked.rate):
+            raise ValidationError(
+                {"rate": _("Ce taux est déjà utilisé : ajoutez un nouveau taux et désactivez celui-ci.")}
+            )
+        locked.rate = _checked_rate(locked.organization, rate, exclude=locked.pk)
+    if label is not None:
+        locked.label = label.strip()[:60]
+    if is_active is not None:
+        locked.is_active = is_active
+    locked.save()
+    after = {"rate": str(locked.rate), "label": locked.label, "is_active": locked.is_active}
+    if after != before:
+        audit.record(
+            organization=locked.organization,
+            actor=actor,
+            action="vat_rate.updated",
+            target=locked,
+            before=before,
+            after=after,
+        )
+    return locked
+
+
+def vat_rate_in_use(organization: Organization, rate: Decimal) -> bool:
+    """Whether a product, a quote, a BL, an invoice or a purchase line carries this rate."""
+    from apps.sales import selectors as sales
+
+    if Product.objects.for_organization(organization).filter(vat_rate=rate).exists():
+        return True
+    return sales.vat_rate_in_use(organization, rate)
+
+
+@transaction.atomic
+def delete_vat_rate(*, vat_rate: VatRate, actor: User | None) -> None:
+    """Delete a VAT rate nothing ever used; one in use is refused (deactivate it instead)."""
+    locked = VatRate.objects.select_for_update().get(pk=vat_rate.pk)
+    if vat_rate_in_use(locked.organization, locked.rate):
+        raise ValidationError({"detail": _("Ce taux est déjà utilisé : il ne peut pas être supprimé. Désactivez-le.")})
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="vat_rate.deleted",
+        before={"rate": str(locked.rate), "label": locked.label},
+    )
+    locked.delete()

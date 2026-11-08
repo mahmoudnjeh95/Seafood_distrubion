@@ -838,7 +838,10 @@ def _post(invoice: SupplierInvoice, actor: User | None) -> None:
     invoice.status = SupplierInvoiceStatus.POSTED
     invoice.posted_at = timezone.now()
     invoice.posted_by = actor
-    invoice.save(update_fields=["status", "posted_at", "posted_by", "updated_at"])
+    # The definitive number only now, once validated (D-283): a draft never uses one.
+    invoice.draft_number = invoice.number
+    invoice.number = numbering.next_number(invoice.organization, "supplier_invoice")
+    invoice.save(update_fields=["status", "posted_at", "posted_by", "number", "draft_number", "updated_at"])
     # An invoice for the receipt of one port purchase is that purchase's invoice (its page links it, D-200).
     purchases = FieldPurchase.objects.filter(receipt__invoice_link__invoice=invoice, invoice__isnull=True)
     if len(purchases) == 1:
@@ -889,7 +892,7 @@ def create_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "supplier_invoice"),
+        number=numbering.next_draft_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -962,7 +965,7 @@ def create_opening_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "supplier_invoice"),
+        number=numbering.next_draft_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,

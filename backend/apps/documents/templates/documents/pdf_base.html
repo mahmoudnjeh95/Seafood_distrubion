@@ -99,7 +99,7 @@
         {% if "type" in party %}<tr><th>Type:</th><td>{{ party.type }}</td></tr>{% endif %}
         <tr><th>Adresse:</th><td>{{ party.address }}</td></tr>
         <tr><th>Téléphone:</th><td>{{ party.phone }}</td></tr>
-        <tr><th>MF:</th><td>{{ party.tax_id }}</td></tr>
+        <tr><th>{{ party.tax_id_label|default:"MF" }}:</th><td>{{ party.tax_id }}</td></tr>
       </table>
     </div>
     {% block head_meta %}{% endblock %}

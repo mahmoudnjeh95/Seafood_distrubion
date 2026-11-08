@@ -8,6 +8,11 @@ for an existing installation until the owner edits them.
 
 `next_number` takes the counter's row lock. Call it inside the transaction that saves the record, after every check:
 a refusal then rolls the counter back with everything else, so there is no gap.
+
+Draft prefix (D-283): a document with a draft step (quote, BL, invoice, supplier invoice) may carry a provisional
+reference while it is a draft, from its own counter (BFA-2026-0007), and gets its definitive number only once it
+is validated (FA-2026-0003): no draft ever uses a definitive number. With no draft prefix the draft reads
+"BROUILLON-2026-0007", from the same draft counter. The draft step itself never depends on it.
 """
 
 import re
@@ -31,6 +36,11 @@ class NumberKind:
     yearly: bool = False
     # Between the prefix and the number: "C-001", but the owner's product codes are "ART0002".
     separator: str = "-"
+    # The documents with a draft step (D-283): the draft prefix in force when the organization chose none.
+    # None: the kind has no draft step and no draft prefix.
+    draft_default: str | None = None
+    # Shown on the Numérotation page; a hidden kind is an old counter kept for its numbers already given.
+    shown: bool = True
 
 
 _PARTNERS = _("Partenaires et produits")
@@ -45,16 +55,17 @@ NUMBER_KINDS: tuple[NumberKind, ...] = (
     NumberKind("supplier", _("Fournisseur"), _PARTNERS, "F", 3),
     NumberKind("product", _("Produit"), _PARTNERS, "ART", 4, separator=""),
     NumberKind("employee", _("Employé"), _PAYROLL, "E", 3),
-    NumberKind("quote", _("Devis"), _SALES, "DV", 4, yearly=True),
-    NumberKind("sale", _("Vente (comptoir)"), _SALES, "VE", 4),
-    NumberKind("delivery_note", _("Bon de livraison (BL)"), _SALES, "BL", 4, yearly=True),
-    NumberKind("invoice", _("Facture"), _SALES, "FA", 4, yearly=True),
+    NumberKind("quote", _("Devis"), _SALES, "DV", 4, yearly=True, draft_default=""),
+    # The old counter of draft BL (VE-0012), before the BL had its own draft prefix (D-283).
+    NumberKind("sale", _("Vente (comptoir)"), _SALES, "VE", 4, shown=False),
+    NumberKind("delivery_note", _("Bon de livraison (BL)"), _SALES, "BL", 4, yearly=True, draft_default="VE"),
+    NumberKind("invoice", _("Facture"), _SALES, "FA", 4, yearly=True, draft_default=""),
     NumberKind("credit_note", _("Avoir"), _SALES, "AV", 4, yearly=True),
     NumberKind("payment", _("Règlement client"), _SALES, "RG", 4),
     NumberKind("opening_receivable", _("Solde d'ouverture client"), _SALES, "OUV", 4, yearly=True),
     NumberKind("purchase_order", _("Commande d'achat"), _PURCHASES, "BA", 4),
     NumberKind("receipt", _("Bon de réception (BR)"), _PURCHASES, "BR", 4),
-    NumberKind("supplier_invoice", _("Facture fournisseur"), _PURCHASES, "FF", 4),
+    NumberKind("supplier_invoice", _("Facture fournisseur"), _PURCHASES, "FF", 4, draft_default=""),
     NumberKind("supplier_payment", _("Règlement fournisseur"), _PURCHASES, "RF", 4, yearly=True),
     NumberKind("field_purchase", _("Achat terrain"), _PURCHASES, "AT", 4, yearly=True),
     NumberKind("batch", _("Lot"), _STOCK, "L", 4),
@@ -68,6 +79,8 @@ NUMBER_KINDS: tuple[NumberKind, ...] = (
 )
 
 KIND_BY_KEY: dict[str, NumberKind] = {kind.key: kind for kind in NUMBER_KINDS}
+# What a draft reads when its kind has no draft prefix (D-283).
+DRAFT_WORD = "BROUILLON"
 # Capitals and digits only, so a number reads the same on paper, on the phone and in a search.
 PREFIX_PATTERN = re.compile(r"^[A-Z0-9]{1,6}$")
 
@@ -81,6 +94,60 @@ def prefixes_of(organization: Organization) -> dict[str, str]:
     """The prefix in force for every kind: the organization's own, else the default."""
     chosen = dict(NumberPrefix.objects.for_organization(organization).values_list("kind", "prefix"))
     return {kind.key: chosen.get(kind.key, kind.prefix) for kind in NUMBER_KINDS}
+
+
+def draft_prefixes_of(organization: Organization) -> dict[str, str]:
+    """The draft prefix in force for every kind with a draft step (D-283): the organization's own, else the
+    default. Empty means no provisional reference."""
+    chosen = {
+        kind: draft
+        for kind, draft, saved in NumberPrefix.objects.for_organization(organization).values_list(
+            "kind", "draft_prefix", "draft_prefix_set"
+        )
+        if saved
+    }
+    return {
+        kind.key: chosen.get(kind.key, kind.draft_default) for kind in NUMBER_KINDS if kind.draft_default is not None
+    }
+
+
+def _draft_series(key: str) -> str:
+    return f"{key}.draft"
+
+
+def next_draft_number(organization: Organization, key: str) -> str:
+    """The provisional reference of a new draft (D-283): "BFA-2026-0007" from the draft counter of the kind, which
+    never moves the definitive one. Without a draft prefix: "BROUILLON-2026-0007" from the same draft counter, so the
+    draft still has a unique reference."""
+    kind = kind_of(key)
+    if kind.draft_default is None:
+        raise KeyError(key)
+    prefix = draft_prefixes_of(organization)[key] or DRAFT_WORD
+    counted_year = _counted_year(kind, None)
+    series_kind = _draft_series(key)
+    NumberSeries.objects.bulk_create(
+        [NumberSeries(organization=organization, kind=series_kind, year=counted_year)], ignore_conflicts=True
+    )
+    series = NumberSeries.objects.select_for_update().get(
+        organization=organization, kind=series_kind, year=counted_year
+    )
+    series.last_number += 1
+    series.save(update_fields=["last_number"])
+    return _format(kind, prefix, counted_year, series.last_number)
+
+
+def next_draft_preview(organization: Organization, key: str, draft_prefixes: dict[str, str] | None = None) -> str:
+    """The provisional reference the next draft of a kind will get, without taking it (Paramètres)."""
+    kind = kind_of(key)
+    counted_year = _counted_year(kind, None)
+    last = (
+        NumberSeries.objects.for_organization(organization)
+        .filter(kind=_draft_series(key), year=counted_year)
+        .values_list("last_number", flat=True)
+        .first()
+    ) or 0
+    prefix = (draft_prefixes or draft_prefixes_of(organization))[key] or DRAFT_WORD
+    return _format(kind, prefix, counted_year, last + 1)
 
 
 def _counted_year(kind: NumberKind, year: int | None) -> int:
