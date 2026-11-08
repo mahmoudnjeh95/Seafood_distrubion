@@ -149,7 +149,7 @@ def test_a_driver_sees_no_papers_board(shop):
     assert shop["driver"].get(reverse("paper-board")).status_code == 403
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_assigning_a_truck_runs_in_its_own_transaction():
     # Without a test transaction around it, as the real server runs: the paper check must not break the truck lock.
     organization = OrganizationFactory.create()
