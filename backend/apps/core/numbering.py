@@ -64,6 +64,7 @@ NUMBER_KINDS: tuple[NumberKind, ...] = (
     NumberKind("payment", _("Règlement client"), _SALES, "RG", 4),
     NumberKind("customer_refund", _("Remboursement client"), _SALES, "RC", 4, yearly=True),
     NumberKind("opening_receivable", _("Solde d'ouverture client"), _SALES, "OUV", 4, yearly=True),
+    NumberKind("price_request", _("Demande de prix"), _PURCHASES, "DD", 4, yearly=True),
     NumberKind("purchase_order", _("Commande d'achat"), _PURCHASES, "BA", 4),
     NumberKind("receipt", _("Bon de réception (BR)"), _PURCHASES, "BR", 4),
     NumberKind("supplier_invoice", _("Facture fournisseur"), _PURCHASES, "FF", 4, draft_default=""),

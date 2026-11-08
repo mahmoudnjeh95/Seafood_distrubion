@@ -6758,6 +6758,196 @@ paths:
               schema:
                 $ref: '#/components/schemas/PriceList'
           description: ''
+  /api/v1/price-requests:
+    get:
+      operationId: listPriceRequests
+      description: |-
+        Price requests ("demandes de prix", D-289), newest first, paginated, with their lines and the suppliers'
+        offers. Filter by status or `search` (number, product, supplier).
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: status
+        schema:
+          enum:
+          - open
+          - ordered
+          - cancelled
+          type: string
+          minLength: 1
+        description: |-
+          * `open` - En cours
+          * `ordered` - Commandée
+          * `cancelled` - Annulée
+      tags:
+      - price-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPriceRequestList'
+          description: ''
+    post:
+      operationId: createPriceRequest
+      description: |-
+        Ask several suppliers for their prices on products and kilos. Errors on `suppliers`, `lines`,
+        `lines.<index>.<field>`, `requested_on`. Owner or manager.
+      tags:
+      - price-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRequestWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PriceRequestWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PriceRequestWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}:
+    get:
+      operationId: getPriceRequest
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}/cancel:
+    post:
+      operationId: cancelPriceRequest
+      description: 'Give up a price request still open: nothing is ordered.'
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}/offers:
+    post:
+      operationId: recordSupplierOffer
+      description: |-
+        Type a supplier's answer: a price per kg per request line (empty: not offered), their reference, the
+        day it came and how long it holds. A supplier not asked yet is added. Replaces their earlier answer.
+        Errors on `prices.<line id>`, `supplier`, `received_on`, `valid_until`. Only while the request is open.
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfferWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfferWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
+  /api/v1/price-requests/{request_id}/order:
+    post:
+      operationId: orderFromOffers
+      description: |-
+        Turn the chosen offers into purchase orders, one per supplier: `choices` gives the supplier retained per
+        request line; a line left out is not ordered. Refused (`choices.<line id>`) without a price from that
+        supplier or when their offer is no longer valid. The request is then "commandée".
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - price-requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderFromOffersWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderFromOffersWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderFromOffersWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceRequest'
+          description: ''
   /api/v1/products:
     get:
       operationId: listProducts
@@ -23845,6 +24035,64 @@ components:
             $ref: '#/components/schemas/NumberPrefixRow'
       required:
       - prefixes
+    OfferOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PurchaseOrderStatusEnum'
+          readOnly: true
+      required:
+      - id
+      - number
+      - status
+    OfferPriceWrite:
+      type: object
+      properties:
+        request_line:
+          type: integer
+          minimum: 1
+        unit_cost:
+          type: string
+          nullable: true
+          maxLength: 20
+      required:
+      - request_line
+      - unit_cost
+    OfferWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+        prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfferPriceWrite'
+        reference:
+          type: string
+          default: ''
+          maxLength: 50
+        received_on:
+          type: string
+          format: date
+          nullable: true
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+      required:
+      - prices
+      - supplier
     OfficeSiteProduct:
       type: object
       description: |-
@@ -24047,6 +24295,35 @@ components:
       - receipts
       - status
       - supplier
+    OrderChoiceWrite:
+      type: object
+      properties:
+        request_line:
+          type: integer
+          minimum: 1
+        supplier:
+          type: integer
+          minimum: 1
+      required:
+      - request_line
+      - supplier
+    OrderFromOffersWrite:
+      type: object
+      properties:
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderChoiceWrite'
+        ordered_on:
+          type: string
+          format: date
+        expected_on:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - choices
+      - ordered_on
     OrderLine:
       type: object
       properties:
@@ -24590,6 +24867,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Order'
+    PaginatedPriceRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceRequest'
     PaginatedQuoteList:
       type: object
       required:
@@ -26049,6 +26349,116 @@ components:
             $ref: '#/components/schemas/PriceListItem'
       required:
       - name
+    PriceRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        requested_on:
+          type: string
+          format: date
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PriceRequestStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceRequestLine'
+          readOnly: true
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierOffer'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - lines
+      - notes
+      - number
+      - offers
+      - requested_on
+      - status
+    PriceRequestLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - product
+      - quantity
+    PriceRequestLineWrite:
+      type: object
+      properties:
+        product:
+          type: integer
+          minimum: 1
+        quantity:
+          type: string
+          maxLength: 20
+      required:
+      - product
+      - quantity
+    PriceRequestStatusEnum:
+      enum:
+      - open
+      - ordered
+      - cancelled
+      type: string
+      description: |-
+        * `open` - En cours
+        * `ordered` - Commandée
+        * `cancelled` - Annulée
+    PriceRequestWrite:
+      type: object
+      properties:
+        requested_on:
+          type: string
+          format: date
+        suppliers:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceRequestLineWrite'
+        notes:
+          type: string
+          default: ''
+      required:
+      - lines
+      - requested_on
+      - suppliers
     PrimeWrite:
       type: object
       properties:
@@ -31677,6 +32087,69 @@ components:
       - paid
       - supplier_id
       - uninvoiced
+    SupplierOffer:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        valid_until:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierOfferLine'
+          readOnly: true
+        order:
+          allOf:
+          - $ref: '#/components/schemas/OfferOrder'
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - lines
+      - notes
+      - order
+      - received_on
+      - reference
+      - supplier
+      - valid_until
+    SupplierOfferLine:
+      type: object
+      properties:
+        request_line:
+          type: integer
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        retained:
+          type: boolean
+          readOnly: true
+      required:
+      - request_line
+      - retained
+      - unit_cost
     SupplierPayment:
       type: object
       properties:

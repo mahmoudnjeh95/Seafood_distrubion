@@ -189,3 +189,13 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
 - [x] A contested receipt goes on no supplier invoice (refused by the server, greyed out in the invoice form); the stock
       is untouched. "Contestée" pill and filter on the receipts list; the reason and the settlement shown on the page; audited.
 - [ ] Check on staging: contest a receipt, the invoice form greys it out; lift it, it can be invoiced.
+
+### P1-T19 · Price requests to several suppliers, offers compared, orders from the chosen ones · M (added 2026-11-07, D-289, Perfaxis gap)
+- [x] Achats › Demandes de prix: products and kilos asked to several suppliers (`PriceRequest`, DD-2026-0001); each
+      supplier's offer typed as it comes (reference, received on, valid until, a price per kg per product); a supplier
+      not asked at first can be added (`services.create_price_request`, `record_offer`).
+- [x] The comparison table proposes the cheapest valid offer per product; "Passer les commandes" makes one purchase
+      order per chosen supplier at the request's kilos and their price, links it to the offer and closes the request
+      (`order_from_offers`). Refused without a price or after the offer's validity. Cancel while open. Audited.
+- [ ] Not done: printing or e-mailing the request to the suppliers (Perfaxis "sur un ou plusieurs documents").
+- [ ] Check on staging: ask two suppliers for two products, type both offers, order the cheapest of each.

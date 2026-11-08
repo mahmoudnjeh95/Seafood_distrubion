@@ -68,6 +68,9 @@ import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
 import { SupplierDebtsPage } from "./purchasing/SupplierDebtsPage";
 import { SupplierSettlementsPage } from "./purchasing/SupplierSettlementsPage";
 import { PurchaseOrderDetailPage } from "./orders/PurchaseOrderDetailPage";
+import { PriceRequestDetailPage } from "./pricerequests/PriceRequestDetailPage";
+import { PriceRequestFormPage } from "./pricerequests/PriceRequestFormPage";
+import { PriceRequestsPage } from "./pricerequests/PriceRequestsPage";
 import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
@@ -327,6 +330,9 @@ function AppRoutes() {
         <Route path="/tresorerie/etats/achats" element={<EtatsFacturesPage kind="purchases" />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
+        <Route path="/achats/demandes" element={<PriceRequestsPage />} />
+        <Route path="/achats/demandes/nouvelle" element={<PriceRequestFormPage />} />
+        <Route path="/achats/demandes/:requestId" element={<PriceRequestDetailPage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
         <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />
         <Route path="/achats/bons/:orderId" element={<PurchaseOrderDetailPage />} />

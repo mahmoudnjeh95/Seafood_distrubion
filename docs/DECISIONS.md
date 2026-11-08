@@ -3972,3 +3972,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   exists (`register_attachable`, like printables). Removing a file hides it; row and file stay with who removed it.
 - Not done: attachments on the driver app, on payments or expenses; Perfaxis's rule "an accepted quote needs its signed
   document" (not asked).
+
+**D-289 · Price requests to several suppliers before ordering (P1-T19)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's demande de devis → devis reçu → bon de commande, in one screen: a `PriceRequest` (number DD, yearly) has
+  lines (product, kg) and one `SupplierOffer` per supplier asked, with a price per kg without VAT per line
+  (`SupplierOfferLine`), its reference and validity. Not Perfaxis's internal purchase request step (not wanted).
+- Choosing is per product: each line goes to one supplier; "Passer les commandes" makes one purchase order per supplier
+  (the existing `create_order`, D-076) and the request is "commandée" for good. Kilos are the request's; prices the
+  offer's. An offer past its validity cannot be chosen (Perfaxis's rule). Perfaxis asks for a comment under three
+  offers: here only a hint, not enforced.
+- No currency and no services (not wanted); no printing of the request yet.

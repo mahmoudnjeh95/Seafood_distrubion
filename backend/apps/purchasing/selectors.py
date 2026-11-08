@@ -40,6 +40,8 @@ from .models import (
     GoodsReceiptLine,
     PaymentMethod,
     PlanLineStatus,
+    PriceRequest,
+    PriceRequestLine,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
@@ -50,6 +52,7 @@ from .models import (
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
+    SupplierOffer,
     SupplierPayment,
     SupplierPaymentAllocation,
     SupplierPaymentLine,
@@ -1212,3 +1215,32 @@ def receipt_changes(before: dict[str, Any], after: dict[str, Any]) -> list[Revis
                     RevisionChange(field=key, line=position, before=_shown(old.get(key)), after=_shown(new.get(key)))
                 )
     return changes
+
+
+def price_requests_of(
+    organization: Organization, *, status: str | None = None, search: str = ""
+) -> QuerySet[PriceRequest]:
+    """Price requests newest first (D-289), with their lines (product) and offers (supplier, prices, order).
+    `search` matches the number, a product's name or a supplier's name."""
+    offers = SupplierOffer.objects.select_related("supplier", "order").prefetch_related("lines").order_by("id")
+    requests = (
+        PriceRequest.objects.for_organization(organization)
+        .select_related("created_by")
+        .prefetch_related(Prefetch("lines", queryset=PriceRequestLine.objects.select_related("product").order_by("id")))
+        .prefetch_related(Prefetch("offers", queryset=offers))
+        .order_by("-requested_on", "-id")
+    )
+    if status:
+        requests = requests.filter(status=status)
+    if search := search.strip():
+        requests = requests.filter(
+            Q(number__icontains=search)
+            | Q(lines__product__name__icontains=search)
+            | Q(offers__supplier__name__icontains=search)
+        ).distinct()
+    return requests
+
+
+def price_request_of(organization: Organization, request_id: int) -> PriceRequest:
+    """One price request. Raises PriceRequest.DoesNotExist outside the organization."""
+    return price_requests_of(organization).get(pk=request_id)
