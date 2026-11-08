@@ -446,7 +446,9 @@ class MyStockView(APIView):
             raise Http404
         now = timezone.now()
         rows = []
-        for row in selectors.location_stock(membership.organization, location_id=truck.location_id):
+        # Expired lots are not offered: they cannot be sold, only returned and thrown away (D-296).
+        today = timezone.localdate()
+        for row in selectors.location_stock(membership.organization, location_id=truck.location_id, sellable_on=today):
             product = catalog.product_of(membership.organization, row["product_id"])
             price = catalog.price_in_force(product, now, customer_id=customer.pk if customer else None)
             rows.append(

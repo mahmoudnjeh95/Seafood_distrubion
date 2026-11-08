@@ -123,6 +123,7 @@ class LocationBatchSerializer(serializers.Serializer[Any]):
     batch_id = serializers.IntegerField(read_only=True)
     batch_number = serializers.CharField(source="batch.number", read_only=True)
     received_on = serializers.DateField(source="batch.received_on", read_only=True)
+    use_by = serializers.DateField(source="batch.use_by", read_only=True, allow_null=True)
     supplier_id = serializers.IntegerField(source="batch.supplier_id", read_only=True)
     supplier_name = serializers.CharField(source="batch.supplier.name", read_only=True)
     location_id = serializers.IntegerField(read_only=True)

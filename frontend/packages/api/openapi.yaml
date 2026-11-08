@@ -22295,6 +22295,11 @@ components:
           type: string
           format: date
           readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
         supplier_id:
           type: integer
           readOnly: true
@@ -22321,6 +22326,7 @@ components:
       - received_on
       - supplier_id
       - supplier_name
+      - use_by
     LocationPingBatch:
       type: object
       properties:

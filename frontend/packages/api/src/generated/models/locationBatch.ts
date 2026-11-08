@@ -14,6 +14,8 @@ export interface LocationBatch {
   readonly batch_id: number;
   readonly batch_number: string;
   readonly received_on: string;
+  /** @nullable */
+  readonly use_by: string | null;
   readonly supplier_id: number;
   readonly supplier_name: string;
   readonly location_id: number;

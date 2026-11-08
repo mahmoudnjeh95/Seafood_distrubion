@@ -1,5 +1,5 @@
 import { type LocationBatch, useListLocationBatches, useListProductBatches } from "@frutti/api";
-import { formatQuantity, useTranslation } from "@frutti/i18n";
+import { formatDate, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@frutti/ui";
 
 import { isShort, type Line } from "./lines";
@@ -57,6 +57,7 @@ export function LotPicker({
                 quantity: formatQuantity(option.quantity),
                 place: option.location_name,
               })}
+              {option.use_by && t("admin.sales.counterSale.lotUseBy", { day: formatDate(option.use_by) })}
             </SelectItem>
           ))}
         </SelectContent>

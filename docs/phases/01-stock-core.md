@@ -199,3 +199,51 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
       (`order_from_offers`). Refused without a price or after the offer's validity. Cancel while open. Audited.
 - [ ] Not done: printing or e-mailing the request to the suppliers (Perfaxis "sur un ou plusieurs documents").
 - [ ] Check on staging: ask two suppliers for two products, type both offers, order the cheapest of each.
+
+## Purchases, sales and stock gap review (2026-11-08, D-296)
+
+Review in `docs/guides/purchase-sales-stock-review-2026-11-08.md`. Owner answers 2026-11-08: FEFO with FIFO as the
+tiebreak; an expired lot is always blocked (only a loss); every BL takes its stock out at the delivery (bug 11);
+transformations wanted, with a transformation fee that goes into the new lot's cost. All gaps are wanted.
+
+### P1-T20 · First to expire leaves first; expired lots never sold nor loaded · S (gaps 3, 4, D-296)
+- [x] Picking order (`inventory.selectors.PICK_ORDER`): earliest use-by first, then the oldest receipt; lots without a
+      date after the dated ones. Costing unchanged (each lot its own cost).
+- [x] A sale or a truck load never takes a lot past its use-by date (the use-by day itself still sells); a lot picked by
+      hand is refused with its number; short because of expired lots, the refusal says how many kg to declare as loss.
+      Returns from a truck, moves between rooms and losses still take them.
+- [x] The lot pickers (quote, BL, counter) and the driver's stock leave expired lots out; the picker shows "DLC".
+- [ ] Check on staging: two lots, the newer one with the nearer DLC goes first on a BL; a lot past its DLC cannot be sold.
+
+### P1-T21 · Supplier return and supplier credit note (avoir fournisseur) · M (gaps 1, 2)
+- [ ] Retour fournisseur (RTF): kilos of one lot back to its supplier, posted as `supplier_return` movements.
+- [ ] Avoir fournisseur (AVF): on a posted supplier invoice, for a return, a weight claim (invoiced > accepted), a price
+      or a discount; lowers what is owed; HT, VAT and stamp like D-294; the supplier balance and the lot cost follow.
+- [ ] Receipts list: "Écart facturé/accepté" per supplier, and "Réclamer" makes the credit note draft.
+
+### P1-T22 · Supplier defaults and the supplier's paper total · S (gaps 8, 9)
+- [ ] Supplier: default payment terms (days) and "Achats avec TVA" by default; the receipt and invoice forms propose them.
+- [ ] Supplier invoice: the total printed on the supplier's paper, typed; the difference with the computed total is shown.
+
+### P1-T23 · Lot origin and recall · M (gap 5)
+- [ ] Receipt line / lot: scientific name (on the product), catch zone (FAO) or farm, wild or farmed, boat or port,
+      supplier health approval number. Printed on the BL where filled.
+- [ ] "Rappel de lot": customers, BL, kg and phones of a lot, printable.
+
+### P1-T24 · Cold-chain readings · S (gap 6)
+- [ ] Temperature at the receipt (per receipt), readings per cold room and per truck (by hand, with time and who),
+      out of the product's range shown in red and notified.
+
+### P1-T25 · Transformations with a fee · M (gap 7)
+- [ ] Transformation (TRF): kg out of one source lot, kg into a new lot of the output product (same supplier and partner),
+      loss = difference; the new lot's cost per kg = (source kg × source cost + transformation fee) / output kg.
+
+### P1-T26 · Every BL takes its stock out at the delivery · M (gap 10, bug 11)
+- [ ] À livrer, Livré en partie, Livré, Non livré on every BL; stock leaves at the delivery; counter sales delivered at once.
+
+### P1-T27 · Smaller gaps · M (gaps 11 to 15)
+- [ ] Purchase suggestions from `min_stock` and recent sales, with the supplier's last price; one click makes the orders.
+- [ ] Stock count "à l'aveugle" option (expected kg hidden while counting).
+- [ ] Print the price request for each supplier (PDF).
+- [ ] Website request → quote or BL in one click.
+- [ ] Purchase reports: price per supplier and product over time, invoiced-vs-accepted gaps, on-time deliveries, returns.

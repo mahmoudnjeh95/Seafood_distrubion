@@ -4068,3 +4068,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **P10-T02/T03 (2026-11-08):** maintenance is due after `every_km` or `every_months`, whichever comes first, from the plan's last job; orange within `warn_km` / `warn_days`, red when passed, "À renseigner" while never done. The date the km run out is estimated from the readings of the last 60 days. Frigo units and cold rooms count in months only. A job's cost is an approved expense **not tagged to the truck** (a tagged one would be split over the lots, D-041; owner answer 6 wants general overhead), in the new default category `vehicles` ("Entretien et papiers des camions") or `cold_storage` for a cold room.
 - **P10-T04 (2026-11-08):** a paper is renewed by typing a new one (append-only); the current one is the one valid the longest. Only the latest assurance and visite technique block a truck (`fleet.assign_truck`, `open_driver_day`), and only once typed and expired, so trucks are not blocked the day the module arrives. The owner's one-day permission (`TruckDayAllowance`) is owner only; the reason is kept. `fleet` reads `maintenance.selectors` inside the function (a module import would be circular, as catalog → sales).
 - **P10-T05 (2026-11-08):** warnings go to the whole office (owner and manager, answer 7) through the existing notifications, written by a nightly command, not from an audit entry (a due date passes without anybody acting). Each step is sent once (`MaintenanceWarningSent` keys). The driver gets no notification; his phone shows his truck's and his own papers' warnings on Ma journée. A missing paper is "À renseigner", not a warning.
+
+**D-296 · First to expire leaves first; an expired lot is never sold nor loaded (gap review, P1-T20)** · accepted (owner answers 2026-11-08) · 2026-11-08
+- Review of purchases, sales and stock in `docs/guides/purchase-sales-stock-review-2026-11-08.md`; the owner wants every
+  gap (tasks P1-T20 to P1-T27).
+- Picking order is FEFO: earliest `use_by` first, then the oldest receipt, then the id (`inventory.selectors.PICK_ORDER`,
+  `pick_order_key`). A lot without a use-by date comes after every dated lot. Costing is unchanged: each kilo keeps its
+  own lot's cost (Q7). `Batch.Meta.ordering` and `batches_oldest_first` stay by receipt (lists, not picking).
+- Expired = `use_by` before the movement's day; the use-by day itself still sells. `post_fifo_movements(skip_expired)`
+  defaults to on for sales; transfers ask it for a truck load only. Returns from a truck, moves between rooms and losses
+  still take expired kilos (the only way out is a loss). A hand-picked expired lot is refused, never silently replaced.
+- A sale synced late (D-133) is checked against its own day, so a sale made before the lot expired still posts.
+- The pickers and the driver's stock (`location_stock(sellable_on=today)`) leave expired lots out. Owner chose "block
+  always": no override.

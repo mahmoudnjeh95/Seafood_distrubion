@@ -23,7 +23,6 @@ from apps.core.money import Number, checked_amount, checked_quantity
 
 from . import selectors
 from .models import (
-    FIFO_ORDER,
     Batch,
     CountStatus,
     LossStatus,
@@ -398,8 +397,14 @@ def post_fifo_movements(
     occurred_at: dt.datetime | None = None,
     picks: Sequence[tuple[int, Decimal]] = (),
     held_since_then: bool = False,
+    skip_expired: bool | None = None,
 ) -> list[StockMovement]:
-    """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
+    """Take `quantity` kg of a product out of `from_location`, first to expire first then oldest receipt
+    (`selectors.PICK_ORDER`, D-296), one movement per batch.
+
+    With `skip_expired` (the default for a sale; a transfer asks it for a truck load), a lot past its use-by date
+    on the movement's day is never taken, and picking one by hand is refused (D-296): expired kilos only leave
+    as a loss.
 
     Used by transfers, sales and losses: nobody picks batches by hand (D-009) — except a sale line may ask
     to take kilos from lots first (`picks`, `[(batch id, kg)]`, D-121, D-208): each picked lot gives the kilos
@@ -444,8 +449,18 @@ def post_fifo_movements(
             for row in locked
             if row.location_id == from_location.pk and row.quantity > 0 and row.batch.received_on <= day
         ),
-        key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
+        key=lambda row: selectors.pick_order_key(row.batch),
     )
+    if skip_expired is None:
+        skip_expired = kind == MovementKind.SALE
+    expired_kg = Decimal("0.000")
+    if skip_expired:
+        expired = {row.batch_id: row for row in holdings if selectors.is_expired(row.batch, day)}
+        for batch_id, _kg in picks:
+            if batch_id in expired:
+                raise selectors.expired_lot_error(expired[batch_id].batch)
+        holdings = [row for row in holdings if row.batch_id not in expired]
+        expired_kg = sum((row.quantity for row in expired.values()), Decimal("0.000"))
     limits = None
     if held_since_then and day < timezone.localdate():
         limits = selectors.least_held_since(organization, location_id=from_location.pk, product_id=product_id, day=day)
@@ -454,6 +469,8 @@ def post_fifo_movements(
         available = sum((selectors.takeable(row, limits) for row in holdings), Decimal("0.000"))
         if limits is not None:
             raise selectors.not_enough_stock_since(available, from_location, day)
+        if expired_kg:
+            raise selectors.not_enough_unexpired_stock(available, expired_kg, from_location)
         raise selectors.not_enough_stock(available, from_location)
 
     return [
@@ -1000,7 +1017,11 @@ def _post_line_from(
     if len(rooms) > 1:
         day = timezone.localtime(occurred_at).date()
         held = selectors.held_by_location(
-            transfer.organization, product_id=line.product_id, location_ids=[room.pk for room in rooms], day=day
+            transfer.organization,
+            product_id=line.product_id,
+            location_ids=[room.pk for room in rooms],
+            day=day,
+            skip_expired=transfer.kind == TransferKind.LOAD,
         )
         left = line.quantity
         portions = []
@@ -1029,6 +1050,8 @@ def _post_line_from(
             source=line,
             occurred_at=occurred_at,
             picks=picks,
+            # Expired kilos never go onto a truck; they may still come back from one or move between rooms (D-296).
+            skip_expired=transfer.kind == TransferKind.LOAD,
         )
 
 
