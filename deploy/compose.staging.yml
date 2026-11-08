@@ -60,6 +60,9 @@ services:
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-contact@fruttidelmare.com}
       SENTRY_ENVIRONMENT: staging
       SENTRY_RELEASE: ${RELEASE}
+      # The training copy (D-283), linked from the login screens; written into .env by remote-deploy.sh.
+      FRUTTI_TRAINING_ADMIN_URL: ${FRUTTI_TRAINING_ADMIN_URL:-}
+      FRUTTI_TRAINING_DRIVER_URL: ${FRUTTI_TRAINING_DRIVER_URL:-}
     volumes: [media:/app/media] # product photos and PDFs, served by the API to members only
     depends_on:
       db: { condition: service_healthy }

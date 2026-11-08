@@ -26,6 +26,8 @@ WRITES = ("post", "put", "patch", "delete")
 PUBLIC = {
     "/api/v1/health",
     "/api/v1/health/stock-check",
+    # Which copy this is (D-283): the login screen shows the training tag and link before anyone logs in.
+    "/api/v1/instance",
     "/api/v1/auth/csrf",
     "/api/v1/auth/login",
     "/api/v1/site/catalog",

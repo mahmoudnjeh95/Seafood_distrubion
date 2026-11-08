@@ -1,9 +1,14 @@
 # Project status
 
-_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; receipt picture with logo and Arabic names, Tunisian Arabic, D-282; next free decision D-283)_
+_Last updated: 2026-11-08 (training copy app1/ch1, D-283; next free decision D-284)_
 
 ## Where we are
 
+- **D-283 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, not merged):** same release on
+  `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, own database (`deploy/compose.training.yml`), "Formation" tag on
+  screen only, papers identical to the real ones, reset by hand with `reset-training.sh` (runbook "Training copy").
+  **Waiting on the owner:** share PostgreSQL/Redis with production to save memory, or keep them separate (asked
+  2026-11-08). Then: owner adds the DNS records, merge, deploy, run `reset-training.sh --apply` once.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;

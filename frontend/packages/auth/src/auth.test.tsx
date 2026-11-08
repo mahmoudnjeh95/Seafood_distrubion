@@ -96,7 +96,7 @@ function renderApp(allow: Role[], start = "/") {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[start]}>
         <Routes>
-          <Route path="/login" element={<LoginPage title="Connexion" />} />
+          <Route path="/login" element={<LoginPage title="Connexion" app="admin" />} />
           <Route
             path="/"
             element={

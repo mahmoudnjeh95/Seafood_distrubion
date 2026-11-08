@@ -13,6 +13,11 @@ DRIVER_HOST="ch.fruttidelmare.com"
 # The public site (D-186); the bare name only redirects to it (nginx-host-staging.conf).
 SITE_HOST="www.fruttidelmare.com"
 SITE_BARE_HOST="fruttidelmare.com"
+# The training copy (D-283): same release, its own database. Must match nginx-host-staging.conf and compose.training.yml.
+TRAINING_ADMIN_HOST="app1.fruttidelmare.com"
+TRAINING_DRIVER_HOST="ch1.fruttidelmare.com"
+TRAINING_BASE="$HOME/frutti-training"
+TRAINING_ENV="$TRAINING_BASE/.env"
 ACME_WEBROOT=/var/www/frutti-acme # Let's Encrypt challenge files, served by the host nginx (D-155)
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 
@@ -43,6 +48,24 @@ set_env() {
 }
 set_env DJANGO_ALLOWED_HOSTS "$ADMIN_HOST,$DRIVER_HOST,$SITE_HOST"
 set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$ADMIN_HOST,https://$DRIVER_HOST,https://$SITE_HOST"
+# The login screens link to the training copy.
+set_env FRUTTI_TRAINING_ADMIN_URL "https://$TRAINING_ADMIN_HOST"
+set_env FRUTTI_TRAINING_DRIVER_URL "https://$TRAINING_DRIVER_HOST"
+
+# The training copy's own secrets, made once like production's: another database password, another secret key.
+install -d -m 700 "$TRAINING_BASE" "$TRAINING_BASE/bin"
+if [ ! -f "$TRAINING_ENV" ]; then
+  echo "Creating $TRAINING_ENV with new random secrets"
+  (umask 077 && cat > "$TRAINING_ENV" <<EOF
+POSTGRES_PASSWORD=$(openssl rand -hex 24)
+DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
+SENTRY_DSN=
+EOF
+  )
+fi
+chmod 600 "$TRAINING_ENV"
+ENV_FILE="$TRAINING_ENV" set_env DJANGO_ALLOWED_HOSTS "$TRAINING_ADMIN_HOST,$TRAINING_DRIVER_HOST"
+ENV_FILE="$TRAINING_ENV" set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$TRAINING_ADMIN_HOST,https://$TRAINING_DRIVER_HOST"
 export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
@@ -51,6 +74,9 @@ cd "$RELEASE_DIR/deploy"
 export COMPOSE_PARALLEL_LIMIT=1
 sudo -E nice -n 19 ionice -c3 docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml build
 sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --remove-orphans
+# 2b. The training copy, on the images just built. Its data is never touched by a deploy (only reset-training.sh).
+sudo -E docker compose --project-name frutti-training --env-file "$TRAINING_ENV" -f compose.training.yml up -d --remove-orphans
+install -m 755 "$RELEASE_DIR/deploy/reset-training.sh" "$TRAINING_BASE/bin/reset-training.sh"
 
 # 3. Host nginx: install our site only if it changed, test, then reload. On a failed test, put back the old file.
 sudo install -d -m 755 "$ACME_WEBROOT"
@@ -70,20 +96,26 @@ fi
 
 # 3b. The public site's names in the certificate (D-186), once: the port-80 block above answers the challenge.
 #     A failure (DNS not there yet, Let's Encrypt limit) does not stop the deploy; the next deploy tries again.
-if ! sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$SITE_HOST"; then
+#     The training names (D-283) are added the same way once their DNS records exist.
+CERT_NAMES="$(sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -ext subjectAltName 2>/dev/null || true)"
+if ! echo "$CERT_NAMES" | grep -q "DNS:$SITE_HOST\b" || ! echo "$CERT_NAMES" | grep -q "DNS:$TRAINING_ADMIN_HOST\b" \
+  || ! echo "$CERT_NAMES" | grep -q "DNS:$TRAINING_DRIVER_HOST\b"; then
   if sudo certbot certonly --webroot -w "$ACME_WEBROOT" --cert-name frutti-staging --expand \
     -d "$ADMIN_HOST" -d "$DRIVER_HOST" -d "$SITE_HOST" -d "$SITE_BARE_HOST" \
+    -d "$TRAINING_ADMIN_HOST" -d "$TRAINING_DRIVER_HOST" \
     --deploy-hook "/usr/sbin/nginx -t && /bin/systemctl reload nginx" --non-interactive --agree-tos; then
     sudo nginx -t && sudo systemctl reload nginx
-    echo "Certificate now holds $SITE_HOST and $SITE_BARE_HOST"
+    echo "Certificate now holds the public site and the training names"
   else
-    echo "WARNING: could not add $SITE_HOST to the certificate; see docs/runbook.md (Domain and HTTPS)" >&2
+    echo "WARNING: could not add all the names to the certificate (DNS of $TRAINING_ADMIN_HOST and" \
+      "$TRAINING_DRIVER_HOST there yet?); see docs/runbook.md (Training copy)" >&2
   fi
 fi
 
 # 4. Health: each app's web container, with the host name and the https scheme the host nginx sends for it
 #    (so Django does not redirect the check; the nginx sites above are checked by the uptime watch).
-for pair in "$ADMIN_HOST:18081" "$DRIVER_HOST:18082" "$SITE_HOST:18083"; do
+for pair in "$ADMIN_HOST:18081" "$DRIVER_HOST:18082" "$SITE_HOST:18083" \
+  "$TRAINING_ADMIN_HOST:18091" "$TRAINING_DRIVER_HOST:18092"; do
   host="${pair%:*}"
   port="${pair##*:}"
   for _ in $(seq 1 30); do
@@ -107,3 +139,4 @@ for old in $(ls -1t | tail -n +4); do
 done
 
 echo "Deployed $RELEASE: admin https://$ADMIN_HOST  driver https://$DRIVER_HOST  site https://$SITE_HOST"
+echo "Training copy: admin https://$TRAINING_ADMIN_HOST  driver https://$TRAINING_DRIVER_HOST"

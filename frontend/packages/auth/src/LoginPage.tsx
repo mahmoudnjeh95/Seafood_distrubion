@@ -4,27 +4,32 @@ import { Brand, Button, Card, Field, Input, ThemeToggle } from "@frutti/ui";
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation } from "react-router";
 
+import { useInstance } from "./instance";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { useLogin, useSession } from "./session";
 
 /**
  * Login screen shared by both apps. `title` names the app ("Administration", "Chauffeur"); `withLanguage` offers
  * French or Arabic; `logoUrl` is the company logo to show in place of the default mark (before login, only a copy kept
- * on the phone can be shown: D-154).
+ * on the phone can be shown: D-154). `app` picks the training copy this login screen links to (D-283).
  */
 export function LoginPage({
   title,
   withLanguage = false,
   logoUrl,
+  app,
 }: {
   title: string;
   withLanguage?: boolean;
   logoUrl?: string | null;
+  app: "admin" | "driver";
 }) {
   const { t } = useTranslation();
   const session = useSession();
   const login = useLogin();
   const location = useLocation();
+  const instance = useInstance();
+  const trainingUrl = app === "admin" ? instance?.training_admin_url : instance?.training_driver_url;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -106,6 +111,11 @@ export function LoginPage({
             {login.isPending ? t("auth.submitting") : t("auth.submit")}
           </Button>
         </form>
+        {trainingUrl && (
+          <a href={trainingUrl} className="self-center text-[0.88rem] font-semibold text-sea underline">
+            {t("auth.trainingLink")}
+          </a>
+        )}
       </Card>
     </main>
   );

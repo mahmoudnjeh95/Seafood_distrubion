@@ -273,6 +273,7 @@ export * from './importReportKindEnum';
 export * from './importRow';
 export * from './importRowStatusEnum';
 export * from './importUpload';
+export * from './instance';
 export * from './instrument';
 export * from './instrumentBatch';
 export * from './instrumentDetail';

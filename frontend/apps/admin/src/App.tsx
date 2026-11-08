@@ -1,4 +1,12 @@
-import { createQueryClient, LoginPage, NotificationCenter, RequireRole, type Session, useLogout } from "@frutti/auth";
+import {
+  createQueryClient,
+  LoginPage,
+  NotificationCenter,
+  RequireRole,
+  type Session,
+  TrainingTag,
+  useLogout,
+} from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import {
   type AdminNavGroup,
@@ -249,7 +257,7 @@ function AppRoutes() {
   const nav = useNav();
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage title={t("admin.appName")} />} />
+      <Route path="/login" element={<LoginPage title={t("admin.appName")} app="admin" />} />
       <Route
         element={
           <RequireRole allow={["owner", "manager", "accountant"]} wrongAppMessage={t("admin.wrongApp")}>
@@ -371,6 +379,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <Sprite />
       <Toaster position="bottom-right" />
+      <TrainingTag />
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>

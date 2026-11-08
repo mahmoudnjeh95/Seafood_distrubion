@@ -3888,3 +3888,24 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Product names**: the French name, then the product's Arabic name (`Product.name_ar`, now in the driver's sale lines `product.name_ar`, `my-stock` `product_name_ar` and the purchase lines `product_name_ar`) on its own row; a product without one prints the French name only. Everything else on the paper stays in French (Q13).
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
+
+**D-283 · Training copy: same code, its own stack and database, reset by hand from production** · provisional · 2026-11-08
+- Owner request (2026-11-08): new employees practise on the same application without touching the real data. The
+  training copy is `app1.fruttidelmare.com` (office) and `ch1.fruttidelmare.com` (driver): the same release and images
+  as production (`deploy/compose.training.yml`, Docker project `frutti-training`), its own PostgreSQL, Redis and media.
+  One backend serving both databases was refused: every write would have to pick the right database (D-004 rule of
+  explicit tenancy, but for databases), and one miss puts training data into the real books.
+- Printed documents and PDFs are exactly the real ones (owner's choice: the supervisor collects and destroys the papers
+  each day). Only a small "Formation" tag shows on screen (`TrainingTag`, `print:hidden`), from the public
+  `GET /api/v1/instance`; the answer is kept on the phone for offline use. Production's login screens link to the
+  training copy ("Se connecter en mode formation").
+- Never emptied automatically. `~/frutti-training/bin/reset-training.sh [--apply]` copies production's database
+  (`pg_dump`, read only), the product photos and the logo, then `prepare_training` keeps the master data (settings,
+  numbering, products and prices, customers, suppliers, price lists, locations, trucks, box holders, employees with
+  their salaries, expense categories, day labourers, recurring costs, site settings, banks and treasury accounts with
+  opening balance 0) and deletes the work. The numbering is kept, so training numbers continue production's.
+- Production's accounts are locked in the copy (no password, inactive); the trainees' logins (any account with a
+  usable password) are exported before and put back after, also saved in `~/frutti-training/logins/`. A `formation`
+  owner login is created when missing, its password printed once. The command refuses to run unless
+  `FRUTTI_TRAINING=true`. No mailbox in the copy: real customers' addresses never get a training e-mail.
+- Open (asked 2026-11-08): the owner may prefer to share the PostgreSQL server and Redis with production to save memory.
