@@ -15304,6 +15304,7 @@ export const SendQuoteResponse = zod.object({
  * a weight difference.
  */
 export const listReceiptsQueryDifferencesDefault = false;
+export const listReceiptsQueryDisputedDefault = false;
 export const listReceiptsQuerySearchDefault = ``;
 export const listReceiptsQuerySearchMax = 100;
 
@@ -15312,6 +15313,7 @@ export const listReceiptsQueryUninvoicedDefault = false;
 
 export const ListReceiptsQueryParams = zod.object({
   "differences": zod.boolean().default(listReceiptsQueryDifferencesDefault),
+  "disputed": zod.boolean().default(listReceiptsQueryDisputedDefault),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
   "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
@@ -15399,7 +15401,14 @@ export const ListReceiptsResponse = zod.object({
   "after": zod.string().nullable()
 }))
 })),
-  "editable": zod.boolean()
+  "editable": zod.boolean(),
+  "dispute_status": zod.union([zod.enum(['open', 'resolved']).describe('* `` - Aucune\n* `open` - Contestée\n* `resolved` - Contestation levée'),zod.enum([''])]),
+  "dispute_reason": zod.string(),
+  "disputed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "disputed_by": zod.string(),
+  "dispute_resolution": zod.string(),
+  "dispute_resolved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "dispute_resolved_by": zod.string()
 }))
 })
 
@@ -15528,7 +15537,14 @@ export const CreateReceiptResponse = zod.object({
   "after": zod.string().nullable()
 }))
 })),
-  "editable": zod.boolean()
+  "editable": zod.boolean(),
+  "dispute_status": zod.union([zod.enum(['open', 'resolved']).describe('* `` - Aucune\n* `open` - Contestée\n* `resolved` - Contestation levée'),zod.enum([''])]),
+  "dispute_reason": zod.string(),
+  "disputed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "disputed_by": zod.string(),
+  "dispute_resolution": zod.string(),
+  "dispute_resolved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "dispute_resolved_by": zod.string()
 })
 
 
@@ -15610,7 +15626,216 @@ export const GetReceiptResponse = zod.object({
   "after": zod.string().nullable()
 }))
 })),
-  "editable": zod.boolean()
+  "editable": zod.boolean(),
+  "dispute_status": zod.union([zod.enum(['open', 'resolved']).describe('* `` - Aucune\n* `open` - Contestée\n* `resolved` - Contestation levée'),zod.enum([''])]),
+  "dispute_reason": zod.string(),
+  "disputed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "disputed_by": zod.string(),
+  "dispute_resolution": zod.string(),
+  "dispute_resolved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "dispute_resolved_by": zod.string()
+})
+
+
+/**
+ * Contest a goods receipt with its supplier (D-285): `reason` is required. While contested it goes on no
+ * supplier invoice. Refused while an invoice carries it or a dispute is already open.
+ */
+export const DisputeReceiptParams = zod.object({
+  "receipt_id": zod.int()
+})
+
+export const disputeReceiptBodyReasonMax = 1000;
+
+
+
+export const DisputeReceiptBody = zod.object({
+  "reason": zod.string().max(disputeReceiptBodyReasonMax)
+})
+
+export const disputeReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const disputeReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const DisputeReceiptResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "purchase_order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}).describe('The purchase order a receipt delivers against.'),zod.null()]),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "with_vat": zod.boolean(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "use_by": zod.iso.date().nullable()
+}),
+  "ordered_quantity": zod.stringFormat('decimal', disputeReceiptResponseLinesItemOrderedQuantityRegExp).nullable(),
+  "invoiced_quantity": zod.stringFormat('decimal', disputeReceiptResponseLinesItemInvoicedQuantityRegExp),
+  "accepted_quantity": zod.stringFormat('decimal', disputeReceiptResponseLinesItemAcceptedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', disputeReceiptResponseLinesItemUnitCostRegExp),
+  "invoiced_amount": zod.stringFormat('decimal', disputeReceiptResponseLinesItemInvoicedAmountRegExp),
+  "accepted_amount": zod.stringFormat('decimal', disputeReceiptResponseLinesItemAcceptedAmountRegExp),
+  "has_difference": zod.boolean()
+})),
+  "has_differences": zod.boolean(),
+  "invoiced_total": zod.stringFormat('decimal', disputeReceiptResponseInvoicedTotalRegExp),
+  "accepted_total": zod.stringFormat('decimal', disputeReceiptResponseAcceptedTotalRegExp),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
+}).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revision": zod.int(),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "reason": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "editable": zod.boolean(),
+  "dispute_status": zod.union([zod.enum(['open', 'resolved']).describe('* `` - Aucune\n* `open` - Contestée\n* `resolved` - Contestation levée'),zod.enum([''])]),
+  "dispute_reason": zod.string(),
+  "disputed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "disputed_by": zod.string(),
+  "dispute_resolution": zod.string(),
+  "dispute_resolved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "dispute_resolved_by": zod.string()
+})
+
+
+/**
+ * Lift a receipt's open dispute (D-285), saying how it was settled (`resolution`, required): it can then
+ * be invoiced.
+ */
+export const ResolveReceiptDisputeParams = zod.object({
+  "receipt_id": zod.int()
+})
+
+export const resolveReceiptDisputeBodyResolutionMax = 1000;
+
+
+
+export const ResolveReceiptDisputeBody = zod.object({
+  "resolution": zod.string().max(resolveReceiptDisputeBodyResolutionMax)
+})
+
+export const resolveReceiptDisputeResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const resolveReceiptDisputeResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ResolveReceiptDisputeResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "purchase_order": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['open', 'partly_received', 'received', 'closed', 'cancelled']).describe('* `open` - En attente\n* `partly_received` - Reçu en partie\n* `received` - Reçu\n* `closed` - Clôturé\n* `cancelled` - Annulé')
+}).describe('The purchase order a receipt delivers against.'),zod.null()]),
+  "received_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "with_vat": zod.boolean(),
+  "notes": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "use_by": zod.iso.date().nullable()
+}),
+  "ordered_quantity": zod.stringFormat('decimal', resolveReceiptDisputeResponseLinesItemOrderedQuantityRegExp).nullable(),
+  "invoiced_quantity": zod.stringFormat('decimal', resolveReceiptDisputeResponseLinesItemInvoicedQuantityRegExp),
+  "accepted_quantity": zod.stringFormat('decimal', resolveReceiptDisputeResponseLinesItemAcceptedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', resolveReceiptDisputeResponseLinesItemUnitCostRegExp),
+  "invoiced_amount": zod.stringFormat('decimal', resolveReceiptDisputeResponseLinesItemInvoicedAmountRegExp),
+  "accepted_amount": zod.stringFormat('decimal', resolveReceiptDisputeResponseLinesItemAcceptedAmountRegExp),
+  "has_difference": zod.boolean()
+})),
+  "has_differences": zod.boolean(),
+  "invoiced_total": zod.stringFormat('decimal', resolveReceiptDisputeResponseInvoicedTotalRegExp),
+  "accepted_total": zod.stringFormat('decimal', resolveReceiptDisputeResponseAcceptedTotalRegExp),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'partly_paid', 'paid']).describe('* `draft` - Brouillon\n* `posted` - Validée\n* `partly_paid` - Payée en partie\n* `paid` - Payée')
+}).describe('The supplier invoice a receipt is charged on.'),zod.null()]),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "revision": zod.int(),
+  "revisions": zod.array(zod.object({
+  "number": zod.int(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "created_by": zod.string(),
+  "reason": zod.string(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "line": zod.int().nullable(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "editable": zod.boolean(),
+  "dispute_status": zod.union([zod.enum(['open', 'resolved']).describe('* `` - Aucune\n* `open` - Contestée\n* `resolved` - Contestation levée'),zod.enum([''])]),
+  "dispute_reason": zod.string(),
+  "disputed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "disputed_by": zod.string(),
+  "dispute_resolution": zod.string(),
+  "dispute_resolved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "dispute_resolved_by": zod.string()
 })
 
 
@@ -15722,7 +15947,14 @@ export const ReviseReceiptResponse = zod.object({
   "after": zod.string().nullable()
 }))
 })),
-  "editable": zod.boolean()
+  "editable": zod.boolean(),
+  "dispute_status": zod.union([zod.enum(['open', 'resolved']).describe('* `` - Aucune\n* `open` - Contestée\n* `resolved` - Contestation levée'),zod.enum([''])]),
+  "dispute_reason": zod.string(),
+  "disputed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "disputed_by": zod.string(),
+  "dispute_resolution": zod.string(),
+  "dispute_resolved_at": zod.iso.datetime({"offset":true}).nullable(),
+  "dispute_resolved_by": zod.string()
 })
 
 

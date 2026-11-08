@@ -1,6 +1,6 @@
 import { ApiError, type ReceiptLine, useGetReceipt } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
+import { formatDate, formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, cn, Dialog, EmptyState, Icon, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -8,6 +8,7 @@ import { Link, useOutletContext, useParams } from "react-router";
 
 import { subtract } from "../lib/decimal";
 import { canRecordReceipts } from "./shared";
+import { ReceiptDisputeDialog } from "./ReceiptDisputeDialog";
 import { ReceiptEditDialog } from "./ReceiptEditDialog";
 import { ReceiptHistory } from "./ReceiptHistory";
 
@@ -35,6 +36,7 @@ export function ReceiptDetailPage() {
   const validId = Number.isInteger(id) && id > 0;
   const receipt = useGetReceipt(id, { query: { enabled: validId, retry: false } });
   const [editing, setEditing] = useState(false);
+  const [disputing, setDisputing] = useState<"dispute" | "resolve" | null>(null);
 
   const back = (
     <Link to="/achats" className="text-[0.85rem] font-semibold text-sea hover:underline">
@@ -59,6 +61,10 @@ export function ReceiptDetailPage() {
   const data = receipt.data;
   // Changed by the owner or the manager while no invoice carries it; the server refuses the rest (D-269).
   const canEdit = data.editable && canRecordReceipts(session);
+  // Contested while no invoice carries it, lifted when settled (D-285); the server refuses the rest.
+  const disputed = data.dispute_status === "open";
+  const canDispute = canRecordReceipts(session) && !data.invoice && !disputed;
+  const canResolve = canRecordReceipts(session) && disputed;
   const none = t("admin.receipts.detail.none");
   const differing = data.lines.filter((line) => line.has_difference);
   // The ordered weight is optional: a receipt where none was typed (or against a purchase order) has no such column.
@@ -83,15 +89,52 @@ export function ReceiptDetailPage() {
       {back}
       <PageHeader eyebrow={`${formatDate(data.received_on)} · ${data.supplier.name}`} title={data.number}>
         {data.has_differences && <Pill tone="warn">{t("admin.receipts.difference")}</Pill>}
+        {disputed && <Pill tone="bad">{t("admin.receipts.dispute.pill")}</Pill>}
       </PageHeader>
-      {canEdit && (
-        <div>
-          <Button onClick={() => setEditing(true)}>{t("admin.receipts.edit.open")}</Button>
+      {(canEdit || canDispute || canResolve) && (
+        <div className="flex flex-wrap gap-2">
+          {canEdit && <Button onClick={() => setEditing(true)}>{t("admin.receipts.edit.open")}</Button>}
+          {canDispute && <Button onClick={() => setDisputing("dispute")}>{t("admin.receipts.dispute.open")}</Button>}
+          {canResolve && <Button onClick={() => setDisputing("resolve")}>{t("admin.receipts.dispute.lift")}</Button>}
         </div>
       )}
       <Dialog open={editing} onOpenChange={setEditing}>
         {editing && <ReceiptEditDialog receipt={data} onDone={() => setEditing(false)} />}
       </Dialog>
+      <Dialog open={disputing !== null} onOpenChange={(open) => !open && setDisputing(null)}>
+        {disputing && <ReceiptDisputeDialog receipt={data} mode={disputing} onDone={() => setDisputing(null)} />}
+      </Dialog>
+
+      {data.dispute_status !== "" && (
+        <div
+          role="note"
+          className={cn(
+            "flex items-start gap-3 rounded-card border border-line p-3",
+            disputed ? "bg-bad-soft" : "bg-surface-2",
+          )}
+        >
+          <div className="flex flex-col gap-0.5 text-[0.9rem]">
+            <b>{t(disputed ? "admin.receipts.dispute.openTitle" : "admin.receipts.dispute.resolvedTitle")}</b>
+            <span>
+              {t("admin.receipts.dispute.reasonLine", {
+                reason: data.dispute_reason,
+                name: data.disputed_by || "—",
+                at: data.disputed_at ? formatDateTime(data.disputed_at) : "—",
+              })}
+            </span>
+            {!disputed && (
+              <span>
+                {t("admin.receipts.dispute.resolutionLine", {
+                  resolution: data.dispute_resolution,
+                  name: data.dispute_resolved_by || "—",
+                  at: data.dispute_resolved_at ? formatDateTime(data.dispute_resolved_at) : "—",
+                })}
+              </span>
+            )}
+            {disputed && <span className="text-ink-2">{t("admin.receipts.dispute.blocked")}</span>}
+          </div>
+        </div>
+      )}
 
       {differing.length > 0 && (
         <div role="note" className="flex items-start gap-3 rounded-card border border-line bg-warn-soft p-3">

@@ -7357,6 +7357,11 @@ paths:
         schema:
           type: boolean
           default: false
+      - in: query
+        name: disputed
+        schema:
+          type: boolean
+          default: false
       - name: limit
         required: false
         in: query
@@ -7449,6 +7454,76 @@ paths:
         required: true
       tags:
       - receipts
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/{receipt_id}/dispute:
+    post:
+      operationId: disputeReceipt
+      description: |-
+        Contest a goods receipt with its supplier (D-285): `reason` is required. While contested it goes on no
+        supplier invoice. Refused while an invoice carries it or a dispute is already open.
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+          description: ''
+  /api/v1/receipts/{receipt_id}/resolve-dispute:
+    post:
+      operationId: resolveReceiptDispute
+      description: |-
+        Lift a receipt's open dispute (D-285), saying how it was settled (`resolution`, required): it can then
+        be invoiced.
+      parameters:
+      - in: path
+        name: receipt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - receipts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeResolveWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeResolveWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReceiptDisputeResolveWrite'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -17600,6 +17675,15 @@ components:
       - product
       - receipt
       - unit_cost
+    DisputeStatusEnum:
+      enum:
+      - open
+      - resolved
+      type: string
+      description: |-
+        * `` - Aucune
+        * `open` - Contestée
+        * `resolved` - Contestation levée
     DocumentList:
       type: object
       properties:
@@ -26781,10 +26865,44 @@ components:
         editable:
           type: boolean
           readOnly: true
+        dispute_status:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/DisputeStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        dispute_reason:
+          type: string
+          readOnly: true
+        disputed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        disputed_by:
+          type: string
+          readOnly: true
+        dispute_resolution:
+          type: string
+          readOnly: true
+        dispute_resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        dispute_resolved_by:
+          type: string
+          readOnly: true
       required:
       - accepted_total
       - created_at
       - created_by
+      - dispute_reason
+      - dispute_resolution
+      - dispute_resolved_at
+      - dispute_resolved_by
+      - dispute_status
+      - disputed_at
+      - disputed_by
       - editable
       - has_differences
       - id
@@ -26842,6 +26960,22 @@ components:
       - before
       - field
       - line
+    ReceiptDisputeResolveWrite:
+      type: object
+      properties:
+        resolution:
+          type: string
+          maxLength: 1000
+      required:
+      - resolution
+    ReceiptDisputeWrite:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+      required:
+      - reason
     ReceiptHeader:
       type: object
       description: The seller printed at the top of the driver's receipts (D-281),

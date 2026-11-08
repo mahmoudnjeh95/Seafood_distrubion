@@ -1,8 +1,16 @@
 # Project status
 
-_Last updated: 2026-11-07 (credit note refunds and per-line stock, D-284; next free decision D-285)_
+_Last updated: 2026-11-07 (contested goods receipts, D-285; next free decision D-286)_
 
 ## Where we are
+
+- **Perfaxis gaps (owner answers 2026-11-07, D-285):** the owner compared the Perfaxis Achat/Vente/Avoir manual and kept
+  five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch
+  `receipt-dispute`, migration purchasing 0023): "Contester" with a motif, no supplier invoice takes it until "Lever la
+  contestation"; (2) "non facturable" BL, both kinds chosen per BL: owed but never invoiced, or free goods (loss on the
+  lot); (3) "Refacturer" after an avoir; (4) attachments on documents (no Bureau d'ordre); (5) supplier price comparison
+  (demande de devis to several suppliers, offers, pick one, purchase order). Not wanted: Bureau d'ordre, exempt/export
+  customers, internal purchase requests, foreign currency, services.
 
 - **D-284 (branch `credit-note-refunds`, stacked on #323, migrations sales 0033, treasury 0008):** an avoir asks, per line
   with kilos, remis en stock / mis en perte / non repris; when the invoice was paid it asks "Rembourser maintenant"
@@ -111,6 +119,8 @@ _Last updated: 2026-11-07 (credit note refunds and per-line stock, D-284; next f
 
 ## Next step
 
+0. Perfaxis gaps: merge `receipt-dispute` (P1-T18) once green, after #324; then build (2) non facturable BL, (3)
+   Refacturer, (4) attachments, (5) supplier price comparison, one stacked PR each (D-286 onwards).
 0. D-284: merge #323 first, then the PR from `credit-note-refunds` once CI is green (retarget it to main).
 0. P2-T16 (D-283): PR from `claude/jolly-feynman-76x5xb`, wait for CI (e2e specs updated for the new wording and
    BROUILLON drafts), merge. On staging: Paramètres › Numérotation, set BFA/BBL; make a BL and an invoice draft, validate.
