@@ -1,9 +1,14 @@
 # Project status
 
-_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; receipt picture with logo and Arabic names, Tunisian Arabic, D-282; next free decision D-283)_
+_Last updated: 2026-11-08 (accounting review, invoice VAT per line and withholding threshold, D-283; next free decision D-284)_
 
 ## Where we are
 
+- **P2-T16 accounting review (D-283, branch `claude/awesome-albattani-r48y7b`):** review in
+  `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
+  an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
+  and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
+  bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
@@ -97,6 +102,8 @@ _Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, relo
 
 ## Next step
 
+0. P2-T16: PR from `claude/awesome-albattani-r48y7b`, merge once green. Then B4 (per-customer "soumis à retenue"
+   flag) and B1 (supplier invoice VAT and stamp), one PR each; the accountant answers the "à confirmer" points of the review.
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.

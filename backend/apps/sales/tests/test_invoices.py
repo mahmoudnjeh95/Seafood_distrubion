@@ -549,9 +549,10 @@ def test_fees_add_to_the_total_outside_vat_and_withholding(organization, sale, a
     assert invoice.fees == D("500.000")
     assert invoice.vat_total == D("86.450")  # no VAT on the fees
     assert invoice.total_incl_tax == D("1042.450")  # 455 + 86.450 + 1 stamp + 500 fees
-    # The fees take the invoice over 1 000 DT, but not into the withholding: 1.5 % of 541.450.
-    assert invoice.withholding_amount == D("8.122")
-    assert invoice.net_to_pay == D("1034.328")
+    # The fees take the total over 1 000 DT but count neither in the withholding's base nor in its threshold
+    # (D-283): 455 + 86.450 = 541.450 is under 1 000 DT, so nothing is withheld.
+    assert (invoice.withholding_applied, invoice.withholding_amount) == (False, D("0.000"))
+    assert invoice.net_to_pay == D("1042.450")
     # Issuing keeps them; saving the draft again without them removes them.
     issued = services.update_invoice(invoice=invoice, actor=actor, issue=True, fees="500.000")
     assert (issued.fees, issued.total_incl_tax) == (D("500.000"), D("1042.450"))

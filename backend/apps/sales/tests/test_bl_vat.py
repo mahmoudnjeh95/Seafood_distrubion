@@ -13,7 +13,7 @@ from apps.inventory import services as stock
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
-from apps.sales import printing, services
+from apps.sales import printing, selectors, services
 
 pytestmark = pytest.mark.django_db
 
@@ -152,6 +152,59 @@ def test_only_the_lines_of_products_sold_with_vat_carry_vat(organization, actor,
         D("245.000"),
     )
     assert (bl.total, bl.vat_total, bl.total_incl_tax) == (D("455.000"), D("39.900"), D("494.900"))
+
+
+def test_an_invoice_of_a_mixed_bl_taxes_only_the_lines_its_bl_taxed(
+    organization, actor, customer, counter, crevette, dorade
+):
+    """D-283: the invoice follows its BL line by line; the goods not bought with VAT stay exempt (0 %) instead of
+    taking 19 % because another line of the invoice is taxed. The BL, the estimate and the invoice agree."""
+    receive(organization, crevette, counter, "20", with_vat=True)
+    receive(organization, dorade, counter, "20", with_vat=False)
+    bl = services.confirm_sale(
+        sale=draft(
+            organization,
+            actor,
+            customer,
+            counter,
+            [{"product": crevette, "quantity": "5"}, {"product": dorade, "quantity": "10"}],
+        ),
+        actor=actor,
+    )
+
+    estimate = services.estimate_invoice(organization=organization, sales=[bl])
+    invoice = services.create_invoice(sale=bl, actor=actor)
+
+    assert invoice.apply_vat is True
+    taxed, exempt = invoice.lines.order_by("id")
+    assert (taxed.vat_rate, taxed.vat_amount, taxed.vat_rate_overridden) == (D("19.00"), D("39.900"), False)
+    assert (exempt.vat_rate, exempt.vat_amount, exempt.vat_rate_overridden) == (D("0.00"), D("0.000"), False)
+    assert (invoice.total_excl_tax, invoice.vat_total) == (bl.amount_excl_tax, bl.vat_total)
+    assert invoice.total_incl_tax == bl.total_incl_tax + invoice.fiscal_stamp == D("495.900")
+    assert (estimate.vat_total, estimate.net_to_pay) == (D("39.900"), D("495.900"))
+    assert selectors.proposed_rates_of(invoice) == {taxed.pk: D("19.00"), exempt.pk: D("0.00")}
+
+
+def test_a_typed_rate_still_taxes_a_line_its_bl_left_without_vat(
+    organization, actor, customer, counter, crevette, dorade
+):
+    receive(organization, crevette, counter, "20", with_vat=True)
+    receive(organization, dorade, counter, "20", with_vat=False)
+    bl = services.confirm_sale(
+        sale=draft(
+            organization,
+            actor,
+            customer,
+            counter,
+            [{"product": crevette, "quantity": "5"}, {"product": dorade, "quantity": "10"}],
+        ),
+        actor=actor,
+    )
+
+    invoice = services.create_invoice(sale=bl, actor=actor, vat_rates=[None, "7"])
+
+    _taxed, typed = invoice.lines.order_by("id")
+    assert (typed.vat_rate, typed.vat_amount, typed.vat_rate_overridden) == (D("7.00"), D("17.150"), True)
 
 
 def test_a_bl_without_any_line_sold_with_vat_has_no_vat(organization, actor, customer, counter, crevette):

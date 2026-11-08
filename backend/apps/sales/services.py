@@ -2150,19 +2150,23 @@ def _stored_overrides(invoice: Invoice) -> _Overrides:
 
 def _default_rate(product: "Product", version: FinanceSettings) -> Decimal:
     """The rate a line takes when none is typed: the product's own (0 = exempt), else the settings'."""
-    own: Decimal | None = product.vat_rate
-    return own if own is not None else version.vat_rate
+    return selectors.product_vat_rate(product, version)
+
+
+def _proposed_rates(sale_lines: Sequence[SaleLine], version: FinanceSettings) -> list[Decimal]:
+    """The VAT rate proposed for each sale line on an invoice (`selectors.proposed_vat_rates`, D-283)."""
+    return selectors.proposed_vat_rates(sale_lines, version)
 
 
 def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) -> None:
     """Set every amount of a draft from its lines, the settings `version` and the typed values, and store
     which values were typed (`*_overridden`). Raises a ValidationError for a typed VAT amount above what
     its rate holds."""
-    lines = list(invoice.lines.select_related("product").order_by("id"))
+    lines = list(invoice.lines.select_related("product", "sale_line__product").order_by("id"))
     rates: list[Decimal] = []
     rate_typed: list[bool] = []
-    for line, typed in zip(lines, overrides.vat_rates, strict=True):
-        default = _default_rate(line.product, version)
+    proposed = _proposed_rates([line.sale_line for line in lines], version)
+    for typed, default in zip(overrides.vat_rates, proposed, strict=True):
         rates.append(typed if typed is not None else default)
         rate_typed.append(typed is not None and typed != default)
     stamp = overrides.fiscal_stamp if overrides.fiscal_stamp is not None else version.fiscal_stamp
@@ -2233,7 +2237,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_incl_tax)
+    invoice.withholding_applied = invoicing.withholding_applies(amounts.total_excl_tax + amounts.vat_total)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
@@ -2325,9 +2329,9 @@ def _invoiceable_now(sale: Sale) -> bool:
 
 def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> InvoiceEstimate:
     """The invoice the given BL would make with the settings in force and the proposed choices (VAT only for
-    goods bought with VAT, D-246; each product's rate; one stamp; the withholding from 1 000 DT): the same
-    arithmetic as `create_invoice` (`invoicing.compute`), nothing saved. BL already invoiced or not invoiceable
-    are left out."""
+    goods bought with VAT, D-246; each line's rate as its BL showed it, D-283; one stamp; the withholding from
+    1 000 DT without the stamp and fees): the same arithmetic as `create_invoice` (`invoicing.compute`),
+    nothing saved. BL already invoiced or not invoiceable are left out."""
     open_sales = [sale for sale in sales if _invoiceable_now(sale)]
     if not open_sales:
         return InvoiceEstimate(ZERO, ZERO, [], ZERO, ZERO, ZERO, ZERO, {})
@@ -2335,10 +2339,8 @@ def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> In
     lines = [line for sale in open_sales for line in sale.lines.select_related("product").order_by("id")]
     amounts = invoicing.compute(
         [
-            invoicing.LineInput(
-                amount=line.amount, vat_rate=_default_rate(line.product, version), unit_price=line.unit_price
-            )
-            for line in lines
+            invoicing.LineInput(amount=line.amount, vat_rate=rate, unit_price=line.unit_price)
+            for line, rate in zip(lines, _proposed_rates(lines, version), strict=True)
         ],
         apply_vat=bool(_vat_product_names(open_sales)),
         prices_include_vat=version.prices_include_vat,

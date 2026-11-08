@@ -3888,3 +3888,18 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Product names**: the French name, then the product's Arabic name (`Product.name_ar`, now in the driver's sale lines `product.name_ar`, `my-stock` `product_name_ar` and the purchase lines `product_name_ar`) on its own row; a product without one prints the French name only. Everything else on the paper stays in French (Q13).
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
+
+**D-283 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T16)** · accepted, provisional parts marked · 2026-11-08
+- **VAT per line (fixes a bug):** an invoice used to put each product's rate (19 %) on **every** line as soon as one BL
+  line was bought with VAT, so the goods not bought with VAT were taxed and the invoice disagreed with its BL (D-224).
+  Now, when a line of the invoice carries a VAT rate snapshotted on its BL, each line proposes the rate its BL showed,
+  and a line its BL showed without VAT proposes 0 % (exempt). When no line carries one (a BL from before D-224, or VAT
+  ticked by hand), each product's rate is proposed as before. A rate typed on the draft still wins.
+  The rule is `sales.selectors.proposed_vat_rates`; `create_invoice`, `estimate_invoice` and the line's
+  `default_vat_rate` in the API use it, so the BL, the estimate and the invoice agree. The BL's rate is the one of the
+  sale's day, so a rate changed since then no longer moves an invoice of an older BL.
+- **Withholding threshold (changes D-250's provisional base):** an invoice carries the retenue à la source when its
+  total without VAT + VAT reaches 1 000 DT, the withholding's own base; the stamp and the fees no longer take it over.
+- Issued invoices keep what they had (D-057); a draft takes both rules when it is next saved.
+- Provisional: VAT per product (fresh fishing products are exempt in the VAT code) and a per-customer "subject to
+  withholding" flag are the next steps of the review (`docs/guides/accounting-review-2026-11-08.md`); the accountant confirms.
