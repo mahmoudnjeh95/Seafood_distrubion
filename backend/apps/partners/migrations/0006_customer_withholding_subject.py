@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("partners", "0004_numbering_seed"),
+        ("partners", "0005_customer_types_identification"),
     ]
 
     operations = [

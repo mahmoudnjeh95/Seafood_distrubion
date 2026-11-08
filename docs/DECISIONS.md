@@ -3889,7 +3889,101 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
 
-**D-291 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T16)** · accepted, provisional parts marked · 2026-11-08
+**D-283 · Client bug list of 2026-11-06: draft prefixes, customer types, identification, VAT rates, opening balances apart (P2-T16)** · accepted (client document "13 bugs avec captures") · 2026-11-07
+- **Draft prefix (bug 13):** `NumberPrefix.draft_prefix` (+ `draft_prefix_set`) for the kinds with a draft step: quote, BL
+  (`delivery_note`), invoice, supplier invoice (`NumberKind.draft_default`). A draft takes a provisional reference from
+  its own counter (`NumberSeries` kind `<key>.draft`, same yearly format): BFA-2026-0007. Without a draft prefix it
+  reads `BROUILLON-2026-0007` (unique, so the `number` constraints stay). The definitive number is taken only at the
+  validation: a quote when sent (**changes D-120/D-223: a draft quote no longer has its DV number**), a BL when validated
+  (or issued with a load), an invoice when issued, a supplier invoice when posted (**changes the FF at creation**). The
+  provisional reference is kept in `draft_number`. The BL's default draft prefix is VE (the old "Vente (comptoir)"
+  counter, now hidden from Numérotation; a custom VE prefix moved to the BL's draft prefix by migration). No two
+  prefixes, draft or definitive, are the same.
+- **Customer types (bug 8):** `partners.CustomerType` per organization (code, label, active, position); the seven old
+  choices are the defaults (migration for existing organizations, signal for new ones). `Customer.kind` stores the code
+  (no fixed choices any more). A deactivated type stays on its customers and may be kept on save, not newly given; a
+  type is deleted only when no customer (archived included) has it. Read by the office, changed by owner/manager.
+- **Identification (bug 9):** `Customer.id_type` (tax_id, cin, passport, residence_card; default tax_id, so every
+  existing number is an MF) with the number still in `tax_id` (text). CIN = 8 digits; passport and residence card 5 to
+  20 letters or digits. Unique per organization by type and number. Invoices freeze `customer_id_type`; the documents
+  print "CIN", "Passeport"… instead of "MF".
+- **VAT rates (bug 4, part):** `catalog.VatRate` per organization (0, 7, 13, 19 + rates in use, by migration/signal). The
+  product's VAT is chosen among active rates; a product keeps a rate deactivated since. A rate is deleted, or its
+  percent changed, only while no product, BL line, invoice line or credit note line has it. Documents keep their own
+  percent, so nothing saved is recomputed. Office only (drivers 403). The document column order and TTC line amount of
+  the client's bug 4 are **not** done: they change how prices are typed (open for the owner).
+- **Opening balances (bug 12):** still `Sale(is_opening=True)` (no data moved, payments untouched); the sales/BL list
+  leaves them out (`opening=exclude` by default, `only` for Trésorerie › Soldes d'ouverture). Their detail page shows
+  amount, collected, left, origin and import, without delivery, invoice, cost or margin.
+- **BL to invoice (bug 3):** `GET /invoices/to-invoice-counts`, the same BL `uninvoiced=True` lists. **Redirect (bug 10):**
+  a generated invoice opens at once ("Factures générées ici" removed).
+- **Not done, need the owner:** bug 11 (one delivery cycle for direct and load BL: the stock would leave at the delivery,
+  not at the validation), bugs 5 and 6 (credit notes with refunds "À rembourser" and their central page).
+
+**D-284 · Credit notes say what becomes of each returned line, and refund a customer who had paid (P2-T16, bugs 05/06)** · accepted (owner answers 2026-11-07) · 2026-11-07
+- **Goods, per line:** `CreditNoteLine.stock` (restock, loss, none). On a partial credit note every line with kilos must
+  say it (`lines.<n>.stock`); the API's `stock` is required for a full one (no silent "none" any more). `CreditNote.stock`
+  is the lines' common choice or `mixed`. Loss = back in then written off on the original lot (the lot result and the
+  partner's share carry it, as D-070). Older lines got their note's choice by migration.
+- **Money:** after the credit note, what the invoice's BLs were paid beyond what they owe is a `CustomerRefund`
+  (RC-<year>-0001), at most the note's net amount. So a partly paid invoice has its debt cancelled first, only the excess
+  is refunded; an unpaid one gets no refund. The refund is taken from those BLs (`CustomerRefundAllocation`, like a
+  negative allocation), so the customer's credit does not stay and a BL invoiced again owes anew. Paid now (`refund.mode`
+  now: method cash/transfer/cheque, caisse or bank account, reference) or later from Trésorerie › Remboursements clients,
+  in one or several `CustomerRefundPayment`, never beyond what is left; each writes a `customer_refund` treasury
+  movement out of the account. The original payments are untouched. The customer's history shows "Remboursement d'avoir".
+- Not done: cancelling a planned refund (it is final, like the credit note), a credit note detail page.
+
+**D-285 · A goods receipt can be contested with its supplier; while contested it is not invoiced (P1-T18)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- From the Perfaxis manual's "Bon de réception contesté". Owner's choice: an open dispute **blocks invoicing** (not only a flag).
+- `GoodsReceipt.dispute_status` ("" / open / resolved) with the reason, the settlement, who and when. Contesting needs a
+  reason and is refused while an invoice (draft or posted) carries the receipt or a dispute is open; lifting needs how it
+  was settled. A lifted receipt can be contested again (the previous one stays in the audit log).
+- The stock is not touched: the goods are in either way. A weight or price the supplier agrees to change is corrected with
+  "Modifier la réception" (D-269), which stays allowed while contested.
+- Other Perfaxis gaps the owner kept (same day): "non facturable" BL, "Refacturer" after an avoir, attachments on
+  documents, supplier price comparison. Not wanted: Bureau d'ordre, exempt/export customers, internal purchase
+  requests, foreign currency, services.
+
+**D-286 · A BL can be "non facturable" (owed, never invoiced) or "offert" (given away) (P2-T17)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Non facturable" box. The owner wanted both meanings, chosen per BL: `Sale.billing` = invoice / no_invoice / free.
+- **Offert** is a BL whose lines all take a 100 % discount (the price stays, as the value given): total 0, nothing owed,
+  the minimum price does not apply, the FIFO cost stays on the lots, so the lot result shows the cost with no revenue
+  (no separate "gift" line for now). It is chosen on the draft only, since it changes what is owed; a confirmed gift is
+  cancelled and typed again to charge it.
+- **Non facturable** changes nothing in the amounts: the customer owes it and pays it as usual; it is left out of every
+  invoicing list and refused by `create_invoice`. It can be switched both ways on a confirmed BL while it is on no invoice.
+- Not for the walk-in customer (already never invoiced). The driver's phone does not choose: always "facturable".
+
+**D-287 · "Refacturer" makes a new draft from a full credit note that took no goods back (P2-T18)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Refacturer" (after a "facture avoir" whose lines were not changed = our full credit note). The new invoice is
+  a **draft** (not issued at once) so the office corrects what was wrong (customer data, VAT, stamp, fees), then issues
+  it with the next number. It copies what was typed on the original; what was not typed follows the settings in force.
+- `Invoice.rebilled_from` → the credit note (and through it the original invoice). Refused for a partial credit note (the
+  invoice is still valid), when the credit note took goods back (restock or loss: nothing left to bill), and while a BL
+  is on a live invoice again. Before this, the same was possible by hand from Nouvelle facture, without the link.
+
+**D-288 · Files can be attached to documents, without a Bureau d'ordre (P2-T19)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's "Documents associés" tab, minus its mail register: the owner said no Bureau d'ordre. A file goes straight
+  on the document. Kinds: quote, BL, invoice, credit note, purchase order, goods receipt, supplier invoice.
+- A PDF up to 8 MB kept as is; a photo (JPEG, PNG, WebP) turned upright, metadata dropped, shrunk to 2400 px (larger than
+  product photos so scans stay readable), stored as WebP. Anything else is refused.
+- The documents app owns `Attachment` and never reads other apps' tables: each app registers how to check a document
+  exists (`register_attachable`, like printables). Removing a file hides it; row and file stay with who removed it.
+- Not done: attachments on the driver app, on payments or expenses; Perfaxis's rule "an accepted quote needs its signed
+  document" (not asked).
+
+**D-289 · Price requests to several suppliers before ordering (P1-T19)** · accepted (owner answer 2026-11-07) · 2026-11-07
+- Perfaxis's demande de devis → devis reçu → bon de commande, in one screen: a `PriceRequest` (number DD, yearly) has
+  lines (product, kg) and one `SupplierOffer` per supplier asked, with a price per kg without VAT per line
+  (`SupplierOfferLine`), its reference and validity. Not Perfaxis's internal purchase request step (not wanted).
+- Choosing is per product: each line goes to one supplier; "Passer les commandes" makes one purchase order per supplier
+  (the existing `create_order`, D-076) and the request is "commandée" for good. Kilos are the request's; prices the
+  offer's. An offer past its validity cannot be chosen (Perfaxis's rule). Perfaxis asks for a comment under three
+  offers: here only a hint, not enforced.
+- No currency and no services (not wanted); no printing of the request yet.
+
+**D-291 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T20)** · accepted, provisional parts marked · 2026-11-08
 - **VAT per line (fixes a bug):** an invoice used to put each product's rate (19 %) on **every** line as soon as one BL
   line was bought with VAT, so the goods not bought with VAT were taxed and the invoice disagreed with its BL (D-224).
   Now, when a line of the invoice carries a VAT rate snapshotted on its BL, each line proposes the rate its BL showed,
@@ -3904,9 +3998,9 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: VAT per product (fresh fishing products are exempt in the VAT code) and a per-customer "subject to
   withholding" flag are the next steps of the review (`docs/guides/accounting-review-2026-11-08.md`); the accountant confirms.
 
-**D-292 · A customer is subject to the withholding or not (accounting review B4, P2-T16)** · provisional · 2026-11-08
+**D-292 · A customer is subject to the withholding or not (accounting review B4, P2-T20)** · provisional · 2026-11-08
 - `Customer.withholding_subject` ("Soumis à la retenue à la source" on the customer form and card, migration
-  `partners 0005`). Off: the customer's invoices never carry a retenue à la source, whatever the rate in the settings or
+  `partners 0006`). Off: the customer's invoices never carry a retenue à la source, whatever the rate in the settings or
   typed on the draft; the net to pay is the total with VAT and stamp, and no certificate is awaited.
 - On: the D-250/D-291 rule (1 000 DT without VAT + VAT and more, at the rate in force).
 - Provisional: **on by default** for every customer, existing and new, so nothing changes until the office turns it off
@@ -3914,7 +4008,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   confirms who withholds.
 - Issued invoices keep what they had (D-057); a draft takes the flag when it is next saved.
 
-**D-293 · A lot earns its sales without VAT, also with prices including VAT (accounting review B5, P2-T16)** · accepted · 2026-11-08
+**D-293 · A lot earns its sales without VAT, also with prices including VAT (accounting review B5, P2-T20)** · accepted · 2026-11-08
 - A sale line's revenue per lot (`SaleLineBatch.revenue_amount`) is now the line's amount **without VAT**
   (`SaleLine.amount_excl_tax`) when the line is sold with VAT (D-224 snapshot); before, it was the amount as charged,
   which holds the VAT when prices include VAT, so the lot result, the partner's share and the sales reports counted
@@ -3923,11 +4017,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Sales confirmed before this change keep their rows (posted rows are immutable). With prices without VAT, the
   default, nothing changes: the amount without VAT is the amount.
 
-**D-294 · A supplier invoice adds the VAT of receipts bought with VAT and the supplier's stamp (accounting review B1, P2-T16)** · accepted, provisional parts marked · 2026-11-08
+**D-294 · A supplier invoice adds the VAT of receipts bought with VAT and the supplier's stamp (accounting review B1, P2-T20)** · accepted, provisional parts marked · 2026-11-08
 - Before, a supplier invoice owed only kg × cost (costs are without VAT), even for a receipt marked "Achat avec TVA":
   the payable, the supplier balance and the payments were short of the VAT and the droit de timbre.
 - `SupplierInvoice` now keeps `total_excl_tax` (the receipts' invoiced amounts), `vat_total` and `fiscal_stamp`;
-  `total`, what is owed and paid, is the three together (migration `purchasing 0022`; invoices made before keep their
+  `total`, what is owed and paid, is the three together (migration `purchasing 0025`; invoices made before keep their
   total, as their amount without VAT). Each link keeps its receipt's `vat_amount`; a receipt exposes `invoiced_vat`.
 - VAT of a receipt bought with VAT (`purchasing.selectors.receipt_vat`): its lines grouped by their product's rate
   (the product's own, else the finance settings' on the receipt day), each rate rounded once. A receipt without VAT

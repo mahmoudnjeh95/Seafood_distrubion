@@ -7,6 +7,7 @@
 import type { GoodsReceiptRevision } from './goodsReceiptRevision';
 import type { InvoiceRef } from './invoiceRef';
 import type { OrderRef } from './orderRef';
+import type { ReceiptDisputeStatus } from './receiptDisputeStatus';
 import type { ReceiptLine } from './receiptLine';
 import type { ReceiptLocation } from './receiptLocation';
 import type { Ref } from './ref';
@@ -35,4 +36,13 @@ export interface Receipt {
   readonly revision: number;
   readonly revisions: readonly GoodsReceiptRevision[];
   readonly editable: boolean;
+  readonly dispute_status: typeof ReceiptDisputeStatus[keyof typeof ReceiptDisputeStatus];
+  readonly dispute_reason: string;
+  /** @nullable */
+  readonly disputed_at: string | null;
+  readonly disputed_by: string;
+  readonly dispute_resolution: string;
+  /** @nullable */
+  readonly dispute_resolved_at: string | null;
+  readonly dispute_resolved_by: string;
 }

@@ -1,19 +1,45 @@
 # Project status
 
-_Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding threshold, D-291; customer subject to withholding, D-292; lot revenue without VAT, D-293; supplier invoice VAT and stamp, D-294; next free decision D-295)_
+_Last updated: 2026-11-08 (accounting review P2-T20: D-291 to D-294; Perfaxis gaps and client bug list merged #323–#329; next free decision D-295)_
 
 ## Where we are
 
-- **P2-T16 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`):** review in
+- **P2-T20 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`):** review in
   `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
   an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
   and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
   bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
-  B4 (D-292, migration `partners 0005`): "Soumis à la retenue à la source" on the customer (on by default); off, the
+  B4 (D-292, migration `partners 0006`): "Soumis à la retenue à la source" on the customer (on by default); off, the
   customer's invoices carry none. Check: untick it on a customer, invoice 1 200 DT, net to pay = TTC.
   B5 (D-293): a lot's revenue is without VAT also when prices include VAT.
-  B1 (D-294, migration `purchasing 0022`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
+  B1 (D-294, migration `purchasing 0025`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
   Check: a receipt "Achat avec TVA" of 1 000 DT, its invoice shows TVA 190, timbre 1, total 1 191 to pay.
+
+- **Perfaxis gaps (owner answers 2026-11-07, D-285):** the owner compared the Perfaxis Achat/Vente/Avoir manual and kept
+  five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch
+  `receipt-dispute`, migration purchasing 0023): "Contester" with a motif, no supplier invoice takes it until "Lever la
+  contestation"; (2) **P2-T17 BL "non facturable" or "offert"** (branch `bl-billing`, migration sales 0034, D-286):
+  owed but never invoiced, or given away at 100 % discount; (3) **P2-T18 "Refacturer"** (branch `rebill-credit-note`,
+  migration sales 0035, D-287): a draft from a full credit note that took no goods back; (4) **P2-T19 attachments** (branch `document-attachments`,
+  migration documents 0007, D-288): "Documents associés" on quotes, BL, invoices, purchase orders, receipts, supplier
+  invoices; (5) **P1-T19 supplier price requests** (branch `supplier-price-requests`, migration purchasing 0024,
+  D-289): Achats › Demandes de prix, offers compared, one order per chosen supplier. Not wanted: Bureau d'ordre, exempt/export
+  customers, internal purchase requests, foreign currency, services.
+
+- **D-284 (branch `credit-note-refunds`, stacked on #323, migrations sales 0033, treasury 0008):** an avoir asks, per line
+  with kilos, remis en stock / mis en perte / non repris; when the invoice was paid it asks "Rembourser maintenant"
+  (caisse or bank) or "À rembourser plus tard". Debt first, then refund. Trésorerie › Remboursements clients lists and
+  pays them. Check on staging: pay an invoice, avoir partiel with one line back in stock and one in loss, refund later,
+  then pay it from Remboursements clients and see the caisse journal.
+
+- **P2-T16 / D-283 (client document "13 bugs avec captures", branch `claude/jolly-feynman-76x5xb`, migrations core 0007,
+  partners 0005, catalog 0007, sales 0032, purchasing 0022):** done 01 net price column, 02 "Bons de livraison" wording,
+  03 "— n BL" per client in Nouvelle facture, 07 clients/suppliers sorted by Réf., 08 Paramètres › Types de clients,
+  09 identification type + number, 10 open the new invoice, 12 Trésorerie › Soldes d'ouverture (OUV out of the BL
+  list), 13 draft prefix with its own counter (drafts read BROUILLON-… or BFA-…; definitive number at validation).
+  Part of 04: Paramètres › TVA and the product's VAT as a list. **Not done:** 04's document columns/TTC amounts,
+  05 and 06 (credit notes with refunds), 11 (one delivery cycle for every BL): they need owner decisions (D-283).
+
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
@@ -107,8 +133,10 @@ _Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding 
 
 ## Next step
 
-0. P2-T16: PR from `claude/awesome-albattani-r48y7b`, merge once green. Then the review's next points (B6 to B9 need the
+0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
    owner or the accountant; then the "Déclarations du mois" screen); the accountant answers the "à confirmer" points of the review.
+0. Perfaxis gaps and the client bug list: merged 2026-11-08 (#323–#329). Staging checks: the phase files P1-T18,
+   P1-T19, P2-T16 to P2-T19; ask the owner about bug 11 (stock out at delivery for direct BL) and bug 4's columns.
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.

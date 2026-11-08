@@ -2,8 +2,8 @@ import {
   createCustomer,
   type Customer,
   type CustomerContact,
-  CustomerKindEnum,
   type CustomerWrite,
+  type IdTypeEnum,
   updateCustomer,
 } from "@frutti/api";
 import { parseDecimalInput, useTranslation } from "@frutti/i18n";
@@ -28,7 +28,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 
 import { fieldErrors } from "../lib/errors";
-import { refreshCustomers } from "./shared";
+import { ID_TYPES, refreshCustomers, useCustomerTypes } from "./shared";
 
 type TextField =
   | "reference"
@@ -41,14 +41,15 @@ type TextField =
   | "notes"
   | "credit_limit"
   | "payment_terms_days";
-type FormValues = Record<TextField, string> & { kind: CustomerKindEnum };
+type FormValues = Record<TextField, string> & { kind: string; id_type: IdTypeEnum };
 type ContactRow = Required<CustomerContact> & { key: number };
-type Errors = Partial<Record<TextField | "kind" | "contacts" | "detail", string>>;
+type Errors = Partial<Record<TextField | "kind" | "id_type" | "contacts" | "detail", string>>;
 
 const EMPTY: FormValues = {
   reference: "",
   name: "",
-  kind: CustomerKindEnum.restaurant,
+  kind: "restaurant",
+  id_type: "tax_id",
   tax_id: "",
   phone: "",
   email: "",
@@ -108,6 +109,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
           reference: customer.reference,
           name: customer.name,
           kind: customer.kind,
+          id_type: customer.id_type,
           tax_id: customer.tax_id,
           phone: customer.phone,
           email: customer.email,
@@ -122,6 +124,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
   const [withholds, setWithholds] = useState(customer?.withholding_subject ?? true);
   const [contacts, setContacts] = useState<ContactRow[]>(() => customer?.contacts.map(contactRow) ?? []);
   const [errors, setErrors] = useState<Errors>({});
+  const { types } = useCustomerTypes();
 
   const set = (field: TextField) => (value: string) => setValues((current) => ({ ...current, [field]: value }));
   const setContact = (key: number, field: keyof CustomerContact, value: string) =>
@@ -160,6 +163,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
       reference: trimmed("reference"),
       name: trimmed("name"),
       kind: values.kind,
+      id_type: values.id_type,
       tax_id: trimmed("tax_id"),
       phone: trimmed("phone"),
       email: trimmed("email"),
@@ -233,23 +237,42 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
           disabled: true,
         })}
         <Field label={t("admin.customers.form.kind")} htmlFor={`${formId}-kind`} error={errors.kind}>
-          <Select
-            value={values.kind}
-            onValueChange={(value) => setValues((current) => ({ ...current, kind: value as CustomerKindEnum }))}
-          >
+          <Select value={values.kind} onValueChange={(value) => setValues((current) => ({ ...current, kind: value }))}>
             <SelectTrigger id={`${formId}-kind`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.values(CustomerKindEnum).map((kind) => (
-                <SelectItem key={kind} value={kind}>
-                  {t(`admin.customers.kinds.${kind}`)}
+              {/* The active types; a deactivated one stays offered only to the customer that already has it. */}
+              {types
+                .filter((type) => type.is_active || type.code === customer?.kind)
+                .map((type) => (
+                  <SelectItem key={type.code} value={type.code}>
+                    {type.is_active ? type.label : t("admin.customerTypes.inactiveLabel", { label: type.label })}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t("admin.customers.form.idType")} htmlFor={`${formId}-id_type`} error={errors.id_type}>
+          <Select
+            value={values.id_type}
+            onValueChange={(value) => setValues((current) => ({ ...current, id_type: value as IdTypeEnum }))}
+          >
+            <SelectTrigger id={`${formId}-id_type`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ID_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {t(`admin.customers.idTypes.${type}`)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
-        {input("tax_id", t("admin.customers.form.taxId"), { hint: t("admin.customers.form.taxIdHint") })}
+        {input("tax_id", t(`admin.customers.idNumber.${values.id_type}`), {
+          hint: t(`admin.customers.idHint.${values.id_type}`),
+        })}
         {input("phone", t("admin.customers.form.phone"), { type: "tel" })}
         {input("email", t("admin.customers.form.email"), { type: "email" })}
         {input("city", t("admin.customers.form.city"))}

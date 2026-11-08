@@ -95,7 +95,8 @@ def test_an_invoice_charges_the_invoiced_amount_of_its_receipts(organization, ac
 
     invoice = invoice_for(organization, actor, supplier, [first, second])
 
-    assert (invoice.number, invoice.status, invoice.total) == ("FF-0001", "draft", Decimal("1385.123"))
+    # A draft has a provisional reference; the FF number comes at validation (D-283).
+    assert (invoice.number, invoice.status, invoice.total) == ("BROUILLON-0001", "draft", Decimal("1385.123"))
     assert [(link.receipt, link.amount) for link in invoice.receipt_links.order_by("receipt_id")] == [
         (first, Decimal("1255.500")),
         (second, Decimal("129.623")),
@@ -219,10 +220,10 @@ def test_a_receipt_goes_on_one_invoice_only(organization, actor, supplier, recei
     with pytest.raises(ValidationError) as caught:
         invoice_for(organization, actor, supplier, [receipt])
 
-    assert caught.value.message_dict["receipts"] == ["La réception BR-0001 est déjà sur la facture FF-0001."]
+    assert caught.value.message_dict["receipts"] == ["La réception BR-0001 est déjà sur la facture BROUILLON-0001."]
     # Deleting the draft frees the receipt.
     services.delete_invoice(invoice=first, actor=actor)
-    assert invoice_for(organization, actor, supplier, [receipt]).number == "FF-0002"
+    assert invoice_for(organization, actor, supplier, [receipt]).number == "BROUILLON-0002"
     assert AuditLog.objects.filter(action="supplier_invoice.deleted").count() == 1
 
 
@@ -282,7 +283,7 @@ def test_invoices_are_numbered_per_organization(organization, actor, supplier, r
         ],
     )
 
-    assert invoice_for(other, actor, other_supplier, [other_receipt]).number == "FF-0001"
+    assert invoice_for(other, actor, other_supplier, [other_receipt]).number == "BROUILLON-0001"
 
 
 # ---- payments ----
@@ -450,7 +451,7 @@ def test_the_owner_invoices_a_receipt_pays_it_and_reads_the_balance():
     assert created.status_code == 201
     invoice = created.json()
     assert (invoice["number"], invoice["status"], invoice["total"], invoice["outstanding"]) == (
-        "FF-0001",
+        "BROUILLON-0001",
         "draft",
         "1255.500",
         "1255.500",
@@ -469,7 +470,7 @@ def test_the_owner_invoices_a_receipt_pays_it_and_reads_the_balance():
     ]
     assert (invoice["total_excl_tax"], invoice["vat_total"], invoice["fiscal_stamp"]) == ("1255.500", "0.000", "0.000")
     on_receipt = client.get(reverse("receipt-detail", args=[receipt["id"]])).json()["invoice"]
-    assert on_receipt == {"id": invoice["id"], "number": "FF-0001", "status": "draft"}
+    assert on_receipt == {"id": invoice["id"], "number": "BROUILLON-0001", "status": "draft"}
 
     posted = client.post(reverse("supplier-invoice-post", args=[invoice["id"]]))
     assert (posted.status_code, posted.json()["status"]) == (200, "posted")

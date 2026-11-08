@@ -7,6 +7,7 @@
 
 export type ListReceiptsParams = {
 differences?: boolean;
+disputed?: boolean;
 /**
  * Nombre de résultats à retourner par page.
  */

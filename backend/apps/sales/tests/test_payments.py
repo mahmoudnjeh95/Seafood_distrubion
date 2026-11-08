@@ -375,19 +375,21 @@ def test_an_issued_invoice_adds_vat_and_stamp_to_what_is_owed(organization, acto
     assert (row.invoice_number, row.due_on) == (invoice.number, invoice.due_on)
 
 
-def test_a_full_credit_note_clears_the_receivable_and_a_payment_becomes_credit(
+def test_a_full_credit_note_clears_the_receivable_and_a_payment_becomes_a_refund(
     organization, actor, customer, counter, stocked
 ):
     sale = make_sale(organization, actor, customer, counter, stocked, "5")
     invoice = issued_invoice(sale, actor)
     pay(organization, actor, customer, "100.000")
 
-    services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Retour")
+    note = services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Retour")
 
     sale.refresh_from_db()
     assert sale.amount_due == D("0.000")
+    # D-284: what was paid is not kept as credit but refunded to the customer ("À rembourser").
+    assert note.refund.amount == D("100.000")
     balance = receivables.customer_balance(organization, customer.pk)
-    assert (balance.balance, balance.credit) == (D("-100.000"), D("100.000"))
+    assert (balance.balance, balance.credit) == (D("0.000"), D("0.000"))
 
 
 def test_a_withholding_certificate_replaces_the_planned_withholding(organization, actor, customer, counter, stocked):

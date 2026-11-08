@@ -39,6 +39,10 @@ import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
 import { NumberingPage } from "./settings/NumberingPage";
+import { CustomerTypesPage } from "./settings/CustomerTypesPage";
+import { VatRatesPage } from "./settings/VatRatesPage";
+import { OpeningBalancesPage } from "./treasury/OpeningBalancesPage";
+import { RefundsPage } from "./treasury/RefundsPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { AccountsPage } from "./treasury/AccountsPage";
 import { BordereauPage } from "./treasury/BordereauPage";
@@ -64,6 +68,9 @@ import { SupplierPaymentsPage } from "./purchasing/SupplierPaymentsPage";
 import { SupplierDebtsPage } from "./purchasing/SupplierDebtsPage";
 import { SupplierSettlementsPage } from "./purchasing/SupplierSettlementsPage";
 import { PurchaseOrderDetailPage } from "./orders/PurchaseOrderDetailPage";
+import { PriceRequestDetailPage } from "./pricerequests/PriceRequestDetailPage";
+import { PriceRequestFormPage } from "./pricerequests/PriceRequestFormPage";
+import { PriceRequestsPage } from "./pricerequests/PriceRequestsPage";
 import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
@@ -275,6 +282,22 @@ function AppRoutes() {
             </OwnerOnly>
           }
         />
+        <Route
+          path="/parametres/types-clients"
+          element={
+            <OwnerOnly>
+              <CustomerTypesPage />
+            </OwnerOnly>
+          }
+        />
+        <Route
+          path="/parametres/tva"
+          element={
+            <OwnerOnly>
+              <VatRatesPage />
+            </OwnerOnly>
+          }
+        />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}
@@ -296,6 +319,8 @@ function AppRoutes() {
         <Route path="/reglements/:paymentId" element={<CustomerPaymentDetailPage />} />
         <Route path="/tresorerie/banques" element={<BanksPage />} />
         <Route path="/tresorerie/portefeuille" element={<PortfolioPage />} />
+        <Route path="/tresorerie/soldes-ouverture" element={<OpeningBalancesPage />} />
+        <Route path="/tresorerie/remboursements" element={<RefundsPage />} />
         <Route path="/tresorerie/bordereau" element={<BordereauPage />} />
         <Route path="/tresorerie/agences" element={<AccountsPage kind="bank" />} />
         <Route path="/tresorerie/caisses" element={<AccountsPage kind="cash" />} />
@@ -305,6 +330,9 @@ function AppRoutes() {
         <Route path="/tresorerie/etats/achats" element={<EtatsFacturesPage kind="purchases" />} />
         <Route path="/factures/nouvelle" element={<InvoiceBuilderPage />} />
         <Route path="/factures/:invoiceId" element={<InvoicePage />} />
+        <Route path="/achats/demandes" element={<PriceRequestsPage />} />
+        <Route path="/achats/demandes/nouvelle" element={<PriceRequestFormPage />} />
+        <Route path="/achats/demandes/:requestId" element={<PriceRequestDetailPage />} />
         <Route path="/achats/bons" element={<PurchaseOrdersPage />} />
         <Route path="/achats/bons/nouveau" element={<PurchaseOrderFormPage />} />
         <Route path="/achats/bons/:orderId" element={<PurchaseOrderDetailPage />} />

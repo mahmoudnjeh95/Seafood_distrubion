@@ -1,4 +1,5 @@
 import {
+  useListVatRates,
   archiveProduct,
   createCategory,
   createProduct,
@@ -34,6 +35,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useId, useState } from "react";
 
 import { fieldErrors } from "../lib/errors";
+import { rateAsTyped } from "../lib/lines";
 import { PriceSection } from "./PriceSection";
 import { ProductPicture } from "./ProductCard";
 import { refreshProducts } from "./shared";
@@ -82,9 +84,13 @@ function valuesOf(product: Product): FormValues {
     storage_temp_min: typed(product.storage_temp_min),
     storage_temp_max: typed(product.storage_temp_max),
     illustration: product.illustration,
-    vat_rate: typed(product.vat_rate),
+    // The rate as the API writes it ("19.00"), one of Paramètres › TVA; empty: the organization's rate.
+    vat_rate: product.vat_rate ?? "",
   };
 }
+
+// The Select needs a value for "no rate of its own": the organization's rate applies.
+const COMPANY_RATE = "company";
 
 /** Create a product (`product` absent) or change one. Owners and managers only; the server checks it too.
  * `startName` fills a new product's name, e.g. the one a driver typed at the port (D-176). */
@@ -103,6 +109,7 @@ export function ProductDialog({
   const categories = useListCategories();
   const [values, setValues] = useState<FormValues>(product ? valuesOf(product) : { ...EMPTY, name: startName ?? "" });
   const [errors, setErrors] = useState<Errors>({});
+  const vatRates = useListVatRates();
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState<string | null>(null);
@@ -205,7 +212,7 @@ export function ProductDialog({
       storage_temp_max: decimal("storage_temp_max", 1, false),
       illustration: values.illustration,
       // Empty: the organization's rate from the finance settings (D-056); 0 = exempt.
-      vat_rate: decimal("vat_rate", 2, false),
+      vat_rate: values.vat_rate === "" ? null : values.vat_rate,
     };
     // Only a new product takes a price here; later prices go through the price section.
     const salePrice = product ? "" : (decimal("sale_price", 3, true) ?? "");
@@ -322,7 +329,31 @@ export function ProductDialog({
         {!product && input("sale_price", t("admin.products.form.salePrice"), "money")}
         {input("min_stock", t("admin.products.form.minStock"), "decimal")}
         <div className="col-span-full">
-          {input("vat_rate", t("admin.products.form.vatRate"), "decimal")}
+          {/* A list of Paramètres › TVA (D-283): the active rates, and the product's own rate even if deactivated. */}
+          <Field label={t("admin.products.form.vatRate")} htmlFor={`${formId}-vat_rate`} error={errors.vat_rate}>
+            <Select
+              value={values.vat_rate === "" ? COMPANY_RATE : values.vat_rate}
+              onValueChange={(value) =>
+                setValues((current) => ({ ...current, vat_rate: value === COMPANY_RATE ? "" : value }))
+              }
+            >
+              <SelectTrigger id={`${formId}-vat_rate`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={COMPANY_RATE}>{t("admin.vatRates.company")}</SelectItem>
+                {(vatRates.data ?? [])
+                  .filter((row) => row.is_active || row.rate === product?.vat_rate)
+                  .map((row) => (
+                    <SelectItem key={row.id} value={row.rate}>
+                      {row.is_active
+                        ? `${rateAsTyped(row.rate)} %${row.label ? ` · ${row.label}` : ""}`
+                        : t("admin.vatRates.inactiveLabel", { rate: rateAsTyped(row.rate) })}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </Field>
           <p className="mt-1 text-[0.8rem] text-ink-2">{t("admin.products.form.vatRateHint")}</p>
         </div>
 

@@ -15,7 +15,7 @@ def existing_totals_are_without_vat(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("purchasing", "0021_cash_limit"),
+        ("purchasing", "0024_price_requests"),
     ]
 
     operations = [

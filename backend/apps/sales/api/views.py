@@ -1,7 +1,7 @@
 import datetime as dt
 from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import QuerySet
@@ -31,14 +31,30 @@ from apps.inventory import selectors as inventory
 from apps.partners import selectors as partners
 from apps.partnerships import selectors as partnerships
 from apps.sales import selectors, services
-from apps.sales.models import CreditNote, DeliveryStatus, Invoice, InvoiceStatus, PriceSource, Quote, Sale, SaleStatus
+from apps.sales.models import (
+    CreditNote,
+    CustomerRefund,
+    DeliveryStatus,
+    Invoice,
+    InvoiceStatus,
+    PriceSource,
+    Quote,
+    Sale,
+    SaleStatus,
+)
+from apps.treasury import selectors as treasury_selectors
 
 from .payment_serializers import CustomerWriteOffWriteSerializer
+
+if TYPE_CHECKING:
+    from apps.treasury.models import TreasuryAccount
+
 from .serializers import (
     BatchSalesSerializer,
     CreditNoteFilterSerializer,
     CreditNoteSerializer,
     CreditNoteWriteSerializer,
+    CustomerRefundSerializer,
     DeliverSerializer,
     FinanceSettingsOverviewSerializer,
     FinanceSettingsWriteSerializer,
@@ -56,12 +72,16 @@ from .serializers import (
     QuoteRefuseSerializer,
     QuoteSerializer,
     QuoteWriteSerializer,
+    RefundFilterSerializer,
+    RefundPaymentWriteSerializer,
+    SaleBillingWriteSerializer,
     SaleCancelSerializer,
     SaleConfirmSerializer,
     SaleDetailSerializer,
     SaleFilterSerializer,
     SaleSerializer,
     SaleWriteSerializer,
+    UninvoicedCountSerializer,
 )
 
 
@@ -374,6 +394,8 @@ class SaleView(OfficeView):
             "boxes": data["boxes"],
             "delivery_address": data["delivery_address"],
             "below_minimum_reason": data["below_minimum_reason"] if may_approve_below_minimum(self.membership) else "",
+            # The phone always sells to invoice (D-286): "non facturable" and "offert" are the office's choice.
+            **({} if self.is_driver or data["billing"] is None else {"billing": data["billing"]}),
         }
 
     def may_approve_credit(self, asked: bool) -> bool:
@@ -409,6 +431,8 @@ class SaleListView(SaleView, ListAPIView[Sale]):
             location_id=filters.validated_data.get("location"),
             uninvoiced=filters.validated_data["uninvoiced"],
             delivery_status=filters.validated_data.get("delivery_status"),
+            opening=filters.validated_data["opening"],
+            billing=filters.validated_data.get("billing"),
             created_by_id=self.membership.user_id if self.is_driver else None,
             load_location_id=self.driver_truck_location(),
             date_from=filters.validated_data.get("date_from"),
@@ -473,6 +497,21 @@ class SaleDetailView(SaleView):
         data = self.sale_fields(serializer.validated_data)
         services.update_sale(sale=sale, actor=self.membership.user, **data)
         return self.answer(sale.pk)
+
+
+class SaleBillingView(SaleView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(operation_id="setSaleBilling", request=SaleBillingWriteSerializer, responses=SaleDetailSerializer)
+    def post(self, request: Request, sale_id: int) -> Response:
+        """Mark a BL "facturable" or "non facturable" (owed, never invoiced), also once confirmed (D-286). Refused
+        while it is on an invoice, for an "offert" BL and for the walk-in customer. Owner or manager."""
+        serializer = SaleBillingWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_sale_billing(
+            sale=self.sale(sale_id), actor=self.membership.user, billing=serializer.validated_data["billing"]
+        )
+        return self.answer(sale_id)
 
 
 class SaleConfirmView(SaleView):
@@ -726,6 +765,16 @@ class InvoiceGiveUpGapView(InvoiceView):
         return self.answer(invoice_id)
 
 
+class InvoiceToInvoiceCountsView(OfficeView):
+    @extend_schema(operation_id="listUninvoicedCounts", responses=UninvoicedCountSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """How many BL each customer has still to invoice (validated, not cancelled, on no invoice): the count shown
+        beside the customer in "Nouvelle facture". Customers with none are left out."""
+        counts = selectors.uninvoiced_counts(self.organization)
+        rows = [{"customer": customer, "count": count} for customer, count in sorted(counts.items())]
+        return Response(UninvoicedCountSerializer(rows, many=True).data)
+
+
 class InvoiceEstimateView(OfficeView):
     @extend_schema(
         operation_id="estimateInvoice",
@@ -806,16 +855,33 @@ class InvoiceCreditNoteView(InvoiceView):
         everything left and cancels the invoice; `partial` gives back, per line, kilos (`quantity`) or an
         amount without VAT (`amount`), with the line's VAT. `stock` says what happens to the kilos given back:
         `none` (nothing moves), `restock` (back in the sale's place, on the batches they left) or `loss`
-        (back, then written off on the same lot). Errors: `lines.<index>.<field>`, `reason`, `stock`."""
+        (back, then written off on the same lot); a partial note may say it per line (`lines.<n>.stock`, D-284) and
+        a line with kilos must say it. When the invoice was paid, what it gives back beyond the debt left is a refund
+        (`refund`: `now` pays it from a caisse or bank account, `later` leaves it "À rembourser").
+        Errors: `lines.<index>.<field>`, `reason`, `stock`, `refund.<field>`."""
         invoice = self.invoice(invoice_id)
         serializer = CreditNoteWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         by_id = {line.pk: line for line in invoice.lines.all()}
         lines: list[services.CreditLineFields] = [
-            {"invoice_line": by_id.get(row["invoice_line"]), "quantity": row["quantity"], "amount": row["amount"]}
+            {
+                "invoice_line": by_id.get(row["invoice_line"]),
+                "quantity": row["quantity"],
+                "amount": row["amount"],
+                "stock": row["stock"] or "",
+            }
             for row in data["lines"]
         ]
+        refund: services.RefundFields | None = None
+        if data["refund"] is not None:
+            refund = {
+                "mode": data["refund"]["mode"],
+                "method": data["refund"]["method"],
+                "account": _refund_account(self.organization, data["refund"]["account"], "refund.account"),
+                "paid_on": data["refund"]["paid_on"],
+                "reference": data["refund"]["reference"],
+            }
         note = services.create_credit_note(
             invoice=invoice,
             actor=self.membership.user,
@@ -823,6 +889,7 @@ class InvoiceCreditNoteView(InvoiceView):
             reason=data["reason"],
             lines=lines,
             stock=data["stock"],
+            refund=refund,
         )
         detail = CreditNoteSerializer(selectors.credit_notes_of(self.organization).get(pk=note.pk)).data
         return Response(detail, status=status.HTTP_201_CREATED)
@@ -865,6 +932,20 @@ class CreditNoteDetailView(OfficeView):
         except CreditNote.DoesNotExist:
             raise Http404 from None
         return Response(CreditNoteSerializer(note).data)
+
+
+class CreditNoteRebillView(InvoiceView):
+    @extend_schema(operation_id="rebillCreditNote", request=None, responses={201: InvoiceDetailSerializer})
+    def post(self, request: Request, credit_note_id: int) -> Response:
+        """ "Refacturer" (D-287): a new draft invoice for the BLs of a fully credited invoice, with what was typed on
+        the original, pointing back to this credit note. Only for a full credit note that took no goods back, while
+        the BLs are on no live invoice. Owner or manager."""
+        try:
+            note = selectors.credit_notes_of(self.organization).get(pk=credit_note_id)
+        except CreditNote.DoesNotExist:
+            raise Http404 from None
+        invoice = services.rebill_credit_note(note=note, actor=self.membership.user)
+        return self.answer(invoice.pk, status_code=status.HTTP_201_CREATED)
 
 
 class MyDeliveriesView(APIView):
@@ -1066,3 +1147,64 @@ class InvoiceExportView(ListExport, InvoiceListView):
             sum((invoice.total_incl_tax for invoice in live), zero),
         ]
         return headers, rows, totals
+
+
+def _refund_account(organization: Organization, account_id: int | None, key: str) -> "TreasuryAccount | None":
+    if account_id is None:
+        return None
+    try:
+        return treasury_selectors.account_of(organization, account_id)
+    except ObjectDoesNotExist:
+        raise ValidationError({key: _("Compte inconnu.")}) from None
+
+
+class RefundListView(OfficeView):
+    @extend_schema(
+        operation_id="listCustomerRefunds",
+        parameters=[RefundFilterSerializer],
+        responses=CustomerRefundSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """The refunds of credit notes (D-284), newest first: planned, paid back, left and status, with their
+        payments. Filter by `status` (open, to_refund, partial, refunded), customer or `search`."""
+        filters = RefundFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        refunds = selectors.refunds_of(
+            self.organization,
+            status=filters.validated_data.get("status"),
+            customer_id=filters.validated_data.get("customer"),
+            search=filters.validated_data["search"],
+        )
+        return Response(CustomerRefundSerializer(refunds, many=True).data)
+
+
+class RefundPayView(OfficeView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(
+        operation_id="payCustomerRefund",
+        request=RefundPaymentWriteSerializer,
+        responses={201: CustomerRefundSerializer},
+    )
+    def post(self, request: Request, refund_id: int) -> Response:
+        """Pay back all or part of what is left on a refund (owner or manager), from a caisse or a bank account:
+        the money leaves that account the day given. Never beyond what is left. Errors: `amount`, `method`,
+        `account`, `paid_on`."""
+        try:
+            refund = selectors.refunds_of(self.organization).get(pk=refund_id)
+        except CustomerRefund.DoesNotExist:
+            raise Http404 from None
+        serializer = RefundPaymentWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.pay_refund(
+            refund=refund,
+            actor=self.membership.user,
+            amount=data["amount"],
+            method=data["method"],
+            account=_refund_account(self.organization, data["account"], "account"),
+            paid_on=data["paid_on"],
+            reference=data["reference"],
+        )
+        answer = selectors.refunds_of(self.organization).get(pk=refund_id)
+        return Response(CustomerRefundSerializer(answer).data, status=status.HTTP_201_CREATED)

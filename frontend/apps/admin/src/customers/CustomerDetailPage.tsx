@@ -12,7 +12,7 @@ import { CustomerBoxesCard } from "../boxes/CustomerBoxesCard";
 import { canCollect } from "../payments/shared";
 import { BalanceCard } from "./BalanceCard";
 import { CustomerDialog } from "./CustomerDialog";
-import { canEditCustomers, refreshCustomers } from "./shared";
+import { canEditCustomers, refreshCustomers, useCustomerTypes } from "./shared";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
   return (
@@ -31,6 +31,7 @@ export function CustomerDetailPage() {
   const id = Number(customerId);
   const validId = Number.isInteger(id) && id > 0;
   const customer = useGetCustomer(id, { query: { enabled: validId, retry: false } });
+  const { labelOf } = useCustomerTypes();
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -92,8 +93,9 @@ export function CustomerDetailPage() {
         <Card>
           <CardTitle>{t("admin.customers.detail.identity")}</CardTitle>
           <dl className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-6 gap-y-3">
-            <Detail label={t("admin.customers.form.kind")}>{t(`admin.customers.kinds.${data.kind}`)}</Detail>
-            <Detail label={t("admin.customers.form.taxId")} numeric>
+            <Detail label={t("admin.customers.form.kind")}>{labelOf(data.kind)}</Detail>
+            <Detail label={t("admin.customers.form.idType")}>{t(`admin.customers.idTypes.${data.id_type}`)}</Detail>
+            <Detail label={t(`admin.customers.idNumber.${data.id_type}`)} numeric>
               {data.tax_id || empty}
             </Detail>
             <Detail label={t("admin.customers.form.phone")} numeric>

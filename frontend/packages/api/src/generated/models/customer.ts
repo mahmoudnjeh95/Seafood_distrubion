@@ -5,13 +5,14 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CustomerContact } from './customerContact';
-import type { CustomerKindEnum } from './customerKindEnum';
+import type { IdTypeEnum } from './idTypeEnum';
 
 export interface Customer {
   readonly id: number;
   readonly reference: string;
   readonly name: string;
-  readonly kind: CustomerKindEnum;
+  readonly kind: string;
+  readonly id_type: IdTypeEnum;
   readonly tax_id: string;
   readonly phone: string;
   readonly email: string;

@@ -40,15 +40,21 @@ from .models import (
     GoodsReceiptRevision,
     PaymentTerms,
     PlanLineStatus,
+    PriceRequest,
+    PriceRequestLine,
+    PriceRequestStatus,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
+    ReceiptDisputeStatus,
     RejectedEffet,
     RejectedRelease,
     SupplierBalanceWriteOff,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
+    SupplierOffer,
+    SupplierOfferLine,
     SupplierPayment,
     SupplierPaymentAllocation,
     SupplierPaymentLine,
@@ -530,6 +536,101 @@ def revise_receipt(
     return receipt
 
 
+# ---- Disputes with the supplier ("bon de réception contesté", D-285) ----
+# The stock is in either way; an open dispute only keeps the receipt off supplier invoices until it is lifted.
+
+
+def _dispute_snapshot(receipt: GoodsReceipt) -> dict[str, Any]:
+    return {
+        "dispute_status": receipt.dispute_status,
+        "dispute_reason": receipt.dispute_reason,
+        "dispute_resolution": receipt.dispute_resolution,
+    }
+
+
+@transaction.atomic
+def dispute_receipt(*, receipt: GoodsReceipt, actor: User | None, reason: str) -> GoodsReceipt:
+    """Contest a goods receipt with its supplier: the reason ("motif de contestation") is required. Refused while an
+    invoice carries it (a draft is changed or deleted first; a posted one is corrected otherwise) and while a dispute
+    is already open. A receipt whose dispute was lifted may be contested again."""
+    reason = reason.strip()
+    locked = GoodsReceipt.objects.select_for_update(of=("self",)).select_related("organization").get(pk=receipt.pk)
+    link = SupplierInvoiceReceipt.objects.filter(receipt=locked).select_related("invoice").first()
+    if link is not None:
+        raise ValidationError(
+            _("La réception %(number)s est sur la facture %(invoice)s : retirez-la de la facture pour la contester.")
+            % {"number": locked.number, "invoice": link.invoice.number}
+        )
+    if locked.is_disputed:
+        raise ValidationError(_("La réception %(number)s est déjà contestée.") % {"number": locked.number})
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez le motif de la contestation.")})
+    before = _dispute_snapshot(locked)
+    locked.dispute_status = ReceiptDisputeStatus.OPEN
+    locked.dispute_reason = reason
+    locked.disputed_at = timezone.now()
+    locked.disputed_by = actor
+    locked.dispute_resolution = ""
+    locked.dispute_resolved_at = None
+    locked.dispute_resolved_by = None
+    locked.save(
+        update_fields=[
+            "dispute_status",
+            "dispute_reason",
+            "disputed_at",
+            "disputed_by",
+            "dispute_resolution",
+            "dispute_resolved_at",
+            "dispute_resolved_by",
+            "updated_at",
+        ]
+    )
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="receipt.disputed",
+        target=locked,
+        before=before,
+        after=_dispute_snapshot(locked),
+    )
+    return locked
+
+
+@transaction.atomic
+def resolve_receipt_dispute(*, receipt: GoodsReceipt, actor: User | None, resolution: str) -> GoodsReceipt:
+    """Lift an open dispute, saying how it was settled (required): the receipt may then go on a supplier invoice.
+    A weight or cost the supplier agreed to change is corrected on the receipt itself (`revise_receipt`)."""
+    resolution = resolution.strip()
+    locked = GoodsReceipt.objects.select_for_update(of=("self",)).select_related("organization").get(pk=receipt.pk)
+    if not locked.is_disputed:
+        raise ValidationError(_("La réception %(number)s n'est pas contestée.") % {"number": locked.number})
+    if not resolution:
+        raise ValidationError({"resolution": _("Indiquez comment la contestation a été réglée.")})
+    before = _dispute_snapshot(locked)
+    locked.dispute_status = ReceiptDisputeStatus.RESOLVED
+    locked.dispute_resolution = resolution
+    locked.dispute_resolved_at = timezone.now()
+    locked.dispute_resolved_by = actor
+    locked.save(
+        update_fields=[
+            "dispute_status",
+            "dispute_resolution",
+            "dispute_resolved_at",
+            "dispute_resolved_by",
+            "updated_at",
+        ]
+    )
+    audit.record(
+        organization=locked.organization,
+        actor=actor,
+        action="receipt.dispute_resolved",
+        target=locked,
+        before=before,
+        after=_dispute_snapshot(locked),
+    )
+    return locked
+
+
 # ---- Purchase orders, the "commande d'achat" (D-076) ----
 # An order moves no stock and owes nothing; its receipts do. Its status follows them.
 
@@ -793,6 +894,11 @@ def _locked_receipts(
                     _("La réception %(number)s est déjà sur la facture %(invoice)s.")
                     % {"number": receipt.number, "invoice": link.invoice.number}
                 )
+            elif receipt.is_disputed:
+                problems.append(
+                    _("La réception %(number)s est contestée : levez la contestation avant de la facturer.")
+                    % {"number": receipt.number}
+                )
     if len(locked) != len(ids):
         problems.append(_("Réception inconnue."))
     if problems:
@@ -874,7 +980,10 @@ def _post(invoice: SupplierInvoice, actor: User | None) -> None:
     invoice.status = SupplierInvoiceStatus.POSTED
     invoice.posted_at = timezone.now()
     invoice.posted_by = actor
-    invoice.save(update_fields=["status", "posted_at", "posted_by", "updated_at"])
+    # The definitive number only now, once validated (D-283): a draft never uses one.
+    invoice.draft_number = invoice.number
+    invoice.number = numbering.next_number(invoice.organization, "supplier_invoice")
+    invoice.save(update_fields=["status", "posted_at", "posted_by", "number", "draft_number", "updated_at"])
     # An invoice for the receipt of one port purchase is that purchase's invoice (its page links it, D-200).
     purchases = FieldPurchase.objects.filter(receipt__invoice_link__invoice=invoice, invoice__isnull=True)
     if len(purchases) == 1:
@@ -927,7 +1036,7 @@ def create_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "supplier_invoice"),
+        number=numbering.next_draft_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -1000,7 +1109,7 @@ def create_opening_invoice(
         raise ValidationError(errors)
     invoice = SupplierInvoice.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "supplier_invoice"),
+        number=numbering.next_draft_number(organization, "supplier_invoice"),
         supplier=supplier,
         supplier_reference=supplier_reference.strip(),
         invoice_date=invoice_date,
@@ -2651,3 +2760,285 @@ def reject_issued_effet(
         },
     )
     return rejected
+
+
+# ---- Price requests to several suppliers, their offers, and the purchase orders made from the chosen ones (D-289) ----
+
+
+class PriceRequestLineFields(TypedDict, total=False):
+    product: "Product"
+    quantity: Number
+
+
+def _price_request_snapshot(request: PriceRequest) -> dict[str, Any]:
+    return {
+        "number": request.number,
+        "status": request.status,
+        "requested_on": request.requested_on.isoformat(),
+        "lines": [
+            {"product": line.product.reference, "quantity": str(line.quantity)}
+            for line in request.lines.select_related("product").order_by("id")
+        ],
+        "suppliers": [offer.supplier.reference for offer in request.offers.select_related("supplier").order_by("id")],
+    }
+
+
+def _checked_supplier(organization: Organization, supplier: "Supplier | None") -> str | None:
+    if supplier is None or supplier.organization_id != organization.pk:
+        return _("Fournisseur inconnu.")
+    if not supplier.is_active:
+        return _("Ce fournisseur est archivé.")
+    return None
+
+
+@transaction.atomic
+def create_price_request(
+    *,
+    organization: Organization,
+    actor: User | None,
+    requested_on: dt.date,
+    lines: Sequence[PriceRequestLineFields],
+    suppliers: Sequence["Supplier"],
+    notes: str = "",
+) -> PriceRequest:
+    """Ask several suppliers for their prices on some products and kilos (a "demande de prix", DD-2026-0001).
+
+    Each supplier gets an offer still to fill in. Every problem comes back at once: `requested_on`, `suppliers`,
+    `lines` and `lines.<index>.<field>`."""
+    errors: dict[str, str] = {}
+    if requested_on > timezone.localdate():
+        errors["requested_on"] = _("La date de la demande ne peut pas être dans le futur.")
+    if not suppliers:
+        errors["suppliers"] = _("Choisissez au moins un fournisseur.")
+    for supplier in suppliers:
+        problem = _checked_supplier(organization, supplier)
+        if problem:
+            errors["suppliers"] = problem
+    if len({supplier.pk for supplier in suppliers}) != len(suppliers):
+        errors["suppliers"] = _("Un fournisseur est choisi deux fois.")
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un produit.")
+    checked: list[tuple[Product, Decimal]] = []
+    seen: set[int] = set()
+    for index, line in enumerate(lines):
+        product = line.get("product")
+        if product is None or product.organization_id != organization.pk:
+            errors[line_error_key(index, "product")] = _("Produit inconnu.")
+        elif not product.is_active:
+            errors[line_error_key(index, "product")] = _("Ce produit est archivé.")
+        elif product.pk in seen:
+            errors[line_error_key(index, "product")] = _("Ce produit est déjà sur la demande.")
+        else:
+            seen.add(product.pk)
+        try:
+            quantity = checked_quantity(line.get("quantity", ""))
+        except (ValueError, TypeError):
+            errors[line_error_key(index, "quantity")] = _("Indiquez un poids net en kg, supérieur à zéro.")
+            continue
+        if product is not None:
+            checked.append((product, quantity))
+    if errors:
+        raise ValidationError(errors)
+    request = PriceRequest.objects.create(
+        organization=organization,
+        number=numbering.next_number(organization, "price_request"),
+        requested_on=requested_on,
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    PriceRequestLine.objects.bulk_create(
+        [
+            PriceRequestLine(organization=organization, request=request, product=product, quantity=quantity)
+            for product, quantity in checked
+        ]
+    )
+    SupplierOffer.objects.bulk_create(
+        [SupplierOffer(organization=organization, request=request, supplier=supplier) for supplier in suppliers]
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="price_request.created",
+        target=request,
+        after=_price_request_snapshot(request),
+    )
+    return request
+
+
+def _locked_open_request(request: PriceRequest) -> PriceRequest:
+    locked = PriceRequest.objects.select_for_update().select_related("organization").get(pk=request.pk)
+    if locked.status != PriceRequestStatus.OPEN:
+        raise ValidationError(
+            _("La demande %(number)s est %(status)s : elle ne change plus.")
+            % {"number": locked.number, "status": locked.get_status_display().lower()}
+        )
+    return locked
+
+
+@transaction.atomic
+def record_offer(
+    *,
+    request: PriceRequest,
+    actor: User | None,
+    supplier: "Supplier",
+    prices: Mapping[int, Number | None],
+    reference: str = "",
+    received_on: dt.date | None = None,
+    valid_until: dt.date | None = None,
+    notes: str = "",
+) -> SupplierOffer:
+    """Type what a supplier answered: a price per kg (without VAT) per request line, by line id; a line left empty is
+    not offered. A supplier not asked yet is added to the request. Replaces their earlier answer. Only while open.
+    Problems come back on `prices.<line id>`, `supplier`, `received_on`, `valid_until`."""
+    locked = _locked_open_request(request)
+    organization = locked.organization
+    errors: dict[str, str] = {}
+    problem = _checked_supplier(organization, supplier)
+    if problem and not SupplierOffer.objects.filter(request=locked, supplier=supplier).exists():
+        errors["supplier"] = problem
+    if received_on is not None and received_on > timezone.localdate():
+        errors["received_on"] = _("La date de réception ne peut pas être dans le futur.")
+    if valid_until is not None and valid_until < (received_on or locked.requested_on):
+        errors["valid_until"] = _("La validité ne peut pas précéder la réception de l'offre.")
+    lines = {line.pk: line for line in locked.lines.all()}
+    costs: dict[int, Decimal] = {}
+    for line_id, value in prices.items():
+        key = f"prices.{line_id}"
+        if line_id not in lines:
+            errors[key] = _("Ligne inconnue sur cette demande.")
+            continue
+        if value in (None, ""):
+            continue
+        try:
+            cost = checked_amount(value)
+        except (ValueError, TypeError):
+            errors[key] = _("Indiquez un prix en DT par kg, au millime près.")
+            continue
+        if cost <= 0:
+            errors[key] = _("Le prix doit être supérieur à 0.")
+            continue
+        costs[line_id] = cost
+    if errors:
+        raise ValidationError(errors)
+    offer, _created = SupplierOffer.objects.get_or_create(
+        request=locked, supplier=supplier, defaults={"organization": organization}
+    )
+    offer.reference = reference.strip()[:50]
+    offer.received_on = received_on
+    offer.valid_until = valid_until
+    offer.notes = notes.strip()
+    offer.save()
+    offer.lines.all().delete()
+    SupplierOfferLine.objects.bulk_create(
+        [
+            SupplierOfferLine(organization=organization, offer=offer, request_line=lines[line_id], unit_cost=cost)
+            for line_id, cost in sorted(costs.items())
+        ]
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="price_request.offer_recorded",
+        target=locked,
+        after={
+            "supplier": supplier.reference,
+            "reference": offer.reference,
+            "valid_until": valid_until.isoformat() if valid_until else None,
+            "prices": {lines[line_id].product.reference: str(cost) for line_id, cost in costs.items()},
+        },
+    )
+    return offer
+
+
+@transaction.atomic
+def order_from_offers(
+    *,
+    request: PriceRequest,
+    actor: User | None,
+    choices: Mapping[int, "Supplier"],
+    ordered_on: dt.date,
+    expected_on: dt.date | None = None,
+) -> list[PurchaseOrder]:
+    """Turn the chosen offers into purchase orders: `choices` gives, per request line id, the supplier retained.
+    One order per supplier with their lines at the request's kilos and their price. A line left out is not
+    ordered. Refused for a supplier who gave no price on the line, or whose offer is no longer valid. The request
+    is then "commandée" and no longer changes."""
+    locked = _locked_open_request(request)
+    organization = locked.organization
+    lines = {line.pk: line for line in locked.lines.select_related("product")}
+    offers = {
+        offer.supplier_id: offer
+        for offer in locked.offers.select_related("supplier").prefetch_related("lines").order_by("id")
+    }
+    errors: dict[str, str] = {}
+    if not choices:
+        errors["choices"] = _("Choisissez au moins un fournisseur pour un produit.")
+    today = timezone.localdate()
+    by_supplier: dict[int, list[tuple[PriceRequestLine, SupplierOfferLine]]] = {}
+    for line_id, supplier in choices.items():
+        key = f"choices.{line_id}"
+        line = lines.get(line_id)
+        offer = offers.get(supplier.pk)
+        if line is None:
+            errors[key] = _("Ligne inconnue sur cette demande.")
+            continue
+        price = next((row for row in offer.lines.all() if row.request_line_id == line_id), None) if offer else None
+        if offer is None or price is None:
+            errors[key] = _("%(supplier)s n'a pas donné de prix pour %(product)s.") % {
+                "supplier": supplier.name,
+                "product": line.product.name,
+            }
+            continue
+        if offer.valid_until is not None and offer.valid_until < today:
+            errors[key] = _("L'offre de %(supplier)s n'est plus valable (jusqu'au %(day)s).") % {
+                "supplier": supplier.name,
+                "day": offer.valid_until.strftime("%d/%m/%Y"),
+            }
+            continue
+        by_supplier.setdefault(supplier.pk, []).append((line, price))
+    if errors:
+        raise ValidationError(errors)
+    orders: list[PurchaseOrder] = []
+    for supplier_id, chosen in by_supplier.items():
+        offer = offers[supplier_id]
+        notes = _("Demande de prix %(number)s") % {"number": locked.number}
+        if offer.reference:
+            notes += " · " + _("offre %(reference)s") % {"reference": offer.reference}
+        order = create_order(
+            organization=organization,
+            actor=actor,
+            supplier=offer.supplier,
+            ordered_on=ordered_on,
+            expected_on=expected_on,
+            notes=notes,
+            lines=[
+                {"product": line.product, "ordered_quantity": line.quantity, "unit_cost": price.unit_cost}
+                for line, price in sorted(chosen, key=lambda pair: pair[0].pk)
+            ],
+        )
+        offer.order = order
+        offer.save(update_fields=["order", "updated_at"])
+        SupplierOfferLine.objects.filter(pk__in=[price.pk for _line, price in chosen]).update(retained=True)
+        orders.append(order)
+    locked.status = PriceRequestStatus.ORDERED
+    locked.closed_at = timezone.now()
+    locked.save(update_fields=["status", "closed_at", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="price_request.ordered",
+        target=locked,
+        after={"orders": [order.number for order in orders]},
+    )
+    return orders
+
+
+@transaction.atomic
+def cancel_price_request(*, request: PriceRequest, actor: User | None) -> PriceRequest:
+    """Give up a price request still open: nothing is ordered."""
+    locked = _locked_open_request(request)
+    locked.status = PriceRequestStatus.CANCELLED
+    locked.closed_at = timezone.now()
+    locked.save(update_fields=["status", "closed_at", "updated_at"])
+    audit.record(organization=locked.organization, actor=actor, action="price_request.cancelled", target=locked)
+    return locked

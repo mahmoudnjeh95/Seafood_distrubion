@@ -145,12 +145,18 @@ class NumberLineSerializer(serializers.Serializer[Any]):
     yearly = serializers.BooleanField()
     # The number the next record of this kind will get, e.g. "FA-2026-0008".
     next_number = serializers.CharField()
+    # D-283: the documents with a draft step have a draft prefix (empty: none) and a next provisional reference.
+    has_draft = serializers.BooleanField()
+    draft_prefix = serializers.CharField(allow_blank=True)
+    next_draft_number = serializers.CharField(allow_blank=True)
 
 
 class NumberPrefixRowSerializer(serializers.Serializer[Any]):
     kind = serializers.CharField(max_length=30)
     # Checked by the service (1 to 6 capitals or digits, unique), so the errors name the row.
     prefix = serializers.CharField(max_length=6, allow_blank=True)
+    # Only for the kinds with a draft step (D-283); empty: drafts read "BROUILLON-…". Absent: unchanged.
+    draft_prefix = serializers.CharField(max_length=6, allow_blank=True, required=False)
 
 
 class NumberingWriteSerializer(serializers.Serializer[Any]):

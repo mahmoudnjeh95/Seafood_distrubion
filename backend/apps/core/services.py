@@ -1,6 +1,6 @@
 """Every write on core models goes through these functions (ARCHITECTURE §3)."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
@@ -374,40 +374,74 @@ def record_job_run(*, job: Job, ok: bool, problems: int = 0) -> JobRun:
 
 @transaction.atomic
 def set_number_prefixes(
-    *, organization: Organization, actor: User | None, prefixes: Sequence[tuple[str, str]]
+    *,
+    organization: Organization,
+    actor: User | None,
+    prefixes: Sequence[tuple[str, str]],
+    draft_prefixes: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Change the prefixes printed before the numbers (Paramètres, D-223). Every kind is sent, in the order of
     `numbering.NUMBER_KINDS`. A prefix is 1 to 6 capitals or digits, and no two kinds share one in the organization.
-    Numbers already given keep their prefix; the counters go on."""
+    Numbers already given keep their prefix; the counters go on.
+
+    `draft_prefixes` (D-283): the prefix of the provisional reference of the drafts, for the kinds with a draft
+    step only; empty means none. A draft prefix shares no value with any other prefix, definitive or draft."""
     # One change at a time in an organization, so two owners cannot both take the same prefix.
     Organization.objects.select_for_update().filter(pk=organization.pk).first()
     before = numbering.prefixes_of(organization)
+    before_drafts = numbering.draft_prefixes_of(organization)
+    draft_prefixes = draft_prefixes or {}
     errors: dict[str, str] = {}
     chosen: dict[str, str] = {}
+    chosen_drafts: dict[str, str] = {}
     for index, (key, prefix) in enumerate(prefixes):
         value = prefix.strip().upper()
         if key not in numbering.KIND_BY_KEY:
             errors[f"prefixes.{index}.kind"] = _("Type de numéro inconnu.")
-        elif not numbering.PREFIX_PATTERN.match(value):
+            continue
+        if not numbering.PREFIX_PATTERN.match(value):
             errors[f"prefixes.{index}.prefix"] = _("1 à 6 lettres majuscules ou chiffres, sans espace.")
         else:
             chosen[key] = value
+        if key in draft_prefixes:
+            draft = draft_prefixes[key].strip().upper()
+            if key not in before_drafts:
+                errors[f"prefixes.{index}.draft_prefix"] = _("Ce type de numéro n'a pas de brouillon.")
+            elif draft and not numbering.PREFIX_PATTERN.match(draft):
+                errors[f"prefixes.{index}.draft_prefix"] = _("1 à 6 lettres majuscules ou chiffres, sans espace.")
+            else:
+                chosen_drafts[key] = draft
     if not errors:
         effective = {**before, **chosen}
+        effective_drafts = {key: value for key, value in {**before_drafts, **chosen_drafts}.items() if value}
+        everything = [*effective.values(), *effective_drafts.values()]
         for index, (key, _prefix) in enumerate(prefixes):
-            if list(effective.values()).count(effective[key]) > 1:
+            if everything.count(effective[key]) > 1:
                 errors[f"prefixes.{index}.prefix"] = _("Ce préfixe sert déjà à un autre type de numéro.")
+            if key in effective_drafts and everything.count(effective_drafts[key]) > 1:
+                errors[f"prefixes.{index}.draft_prefix"] = _("Ce préfixe sert déjà à un autre type de numéro.")
     if errors:
         raise ValidationError(errors)
     changed = {key: value for key, value in chosen.items() if value != before[key]}
+    changed_drafts = {key: value for key, value in chosen_drafts.items() if value != before_drafts[key]}
     for key, value in changed.items():
         NumberPrefix.objects.update_or_create(organization=organization, kind=key, defaults={"prefix": value})
-    if changed:
+    for key, value in changed_drafts.items():
+        NumberPrefix.objects.update_or_create(
+            organization=organization,
+            kind=key,
+            defaults={"draft_prefix": value, "draft_prefix_set": True},
+            create_defaults={"prefix": chosen.get(key, before[key]), "draft_prefix": value, "draft_prefix_set": True},
+        )
+    if changed or changed_drafts:
         audit.record(
             organization=organization,
             actor=actor,
             action="numbering.prefixes_changed",
-            before={key: before[key] for key in changed},
-            after=changed,
+            before={
+                **{key: before[key] for key in changed},
+                **{f"{key}.draft": before_drafts[key] for key in changed_drafts},
+            },
+            after={**changed, **{f"{key}.draft": value for key, value in changed_drafts.items()}},
         )
     return numbering.prefixes_of(organization)

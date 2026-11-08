@@ -9,6 +9,7 @@
  * * `none` - Aucun mouvement de stock
  * * `restock` - Remis en stock
  * * `loss` - Mis en perte
+ * * `mixed` - Selon la ligne
  */
 export type CreditNoteStockEnum = typeof CreditNoteStockEnum[keyof typeof CreditNoteStockEnum];
 
@@ -17,4 +18,5 @@ export const CreditNoteStockEnum = {
   none: 'none',
   restock: 'restock',
   loss: 'loss',
+  mixed: 'mixed',
 } as const;

@@ -151,11 +151,67 @@ _(owner's workflow of 2026-10-17, all twelve points agreed)_
 - [x] Notifications: delivered, delivered in part, not delivered (office); BL changed or cancelled (driver).
 - [ ] Owner check on staging: a load for two clients, one delivered in part from the phone, one not delivered; reprint.
 
+### P2-T16 · Client bug list of 2026-11-06 ("13 bugs avec captures", D-283) · L
+_(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots before/after in the PR)_
+- [x] 01 Quote and BL grid: "Prix net (DT/kg)" column after the discount (25,000 at 8 % → 23,000; 20 kg → 460,000).
+- [x] 02 Menu, titles, buttons and messages say "Bon(s) de livraison", "Nouveau bon de livraison", "Bon de livraison
+      comptoir", "Tous les bons de livraison".
+- [x] 03 "Nouvelle facture": each client with BL to invoice reads "Nom — 3 BL" (`GET /invoices/to-invoice-counts`).
+- [~] 04 Paramètres › TVA (create, deactivate, delete if never used) and the product's VAT as a list of active rates.
+      **Not done:** the column order Poids / Prix U HT / TVA / Prix U TTC / Remise / Prix net / Montant TTC on every
+      document, PDF and print, and the TTC-based line amount (it changes how prices are typed: owner decision).
+- [x] 05 Credit notes (D-284, owner answers 2026-11-07): each line with kilos must say restock, loss (written off on
+      its lot) or not taken back; the debt left is cancelled first, the rest is a `CustomerRefund` paid now (caisse or
+      bank account, treasury movement) or "À rembourser", in one or several payments, never twice. A BL invoiced again
+      after a refunded total credit note owes its amount again.
+- [~] 06 Trésorerie › Remboursements clients: refunds with planned / refunded / left, status filter, search, "Rembourser".
+      **Not done:** a credit note detail page with its PDF from that list, and period/type filters.
+- [x] 07 Clients and suppliers open sorted by reference ascending (C-001, C-002…); a header click still changes it.
+- [x] 08 Paramètres › Types de clients: add, rename, deactivate (kept on its clients, no longer offered), delete
+      only when unused; the client form and the clients filter read the list.
+- [x] 09 Client identification type (MF, CIN, passeport, carte de séjour) and number (text, leading zeros kept);
+      existing numbers are MF; the documents print the matching label.
+- [x] 10 A generated client invoice opens at once with its reference and a success message; on failure the page
+      and the ticked BL stay.
+- [ ] 11 One delivery cycle for every BL (À livrer, Partiellement livré, Livré, Annulé; stock out at the delivery):
+      not done (changes when a direct BL takes the stock out: owner decision).
+- [x] 12 Opening balances (OUV) out of the BL list, their own page Trésorerie › Soldes d'ouverture and their own
+      detail page (no delivery, no invoice, no margin). Still stored as `Sale(is_opening=True)`: no data moved.
+- [x] 13 Optional draft prefix per document with a draft step (quote, BL, invoice, supplier invoice) with its own
+      counter; the definitive number only at validation; the draft reference kept (`draft_number`).
+
 **Phase acceptance test:** quote 5 kg Crevette Royale at 42.000 → accept → sale from cold room → invoice
 210.000 with VAT 19 % (on top or included, per the company setting) + fiscal stamp 1.000 → customer pays
 100.000 → balance shows the rest; stock and batch updated; PDF correct.
 
-### P2-T16 · Accounting review fixes: invoice VAT per line, withholding threshold (D-291) · S
+### P2-T17 · A BL "non facturable" or "offert" (D-286, Perfaxis gap) · M
+- [x] `Sale.billing`: facturable (default), non facturable (owed and paid like any BL, never invoiced), offert (every
+      line at 100 % discount: nothing owed, never invoiced, the lot keeps the cost). Chosen on the office's BL form
+      ("Facturation", not for the walk-in customer); the driver's phone always sells "facturable".
+- [x] Neither kind is offered by Nouvelle facture, "À facturer", the BL counts nor the TTC estimate (D-256); invoicing one
+      is refused by the server. A gift needs no below-minimum reason.
+- [x] "Rendre non facturable" / "Rendre facturable" on the BL page, also once confirmed, while on no invoice
+      (`POST /sales/{id}/billing`, owner and manager, audited); "offert" stays offert. Pill on the page and in the list.
+- [ ] Check on staging: an "Offert" BL of 5 kg owes 0 and its lot result shows the cost with no revenue; a "Non
+      facturable" BL is paid in Nouveau règlement and never shows in Nouvelle facture.
+
+### P2-T18 · "Refacturer" a fully credited invoice (D-287, Perfaxis gap) · S
+- [x] "Refacturer" on the invoice page's credit note, for a full credit note that took no goods back, while its BLs are
+      on no live invoice: a new draft for the same BLs with the original's choices (VAT or not, rates, VAT amounts,
+      stamp, fees, withholding rate, notes) (`services.rebill_credit_note`, `POST /credit-notes/{id}/rebill`, audited).
+- [x] The new invoice shows "Refacturation de FA-… · avoir AV-…" (`Invoice.rebilled_from`); the credit note links it.
+- [ ] Check on staging: issue an invoice, full credit note "aucun mouvement de stock", Refacturer, correct, issue.
+
+### P2-T19 · Files attached to documents (D-288, Perfaxis gap, no Bureau d'ordre) · M
+- [x] `documents.Attachment`: a PDF (8 MB at most) kept as is, or a photo turned upright, shrunk to 2400 px, stored as
+      WebP; a note, who and when. Removing hides it and keeps the file (`services.add_attachment`, `remove_attachment`).
+- [x] Apps register what can carry files (`register_attachable`): quote, BL, invoice, credit note, purchase order, goods
+      receipt, supplier invoice. API `GET/POST /attachments`, `DELETE /attachments/{id}`, `/attachments/{id}/file`;
+      office reads, owner and manager add and remove; audited.
+- [x] "Documents associés" card on the quote, BL, invoice, purchase order, goods receipt and supplier invoice pages.
+- [ ] Check on staging: join a phone photo and a PDF to a goods receipt, open both, remove one.
+
+### P2-T20 · Accounting review fixes: invoice VAT per line, withholding threshold (D-291) · S
 - [x] An invoice's lines propose the VAT rate their BL showed; lines the BL showed without VAT are exempt (B2).
 - [x] The withholding threshold of 1 000 DT is on the total without VAT + VAT, stamp and fees left out (B3).
 - [x] Per-customer "soumis à retenue à la source" flag (B4, D-292): only the customers who withhold get it.

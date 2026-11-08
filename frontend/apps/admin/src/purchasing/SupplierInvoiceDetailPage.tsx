@@ -25,6 +25,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { canRecordReceipts } from "../receipts/shared";
 import { refreshPurchasing, STATUS_TONE } from "./shared";
 
@@ -286,6 +287,7 @@ export function SupplierInvoiceDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AttachmentsCard kind="supplier_invoice" objectId={data.id} canWrite={canRecord} />
     </>
   );
 }

@@ -109,7 +109,8 @@ def _is_driver_area(path: str, method: str) -> bool:
     if path.startswith(("/api/v1/trucks", "/api/v1/truck-assignments")):
         return reading or path.startswith("/api/v1/truck-assignments")
     if path.startswith("/api/v1/sales"):
-        return reading or not path.endswith("/cancel")
+        # Cancelling a sale and choosing whether a BL is invoiced (D-286) are the office's.
+        return reading or not path.endswith(("/cancel", "/billing"))
     return False
 
 
@@ -338,6 +339,9 @@ OWN_DEFAULTS = {
     "/api/v1/months",
     "/api/v1/numbering",
     "/api/v1/notifications/recipients",
+    # The customer types and VAT rates every company starts with (D-283).
+    "/api/v1/customer-types",
+    "/api/v1/vat-rates",
 }
 
 

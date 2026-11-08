@@ -199,6 +199,8 @@ SPECTACULAR_SETTINGS = {
     # Choice sets get stable names after their model, not their field: several models have a `kind`,
     # and "status" and "method" will exist on sales documents too.
     "ENUM_NAME_OVERRIDES": {
+        # D-288 · files attached to a document
+        "AttachmentKindEnum": "apps.documents.models.AttachmentKind",
         # D-186 · public site
         "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
@@ -239,6 +241,11 @@ SPECTACULAR_SETTINGS = {
         "InvoiceStatusEnum": "apps.sales.models.InvoiceStatus",
         "EInvoiceStatusEnum": "apps.sales.models.EInvoiceStatus",
         "CreditNoteKindEnum": "apps.sales.models.CreditNoteKind",
+        # D-284 · credit note refunds and per-line stock
+        "RefundMethodEnum": "apps.sales.models.RefundMethod",
+        "RefundStatusEnum": "apps.sales.api.serializers.REFUND_STATUSES",
+        "RefundFilterStatusEnum": "apps.sales.api.serializers.REFUND_FILTER_STATUSES",
+        "CreditLineStockEnum": "apps.sales.api.serializers.LINE_STOCKS",
         # P2-T07 · customer returns
         "CreditNoteStockEnum": "apps.sales.models.CreditNoteStock",
         # P2-T06 · customer credit

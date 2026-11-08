@@ -12,6 +12,7 @@ import type { SupplierInvoiceStatusEnum } from './supplierInvoiceStatusEnum';
 export interface SupplierInvoice {
   readonly id: number;
   readonly number: string;
+  readonly draft_number: string;
   readonly supplier: Ref;
   readonly supplier_reference: string;
   readonly invoice_date: string;

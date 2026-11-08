@@ -14,6 +14,8 @@ from apps.sales.models import (
     CreditNoteStock,
     CreditPolicy,
     CreditStatus,
+    CustomerRefund,
+    CustomerRefundPayment,
     DeliveryStatus,
     EInvoiceStatus,
     FinanceSettings,
@@ -25,7 +27,9 @@ from apps.sales.models import (
     Quote,
     QuoteLine,
     QuoteStatus,
+    RefundMethod,
     Sale,
+    SaleBilling,
     SaleLine,
     SaleLineBatch,
     SalePaymentMethod,
@@ -59,6 +63,8 @@ class QuoteCustomerSerializer(serializers.Serializer[Any]):
     address = serializers.CharField(read_only=True)
     city = serializers.CharField(read_only=True)
     tax_id = serializers.CharField(read_only=True)
+    # What `tax_id` is: tax_id, cin, passport or residence_card (D-283).
+    id_type = serializers.CharField(read_only=True)
     # Printed in the client block of every document's header (D-131).
     phone = serializers.CharField(read_only=True)
     # The "Client de passage": pays every sale on the spot (D-047).
@@ -135,6 +141,7 @@ class QuoteSerializer(serializers.ModelSerializer[Quote]):
         fields: tuple[str, ...] = (
             "id",
             "number",
+            "draft_number",
             "status",
             "customer",
             "location",
@@ -363,6 +370,8 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     # The BL of a truck load (D-178): to deliver, delivered, delivered in part, or not delivered. Empty otherwise.
     delivery_status = serializers.ChoiceField(choices=DeliveryStatus.choices, read_only=True, allow_blank=True)
     delivered_by = serializers.SerializerMethodField()
+    # Invoiced, "non facturable" (owed, never invoiced) or "offert" (given away, nothing owed) (D-286).
+    billing = serializers.ChoiceField(choices=SaleBilling.choices, read_only=True)
 
     class Meta:
         model = Sale
@@ -370,6 +379,7 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "id",
             "number",
             "status",
+            "billing",
             "customer",
             "location",
             "sold_at",
@@ -411,6 +421,10 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
             "delivered_at",
             "delivered_by",
             "delivery_note",
+            # A customer's opening balance (OUV, D-283): not a BL, no goods, no margin, never delivered nor invoiced.
+            "is_opening",
+            # The provisional reference it had as a draft, kept once validated (D-283).
+            "draft_number",
         )
         read_only_fields: tuple[str, ...] = fields
 
@@ -428,7 +442,7 @@ class SaleSerializer(serializers.ModelSerializer[Sale]):
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True))
     def get_margin(self, sale: Sale) -> str | None:
         # A string like every amount of the API ("110.000"), never a JSON number.
-        if sale.cost_total is None:
+        if sale.cost_total is None or sale.is_opening:
             return None
         return str(sale.total_excl_tax - sale.cost_total)
 
@@ -535,6 +549,14 @@ class SaleWriteSerializer(SalePaymentWriteSerializer):
     delivery_address = serializers.CharField(
         required=False, allow_blank=True, allow_null=True, default=None, max_length=255
     )
+    # Invoiced (default), "non facturable" or "offert" (every line at 100 % discount) (D-286). Left out: "invoice" on a
+    # new sale, unchanged on a draft. Ignored from a driver's phone.
+    billing = serializers.ChoiceField(choices=SaleBilling.choices, required=False, allow_null=True, default=None)
+
+
+class SaleBillingWriteSerializer(serializers.Serializer[Any]):
+    # Only "invoice" or "no_invoice": "offert" changes what is owed and is chosen on the draft.
+    billing = serializers.ChoiceField(choices=SaleBilling.choices)
 
 
 class QuoteDeliveryLineSerializer(serializers.Serializer[Any]):
@@ -595,9 +617,16 @@ class SaleFilterSerializer(serializers.Serializer[Any]):
     location = serializers.IntegerField(required=False, min_value=1)
     # True: only the BL still to invoice (confirmed, named customer, on no live invoice).
     uninvoiced = serializers.BooleanField(required=False, default=False)
+    # The customers' opening balances (OUV) are not BL (D-283): left out of the BL list unless asked; "only" is
+    # the list of Trésorerie › Soldes d'ouverture.
+    opening = serializers.ChoiceField(
+        choices=[("exclude", "exclude"), ("only", "only"), ("all", "all")], required=False, default="exclude"
+    )
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+    # Only one kind of BL: invoiced, "non facturable" or "offert" (D-286).
+    billing = serializers.ChoiceField(choices=SaleBilling.choices, required=False)
 
 
 class BatchSaleRowSerializer(serializers.Serializer[Any]):
@@ -708,6 +737,8 @@ class PartySerializer(serializers.Serializer[Any]):
     phone = serializers.CharField(read_only=True)
     tax_id = serializers.CharField(read_only=True)
     trade_register = serializers.CharField(read_only=True)
+    # The customer's identification type (D-283); absent for the seller.
+    id_type = serializers.CharField(read_only=True, required=False)
 
 
 class InvoiceLineSerializer(serializers.ModelSerializer[InvoiceLine]):
@@ -793,12 +824,77 @@ class CreditNoteLineSerializer(serializers.ModelSerializer[CreditNoteLine]):
             "product_reference",
             "product_name",
             "quantity",
+            # What became of these kilos (D-284): restock, loss or none.
+            "stock",
             "vat_rate",
             "amount_excl_tax",
             "vat_amount",
             "amount_incl_tax",
         )
         read_only_fields: tuple[str, ...] = fields
+
+
+class RefundPaymentSerializer(serializers.ModelSerializer[CustomerRefundPayment]):
+    method = serializers.ChoiceField(choices=RefundMethod.choices, read_only=True)
+    account_name = serializers.CharField(source="account.name", read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerRefundPayment
+        fields: tuple[str, ...] = (
+            "id",
+            "paid_on",
+            "method",
+            "amount",
+            "account",
+            "account_name",
+            "reference",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    def get_created_by(self, payment: CustomerRefundPayment) -> str:
+        return person_name(payment.created_by)
+
+
+REFUND_STATUSES = [("to_refund", "to_refund"), ("partial", "partial"), ("refunded", "refunded")]
+# The list filter adds "open": something left to pay back.
+REFUND_FILTER_STATUSES = [("open", "open"), *REFUND_STATUSES]
+
+
+def refund_status(amount: Decimal, refunded: Decimal) -> str:
+    """to_refund while nothing was paid back, partial while some is left, refunded once all is paid (D-284)."""
+    if refunded <= 0:
+        return "to_refund"
+    return "refunded" if refunded >= amount else "partial"
+
+
+def refunded_of(refund: CustomerRefund) -> Decimal:
+    return sum((payment.amount for payment in refund.payments.all()), Decimal("0.000"))
+
+
+class RefundSummarySerializer(serializers.Serializer[Any]):
+    """A credit note's refund in short (D-284): planned, paid back, left and where it stands."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    refunded = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    left = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    status = serializers.ChoiceField(choices=REFUND_STATUSES, read_only=True)
+
+
+def refund_summary(refund: CustomerRefund) -> dict[str, Any]:
+    refunded = refunded_of(refund)
+    return {
+        "id": refund.pk,
+        "number": refund.number,
+        "amount": refund.amount,
+        "refunded": refunded,
+        "left": refund.amount - refunded,
+        "status": refund_status(refund.amount, refunded),
+    }
 
 
 class CreditNoteInvoiceSerializer(serializers.Serializer[Any]):
@@ -808,6 +904,24 @@ class CreditNoteInvoiceSerializer(serializers.Serializer[Any]):
     issued_on = serializers.DateField(read_only=True)
 
 
+class RebillRefSerializer(serializers.Serializer[Any]):
+    """An invoice made again with "Refacturer" (D-287): draft or issued, with its reference."""
+
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    draft_number = serializers.CharField(read_only=True)
+    status = serializers.ChoiceField(choices=InvoiceStatus.choices, read_only=True)
+
+
+class RebilledFromSerializer(serializers.Serializer[Any]):
+    """The credit note an invoice bills again, and the original invoice it cancelled (D-287)."""
+
+    credit_note_id = serializers.IntegerField(source="pk", read_only=True)
+    credit_note_number = serializers.CharField(source="number", read_only=True)
+    invoice_id = serializers.IntegerField(read_only=True)
+    invoice_number = serializers.CharField(source="invoice.number", read_only=True)
+
+
 class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
     kind = serializers.ChoiceField(choices=CreditNoteKind.choices, read_only=True)
     stock = serializers.ChoiceField(choices=CreditNoteStock.choices, read_only=True)
@@ -815,6 +929,11 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
     invoice = CreditNoteInvoiceSerializer(read_only=True)
     lines = CreditNoteLineSerializer(many=True, read_only=True)
     created_by = serializers.SerializerMethodField()
+    # The money it gives back to a customer who had paid (D-284); null when it only cancelled debt.
+    refund = serializers.SerializerMethodField()
+    # "Refacturer" (D-287): whether it can bill its BLs again now, and the invoices made that way.
+    rebillable = serializers.SerializerMethodField()
+    rebills = RebillRefSerializer(many=True, read_only=True)
 
     class Meta:
         model = CreditNote
@@ -838,11 +957,25 @@ class CreditNoteSerializer(serializers.ModelSerializer[CreditNote]):
             "created_at",
             "einvoice_status",
             "einvoice_reference",
+            "refund",
+            "rebillable",
+            "rebills",
         )
         read_only_fields: tuple[str, ...] = fields
 
+    @extend_schema_field(serializers.BooleanField())
+    def get_rebillable(self, note: CreditNote) -> bool:
+        from apps.sales import services
+
+        return services.rebillable(note)
+
     def get_created_by(self, note: CreditNote) -> str:
         return person_name(note.created_by)
+
+    @extend_schema_field(RefundSummarySerializer(allow_null=True))
+    def get_refund(self, note: CreditNote) -> dict[str, Any] | None:
+        refund = CustomerRefund.objects.filter(credit_note=note).prefetch_related("payments").first()
+        return refund_summary(refund) if refund is not None else None
 
 
 class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
@@ -863,13 +996,17 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
     extra_over_goods = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     issued_by = serializers.SerializerMethodField()
+    # Made with "Refacturer" (D-287): the credit note it bills again and the original invoice; null otherwise.
+    rebilled_from = RebilledFromSerializer(read_only=True, allow_null=True)
 
     class Meta:
         model = Invoice
         fields: tuple[str, ...] = (
             "id",
             "number",
+            "draft_number",
             "status",
+            "rebilled_from",
             "sale",
             "sales",
             "customer",
@@ -1081,6 +1218,7 @@ class InvoiceDetailSerializer(InvoiceSerializer):
                 "address": customer.address,
                 "city": customer.city,
                 "tax_id": customer.tax_id,
+                "id_type": customer.id_type,
             }
         else:
             values = {
@@ -1088,6 +1226,7 @@ class InvoiceDetailSerializer(InvoiceSerializer):
                 "address": invoice.customer_address,
                 "city": invoice.customer_city,
                 "tax_id": invoice.customer_tax_id,
+                "id_type": invoice.customer_id_type,
             }
         return {**values, "phone": "", "trade_register": ""}
 
@@ -1167,19 +1306,39 @@ class InvoiceEstimateSerializer(serializers.Serializer[Any]):
     extra_by_sale = serializers.DictField(child=serializers.CharField(), read_only=True)
 
 
+# What a credit note line (or a whole note) may say about the kilos given back (D-284).
+LINE_STOCKS = [(CreditNoteStock.NONE, "none"), (CreditNoteStock.RESTOCK, "restock"), (CreditNoteStock.LOSS, "loss")]
+
+
 class CreditNoteLineWriteSerializer(serializers.Serializer[Any]):
     invoice_line = serializers.IntegerField(min_value=1)
     # Kilos given back; empty or 0 for a price correction.
     quantity = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     # DT without VAT; empty: the kilos' share of the line.
     amount = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    # What becomes of these kilos (D-284); required on a line with kilos unless the note's `stock` says it.
+    stock = serializers.ChoiceField(choices=LINE_STOCKS, required=False, allow_null=True, default=None)
+
+
+class CreditNoteRefundWriteSerializer(serializers.Serializer[Any]):
+    """How the money given back is refunded (D-284): `now` (method, caisse or bank account) or `later`."""
+
+    mode = serializers.ChoiceField(choices=[("now", "now"), ("later", "later")])
+    method = serializers.ChoiceField(choices=RefundMethod.choices, required=False, allow_blank=True, default="")
+    # A caisse for cash, a bank account otherwise; empty: the Caisse, the main bank account.
+    account = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+    paid_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
 
 
 class CreditNoteWriteSerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=CreditNoteKind.choices)
     reason = serializers.CharField(allow_blank=True, max_length=255)
     # What happens to the kilos given back: nothing, back in stock, or written off (customer returns, D-070).
-    stock = serializers.ChoiceField(choices=CreditNoteStock.choices, required=False, default=CreditNoteStock.NONE)
+    # Required for a full note; a partial note may say it per line instead (D-284).
+    stock = serializers.ChoiceField(choices=LINE_STOCKS, required=False, allow_null=True, default=None)
+    # When the invoice was paid: refund now or later (D-284). Absent: later ("À rembourser").
+    refund = CreditNoteRefundWriteSerializer(required=False, allow_null=True, default=None)
     # Partial notes only; a full note gives back everything left.
     lines = CreditNoteLineWriteSerializer(many=True, required=False, default=list)
 
@@ -1189,3 +1348,72 @@ class CreditNoteFilterSerializer(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class UninvoicedCountSerializer(serializers.Serializer[Any]):
+    """A customer and the number of their BL still to invoice."""
+
+    customer = serializers.IntegerField()
+    count = serializers.IntegerField()
+
+
+class CustomerRefundSerializer(serializers.ModelSerializer[CustomerRefund]):
+    """A refund of a credit note (D-284): the customer, the invoice and credit note, planned, paid back, left."""
+
+    customer = QuoteCustomerSerializer(read_only=True)
+    invoice = CreditNoteInvoiceSerializer(read_only=True)
+    credit_note = SaleRefSerializer(read_only=True)
+    refunded = serializers.SerializerMethodField()
+    left = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    payments = RefundPaymentSerializer(many=True, read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerRefund
+        fields: tuple[str, ...] = (
+            "id",
+            "number",
+            "customer",
+            "invoice",
+            "credit_note",
+            "amount",
+            "refunded",
+            "left",
+            "status",
+            "payments",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_refunded(self, refund: CustomerRefund) -> str:
+        return str(refunded_of(refund))
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
+    def get_left(self, refund: CustomerRefund) -> str:
+        return str(refund.amount - refunded_of(refund))
+
+    @extend_schema_field(serializers.ChoiceField(choices=REFUND_STATUSES))
+    def get_status(self, refund: CustomerRefund) -> str:
+        return refund_status(refund.amount, refunded_of(refund))
+
+    def get_created_by(self, refund: CustomerRefund) -> str:
+        return person_name(refund.created_by)
+
+
+class RefundFilterSerializer(serializers.Serializer[Any]):
+    # "open": something left to pay back.
+    status = serializers.ChoiceField(choices=REFUND_FILTER_STATUSES, required=False)
+    customer = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)
+
+
+class RefundPaymentWriteSerializer(serializers.Serializer[Any]):
+    amount = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0.001"))
+    method = serializers.ChoiceField(choices=RefundMethod.choices)
+    # A caisse for cash, a bank account otherwise; empty: the Caisse, the main bank account.
+    account = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
+    paid_on = serializers.DateField(required=False, allow_null=True, default=None)
+    reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
