@@ -2239,7 +2239,8 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.fiscal_stamp_overridden = stamp != version.fiscal_stamp
     invoice.fees = amounts.fees
     invoice.total_incl_tax = amounts.total_incl_tax
-    invoice.withholding_applied = withholds and invoicing.withholding_applies(amounts.total_excl_tax + amounts.vat_total)
+    goods_incl_tax = amounts.total_excl_tax + amounts.vat_total
+    invoice.withholding_applied = withholds and invoicing.withholding_applies(goods_incl_tax)
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount

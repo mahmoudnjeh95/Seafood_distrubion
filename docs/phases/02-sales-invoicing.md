@@ -158,5 +158,5 @@ _(owner's workflow of 2026-10-17, all twelve points agreed)_
 ### P2-T16 · Accounting review fixes: invoice VAT per line, withholding threshold (D-283) · S
 - [x] An invoice's lines propose the VAT rate their BL showed; lines the BL showed without VAT are exempt (B2).
 - [x] The withholding threshold of 1 000 DT is on the total without VAT + VAT, stamp and fees left out (B3).
-- [ ] Per-customer "soumis à retenue à la source" flag (B4): only the customers who withhold get it.
+- [x] Per-customer "soumis à retenue à la source" flag (B4, D-284): only the customers who withhold get it.
 - [ ] Supplier invoice VAT and stamp (B1, purchasing): VAT rate on the receipt, the payable with VAT and stamp.

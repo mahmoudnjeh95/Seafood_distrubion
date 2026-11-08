@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-08 (accounting review, invoice VAT per line and withholding threshold, D-283; next free decision D-284)_
+_Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding threshold, D-283; customer subject to withholding, D-284; next free decision D-285)_
 
 ## Where we are
 
@@ -9,6 +9,8 @@ _Last updated: 2026-11-08 (accounting review, invoice VAT per line and withholdi
   an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
   and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
   bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
+  B4 (D-284, migration `partners 0005`): "Soumis à la retenue à la source" on the customer (on by default); off, the
+  customer's invoices carry none. Check: untick it on a customer, invoice 1 200 DT, net to pay = TTC.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
@@ -102,8 +104,7 @@ _Last updated: 2026-11-08 (accounting review, invoice VAT per line and withholdi
 
 ## Next step
 
-0. P2-T16: PR from `claude/awesome-albattani-r48y7b`, merge once green. Then B4 (per-customer "soumis à retenue"
-   flag) and B1 (supplier invoice VAT and stamp), one PR each; the accountant answers the "à confirmer" points of the review.
+0. P2-T16: PR from `claude/awesome-albattani-r48y7b`, merge once green. Then B1 (supplier invoice VAT and stamp); the accountant answers the "à confirmer" points of the review.
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.

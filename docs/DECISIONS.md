@@ -3903,3 +3903,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Issued invoices keep what they had (D-057); a draft takes both rules when it is next saved.
 - Provisional: VAT per product (fresh fishing products are exempt in the VAT code) and a per-customer "subject to
   withholding" flag are the next steps of the review (`docs/guides/accounting-review-2026-11-08.md`); the accountant confirms.
+
+**D-284 · A customer is subject to the withholding or not (accounting review B4, P2-T16)** · provisional · 2026-11-08
+- `Customer.withholding_subject` ("Soumis à la retenue à la source" on the customer form and card, migration
+  `partners 0005`). Off: the customer's invoices never carry a retenue à la source, whatever the rate in the settings or
+  typed on the draft; the net to pay is the total with VAT and stamp, and no certificate is awaited.
+- On: the D-250/D-283 rule (1 000 DT without VAT + VAT and more, at the rate in force).
+- Provisional: **on by default** for every customer, existing and new, so nothing changes until the office turns it off
+  for the customers who do not withhold (individuals, forfaitaires). The owner may prefer off by default; the accountant
+  confirms who withholds.
+- Issued invoices keep what they had (D-057); a draft takes the flag when it is next saved.
