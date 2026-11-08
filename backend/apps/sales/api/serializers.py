@@ -780,6 +780,10 @@ class InvoiceLineSerializer(serializers.ModelSerializer[InvoiceLine]):
 
     @extend_schema_field(serializers.DecimalField(max_digits=5, decimal_places=2))
     def get_default_vat_rate(self, line: InvoiceLine) -> str:
+        # The rate the invoice proposes for the line (D-291), worked out for the whole invoice by the view.
+        proposed: dict[int, Decimal] = self.context.get("proposed_rates", {})
+        if line.pk in proposed:
+            return str(proposed[line.pk])
         own = line.product.vat_rate
         if own is not None:
             return str(own)

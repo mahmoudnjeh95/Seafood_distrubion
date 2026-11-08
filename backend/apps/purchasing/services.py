@@ -906,22 +906,55 @@ def _locked_receipts(
     return locked
 
 
-def _set_receipts(invoice: SupplierInvoice, receipts: Sequence[GoodsReceipt]) -> None:
-    """Charge exactly these receipts on the invoice, and keep its total as the sum of their amounts."""
+def _checked_stamp(value: Number | None, errors: dict[str, str]) -> Decimal | None:
+    """A typed droit de timbre, or None when none was typed (the default applies)."""
+    if value in (None, ""):
+        return None
+    try:
+        return checked_amount(value)
+    except (ValueError, TypeError):
+        errors["fiscal_stamp"] = _("Indiquez un montant en DT, au millime près.")
+        return None
+
+
+def _set_receipts(invoice: SupplierInvoice, receipts: Sequence[GoodsReceipt], fiscal_stamp: Decimal | None) -> None:
+    """Charge exactly these receipts on the invoice and keep its amounts (D-294): without VAT, the sum of their
+    invoiced amounts; the VAT of those bought with VAT; the stamp typed, else the settings' stamp when a receipt
+    is bought with VAT (a supplier who invoices with VAT puts the droit de timbre on it) and none otherwise; the
+    total owed is the three together."""
     SupplierInvoiceReceipt.objects.filter(invoice=invoice).delete()
     links = [
         SupplierInvoiceReceipt(
             organization_id=invoice.organization_id,
             invoice=invoice,
             receipt=receipt,
-            # What the supplier charges for the receipt: invoiced kg × cost per line (D-039).
+            # What the supplier charges for the receipt: invoiced kg × cost per line (D-039), and its VAT.
             amount=selectors.receipt_totals(receipt)[0],
+            vat_amount=selectors.receipt_vat(receipt),
         )
         for receipt in receipts
     ]
     SupplierInvoiceReceipt.objects.bulk_create(links)
-    invoice.total = sum((link.amount for link in links), Decimal("0.000"))
-    invoice.save(update_fields=["total", "updated_at"])
+    default_stamp = (
+        sales_selectors.fiscal_stamp_on(invoice.organization, invoice.invoice_date)
+        if any(receipt.with_vat for receipt in receipts)
+        else Decimal("0.000")
+    )
+    invoice.total_excl_tax = sum((link.amount for link in links), Decimal("0.000"))
+    invoice.vat_total = sum((link.vat_amount for link in links), Decimal("0.000"))
+    invoice.fiscal_stamp = default_stamp if fiscal_stamp is None else fiscal_stamp
+    invoice.fiscal_stamp_overridden = fiscal_stamp is not None and fiscal_stamp != default_stamp
+    invoice.total = invoice.total_excl_tax + invoice.vat_total + invoice.fiscal_stamp
+    invoice.save(
+        update_fields=[
+            "total_excl_tax",
+            "vat_total",
+            "fiscal_stamp",
+            "fiscal_stamp_overridden",
+            "total",
+            "updated_at",
+        ]
+    )
 
 
 def _invoice_snapshot(invoice: SupplierInvoice) -> dict[str, Any]:
@@ -933,6 +966,9 @@ def _invoice_snapshot(invoice: SupplierInvoice) -> dict[str, Any]:
         "invoice_date": invoice.invoice_date.isoformat(),
         "due_date": invoice.due_date.isoformat(),
         "status": invoice.status,
+        "total_excl_tax": str(invoice.total_excl_tax),
+        "vat_total": str(invoice.vat_total),
+        "fiscal_stamp": str(invoice.fiscal_stamp),
         "total": str(invoice.total),
         "receipts": {link.receipt.number: str(link.amount) for link in links},
     }
@@ -985,6 +1021,7 @@ def create_invoice(
     notes: str = "",
     post: bool = False,
     apply_advances: bool = False,
+    fiscal_stamp: Number | None = None,
 ) -> SupplierInvoice:
     """Record a supplier's invoice for some of their receipts, as a draft, or posted at once with `post`.
 
@@ -993,6 +1030,7 @@ def create_invoice(
     on an invoice yet (cash given at the port, advances) pays it, oldest first (D-200).
     """
     errors = _invoice_header_errors(organization, supplier, invoice_date, due_date)
+    stamp = _checked_stamp(fiscal_stamp, errors)
     locked = _locked_receipts(organization, supplier, receipts, errors) if "supplier" not in errors else []
     if errors:
         raise ValidationError(errors)
@@ -1006,7 +1044,7 @@ def create_invoice(
         notes=notes.strip(),
         created_by=actor,
     )
-    _set_receipts(invoice, locked)
+    _set_receipts(invoice, locked, stamp)
     audit.record(
         organization=organization,
         actor=actor,
@@ -1078,6 +1116,7 @@ def create_opening_invoice(
         due_date=due_date,
         notes=notes.strip(),
         total=total,
+        total_excl_tax=total,
         is_opening=True,
         created_by=actor,
     )
@@ -1103,6 +1142,7 @@ def update_invoice(
     supplier_reference: str = "",
     notes: str = "",
     post: bool = False,
+    fiscal_stamp: Number | None = None,
 ) -> SupplierInvoice:
     """Change a draft invoice (its receipts, dates, reference, notes); with `post`, post it afterwards.
 
@@ -1111,6 +1151,7 @@ def update_invoice(
     invoice = _locked_draft(invoice)
     organization = invoice.organization
     errors = _invoice_header_errors(organization, invoice.supplier, invoice_date, due_date)
+    stamp = _checked_stamp(fiscal_stamp, errors)
     locked = _locked_receipts(organization, invoice.supplier, receipts, errors, invoice=invoice)
     if errors:
         raise ValidationError(errors)
@@ -1120,7 +1161,7 @@ def update_invoice(
     invoice.due_date = due_date
     invoice.notes = notes.strip()
     invoice.save(update_fields=["supplier_reference", "invoice_date", "due_date", "notes", "updated_at"])
-    _set_receipts(invoice, locked)
+    _set_receipts(invoice, locked, stamp)
     audit.record(
         organization=organization,
         actor=actor,

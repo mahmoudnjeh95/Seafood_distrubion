@@ -121,6 +121,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
         }
       : EMPTY,
   );
+  const [withholds, setWithholds] = useState(customer?.withholding_subject ?? true);
   const [contacts, setContacts] = useState<ContactRow[]>(() => customer?.contacts.map(contactRow) ?? []);
   const [errors, setErrors] = useState<Errors>({});
   const { types } = useCustomerTypes();
@@ -171,6 +172,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
       notes: trimmed("notes"),
       credit_limit: limit,
       payment_terms_days: Number(days),
+      withholding_subject: withholds,
       contacts: filled.map(({ name, role, phone, email }) => ({
         name: name.trim(),
         role: role.trim(),
@@ -286,6 +288,19 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
           inputMode: "numeric",
           disabled: walkIn,
         })}
+        <label className="col-span-full flex items-start gap-2.5 text-[0.9rem]">
+          <input
+            type="checkbox"
+            checked={withholds}
+            disabled={walkIn}
+            onChange={(event) => setWithholds(event.target.checked)}
+            className="mt-0.5 size-4 accent-sea"
+          />
+          <span>
+            {t("admin.customers.form.withholdingSubject")}
+            <span className="block text-[0.8rem] text-ink-3">{t("admin.customers.form.withholdingSubjectHint")}</span>
+          </span>
+        </label>
         <Field
           label={t("admin.customers.form.notes")}
           htmlFor={`${formId}-notes`}

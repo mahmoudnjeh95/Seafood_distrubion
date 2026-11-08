@@ -5,12 +5,13 @@ import {
   type SupplierInvoice,
   type SupplierInvoiceWrite,
   updateSupplierInvoice,
+  useGetFinanceSettings,
   useGetSupplierInvoice,
   useListReceipts,
   useListSuppliers,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
+import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -48,6 +49,7 @@ type Choice = {
   received_on: string;
   supplier_reference: string;
   amount: string;
+  vat: string;
   // Contested with the supplier (D-285): shown, but it cannot be ticked until the dispute is lifted.
   disputed?: boolean;
 };
@@ -59,6 +61,7 @@ function choiceOf(receipt: Receipt): Choice {
     received_on: receipt.received_on,
     supplier_reference: receipt.supplier_reference,
     amount: receipt.invoiced_total,
+    vat: receipt.invoiced_vat,
     disputed: receipt.dispute_status === "open",
   };
 }
@@ -106,6 +109,9 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   const [dueDate, setDueDate] = useState(() => invoice?.due_date ?? "");
   const [supplierReference, setSupplierReference] = useState(invoice?.supplier_reference ?? "");
   const [notes, setNotes] = useState(invoice?.notes ?? "");
+  // The supplier's droit de timbre (D-294): empty follows the default, typed is kept as typed.
+  const [stamp, setStamp] = useState(() => (invoice?.fiscal_stamp_overridden ? invoice.fiscal_stamp : ""));
+  const settings = useGetFinanceSettings();
   // `?reception=12` (from the "Documents" page) ticks that receipt on a new invoice.
   const [chosen, setChosen] = useState<Set<number>>(() => {
     if (invoice) return new Set(invoice.receipts.map(({ receipt }) => receipt.id));
@@ -124,11 +130,20 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
     { query: { enabled: supplier !== "" } },
   );
   const choices = useMemo(() => {
-    const own: Choice[] = invoice?.receipts.map(({ receipt, amount }) => ({ ...receipt, amount })) ?? [];
+    const own: Choice[] =
+      invoice?.receipts.map(({ receipt, amount, vat_amount }) => ({ ...receipt, amount, vat: vat_amount })) ?? [];
     const free = (uninvoiced.data?.results ?? []).map(choiceOf);
     return [...own, ...free].sort((a, b) => a.received_on.localeCompare(b.received_on) || a.id - b.id);
   }, [invoice, uninvoiced.data]);
-  const total = sum(choices.filter((choice) => chosen.has(choice.id)).map((choice) => choice.amount));
+  const picked = choices.filter((choice) => chosen.has(choice.id));
+  const totalExclTax = sum(picked.map((choice) => choice.amount));
+  const vatTotal = sum(picked.map((choice) => choice.vat));
+  const typedStamp = stamp.trim() ? parseDecimalInput(stamp.trim(), 3) : null;
+  const defaultStamp = picked.some((choice) => choice.vat !== "0.000")
+    ? (settings.data?.in_force.fiscal_stamp ?? "0.000")
+    : "0.000";
+  const shownStamp = typedStamp !== null && !typedStamp.startsWith("-") ? typedStamp : defaultStamp;
+  const total = sum([totalExclTax, vatTotal, shownStamp]);
 
   const save = useMutation({
     mutationFn: (payload: SupplierInvoiceWrite) =>
@@ -139,6 +154,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
             due_date: payload.due_date,
             supplier_reference: payload.supplier_reference,
             notes: payload.notes,
+            fiscal_stamp: payload.fiscal_stamp,
             post: payload.post,
           })
         : createSupplierInvoice(payload),
@@ -175,6 +191,9 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
     if (!shownDueDate) found.due_date = t("admin.supplierInvoices.form.required");
     else if (invoiceDate && shownDueDate < invoiceDate) found.due_date = t("admin.supplierInvoices.form.dueBeforeDate");
     if (supplier && chosen.size === 0) found.receipts = t("admin.supplierInvoices.form.noReceiptChosen");
+    if (stamp.trim() && (typedStamp === null || typedStamp.startsWith("-"))) {
+      found.fiscal_stamp = t("admin.supplierInvoices.form.invalidAmount");
+    }
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     save.mutate({
@@ -184,6 +203,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
       due_date: shownDueDate,
       supplier_reference: supplierReference.trim(),
       notes: notes.trim(),
+      fiscal_stamp: stamp.trim() ? typedStamp : null,
       post,
       apply_advances: post && applyAdvances,
     });
@@ -302,6 +322,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
                   <Th>{t("admin.supplierInvoices.form.receivedOn")}</Th>
                   <Th className="max-[720px]:hidden">{t("admin.supplierInvoices.form.deliveryNote")}</Th>
                   <Th numeric>{t("admin.supplierInvoices.form.amount")}</Th>
+                  <Th numeric>{t("admin.supplierInvoices.form.vat")}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -336,16 +357,48 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
                     <Td numeric className="whitespace-nowrap">
                       {formatMoney(choice.amount)}
                     </Td>
+                    <Td numeric className="whitespace-nowrap">
+                      {choice.vat === "0.000" ? "—" : formatMoney(choice.vat)}
+                    </Td>
                   </tr>
                 ))}
               </tbody>
             </Table>
           )}
           {errors.receipts && <p className="text-[0.78rem] font-semibold text-bad">{errors.receipts}</p>}
-          <dl className="ms-auto">
-            <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.supplierInvoices.form.total")}</dt>
-            <dd className="num text-end font-bold">{formatMoney(total)}</dd>
-          </dl>
+          <div className="ms-auto flex flex-wrap items-end justify-end gap-6">
+            <Field
+              label={t("admin.supplierInvoices.form.fiscalStamp")}
+              htmlFor={id("fiscal_stamp")}
+              error={errors.fiscal_stamp}
+              className="w-44"
+            >
+              <Input
+                id={id("fiscal_stamp")}
+                inputMode="decimal"
+                value={stamp}
+                placeholder={formatMoney(defaultStamp)}
+                onChange={(event) => setStamp(event.target.value)}
+                aria-invalid={errors.fiscal_stamp ? true : undefined}
+                autoComplete="off"
+              />
+            </Field>
+            <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1">
+              <dt className="text-[0.78rem] font-semibold text-ink-2">
+                {t("admin.supplierInvoices.form.totalExclTax")}
+              </dt>
+              <dd className="num text-end">{formatMoney(totalExclTax)}</dd>
+              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.supplierInvoices.form.vatTotal")}</dt>
+              <dd className="num text-end">{formatMoney(vatTotal)}</dd>
+              <dt className="text-[0.78rem] font-semibold text-ink-2">
+                {t("admin.supplierInvoices.form.fiscalStamp")}
+              </dt>
+              <dd className="num text-end">{formatMoney(shownStamp)}</dd>
+              <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.supplierInvoices.form.total")}</dt>
+              <dd className="num text-end font-bold">{formatMoney(total)}</dd>
+            </dl>
+          </div>
+          <p className="text-end text-[0.78rem] text-ink-2">{t("admin.supplierInvoices.form.fiscalStampHint")}</p>
         </Card>
 
         <Card>

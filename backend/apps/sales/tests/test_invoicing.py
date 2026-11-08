@@ -195,27 +195,40 @@ def test_a_zero_withholding_rate_withholds_nothing():
     assert result.net_to_pay == result.total_incl_tax
 
 
-def test_the_withholding_starts_at_1000_dt_with_tax():
-    """Owner rule: an invoice whose total with tax reaches 1 000 DT carries the withholding, one below none."""
+def test_the_withholding_starts_at_1000_dt_without_the_stamp_and_fees():
+    """Owner rule, base per D-291: an invoice whose total without VAT + VAT reaches 1 000 DT carries the
+    withholding, one below none; the stamp and fees do not take it over the threshold."""
     below = compute(
-        [line("998.999", rate="0")],
-        apply_vat=True,
-        prices_include_vat=False,
-        fiscal_stamp=STAMP,
-        withholding_rate=D("1.50"),
-    )
-    assert below.total_incl_tax == D("999.999")
-    assert below.withholding_amount == D("0.000")
-
-    at = compute(
         [line("999.000", rate="0")],
         apply_vat=True,
         prices_include_vat=False,
         fiscal_stamp=STAMP,
         withholding_rate=D("1.50"),
+        fees=D("5.000"),
     )
-    assert at.total_incl_tax == D("1000.000")
-    assert at.withholding_amount == D("14.985")  # 999.000 × 1.5 %
+    assert below.total_incl_tax == D("1005.000")
+    assert below.withholding_amount == D("0.000")
+    assert below.net_to_pay == D("1005.000")
+
+    at = compute(
+        [line("1000.000", rate="0")],
+        apply_vat=True,
+        prices_include_vat=False,
+        fiscal_stamp=STAMP,
+        withholding_rate=D("1.50"),
+    )
+    assert at.total_incl_tax == D("1001.000")
+    assert at.withholding_amount == D("15.000")  # 1 000.000 × 1.5 %
+
+    with_vat = compute(
+        [line("840.400")],
+        apply_vat=True,
+        prices_include_vat=False,
+        fiscal_stamp=STAMP,
+        withholding_rate=D("1.00"),
+    )
+    assert with_vat.total_excl_tax + with_vat.vat_total == D("1000.076")  # 840.400 + 159.676
+    assert with_vat.withholding_amount == D("10.001")
 
 
 def test_shared_by_adds_up_and_survives_zero():

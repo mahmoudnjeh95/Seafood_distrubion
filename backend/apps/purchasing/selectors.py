@@ -27,7 +27,9 @@ from django.utils.translation import gettext as _
 
 from apps.core.documents import DocumentFilters, DocumentRow, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
+from apps.core.money import money
 from apps.inventory import selectors as inventory
+from apps.sales import selectors as sales_selectors
 
 from .models import (
     RECEIVABLE_ORDER_STATUSES,
@@ -156,6 +158,18 @@ def receipt_totals(receipt: GoodsReceipt) -> tuple[Decimal, Decimal]:
 
 
 ZERO = Decimal("0.000")
+
+
+def receipt_vat(receipt: GoodsReceipt) -> Decimal:
+    """The VAT a receipt bought with VAT carries on its invoiced amount (D-294): its lines grouped by their
+    product's rate, each rate's total × rate rounded once to the millime; 0 for a receipt without VAT."""
+    if not receipt.with_vat:
+        return ZERO
+    by_rate: dict[Decimal, Decimal] = {}
+    for line in receipt.lines.all():
+        rate = sales_selectors.vat_rate_of_product_on(receipt.organization, line.product, receipt.received_on)
+        by_rate[rate] = by_rate.get(rate, ZERO) + line.invoiced_amount
+    return sum((money(base * rate / 100) for rate, base in by_rate.items()), ZERO)
 
 
 # ---- Purchase orders (D-076) ----

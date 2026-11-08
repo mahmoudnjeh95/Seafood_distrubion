@@ -181,7 +181,7 @@ def test_credit_limit_through_the_api_and_driver_cannot_approve(organization, ap
 def test_withholding_certificate_and_summary(api, organization, manager, setup, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     customer, sale = setup
-    # 20 kg = 840.000 + 19 % + stamp = 1 000.600: over the 1 000 DT the withholding starts at.
+    # 21 kg = 882.000 + 19 % = 1 049.580 (stamp left out, D-291): over the 1 000 DT the withholding starts at.
     customer.credit_limit = Decimal("100000.000")
     customer.save(update_fields=["credit_limit"])
     big = services.create_sale(
@@ -189,7 +189,7 @@ def test_withholding_certificate_and_summary(api, organization, manager, setup, 
         actor=manager.user,
         customer=customer,
         location=sale.location,
-        lines=[{"product": sale.lines.first().product, "quantity": "20"}],
+        lines=[{"product": sale.lines.first().product, "quantity": "21"}],
         confirm=True,
     )
     invoice = services.create_invoice(apply_vat=True, sale=big, actor=None, issue=True, withholding_rate="1.5")
@@ -199,16 +199,16 @@ def test_withholding_certificate_and_summary(api, organization, manager, setup, 
 
     created = api.post(
         reverse("invoice-withholding-certificate", args=[invoice.pk]),
-        {"number": "RS-9", "issued_on": today, "amount": "14.994"},
+        {"number": "RS-9", "issued_on": today, "amount": "15.744"},
         format="json",
     )
     assert created.status_code == 201, created.json()
     summary = api.get(reverse("withholding-summary")).json()
-    assert (summary["count"], summary["total"], summary["awaiting"]) == (1, "14.994", [])
-    assert summary["by_month"][0]["amount"] == "14.994"
+    assert (summary["count"], summary["total"], summary["awaiting"]) == (1, "15.744", [])
+    assert summary["by_month"][0]["amount"] == "15.744"
     detail = api.get(reverse("invoice-detail", args=[invoice.pk])).json()
     assert detail["certificate"]["number"] == "RS-9"
-    assert detail["remaining_to_pay"] == "985.606"
+    assert detail["remaining_to_pay"] == "1034.836"
 
     voided = api.post(
         reverse("withholding-certificate-void", args=[created.json()["id"]]), {"reason": "Erreur"}, format="json"

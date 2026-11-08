@@ -107,6 +107,90 @@ def test_an_invoice_charges_the_invoiced_amount_of_its_receipts(organization, ac
     assert selectors.receipts_of(organization, uninvoiced=True).count() == 0
 
 
+def vat_receipt(organization, supplier, *, product=None, invoiced="62", cost="20.250"):
+    """A receipt bought with VAT (D-202): 62 kg × 20.250 = 1 255.500 without VAT."""
+    return services.create_receipt(
+        organization=organization,
+        actor=None,
+        supplier=supplier,
+        location=StockLocationFactory.create(organization=organization),
+        received_on=TODAY(),
+        with_vat=True,
+        lines=[
+            {
+                "product": product or ProductFactory.create(organization=organization),
+                "invoiced_quantity": invoiced,
+                "accepted_quantity": invoiced,
+                "unit_cost": cost,
+            }
+        ],
+    )
+
+
+def test_an_invoice_adds_the_vat_of_receipts_bought_with_vat_and_the_stamp(organization, actor, supplier, receive):
+    """D-294: what is owed is without VAT + the VAT of the receipts bought with VAT + the supplier's stamp."""
+    taxed = vat_receipt(organization, supplier)  # 1 255.500 + 19 % = 238.545
+    plain = receive("10.5", "12.345")  # 129.623, bought without VAT
+
+    invoice = invoice_for(organization, actor, supplier, [taxed, plain])
+
+    assert (invoice.total_excl_tax, invoice.vat_total, invoice.fiscal_stamp) == (
+        Decimal("1385.123"),
+        Decimal("238.545"),
+        Decimal("1.000"),
+    )
+    assert invoice.total == Decimal("1624.668")
+    assert invoice.fiscal_stamp_overridden is False
+    assert [(link.amount, link.vat_amount) for link in invoice.receipt_links.order_by("receipt_id")] == [
+        (Decimal("1255.500"), Decimal("238.545")),
+        (Decimal("129.623"), Decimal("0.000")),
+    ]
+    log = AuditLog.objects.get(action="supplier_invoice.created")
+    assert log.after is not None
+    assert (log.after["vat_total"], log.after["fiscal_stamp"], log.after["total"]) == ("238.545", "1.000", "1624.668")
+
+
+def test_receipts_without_vat_owe_their_amount_and_no_stamp(organization, actor, supplier, receive):
+    invoice = invoice_for(organization, actor, supplier, [receive()])
+
+    assert (invoice.total_excl_tax, invoice.vat_total, invoice.fiscal_stamp, invoice.total) == (
+        Decimal("1255.500"),
+        Decimal("0.000"),
+        Decimal("0.000"),
+        Decimal("1255.500"),
+    )
+
+
+def test_a_product_rate_and_a_typed_stamp_are_used(organization, actor, supplier):
+    reduced = ProductFactory.create(organization=organization, vat_rate=Decimal("7.00"))
+    receipt = vat_receipt(organization, supplier, product=reduced, invoiced="10", cost="30.000")  # 300 + 7 % = 21
+
+    invoice = invoice_for(organization, actor, supplier, [receipt], fiscal_stamp="0")
+    assert (invoice.vat_total, invoice.fiscal_stamp, invoice.fiscal_stamp_overridden, invoice.total) == (
+        Decimal("21.000"),
+        Decimal("0.000"),
+        True,
+        Decimal("321.000"),
+    )
+
+    updated = services.update_invoice(
+        invoice=invoice,
+        actor=actor,
+        receipts=[receipt],
+        invoice_date=TODAY(),
+        due_date=TODAY(),
+        post=True,
+    )
+    assert (updated.fiscal_stamp, updated.fiscal_stamp_overridden, updated.total) == (
+        Decimal("1.000"),
+        False,
+        Decimal("322.000"),
+    )
+    assert updated.status == SupplierInvoiceStatus.POSTED
+    with pytest.raises(ValidationError):
+        invoice_for(organization, actor, supplier, [receipt], fiscal_stamp="abc")
+
+
 def test_every_invoice_problem_is_reported_at_once(organization, actor, supplier, receive):
     other_supplier = SupplierFactory.create(organization=organization)
     theirs = receive(of=other_supplier)
@@ -381,8 +465,10 @@ def test_the_owner_invoices_a_receipt_pays_it_and_reads_the_balance():
                 "supplier_reference": "",
             },
             "amount": "1255.500",
+            "vat_amount": "0.000",
         }
     ]
+    assert (invoice["total_excl_tax"], invoice["vat_total"], invoice["fiscal_stamp"]) == ("1255.500", "0.000", "0.000")
     on_receipt = client.get(reverse("receipt-detail", args=[receipt["id"]])).json()["invoice"]
     assert on_receipt == {"id": invoice["id"], "number": "BROUILLON-0001", "status": "draft"}
 

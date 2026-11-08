@@ -66,7 +66,9 @@ test("the owner invoices a receipt, posts it and pays it in full", async ({ page
   await page.getByRole("option", { name: "Aqua Monastir" }).click();
   await page.getByRole("checkbox", { name: new RegExp(`^${receipt} du `) }).check();
   // 10 kg invoiced × 20 DT: the amount comes from the receipt, it is never typed.
-  await expect(page.getByText("Montant de la facture", { exact: true }).locator("..")).toContainText(/200,000\sDT/);
+  await expect(page.getByText("Montant de la facture (TTC)", { exact: true }).locator("..")).toContainText(
+    /200,000\sDT/,
+  );
   await page.getByLabel("N° de la facture chez le fournisseur").fill(`AQM-F-${stamp}`);
 
   await page.getByRole("button", { name: "Enregistrer et valider" }).click();

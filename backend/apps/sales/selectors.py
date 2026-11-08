@@ -468,6 +468,27 @@ def finance_settings_on(organization: Organization, day: dt.date | None = None) 
 DEFAULT_CASH_LIMIT = Decimal("5000.000")
 
 
+def _field_default(name: str) -> Decimal:
+    """The default of a FinanceSettings field, for an organization without any version yet."""
+    return Decimal(str(getattr(FinanceSettings._meta.get_field(name), "default")))  # noqa: B009
+
+
+def vat_rate_of_product_on(organization: Organization, product: Any, day: dt.date) -> Decimal:
+    """A product's VAT rate on `day` (its own, else the settings' in force, else the settings' default): what a
+    purchase bought with VAT pays on it (D-294)."""
+    own: Decimal | None = product.vat_rate
+    if own is not None:
+        return own
+    version = finance_settings_on(organization, day)
+    return version.vat_rate if version is not None else _field_default("vat_rate")
+
+
+def fiscal_stamp_on(organization: Organization, day: dt.date) -> Decimal:
+    """The droit de timbre of an invoice dated `day` (the settings in force, else their default), D-294."""
+    version = finance_settings_on(organization, day)
+    return version.fiscal_stamp if version is not None else _field_default("fiscal_stamp")
+
+
 def cash_limit_on(organization: Organization, day: dt.date | None = None) -> Decimal:
     """The amount from which a cash line of a payment needs confirming, in force on `day` (D-273)."""
     version = finance_settings_on(organization, day)
@@ -489,6 +510,36 @@ def live_invoice_of(sale: Sale) -> Invoice | None:
     if invoices is None:
         invoices = list(sale.invoices.exclude(status=InvoiceStatus.CANCELLED).order_by("-id"))
     return invoices[0] if invoices else None
+
+
+def product_vat_rate(product: Any, version: FinanceSettings) -> Decimal:
+    """A product's VAT rate on an invoice when none is typed: its own (0 = exempt), else the settings'."""
+    own: Decimal | None = product.vat_rate
+    return own if own is not None else version.vat_rate
+
+
+def proposed_vat_rates(sale_lines: Iterable[SaleLine], version: FinanceSettings) -> list[Decimal]:
+    """The VAT rate proposed for each sale line on an invoice (D-291).
+
+    When a BL line carries VAT (its rate snapshotted on the BL, D-224), the invoice follows the BL: each line
+    keeps the rate its BL showed, and a line the BL showed without VAT is exempt (0 %). A BL and its invoice
+    then agree, and goods not bought with VAT are not taxed because another line of the invoice is. When no
+    line carries one (a BL from before D-224, or VAT asked for by hand), each product's rate is proposed."""
+    lines = list(sale_lines)
+    if any(line.vat_rate is not None for line in lines):
+        return [line.vat_rate if line.vat_rate is not None else Decimal("0.00") for line in lines]
+    return [product_vat_rate(line.product, version) for line in lines]
+
+
+def proposed_rates_of(invoice: Invoice) -> dict[int, Decimal]:
+    """The VAT rate an invoice proposes for each of its lines, by line id (`proposed_vat_rates`, D-291). An
+    issued invoice keeps the settings it was made with; a draft without settings proposes nothing."""
+    version = invoice.settings_version
+    if version is None:
+        return {}
+    lines = list(invoice.lines.all())
+    rates = proposed_vat_rates([line.sale_line for line in lines], version)
+    return {line.pk: rate for line, rate in zip(lines, rates, strict=True)}
 
 
 def invoices_of(
@@ -520,7 +571,12 @@ def invoices_of(
         )
         .prefetch_related(Prefetch("sales", queryset=Sale.objects.order_by("sold_at", "id")))
         .prefetch_related(
-            Prefetch("lines", queryset=InvoiceLine.objects.select_related("product", "sale_line__sale").order_by("id"))
+            Prefetch(
+                "lines",
+                queryset=InvoiceLine.objects.select_related(
+                    "product", "sale_line__sale", "sale_line__product"
+                ).order_by("id"),
+            )
         )
         .prefetch_related(Prefetch("vat_lines", queryset=InvoiceVatLine.objects.order_by("-rate")))
         .prefetch_related(Prefetch("credit_notes", queryset=credit_notes))

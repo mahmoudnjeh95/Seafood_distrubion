@@ -354,6 +354,24 @@ def test_the_withholding_is_taken_from_1000_dt_with_tax_and_not_below(organizati
     assert big.net_to_pay == D("1272.783")
 
 
+def test_a_customer_who_does_not_withhold_never_has_a_withholding(organization, actor, customer, big_sale):
+    """D-292: a customer not subject to the retenue à la source (an individual, a forfaitaire) pays the total with
+    VAT, whatever the rate in the settings and the invoice's size."""
+    services.save_finance_settings(organization=organization, actor=actor, withholding_rate="1.5")
+    customer.withholding_subject = False
+    customer.save(update_fields=["withholding_subject"])
+    big_sale.customer.refresh_from_db()
+
+    estimate = services.estimate_invoice(organization=organization, sales=[big_sale])
+    invoice = services.create_invoice(apply_vat=True, sale=big_sale, actor=actor, withholding_rate="1.5")
+
+    assert invoice.total_incl_tax == D("1292.150")
+    assert (invoice.withholding_applied, invoice.withholding_amount) == (False, D("0.000"))
+    assert invoice.net_to_pay == invoice.total_incl_tax
+    # The estimate proposes no VAT here (nothing bought with VAT): 1 085 + 1 stamp, nothing withheld.
+    assert (estimate.withholding_amount, estimate.net_to_pay) == (D("0.000"), D("1086.000"))
+
+
 def test_only_a_confirmed_sale_with_a_named_customer_is_invoiced_once(
     organization, actor, customer, counter, crevette, sale
 ):
@@ -551,9 +569,10 @@ def test_fees_add_to_the_total_outside_vat_and_withholding(organization, sale, a
     assert invoice.fees == D("500.000")
     assert invoice.vat_total == D("86.450")  # no VAT on the fees
     assert invoice.total_incl_tax == D("1042.450")  # 455 + 86.450 + 1 stamp + 500 fees
-    # The fees take the invoice over 1 000 DT, but not into the withholding: 1.5 % of 541.450.
-    assert invoice.withholding_amount == D("8.122")
-    assert invoice.net_to_pay == D("1034.328")
+    # The fees take the total over 1 000 DT but count neither in the withholding's base nor in its threshold
+    # (D-291): 455 + 86.450 = 541.450 is under 1 000 DT, so nothing is withheld.
+    assert (invoice.withholding_applied, invoice.withholding_amount) == (False, D("0.000"))
+    assert invoice.net_to_pay == D("1042.450")
     # Issuing keeps them; saving the draft again without them removes them.
     issued = services.update_invoice(invoice=invoice, actor=actor, issue=True, fees="500.000")
     assert (issued.fees, issued.total_incl_tax) == (D("500.000"), D("1042.450"))
