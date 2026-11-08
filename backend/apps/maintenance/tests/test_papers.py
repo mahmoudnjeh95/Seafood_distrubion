@@ -147,3 +147,18 @@ def test_the_warning_days_are_a_setting(shop):
 
 def test_a_driver_sees_no_papers_board(shop):
     assert shop["driver"].get(reverse("paper-board")).status_code == 403
+
+
+@pytest.mark.django_db(transaction=True)
+def test_assigning_a_truck_runs_in_its_own_transaction():
+    # Without a test transaction around it, as the real server runs: the paper check must not break the truck lock.
+    organization = OrganizationFactory.create()
+    actor = UserFactory.create()
+    truck = fleet.create_truck(organization=organization, actor=actor, name="Camion 9", plate="109 TU 2009")
+    driver = MembershipFactory.create(organization=organization, role=Role.DRIVER)
+
+    assignment = fleet.assign_truck(
+        organization=organization, actor=actor, truck=truck, driver=driver.user, date=timezone.localdate()
+    )
+
+    assert assignment.truck_id == truck.pk

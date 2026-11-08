@@ -178,7 +178,6 @@ def _delete_assignment(*, assignment: TruckAssignment, actor: User | None) -> No
     assignment.delete()
 
 
-@transaction.atomic
 def _refuse_expired_papers(truck: Truck, date: date_type) -> None:
     """A truck whose assurance or visite technique has expired does not go out (P10-T04, D-295), unless the owner
     allowed that day with a reason."""
@@ -195,6 +194,7 @@ def _refuse_expired_papers(truck: Truck, date: date_type) -> None:
         )
 
 
+@transaction.atomic
 def assign_truck(
     *,
     organization: Organization,
