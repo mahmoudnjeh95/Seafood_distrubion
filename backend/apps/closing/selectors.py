@@ -170,6 +170,21 @@ def _write_off_rows(organization: Organization, batch_id: int) -> tuple[engine.C
         )
         for share in purchasing.write_off_shares_of_batch(organization, batch_id=batch_id)
     ]
+    # A price cut the supplier gave on the lot's kilos (avoir fournisseur, D-297): the lot cost less. Returned kilos
+    # are already out of its purchase cost (kg received − returned), and a weight gap was never in it.
+    rows += [
+        engine.CostRow(
+            kind="supplier_credit",
+            on=line.credit_note.credited_on,
+            title=line.credit_note.supplier.name,
+            amount=-line.amount,
+            description=line.credit_note.reason,
+            source_type="supplier_credit_note",
+            source_id=line.credit_note_id,
+            reference=line.credit_note.number,
+        )
+        for line in purchasing.price_credits_of_batch(organization, batch_id=batch_id)
+    ]
     return tuple(rows)
 
 

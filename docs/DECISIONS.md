@@ -4081,3 +4081,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A sale synced late (D-133) is checked against its own day, so a sale made before the lot expired still posts.
 - The pickers and the driver's stock (`location_stock(sellable_on=today)`) leave expired lots out. Owner chose "block
   always": no override.
+
+**D-297 · Supplier credit notes (avoirs fournisseurs) with returns, weight claims and price cuts (P1-T21)** · accepted · 2026-11-08
+- One document for the three cases (`purchasing.SupplierCreditNote`, number kind `supplier_credit_note`, AVF yearly):
+  each line names a receipt line and a kind: `return` (kg × the receipt's cost, posts a `supplier_return` movement from
+  a place picked on the line), `weight` (kg up to invoiced − accepted − already claimed, nothing moves) or `price`
+  (kg × a cut per kg up to the cost). A line never credits more than its invoiced amount less earlier credits.
+- VAT comes back only for a receipt bought with VAT, at the rate the invoice used (D-294), rounded once per rate. No
+  stamp on an avoir (provisional; the accountant may say otherwise).
+- The invoice is optional (goods sent back before they were invoiced). Settlement mirrors the write-off (D-252):
+  `SupplierCreditAllocation` rows on its invoice first, then the open invoices oldest due first; what is left settles
+  the next invoice when it is posted (`_post`). `_paid_on`, `invoices_of.paid_amount`, `supplier_balance` (new
+  `credited`, `credit_unapplied`) and the supplier statement count it.
+- Lot result: a return already lowers the purchase cost through kg returned (engine); a price cut is a negative cost
+  row `supplier_credit`; a weight gap was never in the lot cost (cost = accepted kg). Returns and price cuts are refused
+  on a lot already settled with its partner.
+- Saved once, never edited nor deleted, by the owner or the manager, audited (`supplier_credit_note.created`).

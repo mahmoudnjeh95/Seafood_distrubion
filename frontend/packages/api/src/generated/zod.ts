@@ -20993,6 +20993,8 @@ export const getSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}
 export const getSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseCreditedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseCreditUnappliedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21006,6 +21008,8 @@ export const GetSupplierBalanceResponse = zod.object({
   "paid": zod.stringFormat('decimal', getSupplierBalanceResponsePaidRegExp),
   "balance": zod.stringFormat('decimal', getSupplierBalanceResponseBalanceRegExp),
   "written_off": zod.stringFormat('decimal', getSupplierBalanceResponseWrittenOffRegExp),
+  "credited": zod.stringFormat('decimal', getSupplierBalanceResponseCreditedRegExp),
+  "credit_unapplied": zod.stringFormat('decimal', getSupplierBalanceResponseCreditUnappliedRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierBalanceResponseOutstandingRegExp),
   "unallocated": zod.stringFormat('decimal', getSupplierBalanceResponseUnallocatedRegExp),
   "overdue": zod.stringFormat('decimal', getSupplierBalanceResponseOverdueRegExp),
@@ -21053,6 +21057,8 @@ export const writeOffSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{
 export const writeOffSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseCreditedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseCreditUnappliedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21066,6 +21072,8 @@ export const WriteOffSupplierBalanceResponse = zod.object({
   "paid": zod.stringFormat('decimal', writeOffSupplierBalanceResponsePaidRegExp),
   "balance": zod.stringFormat('decimal', writeOffSupplierBalanceResponseBalanceRegExp),
   "written_off": zod.stringFormat('decimal', writeOffSupplierBalanceResponseWrittenOffRegExp),
+  "credited": zod.stringFormat('decimal', writeOffSupplierBalanceResponseCreditedRegExp),
+  "credit_unapplied": zod.stringFormat('decimal', writeOffSupplierBalanceResponseCreditUnappliedRegExp),
   "outstanding": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOutstandingRegExp),
   "unallocated": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUnallocatedRegExp),
   "overdue": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOverdueRegExp),
@@ -21081,6 +21089,295 @@ export const WriteOffSupplierBalanceResponse = zod.object({
   "product": zod.string()
 }).describe('A lot a supplier balance write-off can be credited to (D-257): one they sold us, not settled.'))
 }).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
+
+
+/**
+ * Supplier credit notes (avoirs fournisseurs, D-297), newest first, paginated.
+ */
+
+export const listSupplierCreditNotesQuerySearchDefault = ``;
+export const listSupplierCreditNotesQuerySearchMax = 100;
+
+
+
+
+export const ListSupplierCreditNotesQueryParams = zod.object({
+  "invoice": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listSupplierCreditNotesQuerySearchMax).default(listSupplierCreditNotesQuerySearchDefault),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const listSupplierCreditNotesResponseResultsItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemAppliedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemUnitAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierCreditNotesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "invoice": zod.int().nullable(),
+  "invoice_number": zod.string().nullable(),
+  "credited_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "reason": zod.string(),
+  "total_excl_tax": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemVatTotalRegExp),
+  "total": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemTotalRegExp),
+  "applied_amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemAppliedAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "receipt_line": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "product_name": zod.string(),
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemQuantityRegExp),
+  "unit_amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemUnitAmountRegExp),
+  "amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemVatRateRegExp).nullable(),
+  "vat_amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemVatAmountRegExp),
+  "from_location": zod.int().nullable(),
+  "from_location_name": zod.string().nullable()
+})),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int(),
+  "invoice_number": zod.string(),
+  "amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemAllocationsItemAmountRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Save an avoir fournisseur: per receipt line a return (kilos leave the stock from `from_location`), a
+ * weight gap (invoiced − accepted) or a price cut per kg (`unit_amount`). It settles its invoice, then the
+ * other open invoices; never edited. Errors on `supplier`, `invoice`, `reason`, `credited_on`, `lines`,
+ * `lines.<index>.<field>`. Owner or manager.
+ */
+
+
+export const createSupplierCreditNoteBodySupplierReferenceDefault = ``;
+export const createSupplierCreditNoteBodySupplierReferenceMax = 50;
+
+
+export const createSupplierCreditNoteBodyLinesItemQuantityMax = 20;
+
+export const createSupplierCreditNoteBodyLinesItemUnitAmountDefault = ``;
+export const createSupplierCreditNoteBodyLinesItemUnitAmountMax = 20;
+
+
+
+
+export const CreateSupplierCreditNoteBody = zod.object({
+  "supplier": zod.int().min(1),
+  "invoice": zod.int().min(1).nullish(),
+  "credited_on": zod.iso.date(),
+  "reason": zod.string(),
+  "supplier_reference": zod.string().max(createSupplierCreditNoteBodySupplierReferenceMax).default(createSupplierCreditNoteBodySupplierReferenceDefault),
+  "lines": zod.array(zod.object({
+  "receipt_line": zod.int().min(1),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.string().max(createSupplierCreditNoteBodyLinesItemQuantityMax),
+  "unit_amount": zod.string().max(createSupplierCreditNoteBodyLinesItemUnitAmountMax).default(createSupplierCreditNoteBodyLinesItemUnitAmountDefault),
+  "from_location": zod.int().min(1).nullish()
+}))
+})
+
+export const createSupplierCreditNoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseAppliedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemUnitAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createSupplierCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateSupplierCreditNoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "invoice": zod.int().nullable(),
+  "invoice_number": zod.string().nullable(),
+  "credited_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "reason": zod.string(),
+  "total_excl_tax": zod.stringFormat('decimal', createSupplierCreditNoteResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', createSupplierCreditNoteResponseVatTotalRegExp),
+  "total": zod.stringFormat('decimal', createSupplierCreditNoteResponseTotalRegExp),
+  "applied_amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseAppliedAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "receipt_line": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "product_name": zod.string(),
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemQuantityRegExp),
+  "unit_amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemUnitAmountRegExp),
+  "amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemVatRateRegExp).nullable(),
+  "vat_amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemVatAmountRegExp),
+  "from_location": zod.int().nullable(),
+  "from_location_name": zod.string().nullable()
+})),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int(),
+  "invoice_number": zod.string(),
+  "amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseAllocationsItemAmountRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetSupplierCreditNoteParams = zod.object({
+  "credit_note_id": zod.int()
+})
+
+export const getSupplierCreditNoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseAppliedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemUnitAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getSupplierCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierCreditNoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "invoice": zod.int().nullable(),
+  "invoice_number": zod.string().nullable(),
+  "credited_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "reason": zod.string(),
+  "total_excl_tax": zod.stringFormat('decimal', getSupplierCreditNoteResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', getSupplierCreditNoteResponseVatTotalRegExp),
+  "total": zod.stringFormat('decimal', getSupplierCreditNoteResponseTotalRegExp),
+  "applied_amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseAppliedAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "receipt_line": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "product_name": zod.string(),
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemQuantityRegExp),
+  "unit_amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemUnitAmountRegExp),
+  "amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemVatRateRegExp).nullable(),
+  "vat_amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemVatAmountRegExp),
+  "from_location": zod.int().nullable(),
+  "from_location_name": zod.string().nullable()
+})),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int(),
+  "invoice_number": zod.string(),
+  "amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseAllocationsItemAmountRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * The supplier's receipt lines an avoir may still credit, newest first; with `invoice`, only its own.
+ */
+
+
+
+
+export const ListCreditableReceiptLinesQueryParams = zod.object({
+  "invoice": zod.int().min(1).optional(),
+  "supplier": zod.int().min(1)
+})
+
+export const listCreditableReceiptLinesResponseInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseWeightGapRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseAmountLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListCreditableReceiptLinesResponseItem = zod.object({
+  "receipt_line_id": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "received_on": zod.iso.date(),
+  "invoice_id": zod.int().nullable(),
+  "invoice_number": zod.string(),
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "invoiced_quantity": zod.stringFormat('decimal', listCreditableReceiptLinesResponseInvoicedQuantityRegExp),
+  "accepted_quantity": zod.stringFormat('decimal', listCreditableReceiptLinesResponseAcceptedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', listCreditableReceiptLinesResponseUnitCostRegExp),
+  "with_vat": zod.boolean(),
+  "weight_gap": zod.stringFormat('decimal', listCreditableReceiptLinesResponseWeightGapRegExp),
+  "returned": zod.stringFormat('decimal', listCreditableReceiptLinesResponseReturnedRegExp),
+  "amount_left": zod.stringFormat('decimal', listCreditableReceiptLinesResponseAmountLeftRegExp)
+})
+export const ListCreditableReceiptLinesResponse = zod.array(ListCreditableReceiptLinesResponseItem)
+
+
+/**
+ * Per supplier, kilos invoiced above what was accepted and not claimed yet, the biggest amount first.
+ */
+export const listSupplierWeightGapsResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listSupplierWeightGapsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierWeightGapsResponseItem = zod.object({
+  "supplier_id": zod.int(),
+  "supplier_name": zod.string(),
+  "lines": zod.int(),
+  "quantity": zod.stringFormat('decimal', listSupplierWeightGapsResponseQuantityRegExp),
+  "amount": zod.stringFormat('decimal', listSupplierWeightGapsResponseAmountRegExp)
+})
+export const ListSupplierWeightGapsResponse = zod.array(ListSupplierWeightGapsResponseItem)
 
 
 /**

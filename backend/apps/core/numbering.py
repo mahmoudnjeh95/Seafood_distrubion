@@ -69,6 +69,7 @@ NUMBER_KINDS: tuple[NumberKind, ...] = (
     NumberKind("receipt", _("Bon de réception (BR)"), _PURCHASES, "BR", 4),
     NumberKind("supplier_invoice", _("Facture fournisseur"), _PURCHASES, "FF", 4, draft_default=""),
     NumberKind("supplier_payment", _("Règlement fournisseur"), _PURCHASES, "RF", 4, yearly=True),
+    NumberKind("supplier_credit_note", _("Avoir fournisseur"), _PURCHASES, "AVF", 4, yearly=True),
     NumberKind("field_purchase", _("Achat terrain"), _PURCHASES, "AT", 4, yearly=True),
     NumberKind("batch", _("Lot"), _STOCK, "L", 4),
     NumberKind("transfer", _("Transfert"), _STOCK, "TR", 4),

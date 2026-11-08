@@ -125,6 +125,13 @@ export function SupplierInvoiceDetailPage() {
             {t("admin.supplierInvoices.detail.pay")}
           </Button>
         )}
+        {canRecord && !isDraft && data.receipts.length > 0 && (
+          <Button
+            onClick={() => void navigate(`/achats/avoirs/nouveau?fournisseur=${data.supplier.id}&facture=${data.id}`)}
+          >
+            {t("admin.supplierInvoices.detail.creditNote")}
+          </Button>
+        )}
       </PageHeader>
 
       {data.is_overdue && (

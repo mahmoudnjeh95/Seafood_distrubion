@@ -822,6 +822,9 @@ class SupplierBalanceSerializer(serializers.Serializer[Any]):
     balance = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # What the balance write-offs gave up (D-252): a gain on this supplier, not paid.
     written_off = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    # The supplier's credit notes (D-297), and what of them waits for an invoice to settle.
+    credited = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    credit_unapplied = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     unallocated = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     overdue = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)

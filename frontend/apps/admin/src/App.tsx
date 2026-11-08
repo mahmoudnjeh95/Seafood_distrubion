@@ -81,6 +81,9 @@ import { PurchaseOrderDetailPage } from "./orders/PurchaseOrderDetailPage";
 import { PriceRequestDetailPage } from "./pricerequests/PriceRequestDetailPage";
 import { PriceRequestFormPage } from "./pricerequests/PriceRequestFormPage";
 import { PriceRequestsPage } from "./pricerequests/PriceRequestsPage";
+import { SupplierCreditNoteDetailPage } from "./creditnotes/SupplierCreditNoteDetailPage";
+import { SupplierCreditNoteFormPage } from "./creditnotes/SupplierCreditNoteFormPage";
+import { SupplierCreditNotesPage } from "./creditnotes/SupplierCreditNotesPage";
 import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
@@ -362,6 +365,9 @@ function AppRoutes() {
         <Route path="/achats/factures/nouvelle" element={<SupplierInvoiceFormPage />} />
         <Route path="/achats/factures/:invoiceId" element={<SupplierInvoiceDetailPage />} />
         <Route path="/achats/factures/:invoiceId/modifier" element={<SupplierInvoiceFormPage />} />
+        <Route path="/achats/avoirs" element={<SupplierCreditNotesPage />} />
+        <Route path="/achats/avoirs/nouveau" element={<SupplierCreditNoteFormPage />} />
+        <Route path="/achats/avoirs/:creditNoteId" element={<SupplierCreditNoteDetailPage />} />
         <Route path="/achats/paiements" element={<SupplierPaymentsPage />} />
         <Route path="/achats/paiements/nouveau" element={<SupplierPaymentFormPage />} />
         <Route path="/achats/paiements/:paymentId" element={<SupplierPaymentDetailPage />} />

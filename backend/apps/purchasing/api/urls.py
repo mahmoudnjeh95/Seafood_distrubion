@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import driver_views, price_request_views, views
+from . import credit_note_views, driver_views, price_request_views, views
 
 urlpatterns = [
     path("receipts", views.ReceiptListView.as_view(), name="receipt-list"),
@@ -39,6 +39,18 @@ urlpatterns = [
     path("purchase-orders/<int:order_id>", views.OrderDetailView.as_view(), name="purchase-order-detail"),
     path("purchase-orders/<int:order_id>/cancel", views.OrderCancelView.as_view(), name="purchase-order-cancel"),
     path("purchase-orders/<int:order_id>/close", views.OrderCloseView.as_view(), name="purchase-order-close"),
+    path("supplier-credit-notes", credit_note_views.CreditNoteListView.as_view(), name="supplier-credit-note-list"),
+    path(
+        "supplier-credit-notes/creditable-lines",
+        credit_note_views.CreditableLinesView.as_view(),
+        name="supplier-creditable-lines",
+    ),
+    path("supplier-credit-notes/weight-gaps", credit_note_views.WeightGapsView.as_view(), name="supplier-weight-gaps"),
+    path(
+        "supplier-credit-notes/<int:credit_note_id>",
+        credit_note_views.CreditNoteDetailView.as_view(),
+        name="supplier-credit-note-detail",
+    ),
     path("supplier-invoices", views.SupplierInvoiceListView.as_view(), name="supplier-invoice-list"),
     path(
         "supplier-invoices/<int:invoice_id>", views.SupplierInvoiceDetailView.as_view(), name="supplier-invoice-detail"

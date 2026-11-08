@@ -1,6 +1,7 @@
 """Reusable read queries of purchases."""
 
 import datetime as dt
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal
@@ -27,7 +28,7 @@ from django.utils.translation import gettext as _
 
 from apps.core.documents import DocumentFilters, DocumentRow, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
-from apps.core.money import money
+from apps.core.money import line_total, money
 from apps.inventory import selectors as inventory
 from apps.sales import selectors as sales_selectors
 
@@ -51,6 +52,10 @@ from .models import (
     RejectedEffet,
     RejectedRelease,
     SupplierBalanceWriteOff,
+    SupplierCreditAllocation,
+    SupplierCreditKind,
+    SupplierCreditNote,
+    SupplierCreditNoteLine,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -246,6 +251,19 @@ def _sum_of_allocations(**match: Any) -> Coalesce:
     return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
 
 
+def _sum_of_credits(**match: Any) -> Coalesce:
+    """What supplier credit notes settled on the invoices matching `match` (an OuterRef), as a subquery (D-297)."""
+    group = next(iter(match))
+    allocations = (
+        SupplierCreditAllocation.objects.filter(**match)
+        .order_by()
+        .values(group)
+        .annotate(total=Sum("amount"))
+        .values("total")
+    )
+    return Coalesce(Subquery(allocations, output_field=AMOUNT), Value(ZERO), output_field=AMOUNT)
+
+
 def _sum_of_write_offs(**match: Any) -> Coalesce:
     """What balance write-offs gave up on the invoices matching `match` (an OuterRef), as a subquery (D-252)."""
     group = next(iter(match))
@@ -302,7 +320,8 @@ def invoices_of(
             paid_amount=ExpressionWrapper(
                 _sum_of_allocations(invoice=OuterRef("pk"))
                 - _sum_of_releases(invoice=OuterRef("pk"))
-                + _sum_of_write_offs(invoice=OuterRef("pk")),
+                + _sum_of_write_offs(invoice=OuterRef("pk"))
+                + _sum_of_credits(invoice=OuterRef("pk")),
                 output_field=AMOUNT,
             )
         )
@@ -494,6 +513,8 @@ class SupplierBalance:
     paid: Decimal  # every payment, allocated or not
     balance: Decimal
     written_off: Decimal  # what the balance write-offs gave up (D-252): a gain, not paid
+    credited: Decimal  # the supplier's credit notes (D-297)
+    credit_unapplied: Decimal  # of those, still waiting for an invoice to settle
     outstanding: Decimal  # still to pay on posted invoices
     unallocated: Decimal  # paid but not allocated to an invoice yet (advances)
     overdue: Decimal  # still to pay on invoices past their due date
@@ -663,12 +684,20 @@ def supplier_balance(organization: Organization, supplier_id: int) -> SupplierBa
     # The balance we gave up on, clear to zero (D-252): the invoices it settled read as paid by it.
     write_offs = SupplierBalanceWriteOff.objects.for_organization(organization).filter(supplier_id=supplier_id)
     written_off = _total(write_offs, "amount")
+    credits = SupplierCreditNote.objects.for_organization(organization).filter(supplier_id=supplier_id)
+    credited = _total(credits, "total")
+    credit_applied = _total(
+        SupplierCreditAllocation.objects.for_organization(organization).filter(credit_note__supplier_id=supplier_id),
+        "amount",
+    )
     return SupplierBalance(
         supplier_id=supplier_id,
         invoiced=invoiced,
         paid=paid,
-        balance=invoiced - paid - written_off,
+        balance=invoiced - paid - written_off - credited,
         written_off=written_off,
+        credited=credited,
+        credit_unapplied=credited - credit_applied,
         outstanding=sum((getattr(invoice, "outstanding") for invoice in open_invoices), ZERO),  # noqa: B009
         unallocated=paid - (_total(allocations, "amount") - released),
         overdue=sum((getattr(invoice, "outstanding") for invoice in late), ZERO),  # noqa: B009
@@ -1258,3 +1287,194 @@ def price_requests_of(
 def price_request_of(organization: Organization, request_id: int) -> PriceRequest:
     """One price request. Raises PriceRequest.DoesNotExist outside the organization."""
     return price_requests_of(organization).get(pk=request_id)
+
+
+# ---- Supplier credit notes (avoirs fournisseurs, D-297) ----
+
+
+def credit_notes_of(
+    organization: Organization, *, supplier_id: int | None = None, invoice_id: int | None = None, search: str = ""
+) -> QuerySet[SupplierCreditNote]:
+    """Supplier credit notes newest first, with their lines, allocations and `applied_amount`."""
+    lines = SupplierCreditNoteLine.objects.select_related(
+        "receipt_line__receipt", "receipt_line__product", "batch", "from_location"
+    ).order_by("id")
+    allocations = SupplierCreditAllocation.objects.select_related("invoice").order_by("id")
+    notes = (
+        SupplierCreditNote.objects.for_organization(organization)
+        .select_related("supplier", "invoice", "created_by")
+        .prefetch_related(Prefetch("lines", queryset=lines))
+        .prefetch_related(Prefetch("allocations", queryset=allocations))
+        .annotate(applied_amount=_sum_of_credits(credit_note=OuterRef("pk")))
+        .order_by("-credited_on", "-id")
+    )
+    if supplier_id is not None:
+        notes = notes.filter(supplier_id=supplier_id)
+    if invoice_id is not None:
+        notes = notes.filter(invoice_id=invoice_id)
+    if search := search.strip():
+        notes = notes.filter(
+            Q(number__icontains=search) | Q(supplier_reference__icontains=search) | Q(supplier__name__icontains=search)
+        )
+    return notes
+
+
+def credit_note_of(organization: Organization, credit_note_id: int) -> SupplierCreditNote:
+    """One credit note. Raises SupplierCreditNote.DoesNotExist outside the organization."""
+    return credit_notes_of(organization).get(pk=credit_note_id)
+
+
+def credited_by_receipt_line(line_ids: Iterable[int]) -> dict[int, dict[str, Decimal]]:
+    """Per receipt line, what credit notes already gave back: `{"amount", "return", "weight", "price"}` (kg for
+    the kinds, DT without VAT for the amount)."""
+    found: dict[int, dict[str, Decimal]] = {}
+    rows = (
+        SupplierCreditNoteLine.objects.filter(receipt_line_id__in=list(line_ids))
+        .values("receipt_line_id", "kind")
+        .annotate(kg=Sum("quantity"), amount=Sum("amount"))
+        .order_by()
+    )
+    for row in rows:
+        entry = found.setdefault(
+            row["receipt_line_id"],
+            {
+                "amount": ZERO,
+                SupplierCreditKind.RETURN: ZERO,
+                SupplierCreditKind.WEIGHT: ZERO,
+                SupplierCreditKind.PRICE: ZERO,
+            },
+        )
+        entry["amount"] += row["amount"]
+        entry[row["kind"]] += row["kg"]
+    return found
+
+
+@dataclass(frozen=True)
+class CreditableLine:
+    """One receipt line of a supplier that a credit note may still take: its lot, its weights and costs and what
+    is left to credit (D-297)."""
+
+    receipt_line_id: int
+    receipt_id: int
+    receipt_number: str
+    received_on: dt.date
+    invoice_id: int | None
+    invoice_number: str
+    batch_id: int
+    batch_number: str
+    product_id: int
+    product_name: str
+    invoiced_quantity: Decimal
+    accepted_quantity: Decimal
+    unit_cost: Decimal
+    with_vat: bool
+    # Invoiced but never accepted, less what was already claimed.
+    weight_gap: Decimal
+    returned: Decimal
+    # What the line may still be credited in DT without VAT: its invoiced amount less earlier credits.
+    amount_left: Decimal
+
+
+def creditable_lines(
+    organization: Organization, *, supplier_id: int, invoice_id: int | None = None
+) -> list[CreditableLine]:
+    """The supplier's receipt lines a credit note may take, newest first; with `invoice_id`, only that invoice's."""
+    lines = (
+        GoodsReceiptLine.objects.for_organization(organization)
+        .filter(receipt__supplier_id=supplier_id)
+        .select_related("receipt", "receipt__invoice_link__invoice", "batch", "product")
+        .order_by("-receipt__received_on", "-receipt_id", "id")
+    )
+    if invoice_id is not None:
+        lines = lines.filter(receipt__invoice_link__invoice_id=invoice_id)
+    rows = list(lines)
+    credited = credited_by_receipt_line(line.pk for line in rows)
+    found = []
+    for line in rows:
+        done = credited.get(line.pk, {})
+        link = getattr(line.receipt, "invoice_link", None)
+        invoice = link.invoice if link is not None and link.invoice.status != SupplierInvoiceStatus.DRAFT else None
+        gap = line.invoiced_quantity - line.accepted_quantity - done.get(SupplierCreditKind.WEIGHT, ZERO)
+        left = line.invoiced_amount - done.get("amount", ZERO)
+        if left <= 0:
+            continue
+        found.append(
+            CreditableLine(
+                receipt_line_id=line.pk,
+                receipt_id=line.receipt_id,
+                receipt_number=line.receipt.number,
+                received_on=line.receipt.received_on,
+                invoice_id=invoice.pk if invoice else None,
+                invoice_number=invoice.number if invoice else "",
+                batch_id=line.batch_id,
+                batch_number=line.batch.number,
+                product_id=line.product_id,
+                product_name=line.product.name,
+                invoiced_quantity=line.invoiced_quantity,
+                accepted_quantity=line.accepted_quantity,
+                unit_cost=line.unit_cost,
+                with_vat=line.receipt.with_vat,
+                weight_gap=max(gap, ZERO),
+                returned=done.get(SupplierCreditKind.RETURN, ZERO),
+                amount_left=left,
+            )
+        )
+    return found
+
+
+@dataclass(frozen=True)
+class WeightGap:
+    """Per supplier, the kilos invoiced but never accepted that no credit note claimed yet (D-297)."""
+
+    supplier_id: int
+    supplier_name: str
+    lines: int
+    quantity: Decimal
+    amount: Decimal
+
+
+def weight_gaps(organization: Organization) -> list[WeightGap]:
+    """Suppliers with kilos invoiced above what was accepted and not claimed, the biggest amount first."""
+    rows = (
+        GoodsReceiptLine.objects.for_organization(organization)
+        .filter(invoiced_quantity__gt=F("accepted_quantity"))
+        .select_related("receipt__supplier")
+    )
+    by_supplier: dict[int, list[Any]] = {}
+    rows_list = list(rows)
+    credited = credited_by_receipt_line(line.pk for line in rows_list)
+    for line in rows_list:
+        claimed = credited.get(line.pk, {}).get(SupplierCreditKind.WEIGHT, ZERO)
+        gap = line.invoiced_quantity - line.accepted_quantity - claimed
+        if gap <= 0:
+            continue
+        entry = by_supplier.setdefault(line.receipt.supplier_id, [line.receipt.supplier.name, 0, ZERO, ZERO])
+        entry[1] += 1
+        entry[2] += gap
+        entry[3] += line_total(gap, line.unit_cost)
+    gaps = [
+        WeightGap(supplier_id=pk, supplier_name=name, lines=count, quantity=kg, amount=amount)
+        for pk, (name, count, kg, amount) in by_supplier.items()
+    ]
+    return sorted(gaps, key=lambda gap: (-gap.amount, gap.supplier_name))
+
+
+def price_credits_of_batch(organization: Organization, *, batch_id: int) -> QuerySet[SupplierCreditNoteLine]:
+    """The price cuts a supplier gave on one lot (D-297): a gain on the lot's result, oldest first."""
+    return (
+        SupplierCreditNoteLine.objects.for_organization(organization)
+        .filter(batch_id=batch_id, kind=SupplierCreditKind.PRICE)
+        .select_related("credit_note__supplier")
+        .order_by("credit_note__credited_on", "id")
+    )
+
+
+def unapplied_credit_notes(organization: Organization, *, supplier_id: int) -> list[SupplierCreditNote]:
+    """A supplier's credit notes not fully settled on invoices yet, oldest first, each with `left`."""
+    notes = (
+        SupplierCreditNote.objects.for_organization(organization)
+        .filter(supplier_id=supplier_id)
+        .annotate(applied_amount=_sum_of_credits(credit_note=OuterRef("pk")))
+        .order_by("credited_on", "id")
+    )
+    return [note for note in notes if note.total > getattr(note, "applied_amount")]  # noqa: B009

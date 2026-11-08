@@ -215,11 +215,19 @@ transformations wanted, with a transformation fee that goes into the new lot's c
 - [x] The lot pickers (quote, BL, counter) and the driver's stock leave expired lots out; the picker shows "DLC".
 - [ ] Check on staging: two lots, the newer one with the nearer DLC goes first on a BL; a lot past its DLC cannot be sold.
 
-### P1-T21 · Supplier return and supplier credit note (avoir fournisseur) · M (gaps 1, 2)
-- [ ] Retour fournisseur (RTF): kilos of one lot back to its supplier, posted as `supplier_return` movements.
-- [ ] Avoir fournisseur (AVF): on a posted supplier invoice, for a return, a weight claim (invoiced > accepted), a price
-      or a discount; lowers what is owed; HT, VAT and stamp like D-294; the supplier balance and the lot cost follow.
-- [ ] Receipts list: "Écart facturé/accepté" per supplier, and "Réclamer" makes the credit note draft.
+### P1-T21 · Supplier return and supplier credit note (avoir fournisseur) · M (gaps 1, 2, D-297)
+- [x] Avoir fournisseur (AVF-2026-0001, `SupplierCreditNote`): per receipt line of the supplier a return (the kilos leave
+      the stock as `supplier_return` from the place named), a weight gap (invoiced − accepted, claimed once) or a price
+      cut per kg; VAT given back at the receipt's rate when bought with VAT. Saved once, never edited (`create_credit_note`).
+- [x] It settles its invoice, then the supplier's other open invoices; the rest waits and settles the next invoice
+      posted. Supplier balance, invoices' paid amount, statement (PDF) and the balance card count it.
+- [x] Lot result: a return lowers the purchase cost (kg returned); a price cut is a gain line "Avoirs fournisseurs";
+      a lot already settled with its partner is refused for returns and price cuts.
+- [x] Achats › Avoirs: list, "Kilos facturés mais non acceptés" per supplier with "Réclamer", the form, the detail;
+      "Faire un avoir" on a validated supplier invoice.
+- [ ] Not done: printing the avoir (PDF).
+- [ ] Check on staging: an invoice of 100 kg, return 20 kg from the cold room; the stock drops 20 kg, the invoice is
+      "Payée en partie" by the avoir and the supplier balance drops by the avoir's total.
 
 ### P1-T22 · Supplier defaults and the supplier's paper total · S (gaps 8, 9)
 - [ ] Supplier: default payment terms (days) and "Achats avec TVA" by default; the receipt and invoice forms propose them.

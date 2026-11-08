@@ -60,6 +60,7 @@ import type {
   Counted,
   CreditNote,
   CreditNoteWrite,
+  CreditableLine,
   Customer,
   CustomerBalance,
   CustomerBalances,
@@ -179,6 +180,7 @@ import type {
   ListCashCountsParams,
   ListCountsParams,
   ListCreditNotesParams,
+  ListCreditableReceiptLinesParams,
   ListCustomerPaymentsParams,
   ListCustomerRefundsParams,
   ListCustomersParams,
@@ -223,6 +225,7 @@ import type {
   ListSalaryRecordsParams,
   ListSalesParams,
   ListStatementLinesParams,
+  ListSupplierCreditNotesParams,
   ListSupplierInvoicesParams,
   ListSupplierPaymentsParams,
   ListSupplierSettlementsParams,
@@ -315,6 +318,7 @@ import type {
   PaginatedReceiptList,
   PaginatedSaleList,
   PaginatedStockMovementList,
+  PaginatedSupplierCreditNoteList,
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
   PaginatedTransferList,
@@ -429,6 +433,8 @@ import type {
   Supplier,
   SupplierBalance,
   SupplierBalances,
+  SupplierCreditNote,
+  SupplierCreditNoteWrite,
   SupplierDebts,
   SupplierInvoice,
   SupplierInvoiceUpdate,
@@ -461,6 +467,7 @@ import type {
   VoidWrite,
   WebRequest,
   WebRequestStatus,
+  WeightGap,
   WithholdingCertificate,
   WithholdingCertificateWrite,
   WithholdingFile,
@@ -33008,6 +33015,497 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getWriteOffSupplierBalanceMutationOptions(options), queryClient);
     }
+
+export const getListSupplierCreditNotesUrl = (params?: ListSupplierCreditNotesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/supplier-credit-notes?${stringifiedParams}` : `/api/v1/supplier-credit-notes`
+}
+
+/**
+ * Supplier credit notes (avoirs fournisseurs, D-297), newest first, paginated.
+ */
+export const listSupplierCreditNotes = async (params?: ListSupplierCreditNotesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedSupplierCreditNoteList> => {
+
+  return apiFetch<PaginatedSupplierCreditNoteList>(getListSupplierCreditNotesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierCreditNotesQueryKey = (params?: ListSupplierCreditNotesParams,) => {
+    return [
+    `/api/v1/supplier-credit-notes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSupplierCreditNotesQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError = unknown>(params?: ListSupplierCreditNotesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierCreditNotesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierCreditNotes>>> = ({ signal }) => listSupplierCreditNotes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSupplierCreditNotesQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierCreditNotes>>>
+export type ListSupplierCreditNotesQueryError = unknown
+
+
+export function useListSupplierCreditNotes<TData = Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError = unknown>(
+ params: undefined |  ListSupplierCreditNotesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupplierCreditNotes>>,
+          TError,
+          Awaited<ReturnType<typeof listSupplierCreditNotes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupplierCreditNotes<TData = Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError = unknown>(
+ params?: ListSupplierCreditNotesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupplierCreditNotes>>,
+          TError,
+          Awaited<ReturnType<typeof listSupplierCreditNotes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupplierCreditNotes<TData = Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError = unknown>(
+ params?: ListSupplierCreditNotesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSupplierCreditNotes<TData = Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError = unknown>(
+ params?: ListSupplierCreditNotesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierCreditNotes>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSupplierCreditNotesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSupplierCreditNoteUrl = () => {
+
+
+
+
+  return `/api/v1/supplier-credit-notes`
+}
+
+/**
+ * Save an avoir fournisseur: per receipt line a return (kilos leave the stock from `from_location`), a
+ * weight gap (invoiced − accepted) or a price cut per kg (`unit_amount`). It settles its invoice, then the
+ * other open invoices; never edited. Errors on `supplier`, `invoice`, `reason`, `credited_on`, `lines`,
+ * `lines.<index>.<field>`. Owner or manager.
+ */
+export const createSupplierCreditNote = async (supplierCreditNoteWrite: SupplierCreditNoteWrite, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierCreditNote> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SupplierCreditNote>(getCreateSupplierCreditNoteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(supplierCreditNoteWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateSupplierCreditNoteMutationKey = () => ['createSupplierCreditNote'] as const;
+
+export const getCreateSupplierCreditNoteMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupplierCreditNote>>, TError,CreateSupplierCreditNoteMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSupplierCreditNote>>, TError,CreateSupplierCreditNoteMutationVariables, TContext> => {
+
+const mutationKey = getCreateSupplierCreditNoteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSupplierCreditNote>>, CreateSupplierCreditNoteMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSupplierCreditNote(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSupplierCreditNoteMutationResult = NonNullable<Awaited<ReturnType<typeof createSupplierCreditNote>>>
+    export type CreateSupplierCreditNoteMutationBody = SupplierCreditNoteWrite
+    export type CreateSupplierCreditNoteMutationError = unknown
+    export type CreateSupplierCreditNoteMutationVariables = {data: SupplierCreditNoteWrite}
+
+    export const useCreateSupplierCreditNote = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupplierCreditNote>>, TError,CreateSupplierCreditNoteMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createSupplierCreditNote>>,
+        TError,
+        CreateSupplierCreditNoteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSupplierCreditNoteMutationOptions(options), queryClient);
+    }
+
+export const getGetSupplierCreditNoteUrl = (creditNoteId: number,) => {
+
+
+
+
+  return `/api/v1/supplier-credit-notes/${creditNoteId}`
+}
+
+export const getSupplierCreditNote = async (creditNoteId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SupplierCreditNote> => {
+
+  return apiFetch<SupplierCreditNote>(getGetSupplierCreditNoteUrl(creditNoteId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierCreditNoteQueryKey = (creditNoteId: number,) => {
+    return [
+    `/api/v1/supplier-credit-notes/${creditNoteId}`
+    ] as const;
+    }
+
+
+export const getGetSupplierCreditNoteQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierCreditNote>>, TError = unknown>(creditNoteId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierCreditNote>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierCreditNoteQueryKey(creditNoteId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierCreditNote>>> = ({ signal }) => getSupplierCreditNote(creditNoteId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: creditNoteId !== null && creditNoteId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierCreditNote>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSupplierCreditNoteQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierCreditNote>>>
+export type GetSupplierCreditNoteQueryError = unknown
+
+
+export function useGetSupplierCreditNote<TData = Awaited<ReturnType<typeof getSupplierCreditNote>>, TError = unknown>(
+ creditNoteId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierCreditNote>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplierCreditNote>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplierCreditNote>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplierCreditNote<TData = Awaited<ReturnType<typeof getSupplierCreditNote>>, TError = unknown>(
+ creditNoteId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierCreditNote>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSupplierCreditNote>>,
+          TError,
+          Awaited<ReturnType<typeof getSupplierCreditNote>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSupplierCreditNote<TData = Awaited<ReturnType<typeof getSupplierCreditNote>>, TError = unknown>(
+ creditNoteId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierCreditNote>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSupplierCreditNote<TData = Awaited<ReturnType<typeof getSupplierCreditNote>>, TError = unknown>(
+ creditNoteId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSupplierCreditNote>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSupplierCreditNoteQueryOptions(creditNoteId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCreditableReceiptLinesUrl = (params: ListCreditableReceiptLinesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/supplier-credit-notes/creditable-lines?${stringifiedParams}` : `/api/v1/supplier-credit-notes/creditable-lines`
+}
+
+/**
+ * The supplier's receipt lines an avoir may still credit, newest first; with `invoice`, only its own.
+ */
+export const listCreditableReceiptLines = async (params: ListCreditableReceiptLinesParams, options?: Parameters<typeof apiFetch>[1]): Promise<CreditableLine[]> => {
+
+  return apiFetch<CreditableLine[]>(getListCreditableReceiptLinesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCreditableReceiptLinesQueryKey = (params?: ListCreditableReceiptLinesParams,) => {
+    return [
+    `/api/v1/supplier-credit-notes/creditable-lines`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCreditableReceiptLinesQueryOptions = <TData = Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError = unknown>(params: ListCreditableReceiptLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCreditableReceiptLinesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCreditableReceiptLines>>> = ({ signal }) => listCreditableReceiptLines(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCreditableReceiptLinesQueryResult = NonNullable<Awaited<ReturnType<typeof listCreditableReceiptLines>>>
+export type ListCreditableReceiptLinesQueryError = unknown
+
+
+export function useListCreditableReceiptLines<TData = Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError = unknown>(
+ params: ListCreditableReceiptLinesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCreditableReceiptLines>>,
+          TError,
+          Awaited<ReturnType<typeof listCreditableReceiptLines>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCreditableReceiptLines<TData = Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError = unknown>(
+ params: ListCreditableReceiptLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCreditableReceiptLines>>,
+          TError,
+          Awaited<ReturnType<typeof listCreditableReceiptLines>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCreditableReceiptLines<TData = Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError = unknown>(
+ params: ListCreditableReceiptLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCreditableReceiptLines<TData = Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError = unknown>(
+ params: ListCreditableReceiptLinesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCreditableReceiptLines>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCreditableReceiptLinesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSupplierWeightGapsUrl = () => {
+
+
+
+
+  return `/api/v1/supplier-credit-notes/weight-gaps`
+}
+
+/**
+ * Per supplier, kilos invoiced above what was accepted and not claimed yet, the biggest amount first.
+ */
+export const listSupplierWeightGaps = async ( options?: Parameters<typeof apiFetch>[1]): Promise<WeightGap[]> => {
+
+  return apiFetch<WeightGap[]>(getListSupplierWeightGapsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupplierWeightGapsQueryKey = () => {
+    return [
+    `/api/v1/supplier-credit-notes/weight-gaps`
+    ] as const;
+    }
+
+
+export const getListSupplierWeightGapsQueryOptions = <TData = Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupplierWeightGapsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupplierWeightGaps>>> = ({ signal }) => listSupplierWeightGaps({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSupplierWeightGapsQueryResult = NonNullable<Awaited<ReturnType<typeof listSupplierWeightGaps>>>
+export type ListSupplierWeightGapsQueryError = unknown
+
+
+export function useListSupplierWeightGaps<TData = Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupplierWeightGaps>>,
+          TError,
+          Awaited<ReturnType<typeof listSupplierWeightGaps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupplierWeightGaps<TData = Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSupplierWeightGaps>>,
+          TError,
+          Awaited<ReturnType<typeof listSupplierWeightGaps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSupplierWeightGaps<TData = Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListSupplierWeightGaps<TData = Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSupplierWeightGaps>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSupplierWeightGapsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetSupplierDebtsUrl = () => {
 

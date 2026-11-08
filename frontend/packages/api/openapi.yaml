@@ -10441,6 +10441,149 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierBalance'
           description: ''
+  /api/v1/supplier-credit-notes:
+    get:
+      operationId: listSupplierCreditNotes
+      description: Supplier credit notes (avoirs fournisseurs, D-297), newest first,
+        paginated.
+      parameters:
+      - in: query
+        name: invoice
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSupplierCreditNoteList'
+          description: ''
+    post:
+      operationId: createSupplierCreditNote
+      description: |-
+        Save an avoir fournisseur: per receipt line a return (kilos leave the stock from `from_location`), a
+        weight gap (invoiced − accepted) or a price cut per kg (`unit_amount`). It settles its invoice, then the
+        other open invoices; never edited. Errors on `supplier`, `invoice`, `reason`, `credited_on`, `lines`,
+        `lines.<index>.<field>`. Owner or manager.
+      tags:
+      - supplier-credit-notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierCreditNoteWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SupplierCreditNoteWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SupplierCreditNoteWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierCreditNote'
+          description: ''
+  /api/v1/supplier-credit-notes/{credit_note_id}:
+    get:
+      operationId: getSupplierCreditNote
+      parameters:
+      - in: path
+        name: credit_note_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierCreditNote'
+          description: ''
+  /api/v1/supplier-credit-notes/creditable-lines:
+    get:
+      operationId: listCreditableReceiptLines
+      description: The supplier's receipt lines an avoir may still credit, newest
+        first; with `invoice`, only its own.
+      parameters:
+      - in: query
+        name: invoice
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreditableLine'
+          description: ''
+  /api/v1/supplier-credit-notes/weight-gaps:
+    get:
+      operationId: listSupplierWeightGaps
+      description: Per supplier, kilos invoiced above what was accepted and not claimed
+        yet, the biggest amount first.
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WeightGap'
+          description: ''
   /api/v1/supplier-debts:
     get:
       operationId: getSupplierDebts
@@ -15750,6 +15893,92 @@ components:
         * `block` - Bloquer la vente
         * `approval` - Demander l'approbation du propriétaire ou du gérant
         * `warn` - Avertir et consigner
+    CreditableLine:
+      type: object
+      properties:
+        receipt_line_id:
+          type: integer
+          readOnly: true
+        receipt_id:
+          type: integer
+          readOnly: true
+        receipt_number:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        invoice_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        invoice_number:
+          type: string
+          readOnly: true
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        invoiced_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        with_vat:
+          type: boolean
+          readOnly: true
+        weight_gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_left:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - accepted_quantity
+      - amount_left
+      - batch_id
+      - batch_number
+      - invoice_id
+      - invoice_number
+      - invoiced_quantity
+      - product_id
+      - product_name
+      - receipt_id
+      - receipt_line_id
+      - receipt_number
+      - received_on
+      - returned
+      - unit_cost
+      - weight_gap
+      - with_vat
     Customer:
       type: object
       properties:
@@ -26047,6 +26276,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StockMovement'
+    PaginatedSupplierCreditNoteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditNote'
     PaginatedSupplierInvoiceList:
       type: object
       required:
@@ -32985,6 +33237,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        credited:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit_unapplied:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         outstanding:
           type: string
           format: decimal
@@ -33029,6 +33291,8 @@ components:
           readOnly: true
       required:
       - balance
+      - credit_unapplied
+      - credited
       - draft_invoices
       - draft_total
       - invoiced
@@ -33094,6 +33358,248 @@ components:
             maxLength: 0
       required:
       - name
+    SupplierCreditAllocation:
+      type: object
+      properties:
+        invoice:
+          type: integer
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - invoice
+      - invoice_number
+    SupplierCreditKindEnum:
+      enum:
+      - return
+      - weight
+      - price
+      type: string
+      description: |-
+        * `return` - Retour de marchandise
+        * `weight` - Écart de poids facturé
+        * `price` - Remise ou écart de prix
+    SupplierCreditNote:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        invoice:
+          type: integer
+          readOnly: true
+          nullable: true
+        invoice_number:
+          type: string
+          readOnly: true
+          nullable: true
+        credited_on:
+          type: string
+          format: date
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        applied_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditNoteLine'
+          readOnly: true
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditAllocation'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allocations
+      - applied_amount
+      - created_at
+      - created_by
+      - credited_on
+      - id
+      - invoice
+      - invoice_number
+      - lines
+      - number
+      - reason
+      - supplier
+      - supplier_reference
+      - total
+      - total_excl_tax
+      - vat_total
+    SupplierCreditNoteLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        receipt_line:
+          type: integer
+          readOnly: true
+        receipt_id:
+          type: integer
+          readOnly: true
+        receipt_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        batch:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SupplierCreditKindEnum'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        from_location:
+          type: integer
+          readOnly: true
+          nullable: true
+        from_location_name:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - batch
+      - batch_number
+      - from_location
+      - from_location_name
+      - id
+      - kind
+      - product_name
+      - quantity
+      - receipt_id
+      - receipt_line
+      - receipt_number
+      - unit_amount
+      - vat_amount
+      - vat_rate
+    SupplierCreditNoteLineWrite:
+      type: object
+      properties:
+        receipt_line:
+          type: integer
+          minimum: 1
+        kind:
+          $ref: '#/components/schemas/SupplierCreditKindEnum'
+        quantity:
+          type: string
+          maxLength: 20
+        unit_amount:
+          type: string
+          default: ''
+          maxLength: 20
+        from_location:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - kind
+      - quantity
+      - receipt_line
+    SupplierCreditNoteWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+        invoice:
+          type: integer
+          minimum: 1
+          nullable: true
+        credited_on:
+          type: string
+          format: date
+        reason:
+          type: string
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditNoteLineWrite'
+      required:
+      - credited_on
+      - lines
+      - reason
+      - supplier
     SupplierDebt:
       type: object
       properties:
@@ -35249,6 +35755,34 @@ components:
         * `new` - Nouvelle
         * `handled` - Traitée
         * `cancelled` - Annulée
+    WeightGap:
+      type: object
+      properties:
+        supplier_id:
+          type: integer
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        lines:
+          type: integer
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - lines
+      - quantity
+      - supplier_id
+      - supplier_name
     WhatEnum:
       enum:
       - plan

@@ -101,6 +101,14 @@ export function SupplierBalanceCard({
                     {formatMoney(data.overdue)}
                   </Line>
                 )}
+                {compare(data.credited, "0") > 0 && (
+                  <Line label={t("admin.supplierBalance.credited")}>{formatMoney(data.credited)}</Line>
+                )}
+                {compare(data.credit_unapplied, "0") > 0 && (
+                  <Line label={t("admin.supplierBalance.creditUnapplied")} tone="warn">
+                    {formatMoney(data.credit_unapplied)}
+                  </Line>
+                )}
                 {compare(data.unallocated, "0") > 0 && (
                   <Line label={t("admin.supplierBalance.unallocated")} tone="warn">
                     {formatMoney(data.unallocated)}
