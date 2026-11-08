@@ -6411,6 +6411,32 @@ export const SaveFinanceSettingsResponse = zod.object({
 
 
 /**
+ * Each active truck with its last compteur and how many of its readings carry a warning.
+ */
+export const ListFleetOdometerResponseItem = zod.object({
+  "truck_id": zod.int(),
+  "name": zod.string(),
+  "plate": zod.string(),
+  "condition": zod.string(),
+  "last": zod.union([zod.object({
+  "id": zod.int(),
+  "truck_id": zod.int(),
+  "km": zod.int(),
+  "driven_km": zod.int().nullable(),
+  "source": zod.enum(['driver', 'office']).describe('* `driver` - Chauffeur\n* `office` - Bureau'),
+  "warning": zod.union([zod.enum(['big_jump']).describe('* `` - Aucun\n* `big_jump` - Saut important'),zod.enum([''])]),
+  "note": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "day_date": zod.iso.date().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}),zod.null()]),
+  "warnings": zod.int()
+})
+export const ListFleetOdometerResponse = zod.array(ListFleetOdometerResponseItem)
+
+
+/**
  * General costs spread over the lots, newest first; with `month`, those covering that month.
  */
 export const ListGeneralCostsQueryParams = zod.object({
@@ -9505,6 +9531,41 @@ export const GetLotSettlementResponse = zod.object({
 
 
 /**
+ * The maintenance settings (Paramètres entretien).
+ */
+export const getMaintenanceSettingsResponseMaxDayKmMin = 0;
+export const getMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
+
+
+
+export const GetMaintenanceSettingsResponse = zod.object({
+  "max_day_km": zod.int().min(getMaintenanceSettingsResponseMaxDayKmMin).max(getMaintenanceSettingsResponseMaxDayKmMax).optional()
+})
+
+
+/**
+ * Change the maintenance settings. Owners and managers.
+ */
+export const updateMaintenanceSettingsBodyMaxDayKmMin = 0;
+export const updateMaintenanceSettingsBodyMaxDayKmMax = 2147483647;
+
+
+
+export const UpdateMaintenanceSettingsBody = zod.object({
+  "max_day_km": zod.int().min(updateMaintenanceSettingsBodyMaxDayKmMin).max(updateMaintenanceSettingsBodyMaxDayKmMax).optional()
+})
+
+export const updateMaintenanceSettingsResponseMaxDayKmMin = 0;
+export const updateMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
+
+
+
+export const UpdateMaintenanceSettingsResponse = zod.object({
+  "max_day_km": zod.int().min(updateMaintenanceSettingsResponseMaxDayKmMin).max(updateMaintenanceSettingsResponseMaxDayKmMax).optional()
+})
+
+
+/**
  * The logged-in user, their organization and their role.
  */
 export const GetSessionResponse = zod.object({
@@ -10916,6 +10977,47 @@ export const RecordMyLocationsBody = zod.object({
 
 export const RecordMyLocationsResponse = zod.object({
   "saved": zod.int()
+})
+
+
+/**
+ * The compteur of the driver's truck: its last reading, and the one typed on today's day. 404: no day.
+ */
+export const GetMyOdometerResponse = zod.object({
+  "last_km": zod.int().nullable(),
+  "last_at": zod.iso.datetime({"offset":true}).nullable(),
+  "today_km": zod.int().nullable()
+}).describe('The driver\'s truck\'s last compteur (the reference), and what was typed on today\'s day, if anything.')
+
+
+/**
+ * Record the compteur when sending the day (P10-T01), with an optional photo of the dashboard. Refused below
+ * the truck's last reading and on a day already sent. 404: no day today.
+ */
+export const recordMyOdometerBodyKmMin = 0;
+
+export const recordMyOdometerBodyNoteMax = 300;
+
+
+
+export const RecordMyOdometerBody = zod.object({
+  "km": zod.int().min(recordMyOdometerBodyKmMin),
+  "photo": zod.instanceof(Blob).optional(),
+  "note": zod.string().max(recordMyOdometerBodyNoteMax).optional()
+})
+
+export const RecordMyOdometerResponse = zod.object({
+  "id": zod.int(),
+  "truck_id": zod.int(),
+  "km": zod.int(),
+  "driven_km": zod.int().nullable(),
+  "source": zod.enum(['driver', 'office']).describe('* `driver` - Chauffeur\n* `office` - Bureau'),
+  "warning": zod.union([zod.enum(['big_jump']).describe('* `` - Aucun\n* `big_jump` - Saut important'),zod.enum([''])]),
+  "note": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "day_date": zod.iso.date().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 
@@ -22765,6 +22867,63 @@ export const ArchiveTruckResponse = zod.object({
   "is_active": zod.boolean(),
   "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * The truck's compteur readings, the latest first (the last 100).
+ */
+export const ListTruckOdometerParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const ListTruckOdometerResponseItem = zod.object({
+  "id": zod.int(),
+  "truck_id": zod.int(),
+  "km": zod.int(),
+  "driven_km": zod.int().nullable(),
+  "source": zod.enum(['driver', 'office']).describe('* `driver` - Chauffeur\n* `office` - Bureau'),
+  "warning": zod.union([zod.enum(['big_jump']).describe('* `` - Aucun\n* `big_jump` - Saut important'),zod.enum([''])]),
+  "note": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "day_date": zod.iso.date().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListTruckOdometerResponse = zod.array(ListTruckOdometerResponseItem)
+
+
+/**
+ * The office sets the truck's compteur, with a reason; it may be lower than the last reading.
+ */
+export const CorrectTruckOdometerParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const correctTruckOdometerBodyKmMin = 0;
+
+export const correctTruckOdometerBodyNoteMax = 300;
+
+
+
+export const CorrectTruckOdometerBody = zod.object({
+  "km": zod.int().min(correctTruckOdometerBodyKmMin),
+  "note": zod.string().max(correctTruckOdometerBodyNoteMax),
+  "photo": zod.instanceof(Blob).optional()
+})
+
+export const CorrectTruckOdometerResponse = zod.object({
+  "id": zod.int(),
+  "truck_id": zod.int(),
+  "km": zod.int(),
+  "driven_km": zod.int().nullable(),
+  "source": zod.enum(['driver', 'office']).describe('* `driver` - Chauffeur\n* `office` - Bureau'),
+  "warning": zod.union([zod.enum(['big_jump']).describe('* `` - Aucun\n* `big_jump` - Saut important'),zod.enum([''])]),
+  "note": zod.string(),
+  "photo_url": zod.string().nullable(),
+  "day_date": zod.iso.date().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 

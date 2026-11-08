@@ -1,9 +1,15 @@
 # Project status
 
-_Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, reload lock, D-281; receipt picture with logo and Arabic names, Tunisian Arabic, D-282; next free decision D-283)_
+_Last updated: 2026-11-08 (Phase 10 Flotte & entretien planned, P10-T01 compteur readings, D-283; next free decision D-284)_
 
 ## Where we are
 
+- **Phase 10 · Flotte & entretien (D-283, owner request 2026-11-08, branch `claude/dreamy-carson-bztvxg`, migration
+  `maintenance 0001`)** — plan and the owner's answers in `docs/phases/10-fleet-maintenance.md`. **P10-T01 done on the
+  branch:** new app `apps.maintenance`; the driver types the compteur (optional photo) on "Clôture" before sending the
+  day; lower than the last reading is refused; a big jump is kept with a warning and the office is notified; the office
+  sees and corrects it on the new menu entry **Flotte & entretien** (`/flotte`), with the setting "Km maximum par jour".
+  Check on staging: send a day with 120 000 km, the next day 119 000 is refused, 130 000 is flagged; correct it on /flotte.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
@@ -97,6 +103,8 @@ _Last updated: 2026-11-03 (driver printing per copy, delivered BL receipts, relo
 
 ## Next step
 
+0. P10-T01 (D-283): open the PR from `claude/dreamy-carson-bztvxg`, merge once green. Then **P10-T02** (Paramètres
+   entretien: maintenance types, plans per truck, "Entretien effectué", status from the readings).
 0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
    a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
 0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.

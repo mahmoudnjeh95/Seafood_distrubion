@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from apps.expenses.models import Expense
     from apps.fleet.models import DriverDay, TruckAssignment
     from apps.inventory.models import StockLoss, Transfer
+    from apps.maintenance.models import OdometerReading
     from apps.partners.models import Customer
     from apps.purchasing.models import FieldPurchase
     from apps.sales.models import CustomerPayment, Sale
@@ -95,6 +96,15 @@ def _loss_recorded(entry: AuditLog) -> None:
     kind = "loss_waiting" if loss.status == "pending" else "loss_recorded"
     params = {"number": loss.number, "product": loss.product.name, "quantity": f"{loss.quantity:.3f}"}
     _office(entry, kind, params, f"/stock/pertes/{loss.pk}")
+
+
+def _odometer_recorded(entry: AuditLog) -> None:
+    # Only a reading far above what a truck drives in a day tells the office (P10-T01, D-283): a typo or a long trip.
+    after = entry.after or {}
+    if after.get("warning") != "big_jump":
+        return
+    params = {"truck": after.get("truck", ""), "km": after.get("km"), "driven": after.get("driven_km")}
+    _office(entry, "odometer_jump", params, f"/flotte?camion={cast('OdometerReading', entry.target).truck_id}")
 
 
 def _purchase_sent(entry: AuditLog) -> None:
@@ -248,6 +258,7 @@ RULES: dict[str, Callable[[AuditLog], None]] = {
     "customer_payment.recorded": _payment_recorded,
     "expense.created": _expense_created,
     "loss.recorded": _loss_recorded,
+    "odometer.recorded": _odometer_recorded,
     "field_purchase.submitted": _purchase_sent,
     "field_purchase.edited": _purchase_edited,
     "customer.created": _customer_created,

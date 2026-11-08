@@ -126,6 +126,7 @@ import type {
   FieldPurchaseWrite,
   FinanceSettingsOverview,
   FinanceSettingsWrite,
+  FleetOdometerRow,
   GeneralCost,
   GeneralCostWrite,
   GenerateRecurring,
@@ -237,6 +238,7 @@ import type {
   LotSettlementView,
   LotWorkDay,
   LotWorkDayWrite,
+  MaintenanceSettings,
   MarkRead,
   MatchCandidate,
   MatchWrite,
@@ -256,12 +258,16 @@ import type {
   MyFieldPurchase,
   MyFieldPurchaseCreate,
   MyFieldPurchaseUpdate,
+  MyOdometer,
+  MyOdometerWrite,
   MyStockLine,
   MySupplier,
   NotDelivered,
   NotificationList,
   NumberLine,
   NumberingWrite,
+  OdometerCorrection,
+  OdometerReading,
   OfficeSiteProduct,
   Order,
   OrderWrite,
@@ -300,6 +306,7 @@ import type {
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
   PatchedLotPartnershipUpdate,
+  PatchedMaintenanceSettings,
   PatchedMemberCanBuy,
   PatchedMemberProfile,
   PatchedMemberRole,
@@ -9664,6 +9671,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getSaveFinanceSettingsMutationOptions(options), queryClient);
     }
 
+export const getListFleetOdometerUrl = () => {
+
+
+
+
+  return `/api/v1/fleet/odometer`
+}
+
+/**
+ * Each active truck with its last compteur and how many of its readings carry a warning.
+ */
+export const listFleetOdometer = async ( options?: Parameters<typeof apiFetch>[1]): Promise<FleetOdometerRow[]> => {
+
+  return apiFetch<FleetOdometerRow[]>(getListFleetOdometerUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFleetOdometerQueryKey = () => {
+    return [
+    `/api/v1/fleet/odometer`
+    ] as const;
+    }
+
+
+export const getListFleetOdometerQueryOptions = <TData = Awaited<ReturnType<typeof listFleetOdometer>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFleetOdometerQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFleetOdometer>>> = ({ signal }) => listFleetOdometer({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFleetOdometer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFleetOdometerQueryResult = NonNullable<Awaited<ReturnType<typeof listFleetOdometer>>>
+export type ListFleetOdometerQueryError = unknown
+
+
+export function useListFleetOdometer<TData = Awaited<ReturnType<typeof listFleetOdometer>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetOdometer>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFleetOdometer>>,
+          TError,
+          Awaited<ReturnType<typeof listFleetOdometer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFleetOdometer<TData = Awaited<ReturnType<typeof listFleetOdometer>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetOdometer>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFleetOdometer>>,
+          TError,
+          Awaited<ReturnType<typeof listFleetOdometer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFleetOdometer<TData = Awaited<ReturnType<typeof listFleetOdometer>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListFleetOdometer<TData = Awaited<ReturnType<typeof listFleetOdometer>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFleetOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFleetOdometerQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListGeneralCostsUrl = (params?: ListGeneralCostsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -13450,6 +13555,189 @@ export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSett
 
 
 
+export const getGetMaintenanceSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/maintenance-settings`
+}
+
+/**
+ * The maintenance settings (Paramètres entretien).
+ */
+export const getMaintenanceSettings = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceSettings> => {
+
+  return apiFetch<MaintenanceSettings>(getGetMaintenanceSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMaintenanceSettingsQueryKey = () => {
+    return [
+    `/api/v1/maintenance-settings`
+    ] as const;
+    }
+
+
+export const getGetMaintenanceSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getMaintenanceSettings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMaintenanceSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMaintenanceSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMaintenanceSettings>>> = ({ signal }) => getMaintenanceSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMaintenanceSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMaintenanceSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getMaintenanceSettings>>>
+export type GetMaintenanceSettingsQueryError = unknown
+
+
+export function useGetMaintenanceSettings<TData = Awaited<ReturnType<typeof getMaintenanceSettings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMaintenanceSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMaintenanceSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getMaintenanceSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMaintenanceSettings<TData = Awaited<ReturnType<typeof getMaintenanceSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMaintenanceSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMaintenanceSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getMaintenanceSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMaintenanceSettings<TData = Awaited<ReturnType<typeof getMaintenanceSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMaintenanceSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMaintenanceSettings<TData = Awaited<ReturnType<typeof getMaintenanceSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMaintenanceSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMaintenanceSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMaintenanceSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/maintenance-settings`
+}
+
+/**
+ * Change the maintenance settings. Owners and managers.
+ */
+export const updateMaintenanceSettings = async (patchedMaintenanceSettings?: PatchedMaintenanceSettings, options?: Parameters<typeof apiFetch>[1]): Promise<MaintenanceSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<MaintenanceSettings>(getUpdateMaintenanceSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedMaintenanceSettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateMaintenanceSettingsMutationKey = () => ['updateMaintenanceSettings'] as const;
+
+export const getUpdateMaintenanceSettingsMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaintenanceSettings>>, TError,UpdateMaintenanceSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMaintenanceSettings>>, TError,UpdateMaintenanceSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMaintenanceSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMaintenanceSettings>>, UpdateMaintenanceSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMaintenanceSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMaintenanceSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateMaintenanceSettings>>>
+    export type UpdateMaintenanceSettingsMutationBody = PatchedMaintenanceSettings | undefined
+    export type UpdateMaintenanceSettingsMutationError = void
+    export type UpdateMaintenanceSettingsMutationVariables = {data?: PatchedMaintenanceSettings}
+
+    export const useUpdateMaintenanceSettings = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaintenanceSettings>>, TError,UpdateMaintenanceSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateMaintenanceSettings>>,
+        TError,
+        UpdateMaintenanceSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMaintenanceSettingsMutationOptions(options), queryClient);
+    }
+
 export const getGetSessionUrl = () => {
 
 
@@ -16322,6 +16610,184 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRecordMyLocationsMutationOptions(options), queryClient);
+    }
+
+export const getGetMyOdometerUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/odometer`
+}
+
+/**
+ * The compteur of the driver's truck: its last reading, and the one typed on today's day. 404: no day.
+ */
+export const getMyOdometer = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyOdometer> => {
+
+  return apiFetch<MyOdometer>(getGetMyOdometerUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyOdometerQueryKey = () => {
+    return [
+    `/api/v1/my-day/odometer`
+    ] as const;
+    }
+
+
+export const getGetMyOdometerQueryOptions = <TData = Awaited<ReturnType<typeof getMyOdometer>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyOdometerQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyOdometer>>> = ({ signal }) => getMyOdometer({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyOdometer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyOdometerQueryResult = NonNullable<Awaited<ReturnType<typeof getMyOdometer>>>
+export type GetMyOdometerQueryError = unknown
+
+
+export function useGetMyOdometer<TData = Awaited<ReturnType<typeof getMyOdometer>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOdometer>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyOdometer>>,
+          TError,
+          Awaited<ReturnType<typeof getMyOdometer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyOdometer<TData = Awaited<ReturnType<typeof getMyOdometer>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOdometer>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyOdometer>>,
+          TError,
+          Awaited<ReturnType<typeof getMyOdometer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyOdometer<TData = Awaited<ReturnType<typeof getMyOdometer>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetMyOdometer<TData = Awaited<ReturnType<typeof getMyOdometer>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyOdometerQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordMyOdometerUrl = () => {
+
+
+
+
+  return `/api/v1/my-day/odometer`
+}
+
+/**
+ * Record the compteur when sending the day (P10-T01), with an optional photo of the dashboard. Refused below
+ * the truck's last reading and on a day already sent. 404: no day today.
+ */
+export const recordMyOdometer = async (myOdometerWrite: MyOdometerWrite, options?: Parameters<typeof apiFetch>[1]): Promise<OdometerReading> => {
+    const formData = new FormData();
+formData.append(`km`, myOdometerWrite.km.toString())
+if(myOdometerWrite.photo !== undefined) {
+ formData.append(`photo`, myOdometerWrite.photo);
+ }
+if(myOdometerWrite.note !== undefined) {
+ formData.append(`note`, myOdometerWrite.note);
+ }
+
+  return apiFetch<OdometerReading>(getRecordMyOdometerUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getRecordMyOdometerMutationKey = () => ['recordMyOdometer'] as const;
+
+export const getRecordMyOdometerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMyOdometer>>, TError,RecordMyOdometerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordMyOdometer>>, TError,RecordMyOdometerMutationVariables, TContext> => {
+
+const mutationKey = getRecordMyOdometerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordMyOdometer>>, RecordMyOdometerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordMyOdometer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordMyOdometerMutationResult = NonNullable<Awaited<ReturnType<typeof recordMyOdometer>>>
+    export type RecordMyOdometerMutationBody = MyOdometerWrite
+    export type RecordMyOdometerMutationError = unknown
+    export type RecordMyOdometerMutationVariables = {data: MyOdometerWrite}
+
+    export const useRecordMyOdometer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMyOdometer>>, TError,RecordMyOdometerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordMyOdometer>>,
+        TError,
+        RecordMyOdometerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordMyOdometerMutationOptions(options), queryClient);
     }
 
 export const getGetMyPurchaseChangeUrl = () => {
@@ -36336,6 +36802,182 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getArchiveTruckMutationOptions(options), queryClient);
+    }
+
+export const getListTruckOdometerUrl = (truckId: number,) => {
+
+
+
+
+  return `/api/v1/trucks/${truckId}/odometer-readings`
+}
+
+/**
+ * The truck's compteur readings, the latest first (the last 100).
+ */
+export const listTruckOdometer = async (truckId: number, options?: Parameters<typeof apiFetch>[1]): Promise<OdometerReading[]> => {
+
+  return apiFetch<OdometerReading[]>(getListTruckOdometerUrl(truckId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTruckOdometerQueryKey = (truckId: number,) => {
+    return [
+    `/api/v1/trucks/${truckId}/odometer-readings`
+    ] as const;
+    }
+
+
+export const getListTruckOdometerQueryOptions = <TData = Awaited<ReturnType<typeof listTruckOdometer>>, TError = unknown>(truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTruckOdometerQueryKey(truckId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTruckOdometer>>> = ({ signal }) => listTruckOdometer(truckId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: truckId !== null && truckId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTruckOdometer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTruckOdometerQueryResult = NonNullable<Awaited<ReturnType<typeof listTruckOdometer>>>
+export type ListTruckOdometerQueryError = unknown
+
+
+export function useListTruckOdometer<TData = Awaited<ReturnType<typeof listTruckOdometer>>, TError = unknown>(
+ truckId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckOdometer>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTruckOdometer>>,
+          TError,
+          Awaited<ReturnType<typeof listTruckOdometer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTruckOdometer<TData = Awaited<ReturnType<typeof listTruckOdometer>>, TError = unknown>(
+ truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckOdometer>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTruckOdometer>>,
+          TError,
+          Awaited<ReturnType<typeof listTruckOdometer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTruckOdometer<TData = Awaited<ReturnType<typeof listTruckOdometer>>, TError = unknown>(
+ truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTruckOdometer<TData = Awaited<ReturnType<typeof listTruckOdometer>>, TError = unknown>(
+ truckId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTruckOdometer>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTruckOdometerQueryOptions(truckId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCorrectTruckOdometerUrl = (truckId: number,) => {
+
+
+
+
+  return `/api/v1/trucks/${truckId}/odometer-readings`
+}
+
+/**
+ * The office sets the truck's compteur, with a reason; it may be lower than the last reading.
+ */
+export const correctTruckOdometer = async (truckId: number,
+    odometerCorrection: OdometerCorrection, options?: Parameters<typeof apiFetch>[1]): Promise<OdometerReading> => {
+    const formData = new FormData();
+formData.append(`km`, odometerCorrection.km.toString())
+formData.append(`note`, odometerCorrection.note);
+if(odometerCorrection.photo !== undefined) {
+ formData.append(`photo`, odometerCorrection.photo);
+ }
+
+  return apiFetch<OdometerReading>(getCorrectTruckOdometerUrl(truckId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getCorrectTruckOdometerMutationKey = () => ['correctTruckOdometer'] as const;
+
+export const getCorrectTruckOdometerMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctTruckOdometer>>, TError,CorrectTruckOdometerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof correctTruckOdometer>>, TError,CorrectTruckOdometerMutationVariables, TContext> => {
+
+const mutationKey = getCorrectTruckOdometerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof correctTruckOdometer>>, CorrectTruckOdometerMutationVariables> = (props) => {
+          const {truckId,data} = props ?? {};
+
+          return  correctTruckOdometer(truckId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CorrectTruckOdometerMutationResult = NonNullable<Awaited<ReturnType<typeof correctTruckOdometer>>>
+    export type CorrectTruckOdometerMutationBody = OdometerCorrection
+    export type CorrectTruckOdometerMutationError = unknown
+    export type CorrectTruckOdometerMutationVariables = {truckId: number;data: OdometerCorrection}
+
+    export const useCorrectTruckOdometer = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctTruckOdometer>>, TError,CorrectTruckOdometerMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof correctTruckOdometer>>,
+        TError,
+        CorrectTruckOdometerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCorrectTruckOdometerMutationOptions(options), queryClient);
     }
 
 export const getRestoreTruckUrl = (truckId: number,) => {

@@ -3263,6 +3263,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/FinanceSettingsOverview'
           description: ''
+  /api/v1/fleet/odometer:
+    get:
+      operationId: listFleetOdometer
+      description: Each active truck with its last compteur and how many of its readings
+        carry a warning.
+      tags:
+      - fleet
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FleetOdometerRow'
+          description: ''
   /api/v1/general-costs:
     get:
       operationId: listGeneralCosts
@@ -4547,6 +4565,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotSettlementView'
           description: ''
+  /api/v1/maintenance-settings:
+    get:
+      operationId: getMaintenanceSettings
+      description: The maintenance settings (Paramètres entretien).
+      tags:
+      - maintenance-settings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceSettings'
+          description: ''
+    patch:
+      operationId: updateMaintenanceSettings
+      description: Change the maintenance settings. Owners and managers.
+      tags:
+      - maintenance-settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenanceSettings'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenanceSettings'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenanceSettings'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceSettings'
+          description: ''
+        '400':
+          description: Out of range
   /api/v1/me:
     get:
       operationId: getSession
@@ -5356,6 +5416,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LocationPingSaved'
+          description: ''
+  /api/v1/my-day/odometer:
+    get:
+      operationId: getMyOdometer
+      description: 'The compteur of the driver''s truck: its last reading, and the
+        one typed on today''s day. 404: no day.'
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyOdometer'
+          description: ''
+    post:
+      operationId: recordMyOdometer
+      description: |-
+        Record the compteur when sending the day (P10-T01), with an optional photo of the dashboard. Refused below
+        the truck's last reading and on a day already sent. 404: no day today.
+      tags:
+      - my-day
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyOdometerWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OdometerReading'
           description: ''
   /api/v1/my-day/purchase-change:
     get:
@@ -11975,6 +12073,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}/odometer-readings:
+    get:
+      operationId: listTruckOdometer
+      description: The truck's compteur readings, the latest first (the last 100).
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OdometerReading'
+          description: ''
+    post:
+      operationId: correctTruckOdometer
+      description: The office sets the truck's compteur, with a reason; it may be
+        lower than the last reading.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OdometerCorrection'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OdometerReading'
           description: ''
   /api/v1/trucks/{truck_id}/restore:
     post:
@@ -18858,6 +19006,30 @@ components:
       - prices_include_vat
       - vat_rate
       - withholding_rate
+    FleetOdometerRow:
+      type: object
+      properties:
+        truck_id:
+          type: integer
+        name:
+          type: string
+        plate:
+          type: string
+        condition:
+          type: string
+        last:
+          allOf:
+          - $ref: '#/components/schemas/OdometerReading'
+          nullable: true
+        warnings:
+          type: integer
+      required:
+      - condition
+      - last
+      - name
+      - plate
+      - truck_id
+      - warnings
     GapLot:
       type: object
       description: 'A lot the gap of an invoice can be charged to (D-256, D-257):
@@ -21646,6 +21818,13 @@ components:
       - name
       - product_id
       - quantity
+    MaintenanceSettings:
+      type: object
+      properties:
+        max_day_km:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
     MarkRead:
       type: object
       description: Either the ids seen, or `all` for everything shown.
@@ -22806,6 +22985,39 @@ components:
       - lines
       - revision
       - terms
+    MyOdometer:
+      type: object
+      description: The driver's truck's last compteur (the reference), and what was
+        typed on today's day, if anything.
+      properties:
+        last_km:
+          type: integer
+          nullable: true
+        last_at:
+          type: string
+          format: date-time
+          nullable: true
+        today_km:
+          type: integer
+          nullable: true
+      required:
+      - last_at
+      - last_km
+      - today_km
+    MyOdometerWrite:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+        photo:
+          type: string
+          format: binary
+        note:
+          type: string
+          maxLength: 300
+      required:
+      - km
     MyStockLine:
       type: object
       description: What the driver's truck holds of one product, with today's price
@@ -22979,6 +23191,92 @@ components:
             $ref: '#/components/schemas/NumberPrefixRow'
       required:
       - prefixes
+    OdometerCorrection:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+        note:
+          type: string
+          maxLength: 300
+        photo:
+          type: string
+          format: binary
+      required:
+      - km
+      - note
+    OdometerReading:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        truck_id:
+          type: integer
+          readOnly: true
+        km:
+          type: integer
+          readOnly: true
+        driven_km:
+          type: integer
+          readOnly: true
+          nullable: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/OdometerSourceEnum'
+          readOnly: true
+        warning:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/OdometerWarningEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        note:
+          type: string
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        day_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        recorded_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - day_date
+      - driven_km
+      - id
+      - km
+      - note
+      - photo_url
+      - recorded_by
+      - source
+      - truck_id
+      - warning
+    OdometerSourceEnum:
+      enum:
+      - driver
+      - office
+      type: string
+      description: |-
+        * `driver` - Chauffeur
+        * `office` - Bureau
+    OdometerWarningEnum:
+      enum:
+      - big_jump
+      type: string
+      description: |-
+        * `` - Aucun
+        * `big_jump` - Saut important
     OfficeSiteProduct:
       type: object
       description: |-
@@ -24393,6 +24691,13 @@ components:
           type: string
         notes:
           type: string
+    PatchedMaintenanceSettings:
+      type: object
+      properties:
+        max_day_km:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
     PatchedMemberCanBuy:
       type: object
       properties:
