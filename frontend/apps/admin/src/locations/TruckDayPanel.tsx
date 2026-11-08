@@ -1,4 +1,5 @@
 import {
+  useListFleetAlerts,
   assignTruck,
   type Truck,
   type TruckAssignment,
@@ -26,6 +27,7 @@ import {
 import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
+import { truckStates } from "../fleet/shared";
 import { fieldErrors } from "../lib/errors";
 
 // Radix Select cannot hold an empty value: this one stands for "nobody assigned" (the usual driver, if any, drives it).
@@ -55,6 +57,8 @@ export function TruckDayPanel({ canEdit }: { canEdit: boolean }) {
   const dateId = useId();
   const [date, setDate] = useState(todayIso);
   const [failure, setFailure] = useState<string | null>(null);
+  // A truck with maintenance or papers soon or late carries its badge (P10-T05, D-295).
+  const states = truckStates(useListFleetAlerts().data);
 
   const trucks = useListTrucks({ status: "active" });
   const members = useListMembers();
@@ -152,6 +156,11 @@ export function TruckDayPanel({ canEdit }: { canEdit: boolean }) {
                     <Td>
                       <span className="font-semibold">{truck.name}</span>{" "}
                       <span className="num text-[0.82rem] text-ink-2">{truck.plate}</span>
+                      {states.has(truck.id) && (
+                        <Pill tone={states.get(truck.id) === "late" ? "bad" : "warn"} className="ms-2">
+                          {t(`admin.fleet.badge.${states.get(truck.id) ?? "soon"}`)}
+                        </Pill>
+                      )}
                       {unavailable && (
                         <Pill tone="bad" className="ms-2">
                           {t(`admin.locations.conditions.${truck.condition}`)}

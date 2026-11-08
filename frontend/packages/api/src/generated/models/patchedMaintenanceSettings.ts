@@ -11,4 +11,9 @@ export interface PatchedMaintenanceSettings {
      * @maximum 2147483647
      */
   max_day_km?: number;
+  /**
+     * @items.minimum 1
+     * @items.maximum 365
+     */
+  paper_warn_days?: number[];
 }

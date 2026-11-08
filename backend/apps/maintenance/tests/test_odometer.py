@@ -120,10 +120,10 @@ def test_a_big_jump_is_kept_with_a_warning_and_the_office_is_told(road):
 
 def test_the_limit_is_a_setting(road):
     office = road["office"]
-    assert office.get(reverse("maintenance-settings")).json() == {"max_day_km": 600}
+    assert office.get(reverse("maintenance-settings")).json()["max_day_km"] == 600
     assert road["client"].patch(reverse("maintenance-settings"), {"max_day_km": 50}, format="json").status_code == 403
     assert office.patch(reverse("maintenance-settings"), {"max_day_km": 0}, format="json").status_code == 400
-    assert office.patch(reverse("maintenance-settings"), {"max_day_km": 50}, format="json").json() == {"max_day_km": 50}
+    assert office.patch(reverse("maintenance-settings"), {"max_day_km": 50}, format="json").json()["max_day_km"] == 50
     open_day(road)
     road["client"].post(reverse("my-odometer"), {"km": 1000})
 

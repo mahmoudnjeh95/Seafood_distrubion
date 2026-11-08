@@ -65,6 +65,8 @@ DEFAULT_CATEGORIES: tuple[tuple[str, str], ...] = (
     ("administration", "Administration"),
     ("financial", "Frais financiers"),
     ("miscellaneous", "Divers"),
+    # Maintenance and papers of the trucks (P10, D-295): general overhead, not a truck cost of the day.
+    ("vehicles", "Entretien et papiers des camions"),
 )
 # The owner's own categories come after the default ones.
 CUSTOM_POSITION = 1000

@@ -168,7 +168,8 @@ services:
     # Sleeps until just after 03:00 UTC, then checks the stock on hand against the ledger (D-038). A
     # difference is logged as an error (Sentry once its DSN is set) and repaired by hand:
     # `docker compose ... exec backend python manage.py rebuild_on_hand`.
-    # Then marks as expired the sent quotes whose validity date has passed (D-050).
+    # Then marks as expired the sent quotes whose validity date has passed (D-050), and tells the office about
+    # maintenance and papers due (D-295).
     # Each check records its run, read by /api/v1/health/stock-check and the uptime workflow (D-140). It also
     # runs once at start, so a fresh deploy has a recent result instead of reading as "never".
     command:
@@ -180,6 +181,7 @@ services:
           sleep $$(( (86400 + 3 * 3600 - $$(date +%s) % 86400) % 86400 + 60 ))
           python manage.py rebuild_on_hand --check || true
           python manage.py expire_quotes || true
+          python manage.py maintenance_warnings || true
         done
 
 volumes:

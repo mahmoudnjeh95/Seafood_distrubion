@@ -18,6 +18,7 @@ import {
   Toaster,
   useFavicon,
 } from "@frutti/ui";
+import { useListFleetAlerts } from "@frutti/api";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
@@ -232,9 +233,13 @@ function OwnerOnly({ children }: { children: ReactNode }) {
 function Shell({ session }: { session: Session }) {
   const { t } = useTranslation();
   const logout = useLogout();
+  // The maintenance and papers soon or late show on the Flotte & entretien entry (P10-T05, D-295).
+  const alerts = useListFleetAlerts({ query: { refetchInterval: 5 * 60_000 } }).data?.length ?? 0;
   const nav = useNav().map((group) => ({
     ...group,
-    items: group.items.filter((item) => session.role === "owner" || item.to !== "/parametres"),
+    items: group.items
+      .filter((item) => session.role === "owner" || item.to !== "/parametres")
+      .map((item) => (item.to === "/flotte" && alerts > 0 ? { ...item, badge: String(alerts) } : item)),
   }));
   useFavicon(session.organization.logo_url);
   return (

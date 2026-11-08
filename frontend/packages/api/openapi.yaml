@@ -3457,6 +3457,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/FinanceSettingsOverview'
           description: ''
+  /api/v1/fleet/alerts:
+    get:
+      operationId: listFleetAlerts
+      description: |-
+        Every maintenance and paper soon (orange) or late (red), the red ones first: the badges on the trucks and
+        the "Flotte & conformité" overview.
+      tags:
+      - fleet
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+          description: ''
   /api/v1/fleet/odometer:
     get:
       operationId: listFleetOdometer
@@ -4797,6 +4816,150 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotSettlementView'
           description: ''
+  /api/v1/maintenance-plans:
+    get:
+      operationId: listMaintenancePlans
+      description: The maintenance followed, with where each one stands today (ok,
+        bientôt, en retard, à renseigner).
+      parameters:
+      - in: query
+        name: location
+        schema:
+          type: integer
+      - in: query
+        name: truck
+        schema:
+          type: integer
+      tags:
+      - maintenance-plans
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaintenancePlan'
+          description: ''
+    post:
+      operationId: createMaintenancePlan
+      description: Follow a kind of maintenance on a truck (or its frigo unit) or
+        a cold room.
+      tags:
+      - maintenance-plans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenancePlanCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MaintenancePlanCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MaintenancePlanCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenancePlan'
+          description: ''
+  /api/v1/maintenance-plans/{plan_id}:
+    patch:
+      operationId: updateMaintenancePlan
+      description: Change the plan's own interval or when it was last done, or stop
+        following it (`is_active` false).
+      parameters:
+      - in: path
+        name: plan_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - maintenance-plans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenancePlanUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenancePlanUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenancePlanUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenancePlan'
+          description: ''
+  /api/v1/maintenance-plans/{plan_id}/records:
+    get:
+      operationId: listMaintenanceRecords
+      description: The jobs done on the plan, the latest first.
+      parameters:
+      - in: path
+        name: plan_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - maintenance-plans
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaintenanceRecord'
+          description: ''
+    post:
+      operationId: recordMaintenance
+      description: |-
+        "Entretien effectué": the next one is due from here. A cost becomes an approved expense of the general
+        overhead (not charged to the lots).
+      parameters:
+      - in: path
+        name: plan_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - maintenance-plans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceRecordWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MaintenanceRecordWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MaintenanceRecordWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRecord'
+          description: ''
   /api/v1/maintenance-settings:
     get:
       operationId: getMaintenanceSettings
@@ -4839,6 +5002,109 @@ paths:
           description: ''
         '400':
           description: Out of range
+  /api/v1/maintenance-types:
+    get:
+      operationId: listMaintenanceTypes
+      description: The kinds of maintenance with their intervals (Paramètres entretien),
+        archived ones included.
+      parameters:
+      - in: query
+        name: target
+        schema:
+          type: string
+          enum:
+          - cold_room
+          - frigo
+          - truck
+      tags:
+      - maintenance-types
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaintenanceType'
+          description: ''
+    post:
+      operationId: createMaintenanceType
+      description: 'A new kind of maintenance: every X km and/or Y months, warned
+        so many km or days before.'
+      tags:
+      - maintenance-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceType'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MaintenanceType'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MaintenanceType'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceType'
+          description: ''
+  /api/v1/maintenance-types/{type_id}:
+    patch:
+      operationId: updateMaintenanceType
+      description: Change a kind of maintenance, or archive it (`is_active` false).
+        Its target never changes.
+      parameters:
+      - in: path
+        name: type_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - maintenance-types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenanceTypeUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenanceTypeUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMaintenanceTypeUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceType'
+          description: ''
+  /api/v1/maintenance-types/defaults:
+    post:
+      operationId: addDefaultMaintenanceTypes
+      description: Add the suggested kinds of maintenance the organization does not
+        have yet.
+      tags:
+      - maintenance-types
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Added'
+          description: ''
   /api/v1/me:
     get:
       operationId: getSession
@@ -5588,6 +5854,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MyDaySummary'
+          description: ''
+  /api/v1/my-day/alerts:
+    get:
+      operationId: listMyAlerts
+      description: 'What the driver sees on the phone: his truck''s maintenance and
+        papers due, and his own papers.'
+      tags:
+      - my-day
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
           description: ''
   /api/v1/my-day/fund:
     get:
@@ -6453,6 +6737,72 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/papers:
+    get:
+      operationId: listPapers
+      description: Every paper typed for a truck or a person (renewals included),
+        the one valid the longest first.
+      parameters:
+      - in: query
+        name: employee
+        schema:
+          type: integer
+      - in: query
+        name: truck
+        schema:
+          type: integer
+      tags:
+      - papers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Paper'
+          description: ''
+    post:
+      operationId: recordPaper
+      description: A paper issued or renewed, with its scan (photo or PDF) and its
+        cost (an approved expense).
+      tags:
+      - papers
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaperWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+          description: ''
+  /api/v1/papers/board:
+    get:
+      operationId: listPaperBoard
+      description: Each active truck's and person's papers, the current one of each
+        kind and where it stands.
+      tags:
+      - papers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaperStatus'
+          description: ''
   /api/v1/partners/{partner_id}/balances:
     get:
       operationId: getPartnerBalances
@@ -12731,6 +13081,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/Truck'
           description: ''
+  /api/v1/trucks/{truck_id}/day-allowances:
+    get:
+      operationId: listTruckDayAllowances
+      description: The days the owner let the truck out although its assurance or
+        visite technique had expired.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TruckDayAllowance'
+          description: ''
+    post:
+      operationId: allowTruckDay
+      description: The owner lets the truck out that day, with the reason. Owner only.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TruckDayAllowance'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TruckDayAllowance'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TruckDayAllowance'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruckDayAllowance'
+          description: ''
   /api/v1/trucks/{truck_id}/odometer-readings:
     get:
       operationId: listTruckOdometer
@@ -13321,6 +13727,13 @@ components:
           maxLength: 255
       required:
       - amount
+    Added:
+      type: object
+      properties:
+        added:
+          type: integer
+      required:
+      - added
     AdjustmentWrite:
       type: object
       properties:
@@ -13392,6 +13805,60 @@ components:
       - credit_limit
       - customer
       - overdue
+    Alert:
+      type: object
+      description: 'One `selectors.Alert`: a maintenance or a paper that is soon (orange)
+        or late (red).'
+      properties:
+        what:
+          $ref: '#/components/schemas/WhatEnum'
+        state:
+          $ref: '#/components/schemas/AlertStateEnum'
+        subject:
+          type: string
+        truck_id:
+          type: integer
+          nullable: true
+        location_id:
+          type: integer
+          nullable: true
+        employee_id:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        due_on:
+          type: string
+          format: date
+          nullable: true
+        km_left:
+          type: integer
+          nullable: true
+        days_left:
+          type: integer
+          nullable: true
+        object_id:
+          type: integer
+      required:
+      - days_left
+      - due_on
+      - employee_id
+      - km_left
+      - location_id
+      - object_id
+      - state
+      - subject
+      - title
+      - truck_id
+      - what
+    AlertStateEnum:
+      enum:
+      - soon
+      - late
+      type: string
+      description: |-
+        * `soon` - soon
+        * `late` - late
     AllocateWrite:
       type: object
       properties:
@@ -22895,6 +23362,204 @@ components:
       - name
       - product_id
       - quantity
+    MaintenancePlan:
+      type: object
+      description: 'One `selectors.PlanStatus`: the plan and where it stands today.'
+      properties:
+        id:
+          type: integer
+        type:
+          $ref: '#/components/schemas/MaintenanceType'
+        truck:
+          allOf:
+          - $ref: '#/components/schemas/PlanSubject'
+          nullable: true
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/PlanSubject'
+          nullable: true
+          readOnly: true
+        own_every_km:
+          type: integer
+          nullable: true
+        own_every_months:
+          type: integer
+          nullable: true
+        last_done_on:
+          type: string
+          format: date
+          nullable: true
+        last_done_km:
+          type: integer
+          nullable: true
+        every_km:
+          type: integer
+          nullable: true
+        every_months:
+          type: integer
+          nullable: true
+        current_km:
+          type: integer
+          nullable: true
+        due_km:
+          type: integer
+          nullable: true
+        km_left:
+          type: integer
+          nullable: true
+        due_on:
+          type: string
+          format: date
+          nullable: true
+        days_left:
+          type: integer
+          nullable: true
+        estimated_on:
+          type: string
+          format: date
+          nullable: true
+        state:
+          $ref: '#/components/schemas/MaintenancePlanStateEnum'
+      required:
+      - current_km
+      - days_left
+      - due_km
+      - due_on
+      - estimated_on
+      - every_km
+      - every_months
+      - id
+      - km_left
+      - last_done_km
+      - last_done_on
+      - location
+      - own_every_km
+      - own_every_months
+      - state
+      - truck
+      - type
+    MaintenancePlanCreate:
+      type: object
+      properties:
+        type:
+          type: integer
+        truck:
+          type: integer
+          nullable: true
+        location:
+          type: integer
+          nullable: true
+        every_km:
+          type: integer
+          minimum: 1
+          nullable: true
+        every_months:
+          type: integer
+          maximum: 120
+          minimum: 1
+          nullable: true
+        last_done_on:
+          type: string
+          format: date
+          nullable: true
+        last_done_km:
+          type: integer
+          minimum: 0
+          nullable: true
+      required:
+      - type
+    MaintenancePlanStateEnum:
+      enum:
+      - ok
+      - soon
+      - late
+      - unknown
+      type: string
+      description: |-
+        * `ok` - ok
+        * `soon` - soon
+        * `late` - late
+        * `unknown` - unknown
+    MaintenanceRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        plan_id:
+          type: integer
+          readOnly: true
+        done_on:
+          type: string
+          format: date
+          readOnly: true
+        km:
+          type: integer
+          readOnly: true
+          nullable: true
+        garage:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+          nullable: true
+        recorded_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cost
+      - created_at
+      - done_on
+      - expense_id
+      - expense_number
+      - garage
+      - id
+      - km
+      - note
+      - plan_id
+      - recorded_by
+    MaintenanceRecordWrite:
+      type: object
+      properties:
+        done_on:
+          type: string
+          format: date
+        km:
+          type: integer
+          minimum: 0
+          nullable: true
+        garage:
+          type: string
+          maxLength: 150
+        note:
+          type: string
+          maxLength: 300
+        cost:
+          type: string
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: cash
+      required:
+      - done_on
     MaintenanceSettings:
       type: object
       properties:
@@ -22902,8 +23567,56 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        paper_warn_days:
+          type: array
+          items:
+            type: integer
+            maximum: 365
+            minimum: 1
+    MaintenanceTargetEnum:
+      enum:
+      - truck
+      - frigo
+      - cold_room
+      type: string
+      description: |-
+        * `truck` - Camion
+        * `frigo` - Groupe frigo du camion
+        * `cold_room` - Chambre froide
+    MaintenanceType:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        target:
+          $ref: '#/components/schemas/MaintenanceTargetEnum'
+        every_km:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        every_months:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        warn_km:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        warn_days:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
       required:
-      - max_day_km
+      - id
+      - name
     MarkRead:
       type: object
       description: Either the ids seen, or `all` for everything shown.
@@ -25430,6 +26143,180 @@ components:
         * `cash` - cash
         * `pocket` - pocket
         * `card` - card
+    Paper:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/PaperKindEnum'
+          readOnly: true
+        truck_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        employee_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        issuer:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        expires_on:
+          type: string
+          format: date
+          readOnly: true
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+          nullable: true
+        note:
+          type: string
+          readOnly: true
+        scan_url:
+          type: string
+          nullable: true
+          readOnly: true
+        recorded_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cost
+      - created_at
+      - employee_id
+      - expense_number
+      - expires_on
+      - id
+      - issued_on
+      - issuer
+      - kind
+      - note
+      - number
+      - recorded_by
+      - scan_url
+      - truck_id
+    PaperKindEnum:
+      enum:
+      - insurance
+      - vignette
+      - technical_visit
+      - frigo_certificate
+      - extinguisher
+      - licence
+      - medical
+      - health_card
+      type: string
+      description: |-
+        * `insurance` - Assurance
+        * `vignette` - Vignette
+        * `technical_visit` - Visite technique
+        * `frigo_certificate` - Certificat engin frigorifique
+        * `extinguisher` - Extincteur
+        * `licence` - Permis de conduire
+        * `medical` - Certificat médical
+        * `health_card` - Carnet sanitaire
+    PaperStatus:
+      type: object
+      description: 'One `selectors.PaperStatus`: a paper a truck or a person must
+        hold, and where it stands.'
+      properties:
+        kind:
+          $ref: '#/components/schemas/PaperKindEnum'
+        truck_id:
+          type: integer
+          nullable: true
+        employee_id:
+          type: integer
+          nullable: true
+        subject:
+          type: string
+        paper:
+          allOf:
+          - $ref: '#/components/schemas/Paper'
+          nullable: true
+        days_left:
+          type: integer
+          nullable: true
+        state:
+          $ref: '#/components/schemas/PaperStatusStateEnum'
+      required:
+      - days_left
+      - employee_id
+      - kind
+      - paper
+      - state
+      - subject
+      - truck_id
+    PaperStatusStateEnum:
+      enum:
+      - ok
+      - soon
+      - expired
+      - missing
+      type: string
+      description: |-
+        * `ok` - ok
+        * `soon` - soon
+        * `expired` - expired
+        * `missing` - missing
+    PaperWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/PaperKindEnum'
+        truck:
+          type: integer
+          nullable: true
+        employee:
+          type: integer
+          nullable: true
+        number:
+          type: string
+          maxLength: 60
+        issuer:
+          type: string
+          maxLength: 150
+        issued_on:
+          type: string
+          format: date
+          nullable: true
+        expires_on:
+          type: string
+          format: date
+        cost:
+          type: string
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: cash
+        note:
+          type: string
+          maxLength: 300
+        scan:
+          type: string
+          format: binary
+      required:
+      - expires_on
+      - kind
     PartnerBalances:
       type: object
       description: 'The three balances of a partner, kept apart: never added together
@@ -25924,6 +26811,28 @@ components:
           type: string
         notes:
           type: string
+    PatchedMaintenancePlanUpdate:
+      type: object
+      properties:
+        every_km:
+          type: integer
+          minimum: 1
+          nullable: true
+        every_months:
+          type: integer
+          maximum: 120
+          minimum: 1
+          nullable: true
+        last_done_on:
+          type: string
+          format: date
+          nullable: true
+        last_done_km:
+          type: integer
+          minimum: 0
+          nullable: true
+        is_active:
+          type: boolean
     PatchedMaintenanceSettings:
       type: object
       properties:
@@ -25931,6 +26840,38 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        paper_warn_days:
+          type: array
+          items:
+            type: integer
+            maximum: 365
+            minimum: 1
+    PatchedMaintenanceTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        every_km:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        every_months:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        warn_km:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        warn_days:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
     PatchedMemberCanBuy:
       type: object
       properties:
@@ -26506,6 +27447,17 @@ components:
       - amount
       - method
       - planned_on
+    PlanSubject:
+      type: object
+      description: The truck or the cold room a plan is on.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
     PlanWrite:
       type: object
       description: 'The open plan lines of an invoice, replacing the ones there are
@@ -33812,6 +34764,35 @@ components:
       - date
       - lines
       - location
+    TruckDayAllowance:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        truck_id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+          maxLength: 300
+        allowed_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allowed_by
+      - created_at
+      - date
+      - id
+      - reason
+      - truck_id
     TruckDayLine:
       type: object
       properties:
@@ -34262,6 +35243,14 @@ components:
         * `new` - Nouvelle
         * `handled` - Traitée
         * `cancelled` - Annulée
+    WhatEnum:
+      enum:
+      - plan
+      - paper
+      type: string
+      description: |-
+        * `plan` - plan
+        * `paper` - paper
     WithholdingCertificate:
       type: object
       description: The withholding certificate of an invoice (P2-T06, D-063).

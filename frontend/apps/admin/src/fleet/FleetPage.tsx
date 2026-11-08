@@ -6,26 +6,23 @@ import {
   getListTruckOdometerQueryKey,
   updateMaintenanceSettings,
   useGetMaintenanceSettings,
+  useListFleetAlerts,
   useListFleetOdometer,
+  useListLocations,
   useListTruckOdometer,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDateTime, useTranslation } from "@frutti/i18n";
+import { formatDate, formatDateTime, useTranslation } from "@frutti/i18n";
 import { Button, Card, Field, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
-
-function formatKm(km: number | null | undefined): string {
-  return km == null ? "—" : `${new Intl.NumberFormat("fr-FR").format(km)} km`;
-}
-
-/** Only digits, at most the 7 a compteur shows. */
-function digits(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 7);
-}
+import { DayAllowance, PapersPanel } from "./PapersPanel";
+import { PlansPanel } from "./PlansPanel";
+import { digits, formatKm, truckStates } from "./shared";
+import { TypesCard } from "./TypesCard";
 
 /** The office sets a truck's compteur, with its reason (a typo, a new truck, a compteur replaced). */
 function CorrectionForm({ truckId }: { truckId: number }) {
@@ -167,7 +164,7 @@ function SettingsCard({ canEdit }: { canEdit: boolean }) {
   });
   return (
     <Card className="space-y-2">
-      <p className="font-semibold">{t("admin.fleet.settings")}</p>
+      <p className="font-semibold">{t("admin.fleet.compteurSettings")}</p>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-56">
           <Field label={t("admin.fleet.maxDayKm")} htmlFor={id} error={error || undefined}>
@@ -195,6 +192,119 @@ function SettingsCard({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+/** The days before a paper expires when the office is warned (30, 15, 7 by default). */
+function PaperWarningsCard({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const id = useId();
+  const settings = useGetMaintenanceSettings();
+  const [value, setValue] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const shown = value ?? (settings.data?.paper_warn_days ?? []).join(", ");
+  const days = shown
+    .split(/[^0-9]+/)
+    .filter((part) => part !== "")
+    .map(Number);
+  const save = useMutation({
+    mutationFn: () => updateMaintenanceSettings({ paper_warn_days: days }),
+    onSuccess: async () => {
+      setError("");
+      setValue(null);
+      toast.success(t("admin.fleet.settingsSaved"));
+      await queryClient.invalidateQueries({ queryKey: getGetMaintenanceSettingsQueryKey() });
+    },
+    onError: (failure) => setError(Object.values(fieldErrors(failure))[0] ?? t("admin.fleet.failed")),
+  });
+  return (
+    <Card className="space-y-2">
+      <p className="font-semibold">{t("admin.papers.warnTitle")}</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-56">
+          <Field label={t("admin.papers.warnDays")} htmlFor={id} error={error || undefined}>
+            <Input id={id} disabled={!canEdit} value={shown} onChange={(event) => setValue(event.target.value)} />
+          </Field>
+        </div>
+        {canEdit && (
+          <Button
+            variant="primary"
+            disabled={days.length === 0 || value === null || save.isPending}
+            onClick={() => save.mutate()}
+          >
+            {t("admin.fleet.save")}
+          </Button>
+        )}
+      </div>
+      <p className="text-ink-2">{t("admin.papers.warnHint")}</p>
+    </Card>
+  );
+}
+
+/** The company's cold rooms and their monthly service (P10-T03, owner answer 4). */
+function ColdRooms({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation();
+  const rooms = useListLocations({ kind: "cold_room" });
+  return (
+    <>
+      {(rooms.data ?? []).map((room) => (
+        <PlansPanel
+          key={`room-${room.id}`}
+          subject={{ location: room.id }}
+          title={t("admin.maintenance.plansOf", { name: room.name })}
+          canEdit={canEdit}
+        />
+      ))}
+    </>
+  );
+}
+
+/** "Flotte & conformité": everything soon (orange) or late (red), the red first (P10-T05). */
+function Overview({ onTruck }: { onTruck: (truckId: number) => void }) {
+  const { t } = useTranslation();
+  const alerts = useListFleetAlerts();
+  const list = alerts.data ?? [];
+  const late = list.filter((alert) => alert.state === "late").length;
+  return (
+    <Card className={list.length === 0 ? "space-y-2" : late > 0 ? "space-y-2 border-bad" : "space-y-2 border-warn"}>
+      <p className="font-semibold">{t("admin.fleet.overview")}</p>
+      {list.length === 0 ? (
+        <p className="text-ink-2">{t(alerts.isPending ? "common.loading" : "admin.fleet.allGood")}</p>
+      ) : (
+        <>
+          <p className="text-ink-2">{t("admin.fleet.overviewCounts", { late, soon: list.length - late })}</p>
+          <ul className="space-y-1">
+            {list.map((alert) => (
+              <li key={`${alert.what}-${alert.object_id}`} className="flex flex-wrap items-center gap-2">
+                <Pill tone={alert.state === "late" ? "bad" : "warn"}>
+                  {t(`admin.maintenance.states.${alert.state}`)}
+                </Pill>
+                {alert.truck_id === null ? (
+                  <span className="font-semibold">{alert.subject}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="font-semibold text-sea underline-offset-2 hover:underline"
+                    onClick={() => onTruck(alert.truck_id ?? 0)}
+                  >
+                    {alert.subject}
+                  </button>
+                )}
+                <span>{alert.title}</span>
+                <span className="text-ink-2">
+                  {alert.km_left !== null
+                    ? t("admin.maintenance.kmLeft", { km: formatKm(alert.km_left) })
+                    : alert.due_on !== null
+                      ? formatDate(alert.due_on)
+                      : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
+  );
+}
+
 /** "Flotte & entretien" (Phase 10, D-295): each truck's compteur as the driver types it when sending the day. */
 export function FleetPage() {
   const { t } = useTranslation();
@@ -202,12 +312,14 @@ export function FleetPage() {
   const canEdit = session.role === "owner" || session.role === "manager";
   const [params, setParams] = useSearchParams();
   const fleet = useListFleetOdometer();
+  const states = truckStates(useListFleetAlerts().data);
   const rows = fleet.data ?? [];
   const chosen = rows.find((row) => String(row.truck_id) === params.get("camion"));
   return (
     <>
       <PageHeader eyebrow={t("admin.groups.goods")} title={t("admin.fleet.title")} />
       <p className="text-ink-2">{t("admin.fleet.intro")}</p>
+      <Overview onTruck={(truckId) => setParams({ camion: String(truckId) })} />
       {rows.length === 0 ? (
         <p className="text-ink-2">{t(fleet.isPending ? "common.loading" : "admin.fleet.noTrucks")}</p>
       ) : (
@@ -233,6 +345,11 @@ export function FleetPage() {
                   <Td>{row.last ? formatDateTime(row.last.created_at) : "—"}</Td>
                   <Td>{row.last?.recorded_by ?? "—"}</Td>
                   <Td>
+                    {states.has(row.truck_id) && (
+                      <Pill tone={states.get(row.truck_id) === "late" ? "bad" : "warn"} className="me-2">
+                        {t(`admin.fleet.badge.${states.get(row.truck_id) ?? "soon"}`)}
+                      </Pill>
+                    )}
                     {row.warnings > 0 ? (
                       <Pill tone="bad">{t("admin.fleet.warningCount", { count: row.warnings })}</Pill>
                     ) : row.last === null ? (
@@ -252,8 +369,22 @@ export function FleetPage() {
           </Table>
         </Card>
       )}
+      {chosen && (
+        <PlansPanel
+          key={`plans-${chosen.truck_id}`}
+          subject={{ truck: chosen.truck_id }}
+          title={t("admin.maintenance.plansOf", { name: chosen.name })}
+          canEdit={canEdit}
+        />
+      )}
+      {chosen && <DayAllowance truckId={chosen.truck_id} isOwner={session.role === "owner"} />}
       {chosen && <TruckReadings key={chosen.truck_id} row={chosen} canEdit={canEdit} />}
+      <ColdRooms canEdit={canEdit} />
+      <PapersPanel canEdit={canEdit} />
+      <h2>{t("admin.fleet.settings")}</h2>
       <SettingsCard canEdit={canEdit} />
+      <PaperWarningsCard canEdit={canEdit} />
+      <TypesCard canEdit={canEdit} />
     </>
   );
 }

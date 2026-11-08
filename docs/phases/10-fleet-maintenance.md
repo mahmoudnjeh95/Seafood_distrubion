@@ -55,31 +55,47 @@ medical renewal.
 
 ### P10-T02 · Paramètres entretien and maintenance plans
 
-- [ ] Maintenance types per organization (vidange, filtres, freins, pneus, courroie, batterie…) with default
+- [x] Maintenance types per organization (vidange, filtres, freins, pneus, courroie, batterie…) with default
       interval in km and/or months and warning thresholds (km and days before), all editable.
-- [ ] Plan per truck (a type, its own interval if different, the last done km and date).
-- [ ] "Entretien effectué": date, compteur, garage, cost, note → reschedules the next one; the cost becomes an
+- [x] Plan per truck (a type, its own interval if different, the last done km and date).
+- [x] "Entretien effectué": date, compteur, garage, cost, note → reschedules the next one; the cost becomes an
       expense tied to the truck (general overhead).
-- [ ] Status per plan: ok / bientôt (orange) / en retard (red), from the last reading and the average km per day.
+- [x] Status per plan: ok / bientôt (orange) / en retard (red), from the last reading and the average km per day.
 
 ### P10-T03 · Frigo maintenance (trucks and cold rooms)
 
-- [ ] Same plans for the truck frigo units and the company's cold rooms (`inventory.StockLocation` of kind cold
+- [x] Same plans for the truck frigo units and the company's cold rooms (`inventory.StockLocation` of kind cold
       room), counted in months only (monthly by default). No temperature readings (answer 4).
+- Done as: `MaintenanceType` (target truck / frigo / cold_room, `every_km`, `every_months`, `warn_km`, `warn_days`),
+  `MaintenancePlan` (on a truck or a cold room, own interval, last done), `MaintenanceRecord` (append-only). The
+  suggested types come with "Ajouter les entretiens conseillés". A cost is an approved expense of the new default
+  category "Entretien et papiers des camions" (`vehicles`), or "Froid et stockage" for a cold room, **without** the
+  truck tag (a truck-tagged expense is a truck cost of the day, split over the lots, D-041).
 
 ### P10-T04 · Papers with expiry dates
 
-- [ ] Truck papers: assurance, vignette, visite technique, certificat engin frigorifique, extincteur. Person papers
+- [x] Truck papers: assurance, vignette, visite technique, certificat engin frigorifique, extincteur. Person papers
       (on `hr.Employee`): permis, certificat médical, carnet sanitaire. Number, issue and expiry date, scan, cost.
-- [ ] Warnings at 30, 15, 7 days and on the day (thresholds in the settings).
-- [ ] Expired assurance or visite technique: `fleet.assign_truck` refuses the truck; the owner allows one day with a
+- [x] Warnings at 30, 15, 7 days and on the day (thresholds in the settings).
+- [x] Expired assurance or visite technique: `fleet.assign_truck` refuses the truck; the owner allows one day with a
       reason (recorded, audited).
-- [ ] Renewal cost → expense tied to the truck (general overhead).
+- [x] Renewal cost → expense tied to the truck (general overhead).
+- Done as: `Paper` (kind, truck or employee, number, issuer, dates, scan photo/PDF, cost → approved expense in
+  `vehicles` for a truck, `personnel` for a person), the current one is the one valid the longest; `TruckDayAllowance`
+  (owner only, one per truck and day). A paper never typed blocks nothing (state "À renseigner"): the office types
+  them first. The block is checked in `fleet.assign_truck` and `fleet.open_driver_day`. Warning days in
+  `MaintenanceSettings.paper_warn_days` ([30, 15, 7]).
 
 ### P10-T05 · Warnings everywhere
 
-- [ ] Notifications to owner and manager when a plan turns orange or red and when a paper reaches a threshold
+- [x] Notifications to owner and manager when a plan turns orange or red and when a paper reaches a threshold
       (once per threshold, a daily task).
-- [ ] Badge on the truck icon (orange / red) in the admin lists and on "Camions du jour"; "Flotte & conformité"
+- [x] Badge on the truck icon (orange / red) in the admin lists and on "Camions du jour"; "Flotte & conformité"
       overview (per truck and per person, green / orange / red, what falls due this month).
-- [ ] Phone: the driver sees his own truck's warnings and his own papers.
+- [x] Phone: the driver sees his own truck's warnings and his own papers.
+- Done as: `maintenance_warnings` (nightly, in the staging loop after `expire_quotes`) sends each step once
+  (`MaintenanceWarningSent`): a plan turning orange, then red (again after its next job); a paper at each warning day,
+  on its last day, and when expired. `GET /fleet/alerts` feeds the menu badge, the Flotte table, Camions du jour and
+  the overview; `GET /my-day/alerts` the phone's "Entretien et papiers" card (his truck of the day and his own papers,
+  through `hr.Employee.user`).
+

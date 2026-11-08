@@ -1,0 +1,91 @@
+# Status archive
+
+Entries moved out of `docs/STATUS.md` on 2026-11-08 to keep it short (CLAUDE.md asks for ~60 lines). Nothing here is
+lost: each entry still points to its decision in `docs/DECISIONS.md` and its phase file.
+
+- **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
+  print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
+  (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;
+  today's delivered BL are listed again (`my-deliveries/done`) in Mes livraisons and on the sale screen. A new load on a
+  sent day locks the phone to Ma journée until "Je confirme la reprise" (`my-day/resume`); the server refuses the rest
+  meanwhile. Check on staging (Android): deliver a BL, print twice; send the day, reload the truck, the tabs grey out.
+- **D-282 (same branch):** the receipt prints as a picture (canvas → ESC/POS raster): logo at the top, each product's
+  Arabic name under the French one, the rest in French; "Imprimer en image" off = old text mode. The driver app's
+  Arabic is now Tunisian derja (provisional, native review in P3-T09). Check on the real printer: speed and darkness.
+- **P3-T10 print after confirmation (D-278 addendum, branch `claude/practical-allen-66nje7`):** "Imprimer le reçu" on the
+  purchase confirmation (sent, kept offline or changed) and on a sale kept on the phone ("Provisoire" receipt). Check on
+  staging (Android, Chrome): send a purchase, the summary shows the button; in airplane mode save a sale, print it.
+- **P3-T10 printing (D-278, merged #311):** "Imprimer le reçu" on the driver's sale receipt and "Mes achats", 58/75/80 mm setting, office copy, ESC/POS over Web Bluetooth. **Blocker:** the Digipos DPP-58 did not show in an iPhone BLE scanner, so it is likely classic Bluetooth: next step is the Android scan test (Serial Bluetooth Terminal); if classic, wrap the app with Capacitor or change printer.
+
+- **P9-T10 finished (D-256, branch `bl-gap-finish`, awaits CI):** "TTC" button on a BL line of Nouveau règlement (pay up to
+  goods + estimated VAT and stamp), owner-only "Abandonner l'écart" on a partly paid invoice (lots picked, typed amount,
+  recorded with the invoice), statement PDF line and BL-screen estimate. Check on staging: pay a BL 250,900 with TTC, invoice
+  it with VAT, it reads Payée; pay another at its goods, invoice, give up the gap as owner.
+
+- **PM follow-up 2026-11-02 (D-270, P1-T17, branch `receipt-correction-kind`, PR open):** a goods receipt's correction is its own
+  movement kind, so it counts in the kg received and the purchases, not in spoilage. Hand-made adjustments are unchanged.
+- **Owner request 2026-11-02 (D-269, P1-T16, branch `receipt-edit-revisions`, PR open):** a goods receipt (BR) can be
+  changed after saving while no invoice carries it: supplier reference, notes, VAT, and each line's weights, cost and
+  use-by date. A weight change posts an adjustment; cost and VAT lock once something valued has left the lot. Every change
+  is a revision with a reason; the BR page shows "Modifier" and the history.
+- **D-268 (owner request 2026-11-02, branch `receipt-no-auto-invoice`, PR awaits CI):** the office receipt form no longer makes a supplier invoice ("Dû dès la réception" removed, D-159 superseded for it). The BR detail page has "Créer la facture" with the BR preselected. Money given at the reception is an advance the invoice takes. Check on staging: a new BR shows "Pas encore facturée" with the link; the link opens the invoice form with the BR ticked.
+- **P9-T10 (D-256, branch `bl-invoice-gap`, awaits CI):** a BL paid at its goods and invoiced later no longer looks silently
+  paid. Estimate of the invoice (`GET /invoices/estimate`, `estimated_extra` on open BL), invoice `payment_state` /
+  `paid_total` / `extra_over_goods`, filter and pill on Factures, gap banner with a link to a new règlement. Not done:
+  "Régler TTC" and a per-invoice give-up (see the phase file). Timbre exemption per customer: none, ask the accountant.
+  Check on staging: pay a BL at its goods, invoice it with VAT, the invoice reads "Payée en partie".
+
+- **D-259 (2026-11-02, provisional, PR open):** the driver's "Fonds de caisse" and "Argent pour les achats" for the day go
+  back to 0 when the office approves the day, not when the driver sends it (changes D-242). A new load on an approved day
+  does not bring them back.
+
+- **D-257 (2026-11-02, branch `lot-split-writeoff`):** clearing a customer or supplier balance to zero now asks which
+  lots it goes on ("Sur quels lots ?", amounts adding up to the balance). The loss (customer) or gain (supplier) changes
+  those lots' result and the partner's share; settled lots are not offered. Check on staging: clear a small customer
+  balance onto one lot and see the line "Soldes clients remis à zéro (perte)" in that lot's result.
+- **Sales, 2026-11-02, D-245 (branch `sales-no-payment`, PR #284, awaits CI):** the office's sale forms, "Vente comptoir" and "Convertir en vente" show no payment; an office sale is unpaid and the office API refuses a payment. The treasurer takes it in Règlements clients, the walk-in customer included (provisional change of D-047). The driver's phone is unchanged. The sale detail links "Encaisser au trésorier" while something is owed.
+- **D-246 (2026-11-02, PR #283, provisional):** a new invoice's "Facture avec TVA" starts unchecked and is
+  checked only when a BL holds goods bought with VAT. Regenerated the API client. Check on staging: a new invoice
+  from a BL without VAT-bought goods opens with the box unchecked.
+- **Primes are paid when added (D-244, owner request 2026-11-02, PR #282).** The prime form asks for a payment method and
+  date; the payment is a salary payment of kind `prime` and writes its treasury movement ("Prime : <name>"), so the
+  treasurer's journal shows it. Primes added before this change have no payment (see D-244 provisional).
+- **Owner request 2026-11-02, P1-T15 (D-247, PR #280, awaits merge):** "Ajuster le stock" on the product page adds or
+  removes kilos of a lot at a place, with a reason (`adjustment` movement, `POST /stock/adjustments`, owner and manager).
+  The average purchase price is worked out again from the stock on hand; the success message shows it before and after.
+- **D-242 (2026-11-02, PR open, provisional):** sending a driver's closing resets that driver's "Fonds de caisse" and
+  "Argent pour les achats" for the day to 0 (`fleet.services.end_driver_day`). The day's own figures stay. Check on staging:
+  Camions du jour › Fonds de caisse after a closing is sent shows 0 for that driver.
+- **Owner request 2026-11-02, D-243 (branch `partner-capital-advance`, awaits CI):** in a lot's "Partenariat" section the
+  owner can give the partner an advance from the capital they put in ("Donner une avance"): `ADVANCE` entry on the capital
+  ledger with the means and reference, up to the capital still in, while the lot is open or closed. The settlement pays
+  the rest. The money is a treasury movement the day it is paid (as settlements, D-240).
+
+- **2026-11-02, D-241 (merged, PR #276):** the side menu's Banques became **Trésorier** (opens Encaissement);
+  Règlements clients, Règlements fournisseurs and Portefeuille left the menu, the treasury ribbon links them.
+- **D-261 (branch `treasury-highlight`, awaits CI):** Trésorier stays lit on every treasury ribbon screen (nav items
+  can own more paths, `owns`).
+
+- **2026-11-02, D-260 (branch `driver-purchase-approval`, awaits CI):** a change of the purchase money during a running day
+  is a proposal the driver approves on the phone ("J'accepte ce montant"); until then the amount in force stays. Changes D-248.
+  Check on staging: Camions du jour › Fonds de caisse on a started day shows "En attente du chauffeur"; the phone's day screen
+  shows the proposal with the accept button; after approval the amount changes.
+- **CI and deploy fixes:** the month-start test failures (#256), build heap 1536 MB on the VPS (#261).
+- **SmartFeesh:** `SmartToolsAgro/SmartFeesh` is pushed only when the owner says "push main" (D-209). It is at #234.
+- **D-252 on branch `customer-supplier-write-off` (awaits CI):** "Remettre le solde à zéro" for a customer (owner; the rest
+  is a loss on the customer, shown on the account) and for a supplier (owner; a gain on the supplier). Two steps: the
+  reason, then the exact balance typed again. Provisional: the loss does not yet change the profit per lot (open question).
+  Check on staging: customer card › Remettre le solde à zéro, then the supplier card.
+- **Phase 9 · Règlements & Trésorerie (D-197, owner request 2026-10-31)** — plan in `docs/phases/09-treasury.md`.
+  **Merged on main:** T01 (#223) customer règlement lines and the `treasury` app · T02 (#231) supplier lines, our effets
+  issued · T03a (#234) "Nouveau règlement", Répartir, Banques · T03b (#237) lists, detail pages, supplier void · T03c
+  (#240) supplier receipt PDF, several plan lines at once · T04a (#241) Portefeuille, remise en banque, encaissé,
+  retirer, débité · T04b (#242) impayé, Restituer · T04c (#243, D-218) our effet rejected by the bank.
+- **P9-T08 merged (#259, D-230; #260 forms and CSV export, D-232):** the Perfaxis layout: a ribbon of icon buttons on
+  every treasury screen (`TresorerieRibbon`), the Bordereau de versement, the états des factures, the forms in panels.
+- **P9-T05a merged (#246, D-219):** the accounts and the movement ledger. The ribbon now has Agence bancaire, Caisse
+  liquide and the two journals (#262, D-233).
+- **Other work on main (other sessions):** D-214 port purchases on the truck and the day (#245), D-213 the office alone
+  counts the driver's cash, D-212 counter sale on several lots, D-194 to D-207 owner list.
+- **Phases:** 1 done except P1-T14 owner decisions; 2 mostly done; 3: open T08 field test, T09 Arabic review,
+  T10 printing; 9 in progress (T05 to T07 left, plus T08 review).

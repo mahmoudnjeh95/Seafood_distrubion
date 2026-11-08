@@ -178,6 +178,22 @@ def _delete_assignment(*, assignment: TruckAssignment, actor: User | None) -> No
     assignment.delete()
 
 
+def _refuse_expired_papers(truck: Truck, date: date_type) -> None:
+    """A truck whose assurance or visite technique has expired does not go out (P10-T04, D-295), unless the owner
+    allowed that day with a reason."""
+    # Imported here: `maintenance` reads trucks through these modules, so a module-level import would be circular.
+    from apps.maintenance import selectors as maintenance
+
+    expired = maintenance.expired_blocking_papers(truck.organization, truck_id=truck.pk, on=date)
+    if expired:
+        raise ValidationError(
+            {
+                "truck": _("%(truck)s ne sort pas : %(papers)s expiré(e). Le propriétaire peut autoriser la journée.")
+                % {"truck": truck.location.name, "papers": ", ".join(expired)}
+            }
+        )
+
+
 @transaction.atomic
 def assign_truck(
     *,
@@ -213,6 +229,8 @@ def assign_truck(
         errors["driver"] = _("Ce compte n'est pas un chauffeur de la société.")
     if errors:
         raise ValidationError(errors)
+    if driver is not None:
+        _refuse_expired_papers(truck, date)
 
     # Locking the truck above serializes claims on one truck; the unique constraints back up the driver side.
     day = TruckAssignment.objects.for_organization(organization).filter(date=date).select_related("truck__location")
@@ -341,6 +359,7 @@ def open_driver_day(
         return existing
     if truck.condition != TruckCondition.OK:
         raise ValidationError({"truck": _("Ce camion n'est pas disponible : demandez au bureau.")})
+    _refuse_expired_papers(truck, date)
     day = DriverDay.objects.create(
         organization=organization,
         truck=truck,
