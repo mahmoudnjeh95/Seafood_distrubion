@@ -1,9 +1,15 @@
 # Project status
 
-_Last updated: 2026-11-08 (accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list merged #323–#329; next free decision D-295)_
+_Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-296)_
 
 ## Where we are
 
+- **Phase 10 · Flotte & entretien (D-295, owner request 2026-11-08, branch `claude/dreamy-carson-bztvxg`, merged 2026-11-08 (#332), migration
+  `maintenance 0001`)** — plan and the owner's answers in `docs/phases/10-fleet-maintenance.md`. **P10-T01 done on the
+  branch:** new app `apps.maintenance`; the driver types the compteur (optional photo) on "Clôture" before sending the
+  day; lower than the last reading is refused; a big jump is kept with a warning and the office is notified; the office
+  sees and corrects it on the new menu entry **Flotte & entretien** (`/flotte`), with the setting "Km maximum par jour".
+  Check on staging: send a day with 120 000 km, the next day 119 000 is refused, 130 000 is flagged; correct it on /flotte.
 - **P2-T20 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`, merged 2026-11-08 (#331)):** review in
   `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
   an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
@@ -139,6 +145,8 @@ _Last updated: 2026-11-08 (accounting review P2-T20, D-291 to D-294, #331; train
 
 ## Next step
 
+0. P10-T01 (D-295): merged (#332). Next **P10-T02** (Paramètres
+   entretien: maintenance types, plans per truck, "Entretien effectué", status from the readings).
 0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
    owner or the accountant; then the "Déclarations du mois" screen); the accountant answers the "à confirmer" points of the review.
 0. Perfaxis gaps and the client bug list: merged 2026-11-08 (#323–#329). Staging checks: the phase files P1-T18,

@@ -307,6 +307,11 @@ def locked_driver_day(driver_day: DriverDay) -> DriverDay:
     return DriverDay.objects.select_for_update().select_related("truck__location", "driver").get(pk=driver_day.pk)
 
 
+def locked_truck(truck: Truck) -> Truck:
+    """The same truck read again with its row locked (inside a transaction), with its location."""
+    return Truck.objects.select_for_update().select_related("location").get(pk=truck.pk)
+
+
 def drivers_by_truck_day(
     organization: Organization, *, date_from: date_type, date_to: date_type
 ) -> dict[tuple[int, date_type], str]:

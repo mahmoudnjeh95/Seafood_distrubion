@@ -2,7 +2,7 @@ import type { DayProduct, DaySummary, MyDaySummary } from "@frutti/api";
 import { formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, ConfirmButton, Input } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { closingGate } from "./closingGate";
 import { useOnline } from "./offline";
@@ -140,12 +140,21 @@ export function DayReport({
   sending,
   error,
   onSend,
+  beforeSend,
+  sendReady = true,
+  confirmRows = [],
 }: {
   data: MyDaySummary;
   sending: boolean;
   error: string;
   /** `note`: what the driver wants the office to know with the day; may be empty. */
   onSend: (note: string) => void;
+  /** What the screen asks before the send (the compteur of the day, P10-T01); none on the history. */
+  beforeSend?: ReactNode;
+  /** False while what `beforeSend` asks is not filled in. */
+  sendReady?: boolean;
+  /** More lines in the send confirmation. */
+  confirmRows?: [string, string][];
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -216,6 +225,7 @@ export function DayReport({
           {handedOver === null ? null : (
             <p className="text-ink-2">{t("truck.closing.handedOverHint", { amount: formatMoney(handedOver) })}</p>
           )}
+          {beforeSend}
           <div className="space-y-1">
             <label htmlFor="closing-note" className="font-semibold">
               {t("truck.closing.note")}
@@ -242,12 +252,13 @@ export function DayReport({
             size="lg"
             variant="primary"
             className="py-4 text-lg"
-            disabled={!gate.canSend}
+            disabled={!gate.canSend || !sendReady}
             rows={[
               [t("truck.closing.expected"), formatMoney(summary.expected_cash)],
               ...(purchases === null
                 ? []
                 : [[t("truck.purchase.closingExpected"), formatMoney(purchases.expected)] as [string, string]]),
+              ...confirmRows,
             ]}
             onConfirm={() => onSend(note)}
           >

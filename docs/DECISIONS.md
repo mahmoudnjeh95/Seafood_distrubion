@@ -4058,3 +4058,10 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: no typed VAT amount yet (a supplier's VAT that differs by a millime is matched by the stamp or a
   note); the supplier's "uninvoiced" total on their account is still without VAT. The deductible VAT is the base of
   the coming VAT return screen (review, "Déclarations du mois").
+
+**D-295 · Phase 10 Flotte & entretien; the compteur typed by the driver when sending the day (P10-T01)** · accepted (owner request and answers 2026-11-08) · 2026-11-08
+- New module, new app `apps.maintenance` (uses `fleet`, `notifications`, later `hr` and `expenses` through their services and selectors). Plan and the owner's seven answers in `docs/phases/10-fleet-maintenance.md`: compteur at the end of the day with an optional photo; maintenance every X km or Y months, every interval a setting; monthly frigo service for the truck units and the cold rooms, no temperatures; truck and person papers (no carte grise, no CIN); an expired assurance or visite technique blocks the truck, the owner may allow one day with a reason; costs are general overhead, not on the lots; owner and manager are warned.
+- No GPS for the km: `OdometerReading` (append-only) holds what the driver types on the "Clôture" screen, recorded just before the send (`POST /my-day/odometer`, multipart, optional photo kept as WebP like a loss photo). Asked once a day; asked again when a new load reopened the day.
+- Refused below the truck's last reading (a typo) and on a day already sent. The office corrects with a new reading and a reason (`POST /trucks/{id}/odometer-readings`), which may be lower and becomes the reference. Nothing is edited or removed.
+- A reading more than `max_day_km` × days since the last reading (setting, default 600 km) is kept with the warning `big_jump`; the office is told (`odometer_jump`, from the audit entry as the other notifications, D-175).
+- Provisional: the server does not refuse a closing without a compteur (old phones, a broken compteur); the screen requires it. Revisit once every phone runs the new version.

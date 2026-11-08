@@ -41,6 +41,7 @@ import { GeneralCostsPage } from "./expenses/GeneralCostsPage";
 import { ImportPage } from "./imports/ImportPage";
 import { LocationsPage } from "./locations/LocationsPage";
 import { TruckDayPage } from "./locations/TruckDayPage";
+import { FleetPage } from "./fleet/FleetPage";
 import { MonthClosingPage } from "./closing/MonthClosingPage";
 import { ReportsPage } from "./reports/ReportsPage";
 import { PartnershipsPage } from "./partnerships/PartnershipsPage";
@@ -140,6 +141,7 @@ function useNav(): AdminNavGroup[] {
       items: [
         { to: "/stock", label: t("admin.nav.stock"), icon: "box" },
         { to: "/camions", label: t("admin.nav.truckDay"), icon: "truck" },
+        { to: "/flotte", label: t("admin.nav.fleet"), icon: "truck" },
         { to: "/journees", label: t("admin.nav.dayClosings"), icon: "calcheck" },
         // Loading a truck is part of the driver's day, so its transfers sit here, not under Stock (D-196).
         { to: "/stock/transferts", label: t("admin.nav.transfers"), icon: "truck" },
@@ -189,6 +191,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/documents": <DocumentsPage />,
   "/stock": <LocationsPage />,
   "/camions": <TruckDayPage />,
+  "/flotte": <FleetPage />,
   "/journees": <DayClosingsPage />,
   "/produits": <ProductsPage />,
   "/achats": <ReceiptsPage />,

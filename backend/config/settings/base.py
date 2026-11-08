@@ -60,6 +60,7 @@ LOCAL_APPS = [
     "apps.notifications",
     "apps.storefront",
     "apps.treasury",
+    "apps.maintenance",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -208,6 +209,8 @@ SPECTACULAR_SETTINGS = {
         "AttachmentKindEnum": "apps.documents.models.AttachmentKind",
         # D-186 · public site
         "WebRequestKindEnum": "apps.storefront.models.WebRequestKind",
+        "OdometerSourceEnum": "apps.maintenance.models.OdometerSource",
+        "OdometerWarningEnum": "apps.maintenance.models.OdometerWarning",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SalaryAdjustmentKindEnum": "apps.hr.models.SalaryAdjustmentKind",

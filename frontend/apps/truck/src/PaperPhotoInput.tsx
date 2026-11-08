@@ -10,16 +10,20 @@ export function PaperPhotoInput({
   value,
   onChange,
   alreadyJoined,
+  title,
 }: {
   value: File | undefined;
   onChange: (photo: File | undefined) => void;
   /** The purchase already has a photo on the server: a new one replaces it. */
   alreadyJoined: boolean;
+  /** The heading above the buttons; the supplier's paper by default. */
+  title?: string;
 }) {
   const { t } = useTranslation();
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const heading = title ?? t("truck.purchase.paperPhoto");
 
   // The chosen photo is shown from a temporary address, released when replaced or when the screen closes.
   useEffect(
@@ -41,14 +45,14 @@ export function PaperPhotoInput({
 
   return (
     <div className="space-y-2">
-      <p className="font-semibold">{t("truck.purchase.paperPhoto")}</p>
+      <p className="font-semibold">{heading}</p>
       {alreadyJoined && value === undefined ? (
         <p className="text-sm text-ink-2">{t("truck.purchase.paperJoined")}</p>
       ) : null}
       {preview === null || value === undefined ? null : (
         <img
           src={preview}
-          alt={t("truck.purchase.paperPhoto")}
+          alt={heading}
           className="max-h-64 w-full rounded-control border border-line object-contain"
         />
       )}
