@@ -1,7 +1,7 @@
 import {
   createMaintenancePlan,
   type MaintenancePlan,
-  type MaintenanceRecordWritePaymentMethodEnum,
+  type PaymentMethodEnum,
   recordMaintenance,
   updateMaintenancePlan,
   useListMaintenancePlans,
@@ -47,7 +47,7 @@ function DoneForm({ plan, onDone }: { plan: MaintenancePlan; onDone: () => void 
   const [km, setKm] = useState(plan.current_km === null ? "" : String(plan.current_km));
   const [garage, setGarage] = useState("");
   const [cost, setCost] = useState("");
-  const [method, setMethod] = useState<MaintenanceRecordWritePaymentMethodEnum>("cash");
+  const [method, setMethod] = useState<PaymentMethodEnum>("cash");
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const amount = cost.trim() === "" ? "0" : parseDecimalInput(cost.trim(), 3);
@@ -99,7 +99,7 @@ function DoneForm({ plan, onDone }: { plan: MaintenancePlan; onDone: () => void 
           id={ids.method}
           className={SELECT_CLASSES}
           value={method}
-          onChange={(e) => setMethod(e.target.value as MaintenanceRecordWritePaymentMethodEnum)}
+          onChange={(e) => setMethod(e.target.value as PaymentMethodEnum)}
         >
           {(["cash", "cheque", "transfer", "bill", "other"] as const).map((value) => (
             <option key={value} value={value}>

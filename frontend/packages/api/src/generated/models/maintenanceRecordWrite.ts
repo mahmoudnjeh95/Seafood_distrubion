@@ -4,7 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
-import type { MaintenanceRecordWritePaymentMethodEnum } from './maintenanceRecordWritePaymentMethodEnum';
+import type { PaymentMethodEnum } from './paymentMethodEnum';
 
 export interface MaintenanceRecordWrite {
   done_on: string;
@@ -18,5 +18,5 @@ export interface MaintenanceRecordWrite {
   /** @maxLength 300 */
   note?: string;
   cost?: string;
-  payment_method?: MaintenanceRecordWritePaymentMethodEnum;
+  payment_method?: PaymentMethodEnum;
 }

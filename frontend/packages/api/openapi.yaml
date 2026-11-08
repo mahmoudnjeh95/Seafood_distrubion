@@ -6700,6 +6700,72 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/papers:
+    get:
+      operationId: listPapers
+      description: Every paper typed for a truck or a person (renewals included),
+        the one valid the longest first.
+      parameters:
+      - in: query
+        name: employee
+        schema:
+          type: integer
+      - in: query
+        name: truck
+        schema:
+          type: integer
+      tags:
+      - papers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Paper'
+          description: ''
+    post:
+      operationId: recordPaper
+      description: A paper issued or renewed, with its scan (photo or PDF) and its
+        cost (an approved expense).
+      tags:
+      - papers
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaperWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+          description: ''
+  /api/v1/papers/board:
+    get:
+      operationId: listPaperBoard
+      description: Each active truck's and person's papers, the current one of each
+        kind and where it stands.
+      tags:
+      - papers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaperStatus'
+          description: ''
   /api/v1/partners/{partner_id}/balances:
     get:
       operationId: getPartnerBalances
@@ -12977,6 +13043,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Truck'
+          description: ''
+  /api/v1/trucks/{truck_id}/day-allowances:
+    get:
+      operationId: listTruckDayAllowances
+      description: The days the owner let the truck out although its assurance or
+        visite technique had expired.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TruckDayAllowance'
+          description: ''
+    post:
+      operationId: allowTruckDay
+      description: The owner lets the truck out that day, with the reason. Owner only.
+      parameters:
+      - in: path
+        name: truck_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - trucks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TruckDayAllowance'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TruckDayAllowance'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TruckDayAllowance'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruckDayAllowance'
           description: ''
   /api/v1/trucks/{truck_id}/odometer-readings:
     get:
@@ -23343,24 +23465,10 @@ components:
           type: string
         payment_method:
           allOf:
-          - $ref: '#/components/schemas/MaintenanceRecordWritePaymentMethodEnum'
+          - $ref: '#/components/schemas/PaymentMethodEnum'
           default: cash
       required:
       - done_on
-    MaintenanceRecordWritePaymentMethodEnum:
-      enum:
-      - cash
-      - cheque
-      - transfer
-      - bill
-      - other
-      type: string
-      description: |-
-        * `cash` - cash
-        * `cheque` - cheque
-        * `transfer` - transfer
-        * `bill` - bill
-        * `other` - other
     MaintenanceSettings:
       type: object
       properties:
@@ -23368,8 +23476,12 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
-      required:
-      - max_day_km
+        paper_warn_days:
+          type: array
+          items:
+            type: integer
+            maximum: 365
+            minimum: 1
     MaintenanceTargetEnum:
       enum:
       - truck
@@ -25940,6 +26052,180 @@ components:
         * `cash` - cash
         * `pocket` - pocket
         * `card` - card
+    Paper:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/PaperKindEnum'
+          readOnly: true
+        truck_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        employee_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        issuer:
+          type: string
+          readOnly: true
+        issued_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        expires_on:
+          type: string
+          format: date
+          readOnly: true
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        expense_number:
+          type: string
+          readOnly: true
+          nullable: true
+        note:
+          type: string
+          readOnly: true
+        scan_url:
+          type: string
+          nullable: true
+          readOnly: true
+        recorded_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cost
+      - created_at
+      - employee_id
+      - expense_number
+      - expires_on
+      - id
+      - issued_on
+      - issuer
+      - kind
+      - note
+      - number
+      - recorded_by
+      - scan_url
+      - truck_id
+    PaperKindEnum:
+      enum:
+      - insurance
+      - vignette
+      - technical_visit
+      - frigo_certificate
+      - extinguisher
+      - licence
+      - medical
+      - health_card
+      type: string
+      description: |-
+        * `insurance` - Assurance
+        * `vignette` - Vignette
+        * `technical_visit` - Visite technique
+        * `frigo_certificate` - Certificat engin frigorifique
+        * `extinguisher` - Extincteur
+        * `licence` - Permis de conduire
+        * `medical` - Certificat médical
+        * `health_card` - Carnet sanitaire
+    PaperStatus:
+      type: object
+      description: 'One `selectors.PaperStatus`: a paper a truck or a person must
+        hold, and where it stands.'
+      properties:
+        kind:
+          $ref: '#/components/schemas/PaperKindEnum'
+        truck_id:
+          type: integer
+          nullable: true
+        employee_id:
+          type: integer
+          nullable: true
+        subject:
+          type: string
+        paper:
+          allOf:
+          - $ref: '#/components/schemas/Paper'
+          nullable: true
+        days_left:
+          type: integer
+          nullable: true
+        state:
+          $ref: '#/components/schemas/PaperStatusStateEnum'
+      required:
+      - days_left
+      - employee_id
+      - kind
+      - paper
+      - state
+      - subject
+      - truck_id
+    PaperStatusStateEnum:
+      enum:
+      - ok
+      - soon
+      - expired
+      - missing
+      type: string
+      description: |-
+        * `ok` - ok
+        * `soon` - soon
+        * `expired` - expired
+        * `missing` - missing
+    PaperWrite:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/PaperKindEnum'
+        truck:
+          type: integer
+          nullable: true
+        employee:
+          type: integer
+          nullable: true
+        number:
+          type: string
+          maxLength: 60
+        issuer:
+          type: string
+          maxLength: 150
+        issued_on:
+          type: string
+          format: date
+          nullable: true
+        expires_on:
+          type: string
+          format: date
+        cost:
+          type: string
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          default: cash
+        note:
+          type: string
+          maxLength: 300
+        scan:
+          type: string
+          format: binary
+      required:
+      - expires_on
+      - kind
     PartnerBalances:
       type: object
       description: 'The three balances of a partner, kept apart: never added together
@@ -26463,6 +26749,12 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        paper_warn_days:
+          type: array
+          items:
+            type: integer
+            maximum: 365
+            minimum: 1
     PatchedMaintenanceTypeUpdate:
       type: object
       properties:
@@ -34381,6 +34673,35 @@ components:
       - date
       - lines
       - location
+    TruckDayAllowance:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        truck_id:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+          maxLength: 300
+        allowed_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allowed_by
+      - created_at
+      - date
+      - id
+      - reason
+      - truck_id
     TruckDayLine:
       type: object
       properties:

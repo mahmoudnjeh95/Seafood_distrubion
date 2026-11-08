@@ -20,6 +20,8 @@ export function todayIso(): string {
 
 export const SELECT_CLASSES = "rounded-control border border-line bg-surface px-3 py-2 text-ink";
 
+export const PAPER_TONES = { ok: "good", soon: "warn", expired: "bad", missing: "neutral" } as const;
+
 export const STATE_TONES = { ok: "good", soon: "warn", late: "bad", unknown: "neutral" } as const;
 
 /** Everything of the fleet module is read together: refresh it all after a change. */

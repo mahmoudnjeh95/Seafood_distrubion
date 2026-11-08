@@ -212,6 +212,7 @@ SPECTACULAR_SETTINGS = {
         "OdometerSourceEnum": "apps.maintenance.models.OdometerSource",
         "OdometerWarningEnum": "apps.maintenance.models.OdometerWarning",
         "MaintenanceTargetEnum": "apps.maintenance.models.MaintenanceTarget",
+        "PaperKindEnum": "apps.maintenance.models.PaperKind",
         "WebRequestStatusEnum": "apps.storefront.models.WebRequestStatus",
         "CustomerKindEnum": "apps.partners.models.CustomerKind",
         "SalaryAdjustmentKindEnum": "apps.hr.models.SalaryAdjustmentKind",

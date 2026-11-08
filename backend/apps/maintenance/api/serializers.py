@@ -6,10 +6,14 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.maintenance.models import (
+    MaintenancePaymentMethod,
     MaintenanceRecord,
     MaintenanceSettings,
     MaintenanceType,
     OdometerReading,
+    Paper,
+    PaperKind,
+    TruckDayAllowance,
 )
 
 
@@ -87,11 +91,18 @@ class FleetOdometerRowSerializer(serializers.Serializer[Any]):
 
 
 class MaintenanceSettingsSerializer(serializers.ModelSerializer[MaintenanceSettings]):
+    paper_warn_days = serializers.ListField(child=serializers.IntegerField(min_value=1, max_value=365), required=False)
+
     class Meta:
         model = MaintenanceSettings
-        fields = ("max_day_km",)
-        # The model has a default, so a missing value would not be refused on its own.
-        extra_kwargs = {"max_day_km": {"required": True}}
+        fields = ("max_day_km", "paper_warn_days")
+        extra_kwargs = {"max_day_km": {"required": False}}
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # The model has defaults, so a missing value would not be refused on its own.
+        if not attrs:
+            raise serializers.ValidationError({"max_day_km": "Indiquez une valeur."})
+        return attrs
 
 
 # ---- Maintenance types, plans and records (P10-T02, P10-T03) ----
@@ -205,5 +216,80 @@ class MaintenanceRecordWriteSerializer(serializers.Serializer[Any]):
     # In DT as a string ("85.500"), checked by the service.
     cost = serializers.CharField(required=False, allow_blank=True)
     payment_method = serializers.ChoiceField(
-        choices=["cash", "cheque", "transfer", "bill", "other"], required=False, default="cash"
+        choices=MaintenancePaymentMethod.choices, required=False, default=MaintenancePaymentMethod.CASH
     )
+
+
+# ---- Papers with expiry dates (P10-T04) ----
+
+
+class PaperSerializer(serializers.ModelSerializer[Paper]):
+    recorded_by = serializers.SerializerMethodField()
+    scan_url = serializers.SerializerMethodField()
+    expense_number = serializers.CharField(source="expense.number", read_only=True, allow_null=True)
+
+    class Meta:
+        model = Paper
+        fields = (
+            "id",
+            "kind",
+            "truck_id",
+            "employee_id",
+            "number",
+            "issuer",
+            "issued_on",
+            "expires_on",
+            "cost",
+            "expense_number",
+            "note",
+            "scan_url",
+            "recorded_by",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_recorded_by(self, paper: Paper) -> str:
+        return person_name(paper.recorded_by)
+
+    def get_scan_url(self, paper: Paper) -> str | None:
+        return reverse("paper-scan", args=[paper.pk]) if paper.scan.name else None
+
+
+class PaperStatusSerializer(serializers.Serializer[Any]):
+    """One `selectors.PaperStatus`: a paper a truck or a person must hold, and where it stands."""
+
+    kind = serializers.ChoiceField(choices=PaperKind.choices)
+    truck_id = serializers.IntegerField(allow_null=True)
+    employee_id = serializers.IntegerField(allow_null=True)
+    subject = serializers.CharField()
+    paper = PaperSerializer(allow_null=True)
+    days_left = serializers.IntegerField(allow_null=True)
+    state = serializers.ChoiceField(choices=["ok", "soon", "expired", "missing"])
+
+
+class PaperWriteSerializer(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=PaperKind.choices)
+    truck = serializers.IntegerField(required=False, allow_null=True)
+    employee = serializers.IntegerField(required=False, allow_null=True)
+    number = serializers.CharField(required=False, allow_blank=True, max_length=60)
+    issuer = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    issued_on = serializers.DateField(required=False, allow_null=True)
+    expires_on = serializers.DateField()
+    cost = serializers.CharField(required=False, allow_blank=True)
+    payment_method = serializers.ChoiceField(
+        choices=MaintenancePaymentMethod.choices, required=False, default=MaintenancePaymentMethod.CASH
+    )
+    note = serializers.CharField(required=False, allow_blank=True, max_length=300)
+    scan = UploadedPhotoField(required=False)
+
+
+class TruckDayAllowanceSerializer(serializers.ModelSerializer[TruckDayAllowance]):
+    allowed_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TruckDayAllowance
+        fields = ("id", "truck_id", "date", "reason", "allowed_by", "created_at")
+        read_only_fields = ("id", "truck_id", "allowed_by", "created_at")
+
+    def get_allowed_by(self, allowance: TruckDayAllowance) -> str:
+        return person_name(allowance.allowed_by)

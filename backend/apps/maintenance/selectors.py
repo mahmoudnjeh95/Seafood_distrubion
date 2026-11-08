@@ -10,15 +10,22 @@ from django.utils import timezone
 
 from apps.core.models import Organization
 from apps.fleet import selectors as fleet
+from apps.hr import selectors as hr
 from apps.inventory import selectors as inventory
 
 from .models import (
+    BLOCKING_PAPERS,
+    PERSON_PAPERS,
+    TRUCK_PAPERS,
     MaintenancePlan,
     MaintenanceRecord,
     MaintenanceSettings,
     MaintenanceTarget,
     MaintenanceType,
     OdometerReading,
+    Paper,
+    PaperKind,
+    TruckDayAllowance,
 )
 
 if TYPE_CHECKING:
@@ -257,3 +264,95 @@ COLD_ROOM_KIND = "cold_room"  # `inventory.LocationKind.COLD_ROOM`
 def cold_rooms_of(organization: Organization) -> list["StockLocation"]:
     """The company's active cold rooms, for their frigo service (P10-T03)."""
     return list(inventory.locations_of(organization, kinds=[COLD_ROOM_KIND]))
+
+
+# ---- Papers with expiry dates (P10-T04) ----
+
+type PaperState = Literal["ok", "soon", "expired", "missing"]
+
+
+def papers_of(
+    organization: Organization, *, truck_id: int | None = None, employee_id: int | None = None
+) -> QuerySet[Paper]:
+    """Every paper typed, of one truck or person when asked, the one valid the longest first."""
+    papers = Paper.objects.for_organization(organization).select_related("truck__location", "employee", "recorded_by")
+    if truck_id is not None:
+        papers = papers.filter(truck_id=truck_id)
+    if employee_id is not None:
+        papers = papers.filter(employee_id=employee_id)
+    return papers.order_by("-expires_on", "-id")
+
+
+def paper_of(organization: Organization, paper_id: int) -> Paper:
+    """One paper. Raises Paper.DoesNotExist outside the organization."""
+    return Paper.objects.for_organization(organization).get(pk=paper_id)
+
+
+@dataclass(frozen=True)
+class PaperStatus:
+    """A paper a truck or a person must hold, and where it stands: the current one (valid the longest), if any."""
+
+    kind: str
+    truck_id: int | None
+    employee_id: int | None
+    subject: str
+    paper: Paper | None
+    days_left: int | None
+    state: PaperState
+
+
+def _state(days_left: int | None, warn: int) -> PaperState:
+    if days_left is None:
+        return "missing"
+    if days_left < 0:
+        return "expired"
+    return "soon" if days_left <= warn else "ok"
+
+
+def paper_board(organization: Organization, *, today: dt.date | None = None) -> list[PaperStatus]:
+    """Each active truck's and each active employee's papers (owner answer 5), the current one of each kind."""
+    today = today or timezone.localdate()
+    warn = max(settings_of(organization).paper_warn_days or [0])
+    current: dict[tuple[str, int | None, int | None], Paper] = {}
+    for typed in Paper.objects.for_organization(organization).order_by("expires_on", "id"):
+        current[(typed.kind, typed.truck_id, typed.employee_id)] = typed  # the one valid the longest stays
+    rows: list[PaperStatus] = []
+    for truck in fleet.trucks_of(organization):
+        for kind in TRUCK_PAPERS:
+            paper = current.get((kind, truck.pk, None))
+            days = (paper.expires_on - today).days if paper is not None else None
+            rows.append(PaperStatus(kind, truck.pk, None, truck.location.name, paper, days, _state(days, warn)))
+    for employee in hr.employees_of(organization):
+        for kind in PERSON_PAPERS:
+            paper = current.get((kind, None, employee.pk))
+            days = (paper.expires_on - today).days if paper is not None else None
+            rows.append(PaperStatus(kind, None, employee.pk, employee.name, paper, days, _state(days, warn)))
+    return rows
+
+
+def expired_blocking_papers(organization: Organization, *, truck_id: int, on: dt.date) -> list[str]:
+    """The names of the truck's assurance and visite technique that are expired on that day, unless the owner allowed
+    the day (owner answer 5b). A paper never typed blocks nothing: the office types them first."""
+    if TruckDayAllowance.objects.for_organization(organization).filter(truck_id=truck_id, date=on).exists():
+        return []
+    expired = []
+    for kind in BLOCKING_PAPERS:
+        latest = (
+            Paper.objects.for_organization(organization)
+            .filter(truck_id=truck_id, kind=kind)
+            .order_by("-expires_on", "-id")
+            .first()
+        )
+        if latest is not None and latest.expires_on < on:
+            expired.append(str(PaperKind(kind).label))
+    return expired
+
+
+def allowances_of(organization: Organization, *, truck_id: int) -> QuerySet[TruckDayAllowance]:
+    """The days the owner let the truck go out with an expired paper, the latest first."""
+    return (
+        TruckDayAllowance.objects.for_organization(organization)
+        .filter(truck_id=truck_id)
+        .select_related("allowed_by")
+        .order_by("-date", "-id")
+    )

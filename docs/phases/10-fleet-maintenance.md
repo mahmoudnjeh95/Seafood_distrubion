@@ -74,12 +74,17 @@ medical renewal.
 
 ### P10-T04 · Papers with expiry dates
 
-- [ ] Truck papers: assurance, vignette, visite technique, certificat engin frigorifique, extincteur. Person papers
+- [x] Truck papers: assurance, vignette, visite technique, certificat engin frigorifique, extincteur. Person papers
       (on `hr.Employee`): permis, certificat médical, carnet sanitaire. Number, issue and expiry date, scan, cost.
-- [ ] Warnings at 30, 15, 7 days and on the day (thresholds in the settings).
-- [ ] Expired assurance or visite technique: `fleet.assign_truck` refuses the truck; the owner allows one day with a
+- [x] Warnings at 30, 15, 7 days and on the day (thresholds in the settings).
+- [x] Expired assurance or visite technique: `fleet.assign_truck` refuses the truck; the owner allows one day with a
       reason (recorded, audited).
-- [ ] Renewal cost → expense tied to the truck (general overhead).
+- [x] Renewal cost → expense tied to the truck (general overhead).
+- Done as: `Paper` (kind, truck or employee, number, issuer, dates, scan photo/PDF, cost → approved expense in
+  `vehicles` for a truck, `personnel` for a person), the current one is the one valid the longest; `TruckDayAllowance`
+  (owner only, one per truck and day). A paper never typed blocks nothing (state "À renseigner"): the office types
+  them first. The block is checked in `fleet.assign_truck` and `fleet.open_driver_day`. Warning days in
+  `MaintenanceSettings.paper_warn_days` ([30, 15, 7]).
 
 ### P10-T05 · Warnings everywhere
 

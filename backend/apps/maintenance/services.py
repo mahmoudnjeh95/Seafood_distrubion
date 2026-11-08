@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
@@ -20,6 +21,8 @@ from apps.fleet import selectors as fleet
 
 from . import selectors
 from .models import (
+    PERSON_PAPERS,
+    TRUCK_PAPERS,
     MaintenancePlan,
     MaintenanceRecord,
     MaintenanceSettings,
@@ -28,10 +31,14 @@ from .models import (
     OdometerReading,
     OdometerSource,
     OdometerWarning,
+    Paper,
+    PaperKind,
+    TruckDayAllowance,
 )
 
 if TYPE_CHECKING:
     from apps.fleet.models import DriverDay, Truck
+    from apps.hr.models import Employee
     from apps.inventory.models import StockLocation
 
 MAX_KM = 9_999_999  # a truck's compteur shows at most 7 digits
@@ -537,3 +544,166 @@ def record_maintenance(
         },
     )
     return record
+
+
+# ---- Papers with expiry dates (P10-T04) ----
+
+MAX_SCAN_BYTES = 8 * 1024 * 1024
+
+
+def _scan_content(upload: "UploadedFile[bytes]") -> tuple[ContentFile[bytes], str]:
+    """A PDF kept as it is, or a photo turned upright, shrunk and saved as WebP; with the file name."""
+    head = upload.read(5)
+    upload.seek(0)
+    if head == b"%PDF-":
+        if upload.size is not None and upload.size > MAX_SCAN_BYTES:
+            raise ValidationError({"scan": _("Le fichier dépasse 8 Mo.")})
+        return ContentFile(upload.read()), "scan.pdf"
+    return reencoded_photo(upload, field="scan"), "scan.webp"
+
+
+@transaction.atomic
+def record_paper(
+    *,
+    organization: Organization,
+    actor: User,
+    kind: str,
+    expires_on: dt.date,
+    truck: "Truck | None" = None,
+    employee: "Employee | None" = None,
+    number: str = "",
+    issuer: str = "",
+    issued_on: dt.date | None = None,
+    cost: Decimal | str | int = 0,
+    payment_method: str = "cash",
+    note: str = "",
+    scan: "UploadedFile[bytes] | None" = None,
+) -> Paper:
+    """A paper of a truck or a person, typed when it is issued or renewed (P10-T04). The one valid the longest is the
+    current one. A cost makes an approved expense of the general overhead (owner answer 6)."""
+    errors: dict[str, str] = {}
+    if kind in TRUCK_PAPERS:
+        if truck is None or truck.organization_id != organization.pk:
+            errors["truck"] = _("Choisissez un camion.")
+    elif kind in PERSON_PAPERS:
+        if employee is None or employee.organization_id != organization.pk:
+            errors["employee"] = _("Choisissez une personne.")
+    else:
+        errors["kind"] = _("Papier inconnu.")
+    if issued_on is not None and issued_on > expires_on:
+        errors["expires_on"] = _("La fin de validité est avant la date de délivrance.")
+    try:
+        amount = checked_amount(cost)
+        if amount < 0:
+            errors["cost"] = _("Le coût ne peut pas être négatif.")
+    except (ValueError, TypeError):
+        errors["cost"] = _("Indiquez un montant en DT, au millime près.")
+        amount = Decimal(0)
+    if errors:
+        raise ValidationError(errors)
+    on_truck = kind in TRUCK_PAPERS
+    subject = truck.location.name if on_truck and truck is not None else (employee.name if employee else "")
+    label = str(PaperKind(kind).label)
+    expense = None
+    if amount > 0:
+        expenses.ensure_default_categories(organization=organization)
+        category = expense_selectors.category_by_code(organization, "vehicles" if on_truck else "personnel")
+        expense = expenses.create_expense(
+            organization=organization,
+            actor=actor,
+            spent_on=min(issued_on or timezone.localdate(), timezone.localdate()),
+            category=category,
+            amount=amount,
+            payment_method=payment_method,
+            description=f"{label} · {subject}",
+            payee=" ".join(issuer.split())[:150],
+            notes=note,
+            approve=True,
+        )
+    paper = Paper(
+        organization=organization,
+        kind=kind,
+        truck=truck if on_truck else None,
+        employee=None if on_truck else employee,
+        number=" ".join(number.split())[:60],
+        issuer=" ".join(issuer.split())[:150],
+        issued_on=issued_on,
+        expires_on=expires_on,
+        cost=amount,
+        expense=expense,
+        note=note.strip()[:300],
+        recorded_by=actor,
+    )
+    if scan is not None:
+        content, name = _scan_content(scan)
+        paper.scan.save(name, content, save=False)
+    try:
+        paper.save()
+    except BaseException:
+        if paper.scan.name:
+            paper.scan.storage.delete(paper.scan.name)
+        raise
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="paper.recorded",
+        target=paper,
+        after={
+            "kind": kind,
+            "subject": subject,
+            "number": paper.number,
+            "expires_on": expires_on.isoformat(),
+            "cost": str(amount),
+            "expense": expense.number if expense is not None else None,
+        },
+    )
+    return paper
+
+
+@transaction.atomic
+def allow_truck_day(
+    *, organization: Organization, actor: User, truck: "Truck", date: dt.date, reason: str
+) -> TruckDayAllowance:
+    """The owner lets the truck go out that day although its assurance or visite technique has expired (owner answer
+    5b). The reason is kept; the API lets only the owner do it."""
+    reason = " ".join(reason.split())[:300]
+    if not reason:
+        raise ValidationError({"reason": _("Indiquez la raison.")})
+    if truck.organization_id != organization.pk:
+        raise ValidationError({"truck": _("Camion inconnu.")})
+    if date < timezone.localdate():
+        raise ValidationError({"date": _("La date est passée.")})
+    allowance, created = TruckDayAllowance.objects.get_or_create(
+        organization=organization, truck=truck, date=date, defaults={"reason": reason, "allowed_by": actor}
+    )
+    if not created:
+        raise ValidationError({"date": _("Cette journée est déjà autorisée.")})
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="truck_day.allowed",
+        target=allowance,
+        after={"truck": truck.location.name, "date": date.isoformat(), "reason": reason},
+    )
+    return allowance
+
+
+@transaction.atomic
+def update_paper_warnings(*, organization: Organization, actor: User, days: list[int]) -> MaintenanceSettings:
+    """The days before a paper expires when the office is warned (30, 15 and 7 by default; and on the day)."""
+    cleaned = sorted({int(day) for day in days if 0 < int(day) <= 365}, reverse=True)[:5]
+    if not cleaned:
+        raise ValidationError({"paper_warn_days": _("Indiquez au moins un nombre de jours, entre 1 et 365.")})
+    found, _created = MaintenanceSettings.objects.select_for_update().get_or_create(organization=organization)
+    before = {"paper_warn_days": found.paper_warn_days}
+    found.paper_warn_days = cleaned
+    found.save(update_fields=["paper_warn_days", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="maintenance_settings.changed",
+        target=found,
+        before=before,
+        after={"paper_warn_days": cleaned},
+    )
+    return found

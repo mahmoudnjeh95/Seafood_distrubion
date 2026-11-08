@@ -109,7 +109,7 @@ def _is_driver_area(path: str, method: str) -> bool:
     if path.startswith(("/api/v1/categories", "/api/v1/products", "/api/v1/price-lists")):
         return reading
     # A truck's compteur history is the office's (D-295): the driver types his own on /my-day/odometer.
-    if path.endswith("/odometer-readings"):
+    if path.endswith(("/odometer-readings", "/day-allowances")):
         return False
     if path.startswith(("/api/v1/trucks", "/api/v1/truck-assignments")):
         return reading or path.startswith("/api/v1/truck-assignments")
@@ -152,6 +152,8 @@ OWNER_ONLY_WRITES = (
 )
 # Clearing a customer's or a supplier's balance to zero (D-252): the owner alone; a manager gets 403.
 OWNER_ONLY_CLEARING = (
+    # Letting a truck out with an expired assurance or visite technique (D-295, P10-T04): the GET is the office's.
+    "/api/v1/trucks/<int:truck_id>/day-allowances",
     "/api/v1/customers/<int:customer_id>/write-off",
     "/api/v1/supplier-balances/<int:supplier_id>/write-off",
     "/api/v1/invoices/<int:invoice_id>/give-up-gap",
@@ -228,7 +230,7 @@ def _should_forbid(role: Role, path: str, method: str) -> bool:
     if role == Role.MANAGER:
         return (
             path.startswith(OWNER_MONEY)
-            or path in OWNER_ONLY_CLEARING
+            or (path in OWNER_ONLY_CLEARING and (method in WRITES or not path.endswith("/day-allowances")))
             or (method in WRITES and path.startswith(OWNER_ONLY_WRITES) and not path.endswith("/generate"))
         )
     return False

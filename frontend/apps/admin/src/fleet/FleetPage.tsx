@@ -18,6 +18,7 @@ import { useId, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { DayAllowance, PapersPanel } from "./PapersPanel";
 import { PlansPanel } from "./PlansPanel";
 import { digits, formatKm } from "./shared";
 import { TypesCard } from "./TypesCard";
@@ -190,6 +191,53 @@ function SettingsCard({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+/** The days before a paper expires when the office is warned (30, 15, 7 by default). */
+function PaperWarningsCard({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const id = useId();
+  const settings = useGetMaintenanceSettings();
+  const [value, setValue] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const shown = value ?? (settings.data?.paper_warn_days ?? []).join(", ");
+  const days = shown
+    .split(/[^0-9]+/)
+    .filter((part) => part !== "")
+    .map(Number);
+  const save = useMutation({
+    mutationFn: () => updateMaintenanceSettings({ paper_warn_days: days }),
+    onSuccess: async () => {
+      setError("");
+      setValue(null);
+      toast.success(t("admin.fleet.settingsSaved"));
+      await queryClient.invalidateQueries({ queryKey: getGetMaintenanceSettingsQueryKey() });
+    },
+    onError: (failure) => setError(Object.values(fieldErrors(failure))[0] ?? t("admin.fleet.failed")),
+  });
+  return (
+    <Card className="space-y-2">
+      <p className="font-semibold">{t("admin.papers.warnTitle")}</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-56">
+          <Field label={t("admin.papers.warnDays")} htmlFor={id} error={error || undefined}>
+            <Input id={id} disabled={!canEdit} value={shown} onChange={(event) => setValue(event.target.value)} />
+          </Field>
+        </div>
+        {canEdit && (
+          <Button
+            variant="primary"
+            disabled={days.length === 0 || value === null || save.isPending}
+            onClick={() => save.mutate()}
+          >
+            {t("admin.fleet.save")}
+          </Button>
+        )}
+      </div>
+      <p className="text-ink-2">{t("admin.papers.warnHint")}</p>
+    </Card>
+  );
+}
+
 /** The company's cold rooms and their monthly service (P10-T03, owner answer 4). */
 function ColdRooms({ canEdit }: { canEdit: boolean }) {
   const { t } = useTranslation();
@@ -273,10 +321,13 @@ export function FleetPage() {
           canEdit={canEdit}
         />
       )}
+      {chosen && <DayAllowance truckId={chosen.truck_id} isOwner={session.role === "owner"} />}
       {chosen && <TruckReadings key={chosen.truck_id} row={chosen} canEdit={canEdit} />}
       <ColdRooms canEdit={canEdit} />
+      <PapersPanel canEdit={canEdit} />
       <h2>{t("admin.fleet.settings")}</h2>
       <SettingsCard canEdit={canEdit} />
+      <PaperWarningsCard canEdit={canEdit} />
       <TypesCard canEdit={canEdit} />
     </>
   );

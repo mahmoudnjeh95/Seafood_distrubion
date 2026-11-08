@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -6,18 +7,20 @@ from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import exceptions, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Membership, Organization
-from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import IsDriver, IsOwner, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.fleet import selectors as fleet
+from apps.hr import selectors as hr
 from apps.inventory import selectors as inventory
 from apps.maintenance import selectors, services
 
 if TYPE_CHECKING:
-    from apps.fleet.models import DriverDay
+    from apps.fleet.models import DriverDay, Truck
     from apps.maintenance.models import MaintenancePlan
 
 from .serializers import (
@@ -35,6 +38,10 @@ from .serializers import (
     MyOdometerWriteSerializer,
     OdometerCorrectionSerializer,
     OdometerReadingSerializer,
+    PaperSerializer,
+    PaperStatusSerializer,
+    PaperWriteSerializer,
+    TruckDayAllowanceSerializer,
 )
 
 # The last readings of a truck shown on its screen.
@@ -176,14 +183,18 @@ class MaintenanceSettingsView(OfficeView):
     )
     def patch(self, request: Request) -> Response:
         """Change the maintenance settings. Owners and managers."""
-        serializer = MaintenanceSettingsSerializer(data=request.data)
+        serializer = MaintenanceSettingsSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        found = services.update_settings(
-            organization=self.organization,
-            actor=self.membership.user,
-            max_day_km=serializer.validated_data["max_day_km"],
-        )
-        return Response(MaintenanceSettingsSerializer(found).data)
+        data = serializer.validated_data
+        if "max_day_km" in data:
+            services.update_settings(
+                organization=self.organization, actor=self.membership.user, max_day_km=data["max_day_km"]
+            )
+        if "paper_warn_days" in data:
+            services.update_paper_warnings(
+                organization=self.organization, actor=self.membership.user, days=data["paper_warn_days"]
+            )
+        return Response(MaintenanceSettingsSerializer(selectors.settings_of(self.organization)).data)
 
 
 # ---- Maintenance types, plans and records (P10-T02, P10-T03) ----
@@ -359,3 +370,119 @@ class MaintenanceRecordListView(MaintenancePlanView):
             payment_method=data.get("payment_method", "cash"),
         )
         return Response(MaintenanceRecordSerializer(record).data, status=status.HTTP_201_CREATED)
+
+
+# ---- Papers with expiry dates (P10-T04) ----
+
+
+class PaperBoardView(OfficeView):
+    @extend_schema(operation_id="listPaperBoard", responses=PaperStatusSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """Each active truck's and person's papers, the current one of each kind and where it stands."""
+        return Response(PaperStatusSerializer(selectors.paper_board(self.organization), many=True).data)
+
+
+class PaperListView(OfficeView):
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    @extend_schema(
+        operation_id="listPapers",
+        parameters=[OpenApiParameter("truck", int, required=False), OpenApiParameter("employee", int, required=False)],
+        responses=PaperSerializer(many=True),
+    )
+    def get(self, request: Request) -> Response:
+        """Every paper typed for a truck or a person (renewals included), the one valid the longest first."""
+        truck = request.query_params.get("truck", "")
+        employee = request.query_params.get("employee", "")
+        papers = selectors.papers_of(
+            self.organization,
+            truck_id=int(truck) if truck.isdigit() else None,
+            employee_id=int(employee) if employee.isdigit() else None,
+        )
+        return Response(PaperSerializer(papers[:100], many=True).data)
+
+    @extend_schema(
+        operation_id="recordPaper",
+        request={"multipart/form-data": PaperWriteSerializer},
+        responses={201: PaperSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """A paper issued or renewed, with its scan (photo or PDF) and its cost (an approved expense)."""
+        serializer = PaperWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            truck = fleet.truck_of(self.organization, data["truck"]) if data.get("truck") else None
+            employee = hr.employee_of(self.organization, data["employee"]) if data.get("employee") else None
+        except ObjectDoesNotExist:
+            raise exceptions.ValidationError({"truck": _("Camion ou personne inconnu.")}) from None
+        paper = services.record_paper(
+            organization=self.organization,
+            actor=self.membership.user,
+            kind=data["kind"],
+            expires_on=data["expires_on"],
+            truck=truck,
+            employee=employee,
+            number=data.get("number", ""),
+            issuer=data.get("issuer", ""),
+            issued_on=data.get("issued_on"),
+            cost=data.get("cost") or "0",
+            payment_method=data.get("payment_method", "cash"),
+            note=data.get("note", ""),
+            scan=data.get("scan"),
+        )
+        return Response(PaperSerializer(paper).data, status=status.HTTP_201_CREATED)
+
+
+class PaperScanView(OfficeView):
+    # Read by a link, not by the generated client: kept out of the API contract.
+    @extend_schema(exclude=True)
+    def get(self, request: Request, paper_id: int) -> FileResponse:
+        try:
+            paper = selectors.paper_of(self.organization, paper_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+        if not paper.scan:
+            raise Http404
+        kind = "application/pdf" if (paper.scan.name or "").endswith(".pdf") else "image/webp"
+        response = FileResponse(paper.scan.open("rb"), content_type=kind)
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+
+class TruckDayAllowanceView(OfficeView):
+    def get_permissions(self) -> Sequence[BasePermission]:
+        # Only the owner lets a truck out with an expired paper (owner answer 5b).
+        if self.request.method == "POST":
+            return [IsOwner()]
+        return [ReadOfficeWriteOwnerOrManager()]
+
+    def _truck(self, truck_id: int) -> "Truck":
+        try:
+            return fleet.truck_of(self.organization, truck_id)
+        except ObjectDoesNotExist:
+            raise Http404 from None
+
+    @extend_schema(operation_id="listTruckDayAllowances", responses=TruckDayAllowanceSerializer(many=True))
+    def get(self, request: Request, truck_id: int) -> Response:
+        """The days the owner let the truck out although its assurance or visite technique had expired."""
+        rows = selectors.allowances_of(self.organization, truck_id=self._truck(truck_id).pk)
+        return Response(TruckDayAllowanceSerializer(rows, many=True).data)
+
+    @extend_schema(
+        operation_id="allowTruckDay",
+        request=TruckDayAllowanceSerializer,
+        responses={201: TruckDayAllowanceSerializer},
+    )
+    def post(self, request: Request, truck_id: int) -> Response:
+        """The owner lets the truck out that day, with the reason. Owner only."""
+        serializer = TruckDayAllowanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        allowance = services.allow_truck_day(
+            organization=self.organization,
+            actor=self.membership.user,
+            truck=self._truck(truck_id),
+            date=serializer.validated_data["date"],
+            reason=serializer.validated_data["reason"],
+        )
+        return Response(TruckDayAllowanceSerializer(allowance).data, status=status.HTTP_201_CREATED)

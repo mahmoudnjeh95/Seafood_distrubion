@@ -18,4 +18,8 @@ urlpatterns = [
         views.MaintenanceRecordListView.as_view(),
         name="maintenance-record-list",
     ),
+    path("papers", views.PaperListView.as_view(), name="paper-list"),
+    path("papers/board", views.PaperBoardView.as_view(), name="paper-board"),
+    path("papers/<int:paper_id>/scan", views.PaperScanView.as_view(), name="paper-scan"),
+    path("trucks/<int:truck_id>/day-allowances", views.TruckDayAllowanceView.as_view(), name="truck-day-allowances"),
 ]

@@ -10461,7 +10461,7 @@ export const RecordMaintenanceBody = zod.object({
   "garage": zod.string().max(recordMaintenanceBodyGarageMax).optional(),
   "note": zod.string().max(recordMaintenanceBodyNoteMax).optional(),
   "cost": zod.string().optional(),
-  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - cash\n* `cheque` - cheque\n* `transfer` - transfer\n* `bill` - bill\n* `other` - other').default(recordMaintenanceBodyPaymentMethodDefault)
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(recordMaintenanceBodyPaymentMethodDefault)
 })
 
 export const recordMaintenanceResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -10488,10 +10488,13 @@ export const RecordMaintenanceResponse = zod.object({
 export const getMaintenanceSettingsResponseMaxDayKmMin = 0;
 export const getMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
 
+export const getMaintenanceSettingsResponsePaperWarnDaysItemMax = 365;
+
 
 
 export const GetMaintenanceSettingsResponse = zod.object({
-  "max_day_km": zod.int().min(getMaintenanceSettingsResponseMaxDayKmMin).max(getMaintenanceSettingsResponseMaxDayKmMax)
+  "max_day_km": zod.int().min(getMaintenanceSettingsResponseMaxDayKmMin).max(getMaintenanceSettingsResponseMaxDayKmMax).optional(),
+  "paper_warn_days": zod.array(zod.int().min(1).max(getMaintenanceSettingsResponsePaperWarnDaysItemMax)).optional()
 })
 
 
@@ -10501,19 +10504,25 @@ export const GetMaintenanceSettingsResponse = zod.object({
 export const updateMaintenanceSettingsBodyMaxDayKmMin = 0;
 export const updateMaintenanceSettingsBodyMaxDayKmMax = 2147483647;
 
+export const updateMaintenanceSettingsBodyPaperWarnDaysItemMax = 365;
+
 
 
 export const UpdateMaintenanceSettingsBody = zod.object({
-  "max_day_km": zod.int().min(updateMaintenanceSettingsBodyMaxDayKmMin).max(updateMaintenanceSettingsBodyMaxDayKmMax).optional()
+  "max_day_km": zod.int().min(updateMaintenanceSettingsBodyMaxDayKmMin).max(updateMaintenanceSettingsBodyMaxDayKmMax).optional(),
+  "paper_warn_days": zod.array(zod.int().min(1).max(updateMaintenanceSettingsBodyPaperWarnDaysItemMax)).optional()
 })
 
 export const updateMaintenanceSettingsResponseMaxDayKmMin = 0;
 export const updateMaintenanceSettingsResponseMaxDayKmMax = 2147483647;
 
+export const updateMaintenanceSettingsResponsePaperWarnDaysItemMax = 365;
+
 
 
 export const UpdateMaintenanceSettingsResponse = zod.object({
-  "max_day_km": zod.int().min(updateMaintenanceSettingsResponseMaxDayKmMin).max(updateMaintenanceSettingsResponseMaxDayKmMax)
+  "max_day_km": zod.int().min(updateMaintenanceSettingsResponseMaxDayKmMin).max(updateMaintenanceSettingsResponseMaxDayKmMax).optional(),
+  "paper_warn_days": zod.array(zod.int().min(1).max(updateMaintenanceSettingsResponsePaperWarnDaysItemMax)).optional()
 })
 
 
@@ -13931,6 +13940,116 @@ export const RemoveOrganizationLogoParams = zod.object({
 })
 
 export const RemoveOrganizationLogoResponse = zod.void()
+
+
+/**
+ * Every paper typed for a truck or a person (renewals included), the one valid the longest first.
+ */
+export const ListPapersQueryParams = zod.object({
+  "employee": zod.int().optional(),
+  "truck": zod.int().optional()
+})
+
+export const listPapersResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPapersResponseItem = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['insurance', 'vignette', 'technical_visit', 'frigo_certificate', 'extinguisher', 'licence', 'medical', 'health_card']).describe('* `insurance` - Assurance\n* `vignette` - Vignette\n* `technical_visit` - Visite technique\n* `frigo_certificate` - Certificat engin frigorifique\n* `extinguisher` - Extincteur\n* `licence` - Permis de conduire\n* `medical` - Certificat médical\n* `health_card` - Carnet sanitaire'),
+  "truck_id": zod.int().nullable(),
+  "employee_id": zod.int().nullable(),
+  "number": zod.string(),
+  "issuer": zod.string(),
+  "issued_on": zod.iso.date().nullable(),
+  "expires_on": zod.iso.date(),
+  "cost": zod.stringFormat('decimal', listPapersResponseCostRegExp),
+  "expense_number": zod.string().nullable(),
+  "note": zod.string(),
+  "scan_url": zod.string().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListPapersResponse = zod.array(ListPapersResponseItem)
+
+
+/**
+ * A paper issued or renewed, with its scan (photo or PDF) and its cost (an approved expense).
+ */
+export const recordPaperBodyNumberMax = 60;
+
+export const recordPaperBodyIssuerMax = 150;
+
+export const recordPaperBodyPaymentMethodDefault = `cash`;
+export const recordPaperBodyNoteMax = 300;
+
+
+
+export const RecordPaperBody = zod.object({
+  "kind": zod.enum(['insurance', 'vignette', 'technical_visit', 'frigo_certificate', 'extinguisher', 'licence', 'medical', 'health_card']).describe('* `insurance` - Assurance\n* `vignette` - Vignette\n* `technical_visit` - Visite technique\n* `frigo_certificate` - Certificat engin frigorifique\n* `extinguisher` - Extincteur\n* `licence` - Permis de conduire\n* `medical` - Certificat médical\n* `health_card` - Carnet sanitaire'),
+  "truck": zod.int().nullish(),
+  "employee": zod.int().nullish(),
+  "number": zod.string().max(recordPaperBodyNumberMax).optional(),
+  "issuer": zod.string().max(recordPaperBodyIssuerMax).optional(),
+  "issued_on": zod.iso.date().nullish(),
+  "expires_on": zod.iso.date(),
+  "cost": zod.string().optional(),
+  "payment_method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre').default(recordPaperBodyPaymentMethodDefault),
+  "note": zod.string().max(recordPaperBodyNoteMax).optional(),
+  "scan": zod.instanceof(Blob).optional()
+})
+
+export const recordPaperResponseCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const RecordPaperResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['insurance', 'vignette', 'technical_visit', 'frigo_certificate', 'extinguisher', 'licence', 'medical', 'health_card']).describe('* `insurance` - Assurance\n* `vignette` - Vignette\n* `technical_visit` - Visite technique\n* `frigo_certificate` - Certificat engin frigorifique\n* `extinguisher` - Extincteur\n* `licence` - Permis de conduire\n* `medical` - Certificat médical\n* `health_card` - Carnet sanitaire'),
+  "truck_id": zod.int().nullable(),
+  "employee_id": zod.int().nullable(),
+  "number": zod.string(),
+  "issuer": zod.string(),
+  "issued_on": zod.iso.date().nullable(),
+  "expires_on": zod.iso.date(),
+  "cost": zod.stringFormat('decimal', recordPaperResponseCostRegExp),
+  "expense_number": zod.string().nullable(),
+  "note": zod.string(),
+  "scan_url": zod.string().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Each active truck's and person's papers, the current one of each kind and where it stands.
+ */
+export const listPaperBoardResponsePaperOneCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListPaperBoardResponseItem = zod.object({
+  "kind": zod.enum(['insurance', 'vignette', 'technical_visit', 'frigo_certificate', 'extinguisher', 'licence', 'medical', 'health_card']).describe('* `insurance` - Assurance\n* `vignette` - Vignette\n* `technical_visit` - Visite technique\n* `frigo_certificate` - Certificat engin frigorifique\n* `extinguisher` - Extincteur\n* `licence` - Permis de conduire\n* `medical` - Certificat médical\n* `health_card` - Carnet sanitaire'),
+  "truck_id": zod.int().nullable(),
+  "employee_id": zod.int().nullable(),
+  "subject": zod.string(),
+  "paper": zod.union([zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['insurance', 'vignette', 'technical_visit', 'frigo_certificate', 'extinguisher', 'licence', 'medical', 'health_card']).describe('* `insurance` - Assurance\n* `vignette` - Vignette\n* `technical_visit` - Visite technique\n* `frigo_certificate` - Certificat engin frigorifique\n* `extinguisher` - Extincteur\n* `licence` - Permis de conduire\n* `medical` - Certificat médical\n* `health_card` - Carnet sanitaire'),
+  "truck_id": zod.int().nullable(),
+  "employee_id": zod.int().nullable(),
+  "number": zod.string(),
+  "issuer": zod.string(),
+  "issued_on": zod.iso.date().nullable(),
+  "expires_on": zod.iso.date(),
+  "cost": zod.stringFormat('decimal', listPaperBoardResponsePaperOneCostRegExp),
+  "expense_number": zod.string().nullable(),
+  "note": zod.string(),
+  "scan_url": zod.string().nullable(),
+  "recorded_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}),zod.null()]),
+  "days_left": zod.int().nullable(),
+  "state": zod.enum(['ok', 'soon', 'expired', 'missing']).describe('* `ok` - ok\n* `soon` - soon\n* `expired` - expired\n* `missing` - missing')
+}).describe('One `selectors.PaperStatus`: a paper a truck or a person must hold, and where it stands.')
+export const ListPaperBoardResponse = zod.array(ListPaperBoardResponseItem)
 
 
 /**
@@ -25057,6 +25176,58 @@ export const ArchiveTruckResponse = zod.object({
   "is_active": zod.boolean(),
   "condition": zod.enum(['ok', 'maintenance', 'breakdown']).describe('* `ok` - En service\n* `maintenance` - En maintenance\n* `breakdown` - En panne'),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * The days the owner let the truck out although its assurance or visite technique had expired.
+ */
+export const ListTruckDayAllowancesParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const listTruckDayAllowancesResponseReasonMax = 300;
+
+
+
+export const ListTruckDayAllowancesResponseItem = zod.object({
+  "id": zod.int(),
+  "truck_id": zod.int(),
+  "date": zod.iso.date(),
+  "reason": zod.string().max(listTruckDayAllowancesResponseReasonMax),
+  "allowed_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+export const ListTruckDayAllowancesResponse = zod.array(ListTruckDayAllowancesResponseItem)
+
+
+/**
+ * The owner lets the truck out that day, with the reason. Owner only.
+ */
+export const AllowTruckDayParams = zod.object({
+  "truck_id": zod.int()
+})
+
+export const allowTruckDayBodyReasonMax = 300;
+
+
+
+export const AllowTruckDayBody = zod.object({
+  "date": zod.iso.date(),
+  "reason": zod.string().max(allowTruckDayBodyReasonMax)
+})
+
+export const allowTruckDayResponseReasonMax = 300;
+
+
+
+export const AllowTruckDayResponse = zod.object({
+  "id": zod.int(),
+  "truck_id": zod.int(),
+  "date": zod.iso.date(),
+  "reason": zod.string().max(allowTruckDayResponseReasonMax),
+  "allowed_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 
