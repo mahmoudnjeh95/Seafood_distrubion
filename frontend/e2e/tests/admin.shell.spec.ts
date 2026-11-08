@@ -28,6 +28,7 @@ test("the sidebar lists the modules of the prototype, plus the catalogue, and op
     "Prix du jour",
     "Stock frigo & camions",
     "Camions du jour",
+    "Flotte & entretien",
     "Journées chauffeurs",
     "Transferts",
     "Produits",
