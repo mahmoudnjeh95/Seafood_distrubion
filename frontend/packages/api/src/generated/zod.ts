@@ -7031,6 +7031,16 @@ export const RunImportResponse = zod.object({
 
 
 /**
+ * Which copy of the application this is (D-290). Public: the login screen shows the tag and the link too.
+ */
+export const GetInstanceResponse = zod.object({
+  "training": zod.boolean().describe('This is the training copy: show the Formation tag.'),
+  "training_admin_url": zod.string().describe('The training copy\'s office app; empty: none.'),
+  "training_driver_url": zod.string().describe('The training copy\'s driver app; empty: none.')
+})
+
+
+/**
  * Invoices, drafts first then the newest issued, paginated (`limit`, `offset`). Filter by status,
  * customer, sale, issue days (inclusive) or `search` (number, sale number, customer). Office roles read.
  */

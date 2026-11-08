@@ -3983,6 +3983,33 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   offers: here only a hint, not enforced.
 - No currency and no services (not wanted); no printing of the request yet.
 
+**D-290 · Training copy: same stack, only the database apart, reset by hand from production** · provisional · 2026-11-08
+- Owner request (2026-11-08): new employees practise on the same application without touching the real data, and
+  "keep everything the same, only the database separate". The training copy is `app1.fruttidelmare.com` (office) and
+  `ch1.fruttidelmare.com` (driver), served by the same stack (`compose.staging.yml`): the same images, the same
+  PostgreSQL server (database `frutti_training`), the same Redis (slots 2 and 3), the same web container (ports
+  8091/8092 send the API to `training-backend`). Apart: the database, the media volume `training_media`, and the
+  secret key (`TRAINING_SECRET_KEY`).
+- A second backend process (`training-backend`, `training-worker`) runs the same image: one Django process has one
+  database. Choosing the database per request inside one process was refused: `transaction.atomic()` and every
+  service write go to the default database, so one miss puts training data into the real books.
+- The web container looks the training backend up when asked (`resolver 127.0.0.11`, `$frutti_api` in
+  `frutti-app.inc`), so production's apps keep working while the training copy is down.
+- Printed documents and PDFs are exactly the real ones (owner's choice: the supervisor collects and destroys the papers
+  each day). Only a small "Formation" tag shows on screen (`TrainingTag`, `print:hidden`), from the public
+  `GET /api/v1/instance`; the answer is kept on the phone for offline use. Production's login screens link to the
+  training copy ("Se connecter en mode formation").
+- Never emptied automatically. `~/frutti-training/bin/reset-training.sh [--apply]` copies production's database into
+  `frutti_training` (`pg_dump | pg_restore`, production only read), the product photos and the logo; then
+  `prepare_training` keeps the master data (settings, numbering, products and prices, customers, suppliers, price
+  lists, locations, trucks, box holders, employees with their salaries, expense categories, day labourers, recurring
+  costs, site settings, banks and treasury accounts with opening balance 0) and deletes the work. The numbering is
+  kept, so training numbers continue production's.
+- Production's accounts are locked in the copy (no password, inactive); the trainees' logins (any account with a
+  usable password) are exported before and put back after, also saved in `~/frutti-training/logins/`. A `formation`
+  owner login is created when missing, its password printed once. The command refuses unless `FRUTTI_TRAINING=true`,
+  and refuses on a database named `frutti`. No mailbox in the copy. The nightly backup covers `frutti` only.
+
 **D-291 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T20)** · accepted, provisional parts marked · 2026-11-08
 - **VAT per line (fixes a bug):** an invoice used to put each product's rate (19 %) on **every** line as soon as one BL
   line was bought with VAT, so the goods not bought with VAT were taxed and the invoice disagreed with its BL (D-224).

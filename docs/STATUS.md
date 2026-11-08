@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-08 (accounting review P2-T20: D-291 to D-294; Perfaxis gaps and client bug list merged #323–#329; next free decision D-295)_
+_Last updated: 2026-11-08 (accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list merged #323–#329; next free decision D-295)_
 
 ## Where we are
 
-- **P2-T20 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`):** review in
+- **P2-T20 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`, merged 2026-11-08 (#331)):** review in
   `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
   an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
   and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
@@ -14,6 +14,12 @@ _Last updated: 2026-11-08 (accounting review P2-T20: D-291 to D-294; Perfaxis ga
   B5 (D-293): a lot's revenue is without VAT also when prices include VAT.
   B1 (D-294, migration `purchasing 0025`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
   Check: a receipt "Achat avec TVA" of 1 000 DT, its invoice shows TVA 190, timbre 1, total 1 191 to pay.
+- **D-290 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, merged 2026-11-08 (#330)):** same stack on
+  `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, only the database apart (`frutti_training`, services
+  `training-backend`/`training-worker` in `compose.staging.yml`), "Formation" tag on screen only, papers identical to
+  the real ones, reset by hand with `reset-training.sh` (runbook "Training copy"). Next: owner adds the DNS records
+  (`app1`, `ch1` → 217.182.205.137), then run `~/frutti-training/bin/reset-training.sh --apply` once and
+  check the tag, a PDF and a driver receipt on app1/ch1.
 
 - **Perfaxis gaps (owner answers 2026-11-07, D-285):** the owner compared the Perfaxis Achat/Vente/Avoir manual and kept
   five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch

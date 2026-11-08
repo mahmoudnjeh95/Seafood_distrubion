@@ -21,6 +21,11 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 # The company the public site sells for (D-186); empty: the oldest active organization.
 PUBLIC_SITE_ORGANIZATION_ID = env.int("PUBLIC_SITE_ORGANIZATION_ID", default=None)
+# The training copy (D-290): its own database, a "Formation" tag on screen, and the only place
+# `prepare_training` runs. The production apps link to it from their login screens when the addresses are set.
+TRAINING_MODE = env.bool("FRUTTI_TRAINING", default=False)
+TRAINING_ADMIN_URL = env("FRUTTI_TRAINING_ADMIN_URL", default="")
+TRAINING_DRIVER_URL = env("FRUTTI_TRAINING_DRIVER_URL", default="")
 
 DJANGO_APPS = [
     "django.contrib.admin",
