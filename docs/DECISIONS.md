@@ -3913,3 +3913,12 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   for the customers who do not withhold (individuals, forfaitaires). The owner may prefer off by default; the accountant
   confirms who withholds.
 - Issued invoices keep what they had (D-057); a draft takes the flag when it is next saved.
+
+**D-285 · A lot earns its sales without VAT, also with prices including VAT (accounting review B5, P2-T16)** · accepted · 2026-11-08
+- A sale line's revenue per lot (`SaleLineBatch.revenue_amount`) is now the line's amount **without VAT**
+  (`SaleLine.amount_excl_tax`) when the line is sold with VAT (D-224 snapshot); before, it was the amount as charged,
+  which holds the VAT when prices include VAT, so the lot result, the partner's share and the sales reports counted
+  VAT collected for the State as income. Credit notes already gave back amounts without VAT.
+- A line without VAT, and a line written before D-224 (no snapshot), earns its amount as charged, as before.
+- Sales confirmed before this change keep their rows (posted rows are immutable). With prices without VAT, the
+  default, nothing changes: the amount without VAT is the amount.

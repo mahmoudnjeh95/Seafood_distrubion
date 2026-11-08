@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding threshold, D-283; customer subject to withholding, D-284; next free decision D-285)_
+_Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding threshold, D-283; customer subject to withholding, D-284; lot revenue without VAT, D-285; next free decision D-286)_
 
 ## Where we are
 
@@ -11,6 +11,7 @@ _Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding 
   bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
   B4 (D-284, migration `partners 0005`): "Soumis à la retenue à la source" on the customer (on by default); off, the
   customer's invoices carry none. Check: untick it on a customer, invoice 1 200 DT, net to pay = TTC.
+  B5 (D-285): a lot's revenue is without VAT also when prices include VAT.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;

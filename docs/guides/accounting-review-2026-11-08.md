@@ -11,7 +11,7 @@ l'expert-comptable de la société avant d'être codés (voir `docs/OPEN_QUESTIO
 | B2 | **corrigé (D-283)** | Une facture mêlant des lots avec et sans TVA mettait 19 % sur toutes les lignes ; le BL et la facture ne concordaient pas. | `sales/selectors.py` `proposed_vat_rates` |
 | B3 | **corrigé (D-283)** | Le seuil de 1 000 DT de la retenue comptait le timbre et les frais. | `sales/invoicing.py` |
 | B4 | **corrigé (D-284)** | La retenue s'applique à tout client dès 1 000 DT ; il faut un indicateur « soumis à retenue » par client. | `invoicing.withholding_applies`, D-250 |
-| B5 | à faire | Avec des prix TTC (`prices_include_vat`), le CA d'un lot (et la part partenaire) inclut la TVA. | `sales/services.py` `_post_line` |
+| B5 | **corrigé (D-285)** | Avec des prix TTC (`prices_include_vat`), le CA d'un lot (et la part partenaire) inclut la TVA. | `sales/services.py` `_post_line` |
 | B6 | à décider | Le coût d'une journée d'employé sur un lot (salaire / 26) n'inclut pas la CNSS patronale. | `hr/selectors.py` (D-041) |
 | B7 | à confirmer | Primes hors CNSS (D-263) : en principe soumises à cotisation. | `hr/services.py` `add_prime` |
 | B8 | à faire | Pas de prorata de salaire à l'embauche ni de date de sortie. | `hr/services.py` `generate_month` |

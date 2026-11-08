@@ -1492,6 +1492,13 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
     return [*parts, amount - sum(parts, Decimal("0.000"))]
 
 
+def _revenue_of(line: SaleLine) -> Decimal:
+    """What a line earns, without VAT (D-285): the lot result, the partner's share and the reports count revenue
+    without VAT. A line sold with VAT keeps its amount without VAT (with prices including VAT, the VAT is taken
+    out); a line without VAT, or written before D-224, earns its amount as charged."""
+    return line.amount_excl_tax if line.vat_rate is not None else line.amount
+
+
 def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_since: bool = False) -> None:
     """Take the line's kilos out of the sale's place and keep which batches went.
 
@@ -1514,7 +1521,7 @@ def _post_line(sale: Sale, line: SaleLine, actor: User | None, *, stock_held_sin
         picks=[(pick.batch_id, pick.quantity) for pick in line.picks.order_by("id")],
         held_since_then=stock_held_since,
     )
-    revenues = _revenue_parts(line.amount, [movement.quantity for movement in movements])
+    revenues = _revenue_parts(_revenue_of(line), [movement.quantity for movement in movements])
     rows = [
         SaleLineBatch(
             organization_id=sale.organization_id,

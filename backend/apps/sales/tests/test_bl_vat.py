@@ -131,6 +131,31 @@ def test_prices_including_vat_take_the_vat_out_on_the_bl_as_on_the_invoice(
     )
 
 
+def test_with_prices_including_vat_the_lot_earns_the_amount_without_vat(
+    organization, actor, customer, counter, crevette, dorade
+):
+    """D-285: the lot result and the reports count revenue without VAT; with prices including VAT the VAT a line
+    holds is not the lot's revenue. A line without VAT earns what was charged."""
+    receive(organization, crevette, counter, "20", with_vat=True)
+    receive(organization, dorade, counter, "20", with_vat=False)
+    services.save_finance_settings(organization=organization, actor=actor, prices_include_vat=True)
+
+    bl = services.confirm_sale(
+        sale=draft(
+            organization,
+            actor,
+            customer,
+            counter,
+            [{"product": crevette, "quantity": "5"}, {"product": dorade, "quantity": "10"}],
+        ),
+        actor=actor,
+    )
+
+    with_vat, without = bl.lines.order_by("id")
+    assert [row.revenue_amount for row in with_vat.batches.all()] == [D("176.471")]  # 210 / 1.19
+    assert [row.revenue_amount for row in without.batches.all()] == [D("245.000")]
+
+
 def test_only_the_lines_of_products_sold_with_vat_carry_vat(organization, actor, customer, counter, crevette, dorade):
     receive(organization, crevette, counter, "20", with_vat=True)
     receive(organization, dorade, counter, "20", with_vat=False)
