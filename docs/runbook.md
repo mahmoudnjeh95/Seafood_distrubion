@@ -302,10 +302,11 @@ Once `real_data_since` is set, `seed_dev` adds nothing. To undo, restore the bac
 
 ## Training copy (D-283)
 
-`https://app1.fruttidelmare.com` (office) and `https://ch1.fruttidelmare.com` (driver): Docker project
-`frutti-training` (volumes `frutti-training_pgdata`, `frutti-training_media`), folder `~/frutti-training`, ports
-18091/18092, server blocks in the Frutti nginx site. Every deploy starts it on the same release; a deploy never
-changes its data.
+`https://app1.fruttidelmare.com` (office) and `https://ch1.fruttidelmare.com` (driver), inside the `frutti-staging`
+project: services `training-backend` and `training-worker`, database `frutti_training` on the same `db` container,
+volume `frutti-staging_training_media`, web ports 18091/18092, server blocks in the Frutti nginx site, folder
+`~/frutti-training` (reset script and saved logins). The first deploy creates the empty database; a deploy never
+changes its data. Not in the nightly backup.
 
 - **DNS (owner, once):** `A` records `app1` and `ch1` → 217.182.205.137. The next deploy adds both names to the
   certificate (a warning until the DNS answers).

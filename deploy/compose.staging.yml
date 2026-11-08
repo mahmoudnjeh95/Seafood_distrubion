@@ -91,6 +91,53 @@ services:
       backend: { condition: service_healthy }
       redis: { condition: service_healthy }
 
+  # ---- The training copy (D-283): the same image, connected to its own database `frutti_training` on the same
+  # PostgreSQL server, its own Redis slots and its own media volume. Started by the same deploy; its data is changed
+  # only by ~/frutti-training/bin/reset-training.sh. A second process is needed: one Django process has one database.
+  training-backend:
+    image: frutti-backend:${RELEASE}
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate --noinput && exec gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 2 --access-logfile - --no-control-socket"
+    environment: &training-env
+      <<: *backend-env
+      DATABASE_URL: postgres://frutti:${POSTGRES_PASSWORD}@db:5432/frutti_training
+      # Its own key: nothing signed by one copy is accepted by the other.
+      DJANGO_SECRET_KEY: ${TRAINING_SECRET_KEY:?set in .env by remote-deploy.sh}
+      DJANGO_ALLOWED_HOSTS: app1.fruttidelmare.com,ch1.fruttidelmare.com
+      DJANGO_CSRF_TRUSTED_ORIGINS: https://app1.fruttidelmare.com,https://ch1.fruttidelmare.com
+      DJANGO_CACHE_URL: redis://redis:6379/3
+      CELERY_BROKER_URL: redis://redis:6379/2
+      # The training copy: "Formation" tag on screen, and the only place prepare_training runs.
+      FRUTTI_TRAINING: "true"
+      FRUTTI_TRAINING_ADMIN_URL: ""
+      FRUTTI_TRAINING_DRIVER_URL: ""
+      # No mailbox: the customers' addresses are real, so a training document is never e-mailed to them.
+      EMAIL_HOST: ""
+      SENTRY_ENVIRONMENT: training
+    volumes: [training_media:/app/media]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request as r; r.urlopen(r.Request('http://127.0.0.1:8000/api/v1/health', headers={'Host': os.environ['DJANGO_ALLOWED_HOSTS'].split(',')[0], 'X-Forwarded-Proto': 'https'}))"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # The training copy's PDFs: exactly like the real ones (owner's choice, D-283).
+  training-worker:
+    image: frutti-backend:${RELEASE}
+    restart: unless-stopped
+    environment: *training-env
+    volumes: [training_media:/app/media]
+    command: celery -A config worker --loglevel=INFO --concurrency=1
+    depends_on:
+      training-backend: { condition: service_healthy }
+
   web:
     build:
       context: ..
@@ -106,6 +153,8 @@ services:
       - "127.0.0.1:18081:8081" # admin app
       - "127.0.0.1:18082:8082" # driver app
       - "127.0.0.1:18083:8083" # public site (D-186); the host nginx gets a name for it once DNS exists
+      - "127.0.0.1:18091:8091" # training admin app, app1.fruttidelmare.com (D-283)
+      - "127.0.0.1:18092:8092" # training driver app, ch1.fruttidelmare.com
     depends_on:
       backend: { condition: service_healthy }
 
@@ -136,3 +185,4 @@ services:
 volumes:
   pgdata:
   media:
+  training_media: # the training copy's photos and PDFs (D-283)

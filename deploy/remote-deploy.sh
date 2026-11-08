@@ -13,11 +13,10 @@ DRIVER_HOST="ch.fruttidelmare.com"
 # The public site (D-186); the bare name only redirects to it (nginx-host-staging.conf).
 SITE_HOST="www.fruttidelmare.com"
 SITE_BARE_HOST="fruttidelmare.com"
-# The training copy (D-283): same release, its own database. Must match nginx-host-staging.conf and compose.training.yml.
+# The training copy (D-283): same stack, its own database. Must match nginx-host-staging.conf and compose.staging.yml.
 TRAINING_ADMIN_HOST="app1.fruttidelmare.com"
 TRAINING_DRIVER_HOST="ch1.fruttidelmare.com"
 TRAINING_BASE="$HOME/frutti-training"
-TRAINING_ENV="$TRAINING_BASE/.env"
 ACME_WEBROOT=/var/www/frutti-acme # Let's Encrypt challenge files, served by the host nginx (D-155)
 NGINX_SITE=/etc/nginx/sites-available/frutti-staging
 
@@ -52,20 +51,9 @@ set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$ADMIN_HOST,https://$DRIVER_HOST,ht
 set_env FRUTTI_TRAINING_ADMIN_URL "https://$TRAINING_ADMIN_HOST"
 set_env FRUTTI_TRAINING_DRIVER_URL "https://$TRAINING_DRIVER_HOST"
 
-# The training copy's own secrets, made once like production's: another database password, another secret key.
+# The training copy's own secret key, made once (D-283).
+grep -q "^TRAINING_SECRET_KEY=" "$ENV_FILE" || echo "TRAINING_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')" >> "$ENV_FILE"
 install -d -m 700 "$TRAINING_BASE" "$TRAINING_BASE/bin"
-if [ ! -f "$TRAINING_ENV" ]; then
-  echo "Creating $TRAINING_ENV with new random secrets"
-  (umask 077 && cat > "$TRAINING_ENV" <<EOF
-POSTGRES_PASSWORD=$(openssl rand -hex 24)
-DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
-SENTRY_DSN=
-EOF
-  )
-fi
-chmod 600 "$TRAINING_ENV"
-ENV_FILE="$TRAINING_ENV" set_env DJANGO_ALLOWED_HOSTS "$TRAINING_ADMIN_HOST,$TRAINING_DRIVER_HOST"
-ENV_FILE="$TRAINING_ENV" set_env DJANGO_CSRF_TRUSTED_ORIGINS "https://$TRAINING_ADMIN_HOST,https://$TRAINING_DRIVER_HOST"
 export RELEASE
 
 # 2. Build and start. Only Frutti's own containers are touched.
@@ -73,9 +61,15 @@ cd "$RELEASE_DIR/deploy"
 # The VPS is shared with other clients' production: build one image at a time, at low CPU priority.
 export COMPOSE_PARALLEL_LIMIT=1
 sudo -E nice -n 19 ionice -c3 docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml build
+# The training copy's database, on the same PostgreSQL server, created empty the first time (D-283). A deploy never
+# changes its data afterwards: only reset-training.sh does.
+sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --wait db
+if ! sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml exec -T db \
+  psql -U frutti -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'frutti_training'" | grep -q 1; then
+  sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml exec -T db createdb -U frutti frutti_training
+  echo "Created the training database frutti_training"
+fi
 sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --remove-orphans
-# 2b. The training copy, on the images just built. Its data is never touched by a deploy (only reset-training.sh).
-sudo -E docker compose --project-name frutti-training --env-file "$TRAINING_ENV" -f compose.training.yml up -d --remove-orphans
 install -m 755 "$RELEASE_DIR/deploy/reset-training.sh" "$TRAINING_BASE/bin/reset-training.sh"
 
 # 3. Host nginx: install our site only if it changed, test, then reload. On a failed test, put back the old file.

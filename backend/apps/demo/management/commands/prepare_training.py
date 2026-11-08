@@ -74,6 +74,8 @@ KEPT_MODELS: tuple[type[Model], ...] = (
     TreasuryAccount,
 )
 TRAINING_OWNER = "formation"
+# Production's database on the shared PostgreSQL server; the training copy's is `frutti_training`.
+PRODUCTION_DATABASE = "frutti"
 
 
 class Command(BaseCommand):
@@ -94,6 +96,8 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         if not settings.TRAINING_MODE:
             raise CommandError("Refused: this is not the training copy (FRUTTI_TRAINING is not true). Nothing changed.")
+        if connection.settings_dict["NAME"] == PRODUCTION_DATABASE:
+            raise CommandError(f"Refused: connected to production's database {PRODUCTION_DATABASE!r}. Nothing changed.")
         if options["export_logins"]:
             self.stdout.write(json.dumps(export_logins(), ensure_ascii=False, indent=2))
             return

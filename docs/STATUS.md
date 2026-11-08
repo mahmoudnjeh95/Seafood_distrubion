@@ -4,11 +4,12 @@ _Last updated: 2026-11-08 (training copy app1/ch1, D-283; next free decision D-2
 
 ## Where we are
 
-- **D-283 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, not merged):** same release on
-  `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, own database (`deploy/compose.training.yml`), "Formation" tag on
-  screen only, papers identical to the real ones, reset by hand with `reset-training.sh` (runbook "Training copy").
-  **Waiting on the owner:** share PostgreSQL/Redis with production to save memory, or keep them separate (asked
-  2026-11-08). Then: owner adds the DNS records, merge, deploy, run `reset-training.sh --apply` once.
+- **D-283 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, not merged):** same stack on
+  `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, only the database apart (`frutti_training`, services
+  `training-backend`/`training-worker` in `compose.staging.yml`), "Formation" tag on screen only, papers identical to
+  the real ones, reset by hand with `reset-training.sh` (runbook "Training copy"). Next: owner adds the DNS records
+  (`app1`, `ch1` → 217.182.205.137), merge, deploy, run `~/frutti-training/bin/reset-training.sh --apply` once and
+  check the tag, a PDF and a driver receipt on app1/ch1.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF
   (`my-receipt-header`), a Qté/Prix/Montant table and "Préparé par". A delivered BL stays on screen with its receipt;

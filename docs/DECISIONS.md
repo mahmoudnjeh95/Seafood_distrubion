@@ -3889,23 +3889,29 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
 
-**D-283 · Training copy: same code, its own stack and database, reset by hand from production** · provisional · 2026-11-08
-- Owner request (2026-11-08): new employees practise on the same application without touching the real data. The
-  training copy is `app1.fruttidelmare.com` (office) and `ch1.fruttidelmare.com` (driver): the same release and images
-  as production (`deploy/compose.training.yml`, Docker project `frutti-training`), its own PostgreSQL, Redis and media.
-  One backend serving both databases was refused: every write would have to pick the right database (D-004 rule of
-  explicit tenancy, but for databases), and one miss puts training data into the real books.
+**D-283 · Training copy: same stack, only the database apart, reset by hand from production** · provisional · 2026-11-08
+- Owner request (2026-11-08): new employees practise on the same application without touching the real data, and
+  "keep everything the same, only the database separate". The training copy is `app1.fruttidelmare.com` (office) and
+  `ch1.fruttidelmare.com` (driver), served by the same stack (`compose.staging.yml`): the same images, the same
+  PostgreSQL server (database `frutti_training`), the same Redis (slots 2 and 3), the same web container (ports
+  8091/8092 send the API to `training-backend`). Apart: the database, the media volume `training_media`, and the
+  secret key (`TRAINING_SECRET_KEY`).
+- A second backend process (`training-backend`, `training-worker`) runs the same image: one Django process has one
+  database. Choosing the database per request inside one process was refused: `transaction.atomic()` and every
+  service write go to the default database, so one miss puts training data into the real books.
+- The web container looks the training backend up when asked (`resolver 127.0.0.11`, `$frutti_api` in
+  `frutti-app.inc`), so production's apps keep working while the training copy is down.
 - Printed documents and PDFs are exactly the real ones (owner's choice: the supervisor collects and destroys the papers
   each day). Only a small "Formation" tag shows on screen (`TrainingTag`, `print:hidden`), from the public
   `GET /api/v1/instance`; the answer is kept on the phone for offline use. Production's login screens link to the
   training copy ("Se connecter en mode formation").
-- Never emptied automatically. `~/frutti-training/bin/reset-training.sh [--apply]` copies production's database
-  (`pg_dump`, read only), the product photos and the logo, then `prepare_training` keeps the master data (settings,
-  numbering, products and prices, customers, suppliers, price lists, locations, trucks, box holders, employees with
-  their salaries, expense categories, day labourers, recurring costs, site settings, banks and treasury accounts with
-  opening balance 0) and deletes the work. The numbering is kept, so training numbers continue production's.
+- Never emptied automatically. `~/frutti-training/bin/reset-training.sh [--apply]` copies production's database into
+  `frutti_training` (`pg_dump | pg_restore`, production only read), the product photos and the logo; then
+  `prepare_training` keeps the master data (settings, numbering, products and prices, customers, suppliers, price
+  lists, locations, trucks, box holders, employees with their salaries, expense categories, day labourers, recurring
+  costs, site settings, banks and treasury accounts with opening balance 0) and deletes the work. The numbering is
+  kept, so training numbers continue production's.
 - Production's accounts are locked in the copy (no password, inactive); the trainees' logins (any account with a
   usable password) are exported before and put back after, also saved in `~/frutti-training/logins/`. A `formation`
-  owner login is created when missing, its password printed once. The command refuses to run unless
-  `FRUTTI_TRAINING=true`. No mailbox in the copy: real customers' addresses never get a training e-mail.
-- Open (asked 2026-11-08): the owner may prefer to share the PostgreSQL server and Redis with production to save memory.
+  owner login is created when missing, its password printed once. The command refuses unless `FRUTTI_TRAINING=true`,
+  and refuses on a database named `frutti`. No mailbox in the copy. The nightly backup covers `frutti` only.

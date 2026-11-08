@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import connection
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Product, ProductPrice
@@ -141,6 +142,17 @@ def test_refused_outside_the_training_copy(settings):
         call_command("prepare_training", "--apply", stdout=StringIO())
     with pytest.raises(CommandError, match="not the training copy"):
         call_command("prepare_training", "--export-logins", stdout=StringIO())
+    assert _work() == work
+
+
+def test_refused_on_productions_database(settings, monkeypatch):
+    _production_copy(settings)
+    work = _work()
+    monkeypatch.setitem(connection.settings_dict, "NAME", "frutti")
+
+    with pytest.raises(CommandError, match="production's database"):
+        call_command("prepare_training", "--apply", stdout=StringIO())
+    monkeypatch.undo()
     assert _work() == work
 
 
