@@ -127,7 +127,7 @@ def vat_receipt(organization, supplier, *, product=None, invoiced="62", cost="20
 
 
 def test_an_invoice_adds_the_vat_of_receipts_bought_with_vat_and_the_stamp(organization, actor, supplier, receive):
-    """D-286: what is owed is without VAT + the VAT of the receipts bought with VAT + the supplier's stamp."""
+    """D-294: what is owed is without VAT + the VAT of the receipts bought with VAT + the supplier's stamp."""
     taxed = vat_receipt(organization, supplier)  # 1 255.500 + 19 % = 238.545
     plain = receive("10.5", "12.345")  # 129.623, bought without VAT
 

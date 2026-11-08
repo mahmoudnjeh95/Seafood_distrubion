@@ -393,7 +393,7 @@ def test_a_full_credit_note_clears_the_receivable_and_a_payment_becomes_credit(
 def test_a_withholding_certificate_replaces_the_planned_withholding(organization, actor, customer, counter, stocked):
     sale = make_sale(organization, actor, customer, counter, stocked, "21")
     invoice = issued_invoice(sale, actor, withholding_rate="1.5")
-    # 882.000 + 19 % = 167.580: 1 049.580 without the stamp, over 1 000 DT (D-283); × 1.5 % = 15.744 withheld;
+    # 882.000 + 19 % = 167.580: 1 049.580 without the stamp, over 1 000 DT (D-291); × 1.5 % = 15.744 withheld;
     # 1 049.580 + stamp 1.000 − 15.744 = 1 034.836 to pay.
     sale.refresh_from_db()
     assert (invoice.withholding_amount, sale.amount_due) == (D("15.744"), D("1034.836"))

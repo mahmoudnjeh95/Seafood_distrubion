@@ -812,7 +812,7 @@ def _checked_stamp(value: Number | None, errors: dict[str, str]) -> Decimal | No
 
 
 def _set_receipts(invoice: SupplierInvoice, receipts: Sequence[GoodsReceipt], fiscal_stamp: Decimal | None) -> None:
-    """Charge exactly these receipts on the invoice and keep its amounts (D-286): without VAT, the sum of their
+    """Charge exactly these receipts on the invoice and keep its amounts (D-294): without VAT, the sum of their
     invoiced amounts; the VAT of those bought with VAT; the stamp typed, else the settings' stamp when a receipt
     is bought with VAT (a supplier who invoices with VAT puts the droit de timbre on it) and none otherwise; the
     total owed is the three together."""

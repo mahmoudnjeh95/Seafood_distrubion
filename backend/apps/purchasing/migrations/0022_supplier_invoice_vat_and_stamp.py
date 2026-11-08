@@ -7,7 +7,7 @@ from django.db.models import F
 
 
 def existing_totals_are_without_vat(apps, schema_editor):
-    """Invoices made before D-286 carried no VAT nor stamp: their total is their amount without VAT."""
+    """Invoices made before D-294 carried no VAT nor stamp: their total is their amount without VAT."""
     SupplierInvoice = apps.get_model("purchasing", "SupplierInvoice")
     SupplierInvoice.objects.update(total_excl_tax=F("total"))
 

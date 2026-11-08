@@ -196,7 +196,7 @@ def test_a_zero_withholding_rate_withholds_nothing():
 
 
 def test_the_withholding_starts_at_1000_dt_without_the_stamp_and_fees():
-    """Owner rule, base per D-283: an invoice whose total without VAT + VAT reaches 1 000 DT carries the
+    """Owner rule, base per D-291: an invoice whose total without VAT + VAT reaches 1 000 DT carries the
     withholding, one below none; the stamp and fees do not take it over the threshold."""
     below = compute(
         [line("999.000", rate="0")],

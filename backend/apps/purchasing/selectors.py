@@ -146,7 +146,7 @@ ZERO = Decimal("0.000")
 
 
 def receipt_vat(receipt: GoodsReceipt) -> Decimal:
-    """The VAT a receipt bought with VAT carries on its invoiced amount (D-286): its lines grouped by their
+    """The VAT a receipt bought with VAT carries on its invoiced amount (D-294): its lines grouped by their
     product's rate, each rate's total × rate rounded once to the millime; 0 for a receipt without VAT."""
     if not receipt.with_vat:
         return ZERO

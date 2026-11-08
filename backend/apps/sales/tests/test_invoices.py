@@ -354,7 +354,7 @@ def test_the_withholding_is_taken_from_1000_dt_with_tax_and_not_below(organizati
 
 
 def test_a_customer_who_does_not_withhold_never_has_a_withholding(organization, actor, customer, big_sale):
-    """D-284: a customer not subject to the retenue à la source (an individual, a forfaitaire) pays the total with
+    """D-292: a customer not subject to the retenue à la source (an individual, a forfaitaire) pays the total with
     VAT, whatever the rate in the settings and the invoice's size."""
     services.save_finance_settings(organization=organization, actor=actor, withholding_rate="1.5")
     customer.withholding_subject = False
@@ -568,7 +568,7 @@ def test_fees_add_to_the_total_outside_vat_and_withholding(organization, sale, a
     assert invoice.vat_total == D("86.450")  # no VAT on the fees
     assert invoice.total_incl_tax == D("1042.450")  # 455 + 86.450 + 1 stamp + 500 fees
     # The fees take the total over 1 000 DT but count neither in the withholding's base nor in its threshold
-    # (D-283): 455 + 86.450 = 541.450 is under 1 000 DT, so nothing is withheld.
+    # (D-291): 455 + 86.450 = 541.450 is under 1 000 DT, so nothing is withheld.
     assert (invoice.withholding_applied, invoice.withholding_amount) == (False, D("0.000"))
     assert invoice.net_to_pay == D("1042.450")
     # Issuing keeps them; saving the draft again without them removes them.

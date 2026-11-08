@@ -109,7 +109,7 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
     # Days after the invoice date by which the customer pays; 0 = on delivery.
     payment_terms_days = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(365)])
     # The customer withholds the retenue à la source on their invoices of 1 000 DT and more (companies, the State).
-    # Off: their invoices never carry one, whatever the rate in the settings (D-284). On by default, as before.
+    # Off: their invoices never carry one, whatever the rate in the settings (D-292). On by default, as before.
     withholding_subject = models.BooleanField(default=True)
     # The "Client de passage" record counters and anonymous sales use: one per organization, never archived.
     is_walk_in = models.BooleanField(default=False)

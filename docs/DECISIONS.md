@@ -3889,7 +3889,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **Tunisian Arabic:** the driver app's Arabic texts (`packages/i18n/src/ar.ts`) are rewritten in Tunisian derja (كميون، بيرو، ريزو، برودوي، كاسة…). Still provisional: a native speaker reviews it (P3-T09).
 - A picture is some 50 kB; Bluetooth pieces are 180 bytes with a 20 ms pause (7 to 10 s per copy). To check on the real printer.
 
-**D-283 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T16)** · accepted, provisional parts marked · 2026-11-08
+**D-291 · Invoice VAT follows the BL line by line; the withholding threshold leaves out the stamp and fees (accounting review 2026-11-08, P2-T16)** · accepted, provisional parts marked · 2026-11-08
 - **VAT per line (fixes a bug):** an invoice used to put each product's rate (19 %) on **every** line as soon as one BL
   line was bought with VAT, so the goods not bought with VAT were taxed and the invoice disagreed with its BL (D-224).
   Now, when a line of the invoice carries a VAT rate snapshotted on its BL, each line proposes the rate its BL showed,
@@ -3904,17 +3904,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Provisional: VAT per product (fresh fishing products are exempt in the VAT code) and a per-customer "subject to
   withholding" flag are the next steps of the review (`docs/guides/accounting-review-2026-11-08.md`); the accountant confirms.
 
-**D-284 · A customer is subject to the withholding or not (accounting review B4, P2-T16)** · provisional · 2026-11-08
+**D-292 · A customer is subject to the withholding or not (accounting review B4, P2-T16)** · provisional · 2026-11-08
 - `Customer.withholding_subject` ("Soumis à la retenue à la source" on the customer form and card, migration
   `partners 0005`). Off: the customer's invoices never carry a retenue à la source, whatever the rate in the settings or
   typed on the draft; the net to pay is the total with VAT and stamp, and no certificate is awaited.
-- On: the D-250/D-283 rule (1 000 DT without VAT + VAT and more, at the rate in force).
+- On: the D-250/D-291 rule (1 000 DT without VAT + VAT and more, at the rate in force).
 - Provisional: **on by default** for every customer, existing and new, so nothing changes until the office turns it off
   for the customers who do not withhold (individuals, forfaitaires). The owner may prefer off by default; the accountant
   confirms who withholds.
 - Issued invoices keep what they had (D-057); a draft takes the flag when it is next saved.
 
-**D-285 · A lot earns its sales without VAT, also with prices including VAT (accounting review B5, P2-T16)** · accepted · 2026-11-08
+**D-293 · A lot earns its sales without VAT, also with prices including VAT (accounting review B5, P2-T16)** · accepted · 2026-11-08
 - A sale line's revenue per lot (`SaleLineBatch.revenue_amount`) is now the line's amount **without VAT**
   (`SaleLine.amount_excl_tax`) when the line is sold with VAT (D-224 snapshot); before, it was the amount as charged,
   which holds the VAT when prices include VAT, so the lot result, the partner's share and the sales reports counted
@@ -3923,7 +3923,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Sales confirmed before this change keep their rows (posted rows are immutable). With prices without VAT, the
   default, nothing changes: the amount without VAT is the amount.
 
-**D-286 · A supplier invoice adds the VAT of receipts bought with VAT and the supplier's stamp (accounting review B1, P2-T16)** · accepted, provisional parts marked · 2026-11-08
+**D-294 · A supplier invoice adds the VAT of receipts bought with VAT and the supplier's stamp (accounting review B1, P2-T16)** · accepted, provisional parts marked · 2026-11-08
 - Before, a supplier invoice owed only kg × cost (costs are without VAT), even for a receipt marked "Achat avec TVA":
   the payable, the supplier balance and the payments were short of the VAT and the droit de timbre.
 - `SupplierInvoice` now keeps `total_excl_tax` (the receipts' invoiced amounts), `vat_total` and `fiscal_stamp`;

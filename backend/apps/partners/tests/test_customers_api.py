@@ -52,7 +52,7 @@ def test_creating_a_customer_answers_it_with_money_as_strings(api):
 
 
 def test_a_customer_withholds_by_default_and_the_flag_can_be_turned_off(api):
-    """D-284: "Soumis à la retenue à la source" starts on, as before; the office turns it off for a customer
+    """D-292: "Soumis à la retenue à la source" starts on, as before; the office turns it off for a customer
     who does not withhold."""
     created = create(api)
     assert created.json()["withholding_subject"] is True

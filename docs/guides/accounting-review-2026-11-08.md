@@ -7,16 +7,16 @@ l'expert-comptable de la société avant d'être codés (voir `docs/OPEN_QUESTIO
 
 | # | État | Problème | Où |
 |---|---|---|---|
-| B1 | **corrigé (D-286)** | La facture fournisseur ne compte ni la TVA ni le timbre : le prix d'achat est hors TVA et le total = kg × prix, même « Achat avec TVA ». La dette fournisseur est trop basse. | `purchasing/services.py` `_set_receipts` |
-| B2 | **corrigé (D-283)** | Une facture mêlant des lots avec et sans TVA mettait 19 % sur toutes les lignes ; le BL et la facture ne concordaient pas. | `sales/selectors.py` `proposed_vat_rates` |
-| B3 | **corrigé (D-283)** | Le seuil de 1 000 DT de la retenue comptait le timbre et les frais. | `sales/invoicing.py` |
-| B4 | **corrigé (D-284)** | La retenue s'applique à tout client dès 1 000 DT ; il faut un indicateur « soumis à retenue » par client. | `invoicing.withholding_applies`, D-250 |
-| B5 | **corrigé (D-285)** | Avec des prix TTC (`prices_include_vat`), le CA d'un lot (et la part partenaire) inclut la TVA. | `sales/services.py` `_post_line` |
+| B1 | **corrigé (D-294)** | La facture fournisseur ne compte ni la TVA ni le timbre : le prix d'achat est hors TVA et le total = kg × prix, même « Achat avec TVA ». La dette fournisseur est trop basse. | `purchasing/services.py` `_set_receipts` |
+| B2 | **corrigé (D-291)** | Une facture mêlant des lots avec et sans TVA mettait 19 % sur toutes les lignes ; le BL et la facture ne concordaient pas. | `sales/selectors.py` `proposed_vat_rates` |
+| B3 | **corrigé (D-291)** | Le seuil de 1 000 DT de la retenue comptait le timbre et les frais. | `sales/invoicing.py` |
+| B4 | **corrigé (D-292)** | La retenue s'applique à tout client dès 1 000 DT ; il faut un indicateur « soumis à retenue » par client. | `invoicing.withholding_applies`, D-250 |
+| B5 | **corrigé (D-293)** | Avec des prix TTC (`prices_include_vat`), le CA d'un lot (et la part partenaire) inclut la TVA. | `sales/services.py` `_post_line` |
 | B6 | à décider | Le coût d'une journée d'employé sur un lot (salaire / 26) n'inclut pas la CNSS patronale. | `hr/selectors.py` (D-041) |
 | B7 | à confirmer | Primes hors CNSS (D-263) : en principe soumises à cotisation. | `hr/services.py` `add_prime` |
 | B8 | à faire | Pas de prorata de salaire à l'embauche ni de date de sortie. | `hr/services.py` `generate_month` |
 | B9 | à confirmer | Un avoir total restitue le timbre fiscal. | `sales/services.py` `create_credit_note` |
-| B10 | **corrigé (D-283)** | L'estimation et la facture prenaient le taux du jour, le BL celui du jour de vente. | idem B2 |
+| B10 | **corrigé (D-291)** | L'estimation et la facture prenaient le taux du jour, le BL celui du jour de vente. | idem B2 |
 | B11 | mineur | En prix TTC, le PU HT est arrondi seul (PU HT × kg ≠ montant HT au millime près). | `sales/invoicing.py` |
 
 ## Non couvert (obligations tunisiennes)

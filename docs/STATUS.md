@@ -1,18 +1,18 @@
 # Project status
 
-_Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding threshold, D-283; customer subject to withholding, D-284; lot revenue without VAT, D-285; supplier invoice VAT and stamp, D-286; next free decision D-287)_
+_Last updated: 2026-11-08 (accounting review: invoice VAT per line, withholding threshold, D-291; customer subject to withholding, D-292; lot revenue without VAT, D-293; supplier invoice VAT and stamp, D-294; next free decision D-295)_
 
 ## Where we are
 
-- **P2-T16 accounting review (D-283, branch `claude/awesome-albattani-r48y7b`):** review in
+- **P2-T16 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`):** review in
   `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
   an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
   and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
   bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
-  B4 (D-284, migration `partners 0005`): "Soumis à la retenue à la source" on the customer (on by default); off, the
+  B4 (D-292, migration `partners 0005`): "Soumis à la retenue à la source" on the customer (on by default); off, the
   customer's invoices carry none. Check: untick it on a customer, invoice 1 200 DT, net to pay = TTC.
-  B5 (D-285): a lot's revenue is without VAT also when prices include VAT.
-  B1 (D-286, migration `purchasing 0022`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
+  B5 (D-293): a lot's revenue is without VAT also when prices include VAT.
+  B1 (D-294, migration `purchasing 0022`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
   Check: a receipt "Achat avec TVA" of 1 000 DT, its invoice shows TVA 190, timbre 1, total 1 191 to pay.
 - **D-281 (owner request 2026-11-03, branch `claude/serene-gates-6iaad1`, migration `fleet 0010`):** driver receipts
   print one copy per tap (client/supplier, then "COPIE BUREAU"), with the seller's address, phone and MF

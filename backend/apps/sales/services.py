@@ -1493,7 +1493,7 @@ def _revenue_parts(amount: Decimal, quantities: Sequence[Decimal]) -> list[Decim
 
 
 def _revenue_of(line: SaleLine) -> Decimal:
-    """What a line earns, without VAT (D-285): the lot result, the partner's share and the reports count revenue
+    """What a line earns, without VAT (D-293): the lot result, the partner's share and the reports count revenue
     without VAT. A line sold with VAT keeps its amount without VAT (with prices including VAT, the VAT is taken
     out); a line without VAT, or written before D-224, earns its amount as charged."""
     return line.amount_excl_tax if line.vat_rate is not None else line.amount
@@ -2161,7 +2161,7 @@ def _default_rate(product: "Product", version: FinanceSettings) -> Decimal:
 
 
 def _proposed_rates(sale_lines: Sequence[SaleLine], version: FinanceSettings) -> list[Decimal]:
-    """The VAT rate proposed for each sale line on an invoice (`selectors.proposed_vat_rates`, D-283)."""
+    """The VAT rate proposed for each sale line on an invoice (`selectors.proposed_vat_rates`, D-291)."""
     return selectors.proposed_vat_rates(sale_lines, version)
 
 
@@ -2189,7 +2189,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         apply_vat=overrides.apply_vat,
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=stamp,
-        # A customer who does not withhold (D-284) never has a withholding on their invoices.
+        # A customer who does not withhold (D-292) never has a withholding on their invoices.
         withholding_rate=withholding_rate if withholds else None,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
@@ -2339,7 +2339,7 @@ def _invoiceable_now(sale: Sale) -> bool:
 
 def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> InvoiceEstimate:
     """The invoice the given BL would make with the settings in force and the proposed choices (VAT only for
-    goods bought with VAT, D-246; each line's rate as its BL showed it, D-283; one stamp; the withholding from
+    goods bought with VAT, D-246; each line's rate as its BL showed it, D-291; one stamp; the withholding from
     1 000 DT without the stamp and fees): the same arithmetic as `create_invoice` (`invoicing.compute`),
     nothing saved. BL already invoiced or not invoiceable are left out."""
     open_sales = [sale for sale in sales if _invoiceable_now(sale)]

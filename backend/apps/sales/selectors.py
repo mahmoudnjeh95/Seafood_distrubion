@@ -448,7 +448,7 @@ def _field_default(name: str) -> Decimal:
 
 def vat_rate_of_product_on(organization: Organization, product: Any, day: dt.date) -> Decimal:
     """A product's VAT rate on `day` (its own, else the settings' in force, else the settings' default): what a
-    purchase bought with VAT pays on it (D-286)."""
+    purchase bought with VAT pays on it (D-294)."""
     own: Decimal | None = product.vat_rate
     if own is not None:
         return own
@@ -457,7 +457,7 @@ def vat_rate_of_product_on(organization: Organization, product: Any, day: dt.dat
 
 
 def fiscal_stamp_on(organization: Organization, day: dt.date) -> Decimal:
-    """The droit de timbre of an invoice dated `day` (the settings in force, else their default), D-286."""
+    """The droit de timbre of an invoice dated `day` (the settings in force, else their default), D-294."""
     version = finance_settings_on(organization, day)
     return version.fiscal_stamp if version is not None else _field_default("fiscal_stamp")
 
@@ -492,7 +492,7 @@ def product_vat_rate(product: Any, version: FinanceSettings) -> Decimal:
 
 
 def proposed_vat_rates(sale_lines: Iterable[SaleLine], version: FinanceSettings) -> list[Decimal]:
-    """The VAT rate proposed for each sale line on an invoice (D-283).
+    """The VAT rate proposed for each sale line on an invoice (D-291).
 
     When a BL line carries VAT (its rate snapshotted on the BL, D-224), the invoice follows the BL: each line
     keeps the rate its BL showed, and a line the BL showed without VAT is exempt (0 %). A BL and its invoice
@@ -505,7 +505,7 @@ def proposed_vat_rates(sale_lines: Iterable[SaleLine], version: FinanceSettings)
 
 
 def proposed_rates_of(invoice: Invoice) -> dict[int, Decimal]:
-    """The VAT rate an invoice proposes for each of its lines, by line id (`proposed_vat_rates`, D-283). An
+    """The VAT rate an invoice proposes for each of its lines, by line id (`proposed_vat_rates`, D-291). An
     issued invoice keeps the settings it was made with; a draft without settings proposes nothing."""
     version = invoice.settings_version
     if version is None:

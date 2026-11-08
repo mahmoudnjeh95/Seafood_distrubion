@@ -134,7 +134,7 @@ def test_prices_including_vat_take_the_vat_out_on_the_bl_as_on_the_invoice(
 def test_with_prices_including_vat_the_lot_earns_the_amount_without_vat(
     organization, actor, customer, counter, crevette, dorade
 ):
-    """D-285: the lot result and the reports count revenue without VAT; with prices including VAT the VAT a line
+    """D-293: the lot result and the reports count revenue without VAT; with prices including VAT the VAT a line
     holds is not the lot's revenue. A line without VAT earns what was charged."""
     receive(organization, crevette, counter, "20", with_vat=True)
     receive(organization, dorade, counter, "20", with_vat=False)
@@ -182,7 +182,7 @@ def test_only_the_lines_of_products_sold_with_vat_carry_vat(organization, actor,
 def test_an_invoice_of_a_mixed_bl_taxes_only_the_lines_its_bl_taxed(
     organization, actor, customer, counter, crevette, dorade
 ):
-    """D-283: the invoice follows its BL line by line; the goods not bought with VAT stay exempt (0 %) instead of
+    """D-291: the invoice follows its BL line by line; the goods not bought with VAT stay exempt (0 %) instead of
     taking 19 % because another line of the invoice is taxed. The BL, the estimate and the invoice agree."""
     receive(organization, crevette, counter, "20", with_vat=True)
     receive(organization, dorade, counter, "20", with_vat=False)

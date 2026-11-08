@@ -140,7 +140,7 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     lines = ReceiptLineSerializer(many=True, read_only=True)
     has_differences = serializers.BooleanField(read_only=True)
     invoiced_total = serializers.SerializerMethodField()
-    # The VAT on `invoiced_total` of a receipt bought with VAT, by its products' rates; 0 without VAT (D-286).
+    # The VAT on `invoiced_total` of a receipt bought with VAT, by its products' rates; 0 without VAT (D-294).
     invoiced_vat = serializers.SerializerMethodField()
     accepted_total = serializers.SerializerMethodField()
     # The supplier invoice it is on (draft or posted), or null while not invoiced.
@@ -425,7 +425,7 @@ class InvoiceReceiptSerializer(serializers.Serializer[Any]):
 
     receipt = InvoiceReceiptRefSerializer(read_only=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
-    # Its VAT when bought with VAT (D-286).
+    # Its VAT when bought with VAT (D-294).
     vat_amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
@@ -453,7 +453,7 @@ def _name_of(user: Any) -> str:
 
 class SupplierInvoiceSerializer(serializers.ModelSerializer[SupplierInvoice]):
     supplier = RefSerializer(read_only=True)
-    # Without VAT, VAT of the receipts bought with VAT, the supplier's stamp; `total` (owed) adds them (D-286).
+    # Without VAT, VAT of the receipts bought with VAT, the supplier's stamp; `total` (owed) adds them (D-294).
     total_excl_tax = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     vat_total = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     fiscal_stamp = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
@@ -513,7 +513,7 @@ class SupplierInvoiceUpdateSerializer(serializers.Serializer[Any]):
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     # The supplier's droit de timbre as printed on their invoice; null = the default (the settings' stamp when a
-    # receipt is bought with VAT, else none), D-286.
+    # receipt is bought with VAT, else none), D-294.
     fiscal_stamp = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, allow_null=True, default=None
     )

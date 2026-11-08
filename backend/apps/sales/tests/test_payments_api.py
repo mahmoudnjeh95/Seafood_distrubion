@@ -181,7 +181,7 @@ def test_credit_limit_through_the_api_and_driver_cannot_approve(organization, ap
 def test_withholding_certificate_and_summary(api, organization, manager, setup, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     customer, sale = setup
-    # 21 kg = 882.000 + 19 % = 1 049.580 (stamp left out, D-283): over the 1 000 DT the withholding starts at.
+    # 21 kg = 882.000 + 19 % = 1 049.580 (stamp left out, D-291): over the 1 000 DT the withholding starts at.
     customer.credit_limit = Decimal("100000.000")
     customer.save(update_fields=["credit_limit"])
     big = services.create_sale(

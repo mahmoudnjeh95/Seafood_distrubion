@@ -105,7 +105,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   const [dueDate, setDueDate] = useState(() => invoice?.due_date ?? "");
   const [supplierReference, setSupplierReference] = useState(invoice?.supplier_reference ?? "");
   const [notes, setNotes] = useState(invoice?.notes ?? "");
-  // The supplier's droit de timbre (D-286): empty follows the default, typed is kept as typed.
+  // The supplier's droit de timbre (D-294): empty follows the default, typed is kept as typed.
   const [stamp, setStamp] = useState(() => (invoice?.fiscal_stamp_overridden ? invoice.fiscal_stamp : ""));
   const settings = useGetFinanceSettings();
   // `?reception=12` (from the "Documents" page) ticks that receipt on a new invoice.
