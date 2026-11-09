@@ -61,6 +61,7 @@ LOCAL_APPS = [
     "apps.storefront",
     "apps.treasury",
     "apps.maintenance",
+    "apps.assistant",
     "apps.demo",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -171,6 +172,16 @@ CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_EAGER", default=False)
 CELERY_TASK_EAGER_PROPAGATES = False
 CELERY_TASK_TIME_LIMIT = 120
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# WhatsApp assistant (Phase 12). Off until the Meta number and the keys are set on the server.
+ASSISTANT_ENABLED = env.bool("ASSISTANT_ENABLED", default=False)
+ASSISTANT_MODEL = env("ASSISTANT_MODEL", default="claude-sonnet-5-5")
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+WHATSAPP_VERIFY_TOKEN = env("WHATSAPP_VERIFY_TOKEN", default="")
+WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
+WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
+WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
+WHATSAPP_GRAPH_VERSION = env("WHATSAPP_GRAPH_VERSION", default="v23.0")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
