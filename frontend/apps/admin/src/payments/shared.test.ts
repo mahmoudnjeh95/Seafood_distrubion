@@ -11,7 +11,7 @@ describe("payments helpers", () => {
     // The levels the server sends for each built-in role (D-306).
     const treasury: Record<string, string> = { manager: "write", accountant: "read", driver: "none" };
     const session = (role: string) =>
-      ({ role, access: { treasury: treasury[role] ?? "none" } }) as Parameters<typeof canCollect>[0];
+      ({ role, access: { treasury: treasury[role] ?? "none" } }) as unknown as Parameters<typeof canCollect>[0];
     expect(canCollect(session("owner"))).toBe(true);
     expect(canCollect(session("manager"))).toBe(true);
     expect(canCollect(session("accountant"))).toBe(false);
