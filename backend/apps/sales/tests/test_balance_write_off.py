@@ -299,6 +299,7 @@ def test_a_write_off_is_a_settlement_gap_by_default(organization, actor, custome
 
     assert write_off.ground == WriteOffGround.GAP
     entry = AuditLog.objects.get(organization=organization, action="customer.balance_written_off")
+    assert entry.after is not None
     assert entry.after["ground"] == "gap"
 
 
