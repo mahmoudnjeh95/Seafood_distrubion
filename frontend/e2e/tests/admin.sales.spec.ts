@@ -83,7 +83,7 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
   await expect(page.getByRole("note")).toContainText("rien n'est encore sorti du stock");
 
   // Validating the draft makes it the delivery note: VE-2026-0007 becomes BL-2026-0007 (D-095, D-283).
-  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
+  await page.getByRole("button", { name: "Livré tout de suite (comptoir)" }).click();
   // The page shows the draft number until the sale is read again: wait for the BL number.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^BL-\d{4}-\d+$/);
   const number = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";

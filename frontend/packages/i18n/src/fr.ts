@@ -2263,6 +2263,31 @@ export const fr = {
       },
     },
     sales: {
+      // ---- A direct BL "à livrer" (D-302, bug 11) ----
+      direct: {
+        issue: "Valider (à livrer)",
+        issued: "{{number}} validé, à livrer : le stock sortira à la livraison.",
+        delivered: "Livré",
+        partial: "Livré en partie…",
+        notDelivered: "Non livré",
+        note: "Remarque (facultatif)",
+        title: {
+          full: "Livré en entier chez {{customer}} ?",
+          part: "Livré en partie chez {{customer}}",
+          none: "Non livré chez {{customer}} ?",
+        },
+        body: {
+          full: "Les kilos du bon sortent du stock maintenant et le client doit le montant.",
+          part: "Indiquez les kilos livrés par produit (0 retire le produit). Seuls ces kilos sortent du stock et sont dus.",
+          none: "Rien n'est vendu et rien ne sort du stock. Le bon reste dans la liste, non livré.",
+        },
+        confirm: { full: "Oui, livré", part: "Enregistrer la livraison", none: "Oui, non livré" },
+        done: {
+          full: "{{number}} livré : le stock est sorti.",
+          part: "{{number}} livré en partie.",
+          none: "{{number}} non livré.",
+        },
+      },
       title: "Bons de livraison",
       add: "Nouveau bon de livraison",
       counter: "Bon de livraison comptoir",
@@ -2395,7 +2420,7 @@ export const fr = {
         cancelReason: "Motif de l'annulation",
         none: "—",
         edit: "Modifier",
-        confirm: "Valider le bon de livraison",
+        confirm: "Livré tout de suite (comptoir)",
         confirming: "Validation…",
         // Bon de livraison (D-095)
         validateAndPrint: "Valider et imprimer le BL",

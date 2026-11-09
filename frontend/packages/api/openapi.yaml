@@ -10045,6 +10045,96 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/sales/{sale_id}/deliver:
+    post:
+      operationId: deliverSale
+      description: |-
+        The office records the delivery of a BL "à livrer": the lines that changed (kg delivered, zero takes the
+        product off); only the kg delivered leave the stock and are owed. Nothing delivered is "non livré".
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeDeliver'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfficeDeliver'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfficeDeliver'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}/issue:
+    post:
+      operationId: issueSale
+      description: |-
+        Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+        BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}/not-delivered:
+    post:
+      operationId: notDeliveredSale
+      description: 'A BL "à livrer" was not delivered: nothing is sold and nothing
+        left the stock. The note is optional.'
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeNotDelivered'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfficeNotDelivered'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfficeNotDelivered'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/sales/export:
     get:
       operationId: exportSales
@@ -25841,6 +25931,26 @@ components:
       required:
       - prices
       - supplier
+    OfficeDeliver:
+      type: object
+      description: 'The office records how a BL "à livrer" was delivered (D-302):
+        only the lines that changed.'
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveredLine'
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+    OfficeNotDelivered:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 255
     OfficeSiteProduct:
       type: object
       description: |-

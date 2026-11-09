@@ -544,6 +544,8 @@ export * from './odometerWarningEnum';
 export * from './offerOrder';
 export * from './offerPriceWrite';
 export * from './offerWrite';
+export * from './officeDeliver';
+export * from './officeNotDelivered';
 export * from './officeSiteProduct';
 export * from './openSale';
 export * from './order';

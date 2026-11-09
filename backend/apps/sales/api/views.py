@@ -66,6 +66,8 @@ from .serializers import (
     InvoiceFilterSerializer,
     InvoiceSerializer,
     NotDeliveredSerializer,
+    OfficeDeliverSerializer,
+    OfficeNotDeliveredSerializer,
     QuoteConvertSerializer,
     QuoteDetailSerializer,
     QuoteFilterSerializer,
@@ -530,6 +532,49 @@ class SaleConfirmView(SaleView):
             sale=sale,
             actor=self.membership.user,
             approve_credit=self.may_approve_credit(serializer.validated_data["approve_credit"]),
+        )
+        return self.answer(sale_id)
+
+
+class SaleIssueView(SaleView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(operation_id="issueSale", request=None, responses=SaleDetailSerializer)
+    def post(self, request: Request, sale_id: int) -> Response:
+        """Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+        BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`)."""
+        services.issue_sale(sale=self.sale(sale_id), actor=self.membership.user)
+        return self.answer(sale_id)
+
+
+class SaleDeliverView(SaleView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(operation_id="deliverSale", request=OfficeDeliverSerializer, responses=SaleDetailSerializer)
+    def post(self, request: Request, sale_id: int) -> Response:
+        """The office records the delivery of a BL "à livrer": the lines that changed (kg delivered, zero takes the
+        product off); only the kg delivered leave the stock and are owed. Nothing delivered is "non livré"."""
+        serializer = OfficeDeliverSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        services.deliver_sale(
+            sale=self.sale(sale_id), actor=self.membership.user, lines=data["lines"], note=data["note"]
+        )
+        return self.answer(sale_id)
+
+
+class SaleNotDeliveredView(SaleView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(
+        operation_id="notDeliveredSale", request=OfficeNotDeliveredSerializer, responses=SaleDetailSerializer
+    )
+    def post(self, request: Request, sale_id: int) -> Response:
+        """A BL "à livrer" was not delivered: nothing is sold and nothing left the stock. The note is optional."""
+        serializer = OfficeNotDeliveredSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.cancel_delivery(
+            sale=self.sale(sale_id), actor=self.membership.user, note=serializer.validated_data["note"]
         )
         return self.answer(sale_id)
 

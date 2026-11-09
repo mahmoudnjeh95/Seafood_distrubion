@@ -297,6 +297,8 @@ import type {
   OdometerCorrection,
   OdometerReading,
   OfferWrite,
+  OfficeDeliver,
+  OfficeNotDelivered,
   OfficeSiteProduct,
   Order,
   OrderFromOffersWrite,
@@ -31967,6 +31969,251 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getConfirmSaleMutationOptions(options), queryClient);
+    }
+
+export const getDeliverSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/deliver`
+}
+
+/**
+ * The office records the delivery of a BL "à livrer": the lines that changed (kg delivered, zero takes the
+ * product off); only the kg delivered leave the stock and are owed. Nothing delivered is "non livré".
+ */
+export const deliverSale = async (saleId: number,
+    officeDeliver?: OfficeDeliver, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getDeliverSaleUrl(saleId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(officeDeliver)
+  }
+);}
+
+
+
+
+
+export const getDeliverSaleMutationKey = () => ['deliverSale'] as const;
+
+export const getDeliverSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deliverSale>>, TError,DeliverSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deliverSale>>, TError,DeliverSaleMutationVariables, TContext> => {
+
+const mutationKey = getDeliverSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deliverSale>>, DeliverSaleMutationVariables> = (props) => {
+          const {saleId,data} = props ?? {};
+
+          return  deliverSale(saleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeliverSaleMutationResult = NonNullable<Awaited<ReturnType<typeof deliverSale>>>
+    export type DeliverSaleMutationBody = OfficeDeliver | undefined
+    export type DeliverSaleMutationError = unknown
+    export type DeliverSaleMutationVariables = {saleId: number;data?: OfficeDeliver}
+
+    export const useDeliverSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deliverSale>>, TError,DeliverSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deliverSale>>,
+        TError,
+        DeliverSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeliverSaleMutationOptions(options), queryClient);
+    }
+
+export const getIssueSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/issue`
+}
+
+/**
+ * Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+ * BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
+ */
+export const issueSale = async (saleId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+  return apiFetch<SaleDetail>(getIssueSaleUrl(saleId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getIssueSaleMutationKey = () => ['issueSale'] as const;
+
+export const getIssueSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueSale>>, TError,IssueSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueSale>>, TError,IssueSaleMutationVariables, TContext> => {
+
+const mutationKey = getIssueSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueSale>>, IssueSaleMutationVariables> = (props) => {
+          const {saleId} = props ?? {};
+
+          return  issueSale(saleId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueSaleMutationResult = NonNullable<Awaited<ReturnType<typeof issueSale>>>
+
+    export type IssueSaleMutationError = unknown
+    export type IssueSaleMutationVariables = {saleId: number}
+
+    export const useIssueSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueSale>>, TError,IssueSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof issueSale>>,
+        TError,
+        IssueSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getIssueSaleMutationOptions(options), queryClient);
+    }
+
+export const getNotDeliveredSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/not-delivered`
+}
+
+/**
+ * A BL "à livrer" was not delivered: nothing is sold and nothing left the stock. The note is optional.
+ */
+export const notDeliveredSale = async (saleId: number,
+    officeNotDelivered?: OfficeNotDelivered, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SaleDetail>(getNotDeliveredSaleUrl(saleId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(officeNotDelivered)
+  }
+);}
+
+
+
+
+
+export const getNotDeliveredSaleMutationKey = () => ['notDeliveredSale'] as const;
+
+export const getNotDeliveredSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notDeliveredSale>>, TError,NotDeliveredSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof notDeliveredSale>>, TError,NotDeliveredSaleMutationVariables, TContext> => {
+
+const mutationKey = getNotDeliveredSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notDeliveredSale>>, NotDeliveredSaleMutationVariables> = (props) => {
+          const {saleId,data} = props ?? {};
+
+          return  notDeliveredSale(saleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotDeliveredSaleMutationResult = NonNullable<Awaited<ReturnType<typeof notDeliveredSale>>>
+    export type NotDeliveredSaleMutationBody = OfficeNotDelivered | undefined
+    export type NotDeliveredSaleMutationError = unknown
+    export type NotDeliveredSaleMutationVariables = {saleId: number;data?: OfficeNotDelivered}
+
+    export const useNotDeliveredSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notDeliveredSale>>, TError,NotDeliveredSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notDeliveredSale>>,
+        TError,
+        NotDeliveredSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNotDeliveredSaleMutationOptions(options), queryClient);
     }
 
 export const getExportSalesUrl = (params?: ExportSalesParams,) => {

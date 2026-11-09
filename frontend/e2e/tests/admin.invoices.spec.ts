@@ -46,7 +46,7 @@ test("a sale is invoiced without VAT, then with an edited rate and amount, issue
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
   await expect(page.getByText(/Brouillon VE-[\d-]+ enregistré/)).toBeVisible();
-  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
+  await page.getByRole("button", { name: "Livré tout de suite (comptoir)" }).click();
   await expect(page.getByText(/BL-\d{4}-\d+ validé/)).toBeVisible();
 
   await page.getByRole("button", { name: "Facturer" }).click();
@@ -98,7 +98,7 @@ test("two delivery notes of one customer are invoiced together", async ({ page }
     await choose(page, line, "Produit", "Sardine · SA-010");
     await line.getByLabel("Poids (kg)").fill("1");
     await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
-    await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
+    await page.getByRole("button", { name: "Livré tout de suite (comptoir)" }).click();
     // The page shows the draft number until the sale is read again: wait for the BL number.
     const title = page.getByRole("heading", { level: 1 });
     await expect(title).toHaveText(/^BL-\d{4}-\d+$/);

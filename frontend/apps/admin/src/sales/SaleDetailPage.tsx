@@ -33,6 +33,7 @@ import { useSeller } from "../lib/documentSeller";
 import { fieldErrors } from "../lib/errors";
 import { formatRate } from "../quotes/shared";
 import { PdfButton } from "../lib/PdfButton";
+import { DirectDeliveryButtons, IssueButton } from "./DirectDeliveryActions";
 import { openPdf } from "../lib/pdf";
 import { OpeningBalanceDetail } from "../treasury/OpeningBalancesPage";
 import { TreasuryTrace } from "../treasury/TreasuryTrace";
@@ -211,10 +212,20 @@ export function SaleDetailPage() {
             </Button>
           </>
         )}
-        {canWrite && data.status === "draft" && !fromLoad && (
+        {data.status === "draft" && !fromLoad && toDeliver && (
+          <PdfButton kind="delivery_note" id={data.id} label={t("admin.sales.detail.printBl")} />
+        )}
+        {canWrite && data.status === "draft" && !fromLoad && toDeliver && (
           <>
             <Button onClick={() => void navigate(`/ventes/${data.id}/modifier`)}>{t("admin.sales.detail.edit")}</Button>
-            <Button variant="primary" disabled={busy} onClick={() => confirm.mutate(data.credit_status === "pending")}>
+            <DirectDeliveryButtons sale={data} disabled={busy} />
+          </>
+        )}
+        {canWrite && data.status === "draft" && !fromLoad && !delivery && (
+          <>
+            <Button onClick={() => void navigate(`/ventes/${data.id}/modifier`)}>{t("admin.sales.detail.edit")}</Button>
+            {data.credit_status !== "pending" && <IssueButton sale={data} disabled={busy} />}
+            <Button disabled={busy} onClick={() => confirm.mutate(data.credit_status === "pending")}>
               <Icon name="check" />
               {confirm.isPending
                 ? t("admin.sales.detail.confirming")

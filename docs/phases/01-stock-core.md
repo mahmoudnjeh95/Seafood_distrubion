@@ -268,8 +268,17 @@ transformations wanted, with a transformation fee that goes into the new lot's c
       paid to someone (an expense), or only a cost put on the lot?
 - [ ] Check on staging: 10 kg of a lot at 20.000 into 6 kg of fillet with 12 DT of fee; the new lot costs 35.333 / kg.
 
-### P1-T26 · Every BL takes its stock out at the delivery · M (gap 10, bug 11)
-- [ ] À livrer, Livré en partie, Livré, Non livré on every BL; stock leaves at the delivery; counter sales delivered at once.
+### P1-T26 · Every BL takes its stock out at the delivery · M (gap 10, bug 11, D-302)
+- [x] A direct BL (office, from a cold room) has "Valider (à livrer)": BL number and version 1 now, nothing leaves the
+      stock; then "Livré", "Livré en partie…" (kg per line) or "Non livré" (`issue_sale`, `POST /sales/{id}/issue`,
+      `/deliver`, `/not-delivered`). Only the kilos delivered leave the stock and are owed.
+- [x] A counter sale stays delivered at once: the old "Valider" is now "Livré tout de suite (comptoir)"; the truck
+      load BL works as before (D-178). The browser tests use the new label.
+- [x] Refused at "Valider (à livrer)" when a line asks more than the place holds (not expired); checked again at the
+      delivery. Nothing is reserved meanwhile (two BL may promise the same kilos; the second delivery is refused).
+- [x] `phases/02-sales-invoicing.md` bug 11 ticked.
+- [ ] Check on staging: an office BL of 10 kg "Valider (à livrer)", the stock is unchanged; "Livré en partie" 7 kg, the
+      stock drops 7 kg and the client owes 7 kg.
 
 ### P1-T27 · Smaller gaps · M (gaps 11 to 15)
 - [ ] Purchase suggestions from `min_stock` and recent sales, with the supplier's last price; one click makes the orders.

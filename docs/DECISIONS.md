@@ -4143,3 +4143,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The fee is only a cost of the new lot (it reaches the month result through the cost of goods sold); paying someone
   for it is not recorded here. Provisional (Q30): a lot shared with a partner cannot be transformed, and an expired
   lot never is.
+
+**D-302 · A direct BL is validated "à livrer" and takes its stock out at the delivery (bug 11, P1-T26)** · accepted (owner answer 2026-11-08) · 2026-11-09
+- Owner: "At delivery" for every BL; counter sales are delivered at once. A direct office BL (from a cold room selling
+  at the counter, no truck load) gets `issue_sale`: the same step a load's BL takes at the load (D-178, `_issue_load_bl`):
+  BL number, version 1, `delivery_status` "to_deliver", status still draft, nothing posted.
+- The delivery reuses `deliver_sale` (as written, or kg per line, zero removes a product; the BL takes a new version
+  when changed) and `cancel_delivery` ("non livré"), now also from the office (`POST /sales/{id}/deliver`,
+  `/not-delivered`, owner or manager). `confirm_sale` on a BL to deliver still means "livré as written".
+- The office's immediate validation stays for the counter ("Livré tout de suite (comptoir)", same service).
+- Stock is checked at "à livrer" (sellable kg, D-296) and again at the delivery; nothing is reserved between the two
+  (provisional: reservations would need a new ledger state).
