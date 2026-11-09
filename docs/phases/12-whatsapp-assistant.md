@@ -2,7 +2,8 @@
 
 _Owner request of 2026-11-09: "a bot in my WhatsApp that talks Tunisian and does what I need in the application"._
 Design (approved by the owner 2026-11-09): `docs/superpowers/specs/2026-11-09-whatsapp-assistant-design.md`.
-Plan: `docs/superpowers/plans/2026-11-09-whatsapp-assistant.md`.
+Plan: `docs/superpowers/plans/2026-11-09-whatsapp-assistant.md`. Step by step for the seller, the client
+companies and the users: `docs/guides/assistant-whatsapp.md`.
 
 Users message the company's WhatsApp Business number, by text or voice, in Tunisian, Arabic or French. The
 assistant answers from the app's data and, after a confirmation, records things. Each phone is one user; the bot
@@ -40,9 +41,12 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
 - [ ] **P12-T03 Voice notes.** Media download; speech-to-text provider chosen on 10 to 20 real Tunisian voice
       notes from the owner and the drivers.
 - [ ] **P12-T04 PDFs and photos.** Send a document's PDF; a receipt photo on an expense.
-- [ ] **P12-T05 Screens and budget.** After the roles matrix: section `assistant` in `core/access.py`, tools
-      filtered by section and level; WhatsApp number in the users screen; monthly AI budget, usage page, per-user
-      on/off.
+- [ ] **P12-T05 Screens, companies and budget.** The app is sold to several companies, all on **one bot number**
+      run by the seller (owner, 2026-11-09, D-308). After the roles matrix: section `assistant` in `core/access.py`,
+      tools filtered by section and level; WhatsApp number in the users screen; per company: on/off and monthly AI
+      budget, usage per company (to bill it), per-user on/off; Mon profil: QR code and wa.me link; welcome message
+      with examples for the role; one phone in two companies: the bot asks which; the prompt and the refusal carry no
+      company name (the company comes from the organization, the bot speaks for the software's brand).
 - [ ] **Test set.** 50+ real messages with the expected answer, run on demand (not in CI) to compare models
       (Haiku 5.5 vs Sonnet 5.5) and to check a prompt change.
 
