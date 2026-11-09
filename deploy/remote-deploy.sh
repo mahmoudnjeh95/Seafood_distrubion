@@ -56,20 +56,24 @@ grep -q "^TRAINING_SECRET_KEY=" "$ENV_FILE" || echo "TRAINING_SECRET_KEY=$(opens
 install -d -m 700 "$TRAINING_BASE" "$TRAINING_BASE/bin"
 export RELEASE
 
-# 2. Build and start. Only Frutti's own containers are touched.
+# 2. Start. Only Frutti's own containers are touched. The images were built off the server and loaded by deploy.sh
+#    (D-308): building here took all the memory of this shared VPS and took the other clients' sites down with it.
 cd "$RELEASE_DIR/deploy"
-# The VPS is shared with other clients' production: build one image at a time, at low CPU priority.
-export COMPOSE_PARALLEL_LIMIT=1
-sudo -E nice -n 19 ionice -c3 docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml build
+for image in "frutti-backend:$RELEASE" "frutti-web:$RELEASE"; do
+  if ! sudo docker image inspect "$image" > /dev/null 2>&1; then
+    echo "Image $image is missing: deploy with deploy/deploy.sh, which builds it off the server (D-308)."       "Nothing was changed." >&2
+    exit 1
+  fi
+done
 # The training copy's database, on the same PostgreSQL server, created empty the first time (D-290). A deploy never
 # changes its data afterwards: only reset-training.sh does.
-sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --wait db
+sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --no-build --wait db
 if ! sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml exec -T db \
   psql -U frutti -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'frutti_training'" | grep -q 1; then
   sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml exec -T db createdb -U frutti frutti_training
   echo "Created the training database frutti_training"
 fi
-sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --remove-orphans
+sudo -E docker compose --project-name frutti-staging --env-file "$ENV_FILE" -f compose.staging.yml up -d --no-build --remove-orphans
 install -m 755 "$RELEASE_DIR/deploy/reset-training.sh" "$TRAINING_BASE/bin/reset-training.sh"
 
 # 3. Host nginx: install our site only if it changed, test, then reload. On a failed test, put back the old file.

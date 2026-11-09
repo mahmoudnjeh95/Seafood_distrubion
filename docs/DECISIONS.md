@@ -4215,3 +4215,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - T01 reads only. Writes (T02) will be stored as a pending action with its exact payload and run only on the
   user's confirmation of that action, never on the model's say-so.
 
+**D-308 · Staging images are built off the server, never on the shared VPS (owner request)** · accepted · 2026-11-09
+- The owner (2026-11-09): "CI should not build all the Docker images together: we reach the limit on our server and it
+  goes down." On 2026-11-09 a SmartFeesh deploy built the images on the VPS and saturated it (the apps and even SSH
+  stopped answering; other clients' production shares that VPS). `COMPOSE_PARALLEL_LIMIT=1` and `nice` were not enough:
+  Compose builds through BuildKit, and the web image alone runs three Vite builds.
+- `deploy/deploy.sh` now builds `frutti-backend:<release>` and `frutti-web:<release>` where it runs (the GitHub runner
+  in CI, or the developer's machine with Docker), one after the other, from `git archive HEAD`, with the same build
+  arguments as `compose.staging.yml` (the front-end Sentry DSN is read from the server's `.env`). It sends them with
+  `docker save | gzip | ssh docker load` at the lowest CPU and disk priority.
+- `deploy/remote-deploy.sh` no longer builds: it stops with "nothing was changed" when an image is missing, and every
+  `docker compose up` has `--no-build`. `compose.staging.yml` keeps its `build:` sections for the tags and for local use.
+- Cost: each deploy uploads both images (a few hundred MB compressed) instead of the code only.

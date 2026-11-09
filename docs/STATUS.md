@@ -1,8 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-09 (roles and access per section, D-306; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-308)_
+_Last updated: 2026-11-09 (roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
 
 ## Where we are
+
+- **D-308 (owner 2026-11-09): the staging images are built on the CI runner and loaded on the server**, never built
+  there (a build on the shared VPS took it down). Branch `deploy-build-off-server`. Check on the first deploy after the
+  merge: the "Deploy" step builds both images on the runner, the server's load stays low, the five health checks pass.
 
 - **D-306 roles and access per section (owner request 2026-11-09, branch `user-roles-matrix`, migration `core 0008`):**
   Paramètres › Rôles makes a role with a level per section (Aucun / Lecture / Écriture / Tout); Paramètres ›
