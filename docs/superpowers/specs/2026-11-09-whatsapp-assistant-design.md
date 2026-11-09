@@ -177,6 +177,14 @@ The usage log shows which requests the bot could not handle.
   staff contracts is needed. Building can start; go-live waits for the answer.
 - **The Meta account:** in whose name (the company) and who handles verification.
 
+## 9b. Several companies (owner, 2026-11-09, D-309)
+
+The app is sold to several companies. **One bot number for all of them**, run by the seller: the sender's phone
+gives the user, their company and their role. Per company: on/off, monthly budget, usage (to bill it). The prompt
+and the refusal name no company. A person in two companies with one phone is asked which one. A company's own
+number is a later option (needs the seller to be a verified Meta Tech Provider). Step by step:
+`docs/guides/assistant-whatsapp.md`.
+
 ## 10. Left to the builder
 
 - Task split and phase number (proposal: Phase 12 "Assistant WhatsApp": T01 webhook, phone link and

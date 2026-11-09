@@ -4197,3 +4197,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `deploy/remote-deploy.sh` no longer builds: it stops with "nothing was changed" when an image is missing, and every
   `docker compose up` has `--no-build`. `compose.staging.yml` keeps its `build:` sections for the tags and for local use.
 - Cost: each deploy uploads both images (a few hundred MB compressed) instead of the code only.
+
+**D-309 · One WhatsApp bot number for every client company (Phase 12)** · accepted (owner 2026-11-09) · 2026-11-09
+- Owner: the app will be sold to several companies; "one nbr". The seller runs one Meta app and one number; the
+  sender's phone finds the membership, so the company and the role (`WhatsAppLink.phone` is unique across
+  organizations). Client companies set nothing up with Meta; the seller pays Meta and the AI and bills them back,
+  from the usage counted per company (P12-T05).
+- Each company switches the assistant on and sets its monthly budget; its owner gives the roles-matrix permission
+  and enters the numbers. One phone in two companies: the bot asks which (T05).
+- A company's own number (Meta Tech Provider, Embedded Signup) is left for later: it needs a verified seller
+  company. The webhook would then route by `metadata.phone_number_id`; nothing in T01 prevents it.
+- The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
+  them; the company name comes from the organization).
+
