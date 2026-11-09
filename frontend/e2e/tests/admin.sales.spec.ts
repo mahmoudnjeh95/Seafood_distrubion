@@ -48,7 +48,7 @@ test("a counter sale to the walk-in customer is weighed and confirmed at once, i
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("14,000");
   // No discount nor net price at the counter: the stock is two cells earlier than on the sale form (lot last, D-201).
   await expect(line.getByRole("cell").nth(STOCK_CELL - 2)).toHaveText(/^[\d\s,]+kg$/);
-  await expect(line.getByRole("button", { name: "Lot" })).toHaveText("Lot le plus ancien (FIFO)");
+  await expect(line.getByRole("button", { name: "Lot" })).toHaveText("Automatique (premier à périmer, puis le plus ancien)");
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
 
