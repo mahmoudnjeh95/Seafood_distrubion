@@ -83,12 +83,20 @@ def record_incoming(*, phone: str, wa_message_id: str, kind: str, text: str) -> 
                 organization=link.organization,
                 link=link,
                 direction=Direction.IN,
-                wa_message_id=wa_message_id,
+                wa_message_id=wa_message_id or None,
                 kind=message_kind(kind),
                 text=text,
             )
     except IntegrityError:
         return None
+
+
+def is_unknown_number(phone: str) -> bool:
+    """A valid number linked to no active user: it gets the refusal, and nothing else."""
+    try:
+        return link_for_phone(normalize_phone(phone)) is None
+    except ValueError:
+        return False
 
 
 @transaction.atomic

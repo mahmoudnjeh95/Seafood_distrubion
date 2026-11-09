@@ -17,7 +17,7 @@ def test_normalize_phone_forms(raw):
 
 @pytest.mark.parametrize("raw", ["123", "", "abc"])
 def test_normalize_phone_refuses_garbage(raw):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalide"):
         services.normalize_phone(raw)
 
 
