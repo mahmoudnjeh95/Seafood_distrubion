@@ -310,6 +310,15 @@ def is_attachable(organization: Organization, kind: str, object_id: int) -> bool
     return kind in AttachmentKind.values and exists is not None and exists(organization, object_id)
 
 
+def attached_ids(organization: Organization, kind: str, object_ids: list[int]) -> set[int]:
+    """Which of these documents have at least one file still attached."""
+    return set(
+        Attachment.objects.for_organization(organization)
+        .filter(kind=kind, object_id__in=object_ids, removed_at__isnull=True)
+        .values_list("object_id", flat=True)
+    )
+
+
 def attachments_of(organization: Organization, kind: str, object_id: int) -> list[Attachment]:
     """The files of one document still attached, oldest first."""
     return list(

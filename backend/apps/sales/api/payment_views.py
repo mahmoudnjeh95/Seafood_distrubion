@@ -28,10 +28,11 @@ from apps.core.api.exports import ORDERING_HELP
 from apps.core.api.pagination import PagedList, ordered
 from apps.core.models import Role
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
+from apps.documents import services as documents
 from apps.partners import selectors as partners
 from apps.partnerships import selectors as partnerships
 from apps.sales import payment_selectors, receivables, selectors, services
-from apps.sales.models import CustomerPayment, Invoice, WithholdingCertificate
+from apps.sales.models import CustomerPayment, Invoice, WithholdingCertificate, WriteOffGround
 from apps.treasury import selectors as treasury
 
 from .payment_serializers import (
@@ -108,6 +109,24 @@ def _lines(organization: Any, data: Any) -> Any:
     if errors:
         raise ValidationError(errors)
     return rows
+
+
+def write_off_rows(organization: Any, customer: Any) -> list[dict[str, Any]]:
+    """A customer's balance write-offs, newest first, each saying whether its evidence is still missing (D-297)."""
+    write_offs = list(customer.balance_write_offs.select_related("created_by"))
+    attached = documents.attached_ids(organization, "customer_write_off", [row.pk for row in write_offs])
+    return [
+        {
+            "id": write_off.pk,
+            "written_on": write_off.written_on,
+            "amount": write_off.amount,
+            "reason": write_off.reason,
+            "ground": write_off.ground,
+            "evidence_missing": write_off.ground == WriteOffGround.IRRECOVERABLE and write_off.pk not in attached,
+            "created_by": str(write_off.created_by or ""),
+        }
+        for write_off in write_offs
+    ]
 
 
 def _buckets(values: dict[str, Decimal]) -> dict[str, Decimal]:
@@ -399,16 +418,7 @@ class CustomerBalanceAnswer(OfficeView):
                 for row in balance.open_sales
             ],
             "history": list(reversed(history))[:HISTORY_LIMIT],
-            "write_offs": [
-                {
-                    "id": write_off.pk,
-                    "written_on": write_off.written_on,
-                    "amount": write_off.amount,
-                    "reason": write_off.reason,
-                    "created_by": str(write_off.created_by or ""),
-                }
-                for write_off in customer.balance_write_offs.select_related("created_by")
-            ],
+            "write_offs": write_off_rows(self.organization, customer),
             "written_off_total": sum((write_off.amount for write_off in customer.balance_write_offs.all()), ZERO),
             "write_off_lots": partnerships.open_write_off_lots(
                 self.organization, selectors.customer_lots(self.organization, customer_id=customer.pk)
@@ -448,6 +458,7 @@ class CustomerWriteOffView(CustomerBalanceAnswer):
             expected=serializer.validated_data["expected_amount"],
             reason=serializer.validated_data["reason"],
             lot_shares=serializer.validated_data.get("lot_shares", []),
+            ground=serializer.validated_data["ground"],
         )
         return self.answer(customer_id)
 

@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { GroundEnum } from './groundEnum';
 
 /**
  * A balance written off (D-252): the loss on the customer, with its reason.
@@ -14,5 +15,7 @@ export interface CustomerWriteOff {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly amount: string;
   readonly reason: string;
+  readonly ground: GroundEnum;
+  readonly evidence_missing: boolean;
   readonly created_by: string;
 }

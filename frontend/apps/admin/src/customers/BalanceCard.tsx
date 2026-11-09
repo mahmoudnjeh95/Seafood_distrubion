@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { sum } from "../lib/decimal";
 import { BalanceWriteOffDialog } from "../payments/BalanceWriteOffDialog";
 import { Figure } from "../payments/Figure";
@@ -26,6 +27,8 @@ export function BalanceCard({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [clearing, setClearing] = useState(false);
+  // The write-off whose evidence files are open below the list (D-297).
+  const [evidenceFor, setEvidenceFor] = useState<number | null>(null);
   const query = useGetCustomerBalance(customer.id);
   // The effets received and not yet cashed: the same query as the règlement form, for the encours (D-210).
   const effets = useListInstruments(
@@ -204,22 +207,49 @@ export function BalanceCard({
             <thead>
               <tr>
                 <Th>{t("admin.payments.columns.date")}</Th>
+                <Th>{t("admin.payments.balance.writeOffGround")}</Th>
                 <Th>{t("admin.payments.balance.writeOffReason")}</Th>
                 <Th>{t("admin.payments.balance.writeOffBy")}</Th>
                 <Th numeric>{t("admin.payments.columns.amount")}</Th>
+                <Th>
+                  <span className="sr-only">{t("admin.payments.balance.writeOffEvidence")}</span>
+                </Th>
               </tr>
             </thead>
             <tbody>
               {data.write_offs.map((row) => (
                 <tr key={row.id}>
                   <Td className="num whitespace-nowrap">{formatDate(row.written_on)}</Td>
+                  <Td>
+                    {t(`admin.balanceWriteOff.grounds.${row.ground}`)}
+                    {row.evidence_missing && (
+                      <>
+                        {" "}
+                        <Pill tone="warn">{t("admin.payments.balance.evidenceMissing")}</Pill>
+                      </>
+                    )}
+                  </Td>
                   <Td>{row.reason}</Td>
                   <Td>{row.created_by}</Td>
                   <Td numeric>{formatMoney(row.amount)}</Td>
+                  <Td>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setEvidenceFor((open) => (open === row.id ? null : row.id))}
+                      aria-expanded={evidenceFor === row.id}
+                    >
+                      {t("admin.payments.balance.writeOffEvidence")}
+                    </Button>
+                  </Td>
                 </tr>
               ))}
             </tbody>
           </Table>
+          {evidenceFor !== null && (
+            <div className="px-2 pb-2">
+              <AttachmentsCard kind="customer_write_off" objectId={evidenceFor} canWrite={canClear || canCollect} />
+            </div>
+          )}
         </Card>
       )}
     </>

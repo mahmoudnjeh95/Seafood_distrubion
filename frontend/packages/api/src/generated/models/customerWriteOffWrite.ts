@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { GroundEnum } from './groundEnum';
 import type { WriteOffLotShareWrite } from './writeOffLotShareWrite';
 
 export interface CustomerWriteOffWrite {
@@ -12,4 +13,5 @@ export interface CustomerWriteOffWrite {
   /** @maxLength 255 */
   reason: string;
   lot_shares?: WriteOffLotShareWrite[];
+  ground?: GroundEnum;
 }

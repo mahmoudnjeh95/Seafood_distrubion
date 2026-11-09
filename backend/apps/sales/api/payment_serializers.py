@@ -9,7 +9,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.sales.models import CustomerPayment, CustomerPaymentLine, CustomerPaymentMethod
+from apps.sales.models import CustomerPayment, CustomerPaymentLine, CustomerPaymentMethod, WriteOffGround
 from apps.treasury import selectors as treasury
 
 from .serializers import InvoiceCertificateSerializer, QuoteCustomerSerializer, SaleRefSerializer, person_name
@@ -267,6 +267,8 @@ class CustomerWriteOffWriteSerializer(serializers.Serializer[Any]):
     reason = serializers.CharField(allow_blank=True, max_length=255)
     # The lots the loss is charged to, adding up to the balance (D-257); asked for only when a lot is offered.
     lot_shares = WriteOffLotShareWriteSerializer(many=True, required=False)
+    # A settlement gap (default) or an irrecoverable debt, whose evidence is attached afterwards (D-297).
+    ground = serializers.ChoiceField(choices=WriteOffGround.choices, required=False, default=WriteOffGround.GAP)
 
 
 class CustomerWriteOffSerializer(serializers.Serializer[Any]):
@@ -276,6 +278,9 @@ class CustomerWriteOffSerializer(serializers.Serializer[Any]):
     written_on = serializers.DateField(read_only=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     reason = serializers.CharField(read_only=True)
+    ground = serializers.ChoiceField(choices=WriteOffGround.choices, read_only=True)
+    # An irrecoverable debt without any file attached yet (D-297): not deductible as it is.
+    evidence_missing = serializers.BooleanField(read_only=True)
     created_by = serializers.CharField(read_only=True)
 
 

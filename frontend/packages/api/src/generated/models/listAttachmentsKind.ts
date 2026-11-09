@@ -16,4 +16,5 @@ export const ListAttachmentsKind = {
   purchase_order: 'purchase_order',
   goods_receipt: 'goods_receipt',
   supplier_invoice: 'supplier_invoice',
+  customer_write_off: 'customer_write_off',
 } as const;

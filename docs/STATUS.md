@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-297)_
+_Last updated: 2026-11-09 (P11-T15 write-off evidence, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-298)_
 
 ## Where we are
 
@@ -65,12 +65,15 @@ _Last updated: 2026-11-08 (Phase 10 Flotte & entretien P10-T01, D-295, #332; acc
 ## Next step
 
 0. **Phase 11 Conformité (D-296, owner 2026-11-08 "need all of them"):** every point of
-   `docs/guides/market-readiness-review-2026-11-08.md` is a task of `docs/phases/11-compliance.md`. **P11-T01 done on
-   branch `claude/fervent-bell-nn75az`:** no invoice issued without the seller's address and matricule fiscal; a
-   customer without tax ID or address warns. Check on staging: blank the address in Paramètres financiers, a draft
-   cannot be issued. Next code task: P11-T02 (withholding made by the company) once the accountant gives the rates;
-   meanwhile the owner starts P11-T03 (INPDP, hosting), P11-T04 (lawyer) and P11-T05 (TTN enrolment), and books the
-   accountant session P11-T06.
+   `docs/guides/market-readiness-review-2026-11-08.md` is a task of `docs/phases/11-compliance.md`. P11-T01 merged
+   (#334): no invoice issued without the seller's address and matricule fiscal; a customer without tax ID or address
+   warns. Check on staging: blank the address in Paramètres financiers, a draft cannot be issued.
+   **P11-T15 (D-297, branch `claude/write-off-evidence`, migrations `sales 0036`, `documents 0008`):** a customer
+   write-off says its motif (écart de règlement / créance irrécouvrable); an irrecoverable one reads "Justificatif
+   manquant" until a file is attached from the client's Remises à zéro list. Check on staging: clear a balance as
+   "Créance irrécouvrable", see the pill, attach a PDF, the pill goes. Next code tasks without the accountant:
+   P11-T16 period lock, P11-T18 lot traceability, P11-T14 certificates received. The owner starts P11-T03 (INPDP,
+   hosting), P11-T04 (lawyer), P11-T05 (TTN enrolment) and books the accountant session P11-T06 (unblocks T02, T07–T12).
 0. P10-T02 to T05 (D-295): PR #333, merge once CI is green, then the staging checks above. Owner: confirm the
    suggested intervals against each truck's manual, and the paper list with the accountant or the ATTT.
 0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
