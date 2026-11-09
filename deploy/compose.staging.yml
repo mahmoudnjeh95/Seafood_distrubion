@@ -63,6 +63,15 @@ services:
       # The training copy (D-290), linked from the login screens; written into .env by remote-deploy.sh.
       FRUTTI_TRAINING_ADMIN_URL: ${FRUTTI_TRAINING_ADMIN_URL:-}
       FRUTTI_TRAINING_DRIVER_URL: ${FRUTTI_TRAINING_DRIVER_URL:-}
+      # WhatsApp assistant (D-307): off until the Meta app and the Anthropic key are in .env (runbook).
+      ASSISTANT_ENABLED: ${ASSISTANT_ENABLED:-false}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-sonnet-5-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_GRAPH_VERSION: ${WHATSAPP_GRAPH_VERSION:-v23.0}
     volumes: [media:/app/media] # product photos and PDFs, served by the API to members only
     depends_on:
       db: { condition: service_healthy }
@@ -113,6 +122,9 @@ services:
       FRUTTI_TRAINING_DRIVER_URL: ""
       # No mailbox: the customers' addresses are real, so a training document is never e-mailed to them.
       EMAIL_HOST: ""
+      # The WhatsApp number answers from the real copy only.
+      ASSISTANT_ENABLED: "false"
+      WHATSAPP_ACCESS_TOKEN: ""
       SENTRY_ENVIRONMENT: training
     volumes: [training_media:/app/media]
     depends_on:
