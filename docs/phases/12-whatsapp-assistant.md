@@ -14,9 +14,12 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
 
 ## Owner (outside the code)
 
-- [ ] A SIM with a number not used in the WhatsApp app.
-- [ ] Meta Business account, verified with the company papers; the number on the WhatsApp Business Platform; a
-      payment card (Meta bills service messages beyond 1 000 a month since 2026-10-01).
+- [ ] Meta developer app with WhatsApp, under a business portfolio in the owner's name. No company exists yet
+      (owner, 2026-11-09): unverified is enough (250 new contacts a day). Start on Meta's free test number (up to 5
+      registered phones).
+- [ ] Later: a SIM with a number not used in the WhatsApp app, replacing the test number; a payment card if the
+      replies pass 1 000 a month (Meta bills service messages beyond that since 2026-10-01).
+- [ ] When a company exists: Meta business verification (RNE extract, matricule fiscal, a document with the address).
 - [ ] Anthropic API key with a monthly spending limit.
 - [ ] Accountant or lawyer: does sending customer names and amounts to Anthropic (abroad) need an INPDP declaration
       (law 2004-63)? Go-live waits for the answer; building does not.

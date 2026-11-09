@@ -321,7 +321,9 @@ changes its data. Not in the nightly backup.
 
 ## WhatsApp assistant (D-307)
 
-The webhook is `https://<api host>/api/v1/whatsapp/webhook`; the answers are sent by the Celery worker.
+The webhook is `https://app.fruttidelmare.com/api/v1/whatsapp/webhook`; the answers are sent by the Celery worker.
+No company is needed (owner, 2026-11-09): a business portfolio in the owner's name, unverified, works (limit of
+250 new contacts a day, plenty for the staff); Meta's free test number answers up to 5 registered phones.
 
 1. Meta for Developers › the app › WhatsApp › Configuration: callback URL above, verify token = a random string,
    then subscribe the webhook to the `messages` field.
