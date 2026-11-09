@@ -1,4 +1,4 @@
-# Assistant WhatsApp: mise en place, pas à pas (D-307, D-308)
+# Assistant WhatsApp: mise en place, pas à pas (D-307, D-309)
 
 One WhatsApp number for every client company, run by the seller of the software. A message's phone number tells
 the bot which user wrote, in which company, with which role. It only shows that company's data, and only what that
@@ -14,7 +14,7 @@ Status column: **now** = works today; **T02…T05** = the Phase 12 task that bri
 | A1 | developers.facebook.com: log in with Facebook, **Get started** (register as a developer). | now |
 | A2 | **My Apps → Create app**, use case "Connect with customers through WhatsApp". Business portfolio in the seller's own name: no company or papers needed (unverified: 250 new contacts a day). | now |
 | A3 | **WhatsApp → API Setup**: Meta's free test number. In **To**, add up to 5 personal phones (code by WhatsApp); **Send message** to receive "hello_world". | now |
-| A4 | Keys: **Phone number ID** (API Setup); **App secret** (App settings → Basic); **permanent token**: business.facebook.com → Settings → Users → System users → Add (Admin) → Assign assets (the app, full control; the WhatsApp account) → Generate token with `whatsapp_business_messaging` and `whatsapp_business_management`, expiry Never. | now |
+| A4 | Keys: **Phone number ID** (API Setup); **App secret** (App settings → Basic); **permanent token**: business.facebook.com → Settings → Users → System users → Add (Admin) → Assign assets (the app, full control; the WhatsApp account) → Generate token with `whatsapp_business_messaging`, `whatsapp_business_management` and `business_management`, expiry Never. | now |
 | A5 | console.anthropic.com → API Keys; Billing → Limits: a monthly limit. | now |
 | A6 | Server `.env` (staging): `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN` (a random string), `ANTHROPIC_API_KEY`, `ASSISTANT_ENABLED=true`; redeploy. Secrets never go in GitHub. | now (needs PR #341 and GitHub Actions billing) |
 | A7 | Meta: **WhatsApp → Configuration → Webhook → Edit**: URL `https://app.fruttidelmare.com/api/v1/whatsapp/webhook`, the verify token of A6, **Verify and save**; **Webhook fields → Manage**: subscribe `messages`. | now |

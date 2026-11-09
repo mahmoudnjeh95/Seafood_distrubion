@@ -42,7 +42,7 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
       notes from the owner and the drivers.
 - [ ] **P12-T04 PDFs and photos.** Send a document's PDF; a receipt photo on an expense.
 - [ ] **P12-T05 Screens, companies and budget.** The app is sold to several companies, all on **one bot number**
-      run by the seller (owner, 2026-11-09, D-308). After the roles matrix: section `assistant` in `core/access.py`,
+      run by the seller (owner, 2026-11-09, D-309). After the roles matrix: section `assistant` in `core/access.py`,
       tools filtered by section and level; WhatsApp number in the users screen; per company: on/off and monthly AI
       budget, usage per company (to bill it), per-user on/off; Mon profil: QR code and wa.me link; welcome message
       with examples for the role; one phone in two companies: the bot asks which; the prompt and the refusal carry no
