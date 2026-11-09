@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-09 (P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-299)_
+_Last updated: 2026-11-09 (Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-306)_
 
 ## Where we are
 

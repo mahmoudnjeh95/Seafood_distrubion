@@ -18,6 +18,11 @@ export interface SupplierInvoiceWrite {
      * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
      */
   fiscal_stamp?: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,11}(?:\.\d{0,3})?$
+     */
+  paper_total?: string | null;
   post?: boolean;
   /** @minimum 1 */
   supplier: number;

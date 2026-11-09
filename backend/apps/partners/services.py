@@ -36,6 +36,9 @@ class SupplierFields(TypedDict, total=False):
     address: str
     city: str
     notes: str
+    payment_terms_days: int | None
+    buys_with_vat: bool
+    health_approval: str
 
 
 class ContactFields(TypedDict, total=False):
@@ -72,6 +75,9 @@ def _snapshot(supplier: Supplier, contacts: Sequence[SupplierContact]) -> dict[s
         "address": supplier.address,
         "city": supplier.city,
         "notes": supplier.notes,
+        "payment_terms_days": supplier.payment_terms_days,
+        "buys_with_vat": supplier.buys_with_vat,
+        "health_approval": supplier.health_approval,
         "contacts": [
             {"name": contact.name, "role": contact.role, "phone": contact.phone, "email": contact.email}
             for contact in contacts

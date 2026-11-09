@@ -38,6 +38,7 @@ const KNOWN_KINDS = new Set([
   "general",
   "customer_write_off",
   "supplier_write_off",
+  "supplier_credit",
 ]);
 type KnownKind =
   | "lot"
@@ -47,7 +48,8 @@ type KnownKind =
   | "cold_room_adjustment"
   | "general"
   | "customer_write_off"
-  | "supplier_write_off";
+  | "supplier_write_off"
+  | "supplier_credit";
 
 const OUTCOME_TONE = { profit: "good", zero: "neutral", loss: "bad" } as const;
 

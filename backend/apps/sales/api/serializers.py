@@ -599,6 +599,17 @@ class NotDeliveredSerializer(serializers.Serializer[Any]):
     client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
 
 
+class OfficeDeliverSerializer(serializers.Serializer[Any]):
+    """The office records how a BL "à livrer" was delivered (D-305): only the lines that changed."""
+
+    lines = DeliveredLineSerializer(many=True, required=False, default=list)
+    note = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+
+
+class OfficeNotDeliveredSerializer(serializers.Serializer[Any]):
+    note = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+
+
 class SaleConfirmSerializer(serializers.Serializer[Any]):
     # Accept going above the customer's credit limit (owner or manager only, when the company asks for
     # approval).

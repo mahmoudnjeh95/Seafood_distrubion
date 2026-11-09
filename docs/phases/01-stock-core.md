@@ -199,3 +199,90 @@ Boxes are a count ledger next to the kg stock, never products. Steps 1 to 4 merg
       (`order_from_offers`). Refused without a price or after the offer's validity. Cancel while open. Audited.
 - [ ] Not done: printing or e-mailing the request to the suppliers (Perfaxis "sur un ou plusieurs documents").
 - [ ] Check on staging: ask two suppliers for two products, type both offers, order the cheapest of each.
+
+## Purchases, sales and stock gap review (2026-11-08, D-299)
+
+Review in `docs/guides/purchase-sales-stock-review-2026-11-08.md`. Owner answers 2026-11-08: FEFO with FIFO as the
+tiebreak; an expired lot is always blocked (only a loss); every BL takes its stock out at the delivery (bug 11);
+transformations wanted, with a transformation fee that goes into the new lot's cost. All gaps are wanted.
+
+### P1-T20 · First to expire leaves first; expired lots never sold nor loaded · S (gaps 3, 4, D-299)
+- [x] Picking order (`inventory.selectors.PICK_ORDER`): earliest use-by first, then the oldest receipt; lots without a
+      date after the dated ones. Costing unchanged (each lot its own cost).
+- [x] A sale or a truck load never takes a lot past its use-by date (the use-by day itself still sells); a lot picked by
+      hand is refused with its number; short because of expired lots, the refusal says how many kg to declare as loss.
+      Returns from a truck, moves between rooms and losses still take them.
+- [x] The lot pickers (quote, BL, counter) and the driver's stock leave expired lots out; the picker shows "DLC".
+- [ ] Check on staging: two lots, the newer one with the nearer DLC goes first on a BL; a lot past its DLC cannot be sold.
+
+### P1-T21 · Supplier return and supplier credit note (avoir fournisseur) · M (gaps 1, 2, D-300)
+- [x] Avoir fournisseur (AVF-2026-0001, `SupplierCreditNote`): per receipt line of the supplier a return (the kilos leave
+      the stock as `supplier_return` from the place named), a weight gap (invoiced − accepted, claimed once) or a price
+      cut per kg; VAT given back at the receipt's rate when bought with VAT. Saved once, never edited (`create_credit_note`).
+- [x] It settles its invoice, then the supplier's other open invoices; the rest waits and settles the next invoice
+      posted. Supplier balance, invoices' paid amount, statement (PDF) and the balance card count it.
+- [x] Lot result: a return lowers the purchase cost (kg returned); a price cut is a gain line "Avoirs fournisseurs";
+      a lot already settled with its partner is refused for returns and price cuts.
+- [x] Achats › Avoirs: list, "Kilos facturés mais non acceptés" per supplier with "Réclamer", the form, the detail;
+      "Faire un avoir" on a validated supplier invoice.
+- [ ] Not done: printing the avoir (PDF).
+- [ ] Check on staging: an invoice of 100 kg, return 20 kg from the cold room; the stock drops 20 kg, the invoice is
+      "Payée en partie" by the avoir and the supplier balance drops by the avoir's total.
+
+### P1-T22 · Supplier defaults and the supplier's paper total · S (gaps 8, 9, D-301)
+- [x] Supplier: "Délai de paiement (jours)" (empty: 30) and "Achats avec TVA par défaut"; the receipt form ticks
+      "Achat avec TVA" from it when the supplier is chosen, the invoice form proposes the due date from it.
+- [x] Supplier invoice: "Total sur le papier du fournisseur" (`paper_total`, optional); the form and the page show the
+      difference with our total in red. Never blocks: the receipts are what we owe.
+- [ ] Check on staging: a supplier at 45 days with VAT; a receipt ticks VAT, the invoice is due at +45 days; type a
+      paper total 1 DT above, the gap shows.
+
+### P1-T23 · Lot origin and recall · M (gap 5, D-302)
+- [x] Product: "Nom scientifique (latin)". Supplier: "N° d'agrément sanitaire". Lot: FAO zone or farm, wild or farmed,
+      boat or port (`Batch.catch_area`, `production_method`, `origin`), typed once on the receipt (copied onto each lot)
+      and completed or corrected later on the lot page ("Compléter l'origine", audited, never valued).
+- [x] The BL prints each line's origin under the product (the lots it took).
+- [x] "Rappel de lot" on the lot page (`/stock/lots/:id/rappel`): origin, customers who kept kilos (most first, phone,
+      city, dates, BL), what is still in stock and where; printable from the browser (`GET /batches/{id}/recall`).
+- [ ] Check on staging: a receipt with zone 37.2.2, wild, Port de Sfax; sell from it; the BL shows the origin, the
+      recall sheet lists the customer with their phone.
+
+### P1-T24 · Cold-chain readings · S (gap 6, D-303)
+- [x] A range per cold room or truck (`StockLocation.temp_min`, `temp_max`, open ends allowed), set on Stock ›
+      Températures; readings by hand (`TemperatureReading`, append-only, who and when), flagged when outside the range.
+- [x] A reading outside the range tells the whole office (`temperature_alert`), whoever typed it.
+- [x] Stock › Températures: one card per place (range, last reading, today's count, alerts of 7 days, a field to note
+      one) and the log, alerts only on demand. The driver notes the truck's temperature on the phone's stock screen.
+- [x] Goods receipt: "Température à l'arrivée"; the receipt page shows it in red when outside a product's storage range.
+- [ ] Not done: the driver's reading is not kept offline (needs the network); no reminder when no reading was made.
+- [ ] Check on staging: set the negative room to ≤ -18 °C, note -12, the bell shows the alert; note -20, it is fine.
+
+### P1-T25 · Transformations with a fee · M (gap 7, D-304)
+- [x] Stock › Transformations (TF-0001, `Transformation`): kilos of one lot at one place become a new lot of the output
+      product at the same place; same supplier, receipt day, VAT and origin; weight lost = taken − obtained.
+- [x] The new lot's cost per kg = (kg taken × source cost + transformation fee) / kg obtained; the form shows it before
+      saving. Movements `transformation_out` / `transformation_in`; each lot's result counts only its own kilos.
+- [x] Refused: more kg obtained than taken, an expired source lot, a negative fee, a lot shared with a partner
+      (provisional, Q30). "Transformer" on the lot page.
+- [ ] Owner (Q30): may a partner's lot be transformed (the new lot then shared with the same partner)? Is the fee also
+      paid to someone (an expense), or only a cost put on the lot?
+- [ ] Check on staging: 10 kg of a lot at 20.000 into 6 kg of fillet with 12 DT of fee; the new lot costs 35.333 / kg.
+
+### P1-T26 · Every BL takes its stock out at the delivery · M (gap 10, bug 11, D-305)
+- [x] A direct BL (office, from a cold room) has "Valider (à livrer)": BL number and version 1 now, nothing leaves the
+      stock; then "Livré", "Livré en partie…" (kg per line) or "Non livré" (`issue_sale`, `POST /sales/{id}/issue`,
+      `/deliver`, `/not-delivered`). Only the kilos delivered leave the stock and are owed.
+- [x] A counter sale stays delivered at once: the old "Valider" is now "Livré tout de suite (comptoir)"; the truck
+      load BL works as before (D-178). The browser tests use the new label.
+- [x] Refused at "Valider (à livrer)" when a line asks more than the place holds (not expired); checked again at the
+      delivery. Nothing is reserved meanwhile (two BL may promise the same kilos; the second delivery is refused).
+- [x] `phases/02-sales-invoicing.md` bug 11 ticked.
+- [ ] Check on staging: an office BL of 10 kg "Valider (à livrer)", the stock is unchanged; "Livré en partie" 7 kg, the
+      stock drops 7 kg and the client owes 7 kg.
+
+### P1-T27 · Smaller gaps · M (gaps 11 to 15)
+- [ ] Purchase suggestions from `min_stock` and recent sales, with the supplier's last price; one click makes the orders.
+- [ ] Stock count "à l'aveugle" option (expected kg hidden while counting).
+- [ ] Print the price request for each supplier (PDF).
+- [ ] Website request → quote or BL in one click.
+- [ ] Purchase reports: price per supplier and product over time, invoiced-vs-accepted gaps, on-time deliveries, returns.

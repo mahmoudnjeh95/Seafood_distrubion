@@ -20,6 +20,10 @@ export interface SupplierBalance {
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly written_off: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly credited: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly credit_unapplied: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly outstanding: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly unallocated: string;

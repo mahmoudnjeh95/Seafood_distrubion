@@ -23,7 +23,6 @@ from apps.core.money import Number, checked_amount, checked_quantity
 
 from . import selectors
 from .models import (
-    FIFO_ORDER,
     Batch,
     CountStatus,
     LossStatus,
@@ -34,6 +33,7 @@ from .models import (
     StockMovement,
     StockOnHand,
     StockSettings,
+    TemperatureReading,
     Transfer,
     TransferBoxLine,
     TransferDelivery,
@@ -41,10 +41,12 @@ from .models import (
     TransferLine,
     TransferLinePick,
     TransferStatus,
+    Transformation,
 )
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
 from .models import LossReason as LossReason  # re-exported for apps that record losses
 from .models import MovementKind as MovementKind  # re-exported for apps that post movements
+from .models import ProductionMethod as ProductionMethod  # re-exported for the receipt lines (D-302)
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -178,6 +180,9 @@ def create_batch(
     receipt_reference: str = "",
     use_by: dt.date | None = None,
     bought_with_vat: bool = False,
+    catch_area: str = "",
+    production_method: str = "",
+    origin: str = "",
 ) -> Batch:
     """A new batch with the next number. Called by the goods receipt (P1-T07) and the demo data.
 
@@ -198,6 +203,8 @@ def create_batch(
         errors["received_on"] = _("La date de réception ne peut pas être dans le futur.")
     if use_by is not None and use_by < received_on:
         errors["use_by"] = _("La date limite ne peut pas précéder la réception.")
+    if production_method and production_method not in ProductionMethod.values:
+        errors["production_method"] = _("Choisissez pêché ou élevé.")
     cost = None
     try:
         cost = checked_amount(unit_cost)
@@ -216,6 +223,9 @@ def create_batch(
         unit_cost=cost,
         use_by=use_by,
         bought_with_vat=bought_with_vat,
+        catch_area=catch_area.strip()[:60],
+        production_method=production_method,
+        origin=origin.strip()[:100],
     )
     audit.record(
         organization=organization, actor=actor, action="batch.created", target=batch, after=_batch_snapshot(batch)
@@ -235,6 +245,8 @@ MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
     MovementKind.RECEIPT_CORRECTION: None,
     MovementKind.ADJUSTMENT: None,
     MovementKind.COUNT_CORRECTION: None,
+    MovementKind.TRANSFORMATION_OUT: (True, False),
+    MovementKind.TRANSFORMATION_IN: (False, True),
 }
 # A person must say why stock disappeared or was changed by hand.
 KINDS_NEEDING_A_REASON = frozenset({MovementKind.LOSS, MovementKind.ADJUSTMENT})
@@ -398,8 +410,14 @@ def post_fifo_movements(
     occurred_at: dt.datetime | None = None,
     picks: Sequence[tuple[int, Decimal]] = (),
     held_since_then: bool = False,
+    skip_expired: bool | None = None,
 ) -> list[StockMovement]:
-    """Take `quantity` kg of a product out of `from_location`, oldest batch first, one movement per batch.
+    """Take `quantity` kg of a product out of `from_location`, first to expire first then oldest receipt
+    (`selectors.PICK_ORDER`, D-299), one movement per batch.
+
+    With `skip_expired` (the default for a sale; a transfer asks it for a truck load), a lot past its use-by date
+    on the movement's day is never taken, and picking one by hand is refused (D-299): expired kilos only leave
+    as a loss.
 
     Used by transfers, sales and losses: nobody picks batches by hand (D-009) — except a sale line may ask
     to take kilos from lots first (`picks`, `[(batch id, kg)]`, D-121, D-208): each picked lot gives the kilos
@@ -444,8 +462,18 @@ def post_fifo_movements(
             for row in locked
             if row.location_id == from_location.pk and row.quantity > 0 and row.batch.received_on <= day
         ),
-        key=lambda row: tuple(getattr(row.batch, field) for field in FIFO_ORDER),
+        key=lambda row: selectors.pick_order_key(row.batch),
     )
+    if skip_expired is None:
+        skip_expired = kind == MovementKind.SALE
+    expired_kg = Decimal("0.000")
+    if skip_expired:
+        expired = {row.batch_id: row for row in holdings if selectors.is_expired(row.batch, day)}
+        for batch_id, _kg in picks:
+            if batch_id in expired:
+                raise selectors.expired_lot_error(expired[batch_id].batch)
+        holdings = [row for row in holdings if row.batch_id not in expired]
+        expired_kg = sum((row.quantity for row in expired.values()), Decimal("0.000"))
     limits = None
     if held_since_then and day < timezone.localdate():
         limits = selectors.least_held_since(organization, location_id=from_location.pk, product_id=product_id, day=day)
@@ -454,6 +482,8 @@ def post_fifo_movements(
         available = sum((selectors.takeable(row, limits) for row in holdings), Decimal("0.000"))
         if limits is not None:
             raise selectors.not_enough_stock_since(available, from_location, day)
+        if expired_kg:
+            raise selectors.not_enough_unexpired_stock(available, expired_kg, from_location)
         raise selectors.not_enough_stock(available, from_location)
 
     return [
@@ -1000,7 +1030,11 @@ def _post_line_from(
     if len(rooms) > 1:
         day = timezone.localtime(occurred_at).date()
         held = selectors.held_by_location(
-            transfer.organization, product_id=line.product_id, location_ids=[room.pk for room in rooms], day=day
+            transfer.organization,
+            product_id=line.product_id,
+            location_ids=[room.pk for room in rooms],
+            day=day,
+            skip_expired=transfer.kind == TransferKind.LOAD,
         )
         left = line.quantity
         portions = []
@@ -1029,6 +1063,8 @@ def _post_line_from(
             source=line,
             occurred_at=occurred_at,
             picks=picks,
+            # Expired kilos never go onto a truck; they may still come back from one or move between rooms (D-299).
+            skip_expired=transfer.kind == TransferKind.LOAD,
         )
 
 
@@ -1625,3 +1661,265 @@ def correct_batch(
     batch.receipt_reference = receipt_reference
     batch.save(update_fields=["unit_cost", "use_by", "bought_with_vat", "receipt_reference", "updated_at"])
     return batch
+
+
+@transaction.atomic
+def update_lot_origin(
+    *, batch: Batch, actor: User | None, catch_area: str, production_method: str, origin: str
+) -> Batch:
+    """Complete or correct where a lot comes from (D-302): information only, never valued, so it may change at any
+    time; every change is audited."""
+    if production_method and production_method not in ProductionMethod.values:
+        raise ValidationError({"production_method": _("Choisissez pêché ou élevé.")})
+    batch = Batch.objects.select_for_update().get(pk=batch.pk)
+    before = {"catch_area": batch.catch_area, "production_method": batch.production_method, "origin": batch.origin}
+    batch.catch_area = catch_area.strip()[:60]
+    batch.production_method = production_method
+    batch.origin = origin.strip()[:100]
+    batch.save(update_fields=["catch_area", "production_method", "origin", "updated_at"])
+    audit.record(
+        organization=batch.organization,
+        actor=actor,
+        action="batch.origin_changed",
+        target=batch,
+        before=before,
+        after={"catch_area": batch.catch_area, "production_method": batch.production_method, "origin": batch.origin},
+    )
+    return batch
+
+
+# ---- Cold chain (D-303) ----
+
+MIN_CELSIUS = Decimal("-60.0")
+MAX_CELSIUS = Decimal("60.0")
+
+
+def _checked_celsius(value: Any, field: str, errors: dict[str, str]) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    try:
+        celsius = Decimal(str(value).replace(",", ".")).quantize(Decimal("0.1"))
+    except (ArithmeticError, ValueError):
+        errors[field] = _("Indiquez une température en °C, par exemple -18 ou 2,5.")
+        return None
+    if not MIN_CELSIUS <= celsius <= MAX_CELSIUS:
+        errors[field] = _("Une température entre -60 et 60 °C.")
+        return None
+    return celsius
+
+
+def outside_range(celsius: Decimal, low: Decimal | None, high: Decimal | None) -> bool:
+    """Below the low end or above the high end; an open end never fails."""
+    return (low is not None and celsius < low) or (high is not None and celsius > high)
+
+
+@transaction.atomic
+def set_temperature_range(
+    *, location: StockLocation, actor: User | None, temp_min: Any, temp_max: Any
+) -> StockLocation:
+    """The temperature a cold room or a truck must keep (D-303); empty ends are open."""
+    errors: dict[str, str] = {}
+    low = _checked_celsius(temp_min, "temp_min", errors)
+    high = _checked_celsius(temp_max, "temp_max", errors)
+    if low is not None and high is not None and low > high:
+        errors["temp_max"] = _("Le maximum doit être au-dessus du minimum.")
+    if errors:
+        raise ValidationError(errors)
+    location = StockLocation.objects.select_for_update().get(pk=location.pk)
+    before = {"temp_min": str(location.temp_min), "temp_max": str(location.temp_max)}
+    location.temp_min, location.temp_max = low, high
+    location.save(update_fields=["temp_min", "temp_max", "updated_at"])
+    audit.record(
+        organization=location.organization,
+        actor=actor,
+        action="location.temperature_range_set",
+        target=location,
+        before=before,
+        after={"temp_min": str(low), "temp_max": str(high)},
+    )
+    return location
+
+
+@transaction.atomic
+def record_temperature(
+    *,
+    location: StockLocation,
+    actor: User | None,
+    celsius: Any,
+    taken_at: dt.datetime | None = None,
+    note: str = "",
+    client_uuid: uuid.UUID | None = None,
+) -> TemperatureReading:
+    """Write one temperature read in a cold room or a truck (D-303). Outside the location's range it is flagged and
+    the office is told (notification `temperature_alert`). A retried `client_uuid` returns the first reading."""
+    if client_uuid is not None:
+        found = TemperatureReading.objects.filter(organization=location.organization, client_uuid=client_uuid).first()
+        if found is not None:
+            return found
+    # The range as saved now, not as the caller's copy of the location knew it.
+    location = StockLocation.objects.get(pk=location.pk)
+    errors: dict[str, str] = {}
+    value = _checked_celsius(celsius, "celsius", errors)
+    if value is None and "celsius" not in errors:
+        errors["celsius"] = _("Indiquez la température.")
+    moment = taken_at or timezone.now()
+    if moment > timezone.now() + dt.timedelta(minutes=5):
+        errors["taken_at"] = _("Le relevé ne peut pas être dans le futur.")
+    if not location.is_active:
+        errors["location"] = _("« %(name)s » est archivé.") % {"name": location.name}
+    if errors or value is None:
+        raise ValidationError(errors)
+    reading = TemperatureReading.objects.create(
+        organization=location.organization,
+        location=location,
+        taken_at=moment,
+        celsius=value,
+        out_of_range=outside_range(value, location.temp_min, location.temp_max),
+        note=note.strip()[:255],
+        taken_by=actor,
+        client_uuid=client_uuid,
+    )
+    audit.record(
+        organization=location.organization,
+        actor=actor,
+        action="temperature.recorded",
+        target=reading,
+        after={"location": location.name, "celsius": str(value), "out_of_range": reading.out_of_range},
+    )
+    return reading
+
+
+# ---- Transformations (D-304) ----
+
+
+@transaction.atomic
+def create_transformation(
+    *,
+    organization: Organization,
+    actor: User | None,
+    location: StockLocation,
+    source_batch: Batch,
+    source_quantity: Number,
+    output_product: "Product",
+    output_quantity: Number,
+    done_on: dt.date,
+    fee: Number = "0",
+    fee_note: str = "",
+    use_by: dt.date | None = None,
+    notes: str = "",
+) -> Transformation:
+    """Clean, fillet, portion or downgrade kilos of one lot into a new lot of `output_product` at the same place.
+
+    The new lot keeps the source's supplier, receipt day, VAT and origin; its cost per kg is (source kg × source cost
+    + `fee`) / kg obtained, rounded to the millime, so the weight lost is carried by it. Refused (ValidationError per
+    field): more kg out than held, more kg obtained than taken, an expired source lot, a negative fee, or a lot shared
+    with a partner (provisional, D-304)."""
+    from apps.partnerships import selectors as partnerships  # partnerships reads inventory: imported here, not above
+
+    errors: dict[str, str] = {}
+    taken = obtained = fee_amount = None
+    try:
+        taken = checked_quantity(source_quantity)
+    except (ValueError, TypeError):
+        errors["source_quantity"] = _("Indiquez un poids en kg, supérieur à zéro.")
+    try:
+        obtained = checked_quantity(output_quantity)
+    except (ValueError, TypeError):
+        errors["output_quantity"] = _("Indiquez un poids en kg, supérieur à zéro.")
+    try:
+        fee_amount = checked_amount(fee or "0")
+    except (ValueError, TypeError) as error:
+        errors["fee"] = str(error)
+    if source_batch.organization_id != organization.pk:
+        errors["source_batch"] = _("Lot inconnu.")
+    elif selectors.is_expired(source_batch, done_on):
+        errors["source_batch"] = _("Ce lot a dépassé sa date limite : il ne se transforme pas, il se déclare en perte.")
+    elif partnerships.live_partnership_of_batch(organization, batch_id=source_batch.pk) is not None:
+        errors["source_batch"] = _(
+            "Ce lot est partagé avec un partenaire : sa transformation n'est pas encore possible (à décider)."
+        )
+    if output_product.organization_id != organization.pk or not output_product.is_active:
+        errors["output_product"] = _("Produit inconnu ou archivé.")
+    if location.organization_id != organization.pk or not location.is_active:
+        errors["location"] = _("Emplacement inconnu ou archivé.")
+    if done_on > timezone.localdate():
+        errors["done_on"] = _("La date ne peut pas être dans le futur.")
+    elif done_on < source_batch.received_on:
+        errors["done_on"] = _("La transformation ne peut pas précéder la réception du lot.")
+    if taken is not None and obtained is not None and obtained > taken:
+        errors["output_quantity"] = _("Une transformation ne fait pas gagner de poids : au plus %(kg)s kg.") % {
+            "kg": taken
+        }
+    if errors or taken is None or obtained is None or fee_amount is None:
+        raise ValidationError(errors)
+    cost = (taken * source_batch.unit_cost + fee_amount) / obtained
+    unit_cost = cost.quantize(Decimal("0.001"))
+    number = numbering.next_number(organization, "transformation")
+    output = create_batch(
+        organization=organization,
+        actor=actor,
+        product=output_product,
+        supplier=source_batch.supplier,
+        received_on=source_batch.received_on,
+        unit_cost=unit_cost,
+        receipt_reference=number,
+        use_by=use_by if use_by is not None else source_batch.use_by,
+        bought_with_vat=source_batch.bought_with_vat,
+        catch_area=source_batch.catch_area,
+        production_method=source_batch.production_method,
+        origin=source_batch.origin,
+    )
+    transformation = Transformation.objects.create(
+        organization=organization,
+        number=number,
+        location=location,
+        done_on=done_on,
+        source_batch=source_batch,
+        source_quantity=taken,
+        output_batch=output,
+        output_quantity=obtained,
+        fee=fee_amount,
+        fee_note=fee_note.strip()[:255],
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    moment = moment_of(done_on) if done_on != timezone.localdate() else timezone.now()
+    reason = _("Transformation %(number)s") % {"number": number}
+    post_movement(
+        organization=organization,
+        actor=actor,
+        kind=MovementKind.TRANSFORMATION_OUT,
+        batch=source_batch,
+        quantity=taken,
+        from_location=location,
+        reason=reason,
+        source=transformation,
+        occurred_at=moment,
+    )
+    post_movement(
+        organization=organization,
+        actor=actor,
+        kind=MovementKind.TRANSFORMATION_IN,
+        batch=output,
+        quantity=obtained,
+        to_location=location,
+        reason=reason,
+        source=transformation,
+        occurred_at=moment,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="transformation.created",
+        target=transformation,
+        after={
+            "number": number,
+            "source": source_batch.number,
+            "source_quantity": str(taken),
+            "output": output.number,
+            "output_quantity": str(obtained),
+            "fee": str(fee_amount),
+            "unit_cost": str(unit_cost),
+        },
+    )
+    return transformation

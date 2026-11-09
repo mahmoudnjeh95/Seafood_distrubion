@@ -26,6 +26,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { AttachmentsCard } from "../lib/AttachmentsCard";
+import { subtract } from "../lib/decimal";
 import { canRecordReceipts } from "../receipts/shared";
 import { refreshPurchasing, STATUS_TONE } from "./shared";
 
@@ -123,6 +124,13 @@ export function SupplierInvoiceDetailPage() {
           >
             <Icon name="cash" />
             {t("admin.supplierInvoices.detail.pay")}
+          </Button>
+        )}
+        {canRecord && !isDraft && data.receipts.length > 0 && (
+          <Button
+            onClick={() => void navigate(`/achats/avoirs/nouveau?fournisseur=${data.supplier.id}&facture=${data.id}`)}
+          >
+            {t("admin.supplierInvoices.detail.creditNote")}
           </Button>
         )}
       </PageHeader>
@@ -256,6 +264,15 @@ export function SupplierInvoiceDetailPage() {
           <Detail label={t("admin.supplierInvoices.detail.total")} numeric>
             <b>{formatMoney(data.total)}</b>
           </Detail>
+          {data.paper_total !== null && (
+            <Detail label={t("admin.supplierInvoices.form.paperTotal")} numeric>
+              <span className={cn(data.paper_total !== data.total && "font-semibold text-bad")}>
+                {formatMoney(data.paper_total)}
+                {data.paper_total !== data.total &&
+                  ` (${t("admin.supplierInvoices.form.paperGap")} ${formatMoney(subtract(data.paper_total, data.total))})`}
+              </span>
+            </Detail>
+          )}
           {!isDraft && (
             <>
               <Detail label={t("admin.supplierInvoices.detail.paid")} numeric>

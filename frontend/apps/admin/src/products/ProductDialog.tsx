@@ -44,6 +44,7 @@ type FormValues = {
   reference: string;
   name: string;
   name_ar: string;
+  scientific_name: string;
   category: string;
   sale_price: string;
   min_stock: string;
@@ -61,6 +62,7 @@ const EMPTY: FormValues = {
   reference: "",
   name: "",
   name_ar: "",
+  scientific_name: "",
   category: "",
   sale_price: "",
   min_stock: "0",
@@ -78,6 +80,7 @@ function valuesOf(product: Product): FormValues {
     reference: product.reference,
     name: product.name,
     name_ar: product.name_ar,
+    scientific_name: product.scientific_name,
     category: String(product.category.id),
     sale_price: typed(product.current_price),
     min_stock: typed(product.min_stock),
@@ -206,6 +209,7 @@ export function ProductDialog({
       reference: values.reference.trim(),
       name: values.name.trim(),
       name_ar: values.name_ar.trim(),
+      scientific_name: values.scientific_name.trim(),
       category: Number(values.category),
       min_stock: decimal("min_stock", 3, false) ?? "0",
       storage_temp_min: decimal("storage_temp_min", 1, false),
@@ -270,6 +274,7 @@ export function ProductDialog({
         {input("reference", t("admin.products.form.reference"), "text", true)}
         {input("name", t("admin.products.form.name"))}
         {input("name_ar", t("admin.products.form.nameAr"), "arabic")}
+        {input("scientific_name", t("admin.products.form.scientificName"))}
 
         <Field label={t("admin.products.form.category")} htmlFor={`${formId}-category`} error={errors.category}>
           {newCategory === null ? (

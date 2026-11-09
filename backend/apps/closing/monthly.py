@@ -30,6 +30,8 @@ LEDGER_ORDER = (
     "receipt_correction",
     "customer_return",
     "supplier_return",
+    "transformation_out",
+    "transformation_in",
     "sale",
     "loss",
     "count_correction",

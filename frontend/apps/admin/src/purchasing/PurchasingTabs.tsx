@@ -11,6 +11,7 @@ export function PurchasingTabs() {
     { to: "/achats/terrain", label: t("admin.purchasing.fieldPurchases"), end: false },
     { to: "/achats", label: t("admin.purchasing.receipts"), end: true },
     { to: "/achats/factures", label: t("admin.purchasing.invoices"), end: false },
+    { to: "/achats/avoirs", label: t("admin.purchasing.creditNotes"), end: false },
     { to: "/achats/paiements", label: t("admin.purchasing.payments"), end: false },
     { to: "/achats/dettes", label: t("admin.purchasing.debts"), end: false },
   ];

@@ -153,6 +153,12 @@ export function ReceiptFormPage() {
   const [supplierReference, setSupplierReference] = useState("");
   // Bought with VAT: its lots are then sold and invoiced with VAT (D-202).
   const [withVat, setWithVat] = useState(false);
+  // Where the delivery comes from (D-302), copied onto each of its lots; a lot can be corrected later on its page.
+  const [catchArea, setCatchArea] = useState("");
+  // The goods' temperature at arrival (D-303), optional.
+  const [arrivalTemperature, setArrivalTemperature] = useState("");
+  const [method, setMethod] = useState<"" | "wild" | "farmed">("");
+  const [origin, setOrigin] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>(() => [newLine()]);
   const [boxes, setBoxes] = useState<BoxCountInputs>(NO_BOX_INPUTS);
@@ -261,6 +267,9 @@ export function ReceiptFormPage() {
         unit_cost: cost ?? "",
         use_by: line.use_by || null,
         partner: line.partner === NO_PARTNER ? null : Number(line.partner),
+        catch_area: catchArea.trim(),
+        production_method: method,
+        origin: origin.trim(),
       });
     });
     const boxCounts = boxCountsFromInputs(boxes);
@@ -294,6 +303,7 @@ export function ReceiptFormPage() {
       received_on: receivedOn,
       supplier_reference: supplierReference.trim(),
       with_vat: withVat,
+      arrival_temperature: arrivalTemperature.trim() ? arrivalTemperature.trim().replace(",", ".") : null,
       notes: notes.trim(),
       lines: payloadLines,
       boxes: boxCounts.counts,
@@ -448,6 +458,9 @@ export function ReceiptFormPage() {
             supplier,
             (value) => {
               setSupplier(value);
+              // The supplier's usual deal proposes "Achat avec TVA" (D-301); it can still be changed here.
+              const chosen = (suppliers.data ?? []).find((one) => String(one.id) === value);
+              if (chosen) setWithVat(chosen.buys_with_vat);
               // An order belongs to one supplier: another supplier means no order.
               if (order && String(order.supplier.id) !== value) setOrderId(null);
             },
@@ -509,6 +522,40 @@ export function ReceiptFormPage() {
             />
             {t("admin.receipts.form.withVat")}
           </label>
+          <fieldset className="col-span-full grid grid-cols-4 gap-4 max-[640px]:grid-cols-1">
+            <legend className="mb-2 text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.origin")}</legend>
+            <Input
+              aria-label={t("admin.receipts.form.catchArea")}
+              placeholder={t("admin.receipts.form.catchArea")}
+              value={catchArea}
+              maxLength={60}
+              onChange={(event) => setCatchArea(event.target.value)}
+            />
+            <select
+              aria-label={t("admin.receipts.form.method")}
+              value={method}
+              onChange={(event) => setMethod(event.target.value as "" | "wild" | "farmed")}
+              className="rounded-control border border-line bg-surface px-3 py-2.5 text-ink"
+            >
+              <option value="">{t("admin.receipts.form.methodUnknown")}</option>
+              <option value="wild">{t("admin.receipts.form.methodWild")}</option>
+              <option value="farmed">{t("admin.receipts.form.methodFarmed")}</option>
+            </select>
+            <Input
+              aria-label={t("admin.receipts.form.arrivalTemperature")}
+              placeholder={t("admin.receipts.form.arrivalTemperature")}
+              inputMode="decimal"
+              value={arrivalTemperature}
+              onChange={(event) => setArrivalTemperature(event.target.value)}
+            />
+            <Input
+              aria-label={t("admin.receipts.form.originPlace")}
+              placeholder={t("admin.receipts.form.originPlace")}
+              value={origin}
+              maxLength={100}
+              onChange={(event) => setOrigin(event.target.value)}
+            />
+          </fieldset>
         </Card>
 
         <Card className="flex flex-col gap-3">

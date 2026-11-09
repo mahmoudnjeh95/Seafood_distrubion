@@ -286,6 +286,33 @@ def _removed_at_delivery(sale: Sale) -> list[dict[str, Any]]:
     ]
 
 
+def lot_origin_text(batch: Any) -> str:
+    """Where a lot comes from, as printed under its line (D-302): Latin name, FAO zone, wild or farmed, boat or port,
+    health approval. Empty when nothing of it is known."""
+    parts = [
+        batch.product.scientific_name,
+        batch.catch_area and f"Zone {batch.catch_area}",
+        batch.get_production_method_display() if batch.production_method else "",
+        batch.origin,
+        batch.supplier.health_approval and f"Agrément {batch.supplier.health_approval}",
+    ]
+    return " · ".join(part for part in parts if part)
+
+
+def _line_origins(lines: list[Any]) -> dict[int, str]:
+    """Per sale line, the origin of the lots it took (several lots: one after the other)."""
+    origins: dict[int, str] = {}
+    for line in lines:
+        texts: list[str] = []
+        for row in line.batches.select_related("batch__product", "batch__supplier").order_by("id"):
+            text = lot_origin_text(row.batch)
+            if text and text not in texts:
+                texts.append(text)
+        if texts:
+            origins[line.pk] = " ; ".join(texts)
+    return origins
+
+
 def delivery_note_printable(organization: Organization, sale_id: int) -> documents.Printable:
     """The BL of a validated sale (D-095): what left, at what price, and what the customer owes for it."""
     sale = selectors.sale_of(organization, sale_id)
@@ -299,6 +326,10 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
         # A draft (or a draft given up) has no BL number and moves nothing: validating the sale is what makes the BL.
         raise ValidationError(_("Une vente en brouillon n'a pas de bon de livraison : validez-la d'abord."))
     lines = list(sale.lines.all())
+    origins = _line_origins(lines)
+    for line in lines:
+        # Read by the template under the product's name (D-302).
+        line.origin_text = origins.get(line.pk, "")  # type: ignore[attr-defined]
     sold_on = timezone.localtime(sale.sold_at).date()
     context: dict[str, Any] = {
         "number": sale.number,

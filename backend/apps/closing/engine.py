@@ -38,6 +38,7 @@ COST_KIND_ORDER: tuple[str, ...] = (
     "general",
     "customer_write_off",
     "supplier_write_off",
+    "supplier_credit",
 )
 
 

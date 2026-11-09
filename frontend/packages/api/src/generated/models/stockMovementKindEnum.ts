@@ -15,6 +15,8 @@
  * * `loss` - Perte
  * * `adjustment` - Ajustement
  * * `count_correction` - Correction d'inventaire
+ * * `transformation_out` - Transformation (sortie)
+ * * `transformation_in` - Transformation (entrée)
  */
 export type StockMovementKindEnum = typeof StockMovementKindEnum[keyof typeof StockMovementKindEnum];
 
@@ -29,4 +31,6 @@ export const StockMovementKindEnum = {
   loss: 'loss',
   adjustment: 'adjustment',
   count_correction: 'count_correction',
+  transformation_out: 'transformation_out',
+  transformation_in: 'transformation_in',
 } as const;

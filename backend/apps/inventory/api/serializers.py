@@ -14,17 +14,20 @@ from apps.inventory.models import (
     LossReason,
     LossStatus,
     MovementKind,
+    ProductionMethod,
     StockCount,
     StockCountLine,
     StockLocation,
     StockLoss,
     StockSettings,
+    TemperatureReading,
     Transfer,
     TransferDelivery,
     TransferKind,
     TransferLine,
     TransferLinePick,
     TransferStatus,
+    Transformation,
 )
 
 
@@ -63,6 +66,7 @@ class BatchProductSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    scientific_name = serializers.CharField(read_only=True)
     # Lot pickers leave out the lots of an archived product (D-145).
     is_active = serializers.BooleanField(read_only=True)
 
@@ -71,6 +75,7 @@ class BatchSupplierSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    health_approval = serializers.CharField(read_only=True)
 
 
 class BatchSerializer(serializers.ModelSerializer[Batch]):
@@ -88,9 +93,20 @@ class BatchSerializer(serializers.ModelSerializer[Batch]):
             "received_on",
             "unit_cost",
             "use_by",
+            "catch_area",
+            "production_method",
+            "origin",
             "created_at",
         )
         read_only_fields = fields
+
+
+class BatchOriginWriteSerializer(serializers.Serializer[Any]):
+    """Where a lot comes from (D-302): FAO zone or farm, wild or farmed, boat or port."""
+
+    catch_area = serializers.CharField(max_length=60, allow_blank=True)
+    production_method = serializers.ChoiceField(choices=ProductionMethod.choices, allow_blank=True)
+    origin = serializers.CharField(max_length=100, allow_blank=True)
 
 
 class BatchFilterSerializer(serializers.Serializer[Any]):
@@ -123,6 +139,7 @@ class LocationBatchSerializer(serializers.Serializer[Any]):
     batch_id = serializers.IntegerField(read_only=True)
     batch_number = serializers.CharField(source="batch.number", read_only=True)
     received_on = serializers.DateField(source="batch.received_on", read_only=True)
+    use_by = serializers.DateField(source="batch.use_by", read_only=True, allow_null=True)
     supplier_id = serializers.IntegerField(source="batch.supplier_id", read_only=True)
     supplier_name = serializers.CharField(source="batch.supplier.name", read_only=True)
     location_id = serializers.IntegerField(read_only=True)
@@ -744,3 +761,125 @@ class RoadReturnSerializer(serializers.Serializer[Any]):
     number = serializers.CharField(read_only=True)
     to_location = serializers.CharField(source="to_location.name", read_only=True)
     total_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+
+
+# ---- Cold chain (D-303) ----
+
+
+class TemperatureReadingSerializer(serializers.ModelSerializer[TemperatureReading]):
+    location = PlaceSerializer(read_only=True)
+    taken_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TemperatureReading
+        fields = ("id", "location", "taken_at", "celsius", "out_of_range", "note", "taken_by", "created_at")
+        read_only_fields = fields
+
+    def get_taken_by(self, reading: TemperatureReading) -> str:
+        return person_name(reading.taken_by)
+
+
+class TemperatureWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    celsius = serializers.CharField(max_length=10)
+    # When it was read; empty: now.
+    taken_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+
+class MyTemperatureWriteSerializer(serializers.Serializer[Any]):
+    celsius = serializers.CharField(max_length=10)
+    taken_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
+class TemperatureFilterSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(required=False, min_value=1)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    out_of_range = serializers.BooleanField(required=False, default=False)
+
+
+class TemperatureRangeWriteSerializer(serializers.Serializer[Any]):
+    temp_min = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True, default=None)
+    temp_max = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class ColdChainPlaceSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="location.id", read_only=True)
+    name = serializers.CharField(source="location.name", read_only=True)
+    kind = serializers.ChoiceField(source="location.kind", choices=LocationKind.choices, read_only=True)
+    temp_min = serializers.DecimalField(
+        source="location.temp_min", max_digits=4, decimal_places=1, read_only=True, allow_null=True
+    )
+    temp_max = serializers.DecimalField(
+        source="location.temp_max", max_digits=4, decimal_places=1, read_only=True, allow_null=True
+    )
+    last = TemperatureReadingSerializer(read_only=True, allow_null=True)
+    readings_today = serializers.IntegerField(read_only=True)
+    alerts_7_days = serializers.IntegerField(read_only=True)
+
+
+# ---- Transformations (D-304) ----
+
+
+class TransformationLotSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = BatchProductSerializer(read_only=True)
+    unit_cost = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    use_by = serializers.DateField(read_only=True, allow_null=True)
+
+
+class TransformationSerializer(serializers.ModelSerializer[Transformation]):
+    location = PlaceSerializer(read_only=True)
+    source_batch = TransformationLotSerializer(read_only=True)
+    output_batch = TransformationLotSerializer(read_only=True)
+    weight_lost = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    supplier_name = serializers.CharField(source="source_batch.supplier.name", read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Transformation
+        fields = (
+            "id",
+            "number",
+            "location",
+            "done_on",
+            "source_batch",
+            "source_quantity",
+            "output_batch",
+            "output_quantity",
+            "weight_lost",
+            "fee",
+            "fee_note",
+            "notes",
+            "supplier_name",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_created_by(self, transformation: Transformation) -> str:
+        return person_name(transformation.created_by)
+
+
+class TransformationWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    source_batch = serializers.IntegerField(min_value=1)
+    source_quantity = serializers.CharField(max_length=20)
+    output_product = serializers.IntegerField(min_value=1)
+    output_quantity = serializers.CharField(max_length=20)
+    done_on = serializers.DateField()
+    # DT: labour, a cleaner, ice, packing. It goes into the new lot's cost.
+    fee = serializers.CharField(max_length=20, required=False, allow_blank=True, default="0")
+    fee_note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    # The new lot's use-by date; empty: the source lot's.
+    use_by = serializers.DateField(required=False, allow_null=True, default=None)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class TransformationFilterSerializer(serializers.Serializer[Any]):
+    batch = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)

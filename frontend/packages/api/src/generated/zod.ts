@@ -154,17 +154,22 @@ export const ListBatchesResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "health_approval": zod.string()
 }),
   "receipt_reference": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', listBatchesResponseResultsItemUnitCostRegExp),
   "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),
+  "origin": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }))
 })
@@ -184,18 +189,114 @@ export const GetBatchResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "health_approval": zod.string()
 }),
   "receipt_reference": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', getBatchResponseUnitCostRegExp),
   "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),
+  "origin": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Complete or correct where a lot comes from (D-302). Information only, audited. Owner or manager.
+ */
+export const UpdateBatchOriginParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const updateBatchOriginBodyCatchAreaMax = 60;
+
+export const updateBatchOriginBodyOriginMax = 100;
+
+
+
+export const UpdateBatchOriginBody = zod.object({
+  "catch_area": zod.string().max(updateBatchOriginBodyCatchAreaMax),
+  "production_method": zod.union([zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),zod.enum([''])]),
+  "origin": zod.string().max(updateBatchOriginBodyOriginMax)
+}).describe('Where a lot comes from (D-302): FAO zone or farm, wild or farmed, boat or port.')
+
+export const updateBatchOriginResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateBatchOriginResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "health_approval": zod.string()
+}),
+  "receipt_reference": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', updateBatchOriginResponseUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),
+  "origin": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * A recall sheet for one lot: its origin, the customers who kept kilos of it (the most first, with their
+ * phone and BL), and the places that still hold some.
+ */
+export const GetLotRecallParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const getLotRecallResponseCustomersItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotRecallResponseInStockItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const GetLotRecallResponse = zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "scientific_name": zod.string(),
+  "supplier_name": zod.string(),
+  "health_approval": zod.string(),
+  "received_on": zod.iso.date(),
+  "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.string(),
+  "origin": zod.string(),
+  "customers": zod.array(zod.object({
+  "customer_id": zod.int(),
+  "customer_name": zod.string(),
+  "phone": zod.string(),
+  "city": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLotRecallResponseCustomersItemQuantityRegExp),
+  "first_on": zod.iso.date(),
+  "last_on": zod.iso.date(),
+  "sales": zod.array(zod.string())
+})),
+  "in_stock": zod.array(zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLotRecallResponseInStockItemQuantityRegExp)
+}))
 })
 
 
@@ -382,6 +483,40 @@ export const RenameCategoryResponse = zod.object({
   "id": zod.int(),
   "name": zod.string().max(renameCategoryResponseNameMax)
 })
+
+
+/**
+ * Every cold room and truck with its range, its last reading, today's count and the alerts of 7 days.
+ */
+export const getColdChainResponseTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getColdChainResponseTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getColdChainResponseLastOneCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const GetColdChainResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "temp_min": zod.stringFormat('decimal', getColdChainResponseTempMinRegExp).nullable(),
+  "temp_max": zod.stringFormat('decimal', getColdChainResponseTempMaxRegExp).nullable(),
+  "last": zod.union([zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', getColdChainResponseLastOneCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}),zod.null()]),
+  "readings_today": zod.int(),
+  "alerts_7_days": zod.int()
+})
+export const GetColdChainResponse = zod.array(GetColdChainResponseItem)
 
 
 /**
@@ -608,6 +743,7 @@ export const ListCountsResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -663,6 +799,7 @@ export const StartCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -708,6 +845,7 @@ export const GetCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -756,6 +894,7 @@ export const ApproveCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -804,6 +943,7 @@ export const CancelCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -863,6 +1003,7 @@ export const RecordCountedResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -8932,6 +9073,7 @@ export const ListLocationBatchesResponseItem = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "received_on": zod.iso.date(),
+  "use_by": zod.iso.date().nullable(),
   "supplier_id": zod.int(),
   "supplier_name": zod.string(),
   "location_id": zod.int(),
@@ -8939,6 +9081,54 @@ export const ListLocationBatchesResponseItem = zod.object({
   "quantity": zod.stringFormat('decimal', listLocationBatchesResponseQuantityRegExp)
 }).describe('One lot of a product at a location, for picking it by hand on a sale (default: FIFO, D-121).\n\n`location_name` is a hint for the till, never printed on a devis or a BL.')
 export const ListLocationBatchesResponse = zod.array(ListLocationBatchesResponseItem)
+
+
+/**
+ * The temperature a place must keep, in °C; an empty end is open. Owner or manager.
+ */
+export const SetTemperatureRangeParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const setTemperatureRangeBodyTempMinMax = 10;
+
+export const setTemperatureRangeBodyTempMaxMax = 10;
+
+
+
+export const SetTemperatureRangeBody = zod.object({
+  "temp_min": zod.string().max(setTemperatureRangeBodyTempMinMax).nullish(),
+  "temp_max": zod.string().max(setTemperatureRangeBodyTempMaxMax).nullish()
+})
+
+export const setTemperatureRangeResponseTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setTemperatureRangeResponseTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setTemperatureRangeResponseLastOneCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const SetTemperatureRangeResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "temp_min": zod.stringFormat('decimal', setTemperatureRangeResponseTempMinRegExp).nullable(),
+  "temp_max": zod.stringFormat('decimal', setTemperatureRangeResponseTempMaxRegExp).nullable(),
+  "last": zod.union([zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', setTemperatureRangeResponseLastOneCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}),zod.null()]),
+  "readings_today": zod.int(),
+  "alerts_7_days": zod.int()
+})
 
 
 /**
@@ -8980,6 +9170,7 @@ export const ListLossesResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', listLossesResponseResultsItemQuantityRegExp),
@@ -9031,6 +9222,7 @@ export const RecordLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', recordLossResponseQuantityRegExp),
@@ -9077,6 +9269,7 @@ export const GetLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', getLossResponseQuantityRegExp),
@@ -9123,6 +9316,7 @@ export const ApproveLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', approveLossResponseQuantityRegExp),
@@ -9173,6 +9367,7 @@ export const AddLossPhotoResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', addLossPhotoResponseQuantityRegExp),
@@ -9223,6 +9418,7 @@ export const RejectLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', rejectLossResponseQuantityRegExp),
@@ -13877,6 +14073,43 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
+ * The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
+ * written once. 404 without a truck.
+ */
+export const recordMyTruckTemperatureBodyCelsiusMax = 10;
+
+export const recordMyTruckTemperatureBodyNoteDefault = ``;
+export const recordMyTruckTemperatureBodyNoteMax = 255;
+
+
+
+export const RecordMyTruckTemperatureBody = zod.object({
+  "celsius": zod.string().max(recordMyTruckTemperatureBodyCelsiusMax),
+  "taken_at": zod.iso.datetime({"offset":true}).nullish(),
+  "note": zod.string().max(recordMyTruckTemperatureBodyNoteMax).default(recordMyTruckTemperatureBodyNoteDefault),
+  "client_uuid": zod.uuid().nullish()
+})
+
+export const recordMyTruckTemperatureResponseCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const RecordMyTruckTemperatureResponse = zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', recordMyTruckTemperatureResponseCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
  * and it opens the supplier règlements.
  */
@@ -14586,6 +14819,7 @@ export const GetPriceBoardResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -14663,6 +14897,7 @@ export const SetPriceBoardResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15226,6 +15461,7 @@ export const ListProductsResponseItem = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15254,6 +15490,9 @@ export const createProductBodyNameMax = 150;
 export const createProductBodyNameArDefault = ``;
 export const createProductBodyNameArMax = 150;
 
+export const createProductBodyScientificNameDefault = ``;
+export const createProductBodyScientificNameMax = 150;
+
 export const createProductBodyMinStockDefault = `0.000`;
 export const createProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
@@ -15267,6 +15506,7 @@ export const CreateProductBody = zod.object({
   "reference": zod.string().max(createProductBodyReferenceMax).default(createProductBodyReferenceDefault),
   "name": zod.string().max(createProductBodyNameMax),
   "name_ar": zod.string().max(createProductBodyNameArMax).default(createProductBodyNameArDefault),
+  "scientific_name": zod.string().max(createProductBodyScientificNameMax).default(createProductBodyScientificNameDefault),
   "category": zod.int(),
   "min_stock": zod.stringFormat('decimal', createProductBodyMinStockRegExp).default(createProductBodyMinStockDefault),
   "storage_temp_min": zod.stringFormat('decimal', createProductBodyStorageTempMinRegExp).nullish(),
@@ -15289,6 +15529,7 @@ export const CreateProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15325,6 +15566,7 @@ export const GetProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15359,6 +15601,9 @@ export const updateProductBodyNameMax = 150;
 export const updateProductBodyNameArDefault = ``;
 export const updateProductBodyNameArMax = 150;
 
+export const updateProductBodyScientificNameDefault = ``;
+export const updateProductBodyScientificNameMax = 150;
+
 export const updateProductBodyMinStockDefault = `0.000`;
 export const updateProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
@@ -15371,6 +15616,7 @@ export const UpdateProductBody = zod.object({
   "reference": zod.string().max(updateProductBodyReferenceMax).default(updateProductBodyReferenceDefault),
   "name": zod.string().max(updateProductBodyNameMax).optional(),
   "name_ar": zod.string().max(updateProductBodyNameArMax).default(updateProductBodyNameArDefault),
+  "scientific_name": zod.string().max(updateProductBodyScientificNameMax).default(updateProductBodyScientificNameDefault),
   "category": zod.int().optional(),
   "min_stock": zod.stringFormat('decimal', updateProductBodyMinStockRegExp).default(updateProductBodyMinStockDefault),
   "storage_temp_min": zod.stringFormat('decimal', updateProductBodyStorageTempMinRegExp).nullish(),
@@ -15392,6 +15638,7 @@ export const UpdateProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15431,6 +15678,7 @@ export const ArchiveProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15474,6 +15722,7 @@ export const UploadProductPhotoResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15510,6 +15759,7 @@ export const RemoveProductPhotoResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15577,6 +15827,7 @@ export const SetProductPriceResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15613,6 +15864,7 @@ export const RestoreProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -16847,13 +17099,14 @@ export const ListReceiptsQueryParams = zod.object({
   "uninvoiced": zod.boolean().default(listReceiptsQueryUninvoicedDefault)
 })
 
+export const listReceiptsResponseResultsItemArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const listReceiptsResponseResultsItemArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const listReceiptsResponseResultsItemInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -16882,6 +17135,8 @@ export const ListReceiptsResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', listReceiptsResponseResultsItemArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', listReceiptsResponseResultsItemArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -16904,7 +17159,7 @@ export const ListReceiptsResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -16953,7 +17208,15 @@ export const createReceiptBodySupplierReferenceDefault = ``;
 export const createReceiptBodySupplierReferenceMax = 50;
 
 export const createReceiptBodyWithVatDefault = false;
+export const createReceiptBodyArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const createReceiptBodyNotesDefault = ``;
+export const createReceiptBodyLinesItemCatchAreaDefault = ``;
+export const createReceiptBodyLinesItemCatchAreaMax = 60;
+
+export const createReceiptBodyLinesItemProductionMethodDefault = ``;
+export const createReceiptBodyLinesItemOriginDefault = ``;
+export const createReceiptBodyLinesItemOriginMax = 100;
+
 
 export const createReceiptBodyBoxesMinOne = 0;
 
@@ -16969,6 +17232,7 @@ export const CreateReceiptBody = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string().max(createReceiptBodySupplierReferenceMax).default(createReceiptBodySupplierReferenceDefault),
   "with_vat": zod.boolean().default(createReceiptBodyWithVatDefault),
+  "arrival_temperature": zod.stringFormat('decimal', createReceiptBodyArrivalTemperatureRegExp).nullish(),
   "notes": zod.string().default(createReceiptBodyNotesDefault),
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
@@ -16977,6 +17241,9 @@ export const CreateReceiptBody = zod.object({
   "accepted_quantity": zod.string(),
   "unit_cost": zod.string(),
   "use_by": zod.iso.date().nullish(),
+  "catch_area": zod.string().max(createReceiptBodyLinesItemCatchAreaMax).default(createReceiptBodyLinesItemCatchAreaDefault),
+  "production_method": zod.union([zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),zod.enum([''])]).default(createReceiptBodyLinesItemProductionMethodDefault),
+  "origin": zod.string().max(createReceiptBodyLinesItemOriginMax).default(createReceiptBodyLinesItemOriginDefault),
   "partner": zod.int().min(1).nullish()
 })),
   "boxes": zod.record(zod.string(), zod.int().min(createReceiptBodyBoxesMinOne)).optional(),
@@ -16989,13 +17256,14 @@ export const CreateReceiptBody = zod.object({
   "confirm_cash_limit": zod.boolean().default(createReceiptBodyConfirmCashLimitDefault)
 })
 
+export const createReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const createReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17020,6 +17288,8 @@ export const CreateReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', createReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', createReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17042,7 +17312,7 @@ export const CreateReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', createReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', createReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', createReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17080,13 +17350,14 @@ export const GetReceiptParams = zod.object({
   "receipt_id": zod.int()
 })
 
+export const getReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const getReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17111,6 +17382,8 @@ export const GetReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', getReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', getReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17133,7 +17406,7 @@ export const GetReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', getReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', getReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', getReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17183,13 +17456,14 @@ export const DisputeReceiptBody = zod.object({
   "reason": zod.string().max(disputeReceiptBodyReasonMax)
 })
 
+export const disputeReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const disputeReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const disputeReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17214,6 +17488,8 @@ export const DisputeReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', disputeReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', disputeReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17236,7 +17512,7 @@ export const DisputeReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', disputeReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', disputeReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', disputeReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17286,13 +17562,14 @@ export const ResolveReceiptDisputeBody = zod.object({
   "resolution": zod.string().max(resolveReceiptDisputeBodyResolutionMax)
 })
 
+export const resolveReceiptDisputeResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const resolveReceiptDisputeResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const resolveReceiptDisputeResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17317,6 +17594,8 @@ export const ResolveReceiptDisputeResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', resolveReceiptDisputeResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', resolveReceiptDisputeResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17339,7 +17618,7 @@ export const ResolveReceiptDisputeResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', resolveReceiptDisputeResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', resolveReceiptDisputeResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', resolveReceiptDisputeResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17407,13 +17686,14 @@ export const ReviseReceiptBody = zod.object({
 }))
 })
 
+export const reviseReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const reviseReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const reviseReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17438,6 +17718,8 @@ export const ReviseReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', reviseReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', reviseReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17460,7 +17742,7 @@ export const ReviseReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', reviseReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', reviseReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', reviseReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -20450,6 +20732,552 @@ export const ConfirmSaleResponse = zod.object({
 
 
 /**
+ * The office records the delivery of a BL "à livrer": the lines that changed (kg delivered, zero takes the
+ * product off); only the kg delivered leave the stock and are owed. Nothing delivered is "non livré".
+ */
+export const DeliverSaleParams = zod.object({
+  "sale_id": zod.int()
+})
+
+
+export const deliverSaleBodyLinesItemQuantityMax = 20;
+
+export const deliverSaleBodyNoteDefault = ``;
+export const deliverSaleBodyNoteMax = 255;
+
+
+
+export const DeliverSaleBody = zod.object({
+  "lines": zod.array(zod.object({
+  "line": zod.int().min(1),
+  "quantity": zod.string().max(deliverSaleBodyLinesItemQuantityMax)
+})).optional(),
+  "note": zod.string().max(deliverSaleBodyNoteMax).default(deliverSaleBodyNoteDefault)
+}).describe('The office records how a BL "à livrer" was delivered (D-305): only the lines that changed.')
+
+export const deliverSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const deliverSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const deliverSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const deliverSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const DeliverSaleResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "billing": zod.enum(['invoice', 'no_invoice', 'free']).describe('* `invoice` - Facturable\n* `no_invoice` - Non facturable\n* `free` - Offert'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "id_type": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string()
+}),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "quote": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', deliverSaleResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', deliverSaleResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', deliverSaleResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', deliverSaleResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', deliverSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', deliverSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', deliverSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', deliverSaleResponseTotalInclTaxRegExp),
+  "cost_total": zod.stringFormat('decimal', deliverSaleResponseCostTotalRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', deliverSaleResponseMarginRegExp).nullable(),
+  "amount_paid": zod.stringFormat('decimal', deliverSaleResponseAmountPaidRegExp),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]),
+  "payment_reference": zod.string(),
+  "amount_due": zod.stringFormat('decimal', deliverSaleResponseAmountDueRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_by": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', deliverSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', deliverSaleResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', deliverSaleResponseLinesItemUnitPriceRegExp),
+  "price_source": zod.enum(['price_list', 'daily', 'quote', 'typed', 'shown']).describe('* `price_list` - Liste du client\n* `daily` - Prix du jour\n* `quote` - Devis\n* `typed` - Saisi\n* `shown` - Affiché au chauffeur'),
+  "below_minimum": zod.boolean(),
+  "discount_rate": zod.stringFormat('decimal', deliverSaleResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', deliverSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', deliverSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', deliverSaleResponseLinesItemAmountInclTaxRegExp),
+  "cost_amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
+  "batches": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', deliverSaleResponseLinesItemBatchesItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', deliverSaleResponseLinesItemBatchesItemUnitCostRegExp),
+  "cost_amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemBatchesItemCostAmountRegExp),
+  "revenue_amount": zod.stringFormat('decimal', deliverSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', deliverSaleResponseLinesItemOrderedQuantityRegExp).nullable()
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', deliverSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', deliverSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', deliverSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', deliverSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', deliverSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', deliverSaleResponseEstimatedExtraRegExp)
+})
+
+
+/**
+ * Validate a direct BL "à livrer" (D-305): its BL number now, the stock at the delivery. Refused for a load's
+ * BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
+ */
+export const IssueSaleParams = zod.object({
+  "sale_id": zod.int()
+})
+
+export const issueSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const issueSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const issueSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const IssueSaleResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "billing": zod.enum(['invoice', 'no_invoice', 'free']).describe('* `invoice` - Facturable\n* `no_invoice` - Non facturable\n* `free` - Offert'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "id_type": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string()
+}),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "quote": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', issueSaleResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', issueSaleResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', issueSaleResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', issueSaleResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', issueSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', issueSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', issueSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', issueSaleResponseTotalInclTaxRegExp),
+  "cost_total": zod.stringFormat('decimal', issueSaleResponseCostTotalRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', issueSaleResponseMarginRegExp).nullable(),
+  "amount_paid": zod.stringFormat('decimal', issueSaleResponseAmountPaidRegExp),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]),
+  "payment_reference": zod.string(),
+  "amount_due": zod.stringFormat('decimal', issueSaleResponseAmountDueRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_by": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', issueSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', issueSaleResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', issueSaleResponseLinesItemUnitPriceRegExp),
+  "price_source": zod.enum(['price_list', 'daily', 'quote', 'typed', 'shown']).describe('* `price_list` - Liste du client\n* `daily` - Prix du jour\n* `quote` - Devis\n* `typed` - Saisi\n* `shown` - Affiché au chauffeur'),
+  "below_minimum": zod.boolean(),
+  "discount_rate": zod.stringFormat('decimal', issueSaleResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', issueSaleResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', issueSaleResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', issueSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', issueSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', issueSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', issueSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', issueSaleResponseLinesItemAmountInclTaxRegExp),
+  "cost_amount": zod.stringFormat('decimal', issueSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
+  "batches": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', issueSaleResponseLinesItemBatchesItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', issueSaleResponseLinesItemBatchesItemUnitCostRegExp),
+  "cost_amount": zod.stringFormat('decimal', issueSaleResponseLinesItemBatchesItemCostAmountRegExp),
+  "revenue_amount": zod.stringFormat('decimal', issueSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', issueSaleResponseLinesItemOrderedQuantityRegExp).nullable()
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', issueSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', issueSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', issueSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', issueSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', issueSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', issueSaleResponseEstimatedExtraRegExp)
+})
+
+
+/**
+ * A BL "à livrer" was not delivered: nothing is sold and nothing left the stock. The note is optional.
+ */
+export const NotDeliveredSaleParams = zod.object({
+  "sale_id": zod.int()
+})
+
+export const notDeliveredSaleBodyNoteDefault = ``;
+export const notDeliveredSaleBodyNoteMax = 255;
+
+
+
+export const NotDeliveredSaleBody = zod.object({
+  "note": zod.string().max(notDeliveredSaleBodyNoteMax).default(notDeliveredSaleBodyNoteDefault)
+})
+
+export const notDeliveredSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseTaxAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseCostTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseMarginRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseAmountPaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseAmountDueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseCreditOverByRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemDiscountRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const notDeliveredSaleResponseLinesItemGrossAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemDiscountAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const notDeliveredSaleResponseLinesItemAmountExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemAmountInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemBatchesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemBatchesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemBatchesItemCostAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemBatchesItemRevenueAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseRevisionsItemLinesItemOrderedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseRevisionsItemLinesItemDeliveredRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseRevisionsItemLinesItemUnitPriceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseRevisionsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseRevisionsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const notDeliveredSaleResponseEstimatedExtraRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const NotDeliveredSaleResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'confirmed', 'cancelled']).describe('* `draft` - Brouillon\n* `confirmed` - Confirmée\n* `cancelled` - Annulée'),
+  "billing": zod.enum(['invoice', 'no_invoice', 'free']).describe('* `invoice` - Facturable\n* `no_invoice` - Non facturable\n* `free` - Offert'),
+  "customer": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "tax_id": zod.string(),
+  "id_type": zod.string(),
+  "phone": zod.string(),
+  "is_walk_in": zod.boolean()
+}),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string()
+}),
+  "sold_at": zod.iso.datetime({"offset":true}),
+  "quote": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "transfer": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),zod.null()]),
+  "delivery_address": zod.string(),
+  "notes": zod.string(),
+  "line_count": zod.int(),
+  "subtotal": zod.stringFormat('decimal', notDeliveredSaleResponseSubtotalRegExp),
+  "discount_total": zod.stringFormat('decimal', notDeliveredSaleResponseDiscountTotalRegExp),
+  "total_excl_tax": zod.stringFormat('decimal', notDeliveredSaleResponseTotalExclTaxRegExp),
+  "tax_amount": zod.stringFormat('decimal', notDeliveredSaleResponseTaxAmountRegExp).nullable(),
+  "total": zod.stringFormat('decimal', notDeliveredSaleResponseTotalRegExp),
+  "amount_excl_tax": zod.stringFormat('decimal', notDeliveredSaleResponseAmountExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', notDeliveredSaleResponseVatTotalRegExp),
+  "total_incl_tax": zod.stringFormat('decimal', notDeliveredSaleResponseTotalInclTaxRegExp),
+  "cost_total": zod.stringFormat('decimal', notDeliveredSaleResponseCostTotalRegExp).nullable(),
+  "margin": zod.stringFormat('decimal', notDeliveredSaleResponseMarginRegExp).nullable(),
+  "amount_paid": zod.stringFormat('decimal', notDeliveredSaleResponseAmountPaidRegExp),
+  "payment_method": zod.union([zod.enum(['cash', 'cheque', 'transfer', 'card']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `card` - Carte bancaire'),zod.enum([''])]),
+  "payment_reference": zod.string(),
+  "amount_due": zod.stringFormat('decimal', notDeliveredSaleResponseAmountDueRegExp),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "confirmed_by": zod.string(),
+  "confirmed_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancelled_by": zod.string(),
+  "cancelled_at": zod.iso.datetime({"offset":true}).nullable(),
+  "cancel_reason": zod.string(),
+  "invoice": zod.union([zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "status": zod.enum(['draft', 'issued', 'cancelled']).describe('* `draft` - Brouillon\n* `issued` - Émise\n* `cancelled` - Annulée par avoir')
+}).describe('An invoice named from another document (its sale). `number` is empty while a draft.'),zod.null()]),
+  "credit_status": zod.union([zod.enum(['pending', 'approved', 'warned']).describe('* `pending` - En attente d\'approbation\n* `approved` - Approuvée\n* `warned` - Limite dépassée'),zod.enum([''])]),
+  "credit_over_by": zod.stringFormat('decimal', notDeliveredSaleResponseCreditOverByRegExp),
+  "credit_decided_by": zod.string(),
+  "credit_decided_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivery_status": zod.union([zod.enum(['to_deliver', 'delivered', 'partial', 'cancelled']).describe('* `to_deliver` - À livrer\n* `delivered` - Livré\n* `partial` - Livré en partie\n* `cancelled` - Non livré'),zod.enum([''])]),
+  "issued_at": zod.iso.datetime({"offset":true}).nullable(),
+  "version": zod.int(),
+  "delivered_at": zod.iso.datetime({"offset":true}).nullable(),
+  "delivered_by": zod.string(),
+  "delivery_note": zod.string(),
+  "is_opening": zod.boolean(),
+  "draft_number": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "name_ar": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemQuantityRegExp),
+  "unit_price": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemUnitPriceRegExp),
+  "price_source": zod.enum(['price_list', 'daily', 'quote', 'typed', 'shown']).describe('* `price_list` - Liste du client\n* `daily` - Prix du jour\n* `quote` - Devis\n* `typed` - Saisi\n* `shown` - Affiché au chauffeur'),
+  "below_minimum": zod.boolean(),
+  "discount_rate": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemDiscountRateRegExp),
+  "gross_amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemGrossAmountRegExp),
+  "discount_amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemDiscountAmountRegExp),
+  "amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemVatRateRegExp).nullable(),
+  "amount_excl_tax": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemAmountExclTaxRegExp),
+  "vat_amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemVatAmountRegExp),
+  "amount_incl_tax": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemAmountInclTaxRegExp),
+  "cost_amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemCostAmountRegExp).nullable(),
+  "requested_batch": zod.int().nullable(),
+  "batches": zod.array(zod.object({
+  "id": zod.int(),
+  "batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string()
+}),
+  "quantity": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemBatchesItemQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemBatchesItemUnitCostRegExp),
+  "cost_amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemBatchesItemCostAmountRegExp),
+  "revenue_amount": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemBatchesItemRevenueAmountRegExp)
+}).describe('The kilos of a line taken from one lot, with their cost (office only).')).nullable(),
+  "ordered_quantity": zod.stringFormat('decimal', notDeliveredSaleResponseLinesItemOrderedQuantityRegExp).nullable()
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "revisions": zod.array(zod.object({
+  "id": zod.int(),
+  "version": zod.int(),
+  "kind": zod.enum(['issued', 'edited', 'delivered', 'cancelled']).describe('* `issued` - Validé au chargement\n* `edited` - Modifié par le bureau\n* `delivered` - Livraison\n* `cancelled` - Non livré'),
+  "lines": zod.array(zod.object({
+  "product": zod.int(),
+  "name": zod.string(),
+  "ordered": zod.stringFormat('decimal', notDeliveredSaleResponseRevisionsItemLinesItemOrderedRegExp),
+  "delivered": zod.stringFormat('decimal', notDeliveredSaleResponseRevisionsItemLinesItemDeliveredRegExp).nullable(),
+  "unit_price": zod.stringFormat('decimal', notDeliveredSaleResponseRevisionsItemLinesItemUnitPriceRegExp),
+  "amount": zod.stringFormat('decimal', notDeliveredSaleResponseRevisionsItemLinesItemAmountRegExp)
+})),
+  "boxes": zod.record(zod.string(), zod.int()),
+  "total": zod.stringFormat('decimal', notDeliveredSaleResponseRevisionsItemTotalRegExp),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}).describe('One version of the BL of a truck load, as it was then (D-178).')),
+  "estimated_extra": zod.stringFormat('decimal', notDeliveredSaleResponseEstimatedExtraRegExp)
+})
+
+
+/**
  * The sales of the same filters and sort as the list, every row, as an Excel file.
  */
 
@@ -20757,6 +21585,7 @@ export const ListProductBatchesResponseItem = zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
   "received_on": zod.iso.date(),
+  "use_by": zod.iso.date().nullable(),
   "supplier_id": zod.int(),
   "supplier_name": zod.string(),
   "location_id": zod.int(),
@@ -20844,7 +21673,7 @@ export const ListMovementsQueryParams = zod.object({
   "batch": zod.int().min(1).optional(),
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).optional().describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction', 'transformation_out', 'transformation_in']).optional().describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire\n* `transformation_out` - Transformation (sortie)\n* `transformation_in` - Transformation (entrée)'),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
@@ -20862,12 +21691,13 @@ export const ListMovementsResponse = zod.object({
   "previous": zod.url().nullish(),
   "results": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction', 'transformation_out', 'transformation_in']).describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire\n* `transformation_out` - Transformation (sortie)\n* `transformation_in` - Transformation (entrée)'),
   "occurred_at": zod.iso.datetime({"offset":true}),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch_id": zod.int(),
@@ -20997,6 +21827,8 @@ export const getSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{0,11}
 export const getSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseCreditedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierBalanceResponseCreditUnappliedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21010,6 +21842,8 @@ export const GetSupplierBalanceResponse = zod.object({
   "paid": zod.stringFormat('decimal', getSupplierBalanceResponsePaidRegExp),
   "balance": zod.stringFormat('decimal', getSupplierBalanceResponseBalanceRegExp),
   "written_off": zod.stringFormat('decimal', getSupplierBalanceResponseWrittenOffRegExp),
+  "credited": zod.stringFormat('decimal', getSupplierBalanceResponseCreditedRegExp),
+  "credit_unapplied": zod.stringFormat('decimal', getSupplierBalanceResponseCreditUnappliedRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierBalanceResponseOutstandingRegExp),
   "unallocated": zod.stringFormat('decimal', getSupplierBalanceResponseUnallocatedRegExp),
   "overdue": zod.stringFormat('decimal', getSupplierBalanceResponseOverdueRegExp),
@@ -21057,6 +21891,8 @@ export const writeOffSupplierBalanceResponseInvoicedRegExp = new RegExp('^-?\\d{
 export const writeOffSupplierBalanceResponsePaidRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseBalanceRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseWrittenOffRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseCreditedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const writeOffSupplierBalanceResponseCreditUnappliedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseUnallocatedRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const writeOffSupplierBalanceResponseOverdueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21070,6 +21906,8 @@ export const WriteOffSupplierBalanceResponse = zod.object({
   "paid": zod.stringFormat('decimal', writeOffSupplierBalanceResponsePaidRegExp),
   "balance": zod.stringFormat('decimal', writeOffSupplierBalanceResponseBalanceRegExp),
   "written_off": zod.stringFormat('decimal', writeOffSupplierBalanceResponseWrittenOffRegExp),
+  "credited": zod.stringFormat('decimal', writeOffSupplierBalanceResponseCreditedRegExp),
+  "credit_unapplied": zod.stringFormat('decimal', writeOffSupplierBalanceResponseCreditUnappliedRegExp),
   "outstanding": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOutstandingRegExp),
   "unallocated": zod.stringFormat('decimal', writeOffSupplierBalanceResponseUnallocatedRegExp),
   "overdue": zod.stringFormat('decimal', writeOffSupplierBalanceResponseOverdueRegExp),
@@ -21085,6 +21923,295 @@ export const WriteOffSupplierBalanceResponse = zod.object({
   "product": zod.string()
 }).describe('A lot a supplier balance write-off can be credited to (D-257): one they sold us, not settled.'))
 }).describe('The trade balance with one supplier. A partner\'s capital and profit share are other balances (D-040).')
+
+
+/**
+ * Supplier credit notes (avoirs fournisseurs, D-300), newest first, paginated.
+ */
+
+export const listSupplierCreditNotesQuerySearchDefault = ``;
+export const listSupplierCreditNotesQuerySearchMax = 100;
+
+
+
+
+export const ListSupplierCreditNotesQueryParams = zod.object({
+  "invoice": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listSupplierCreditNotesQuerySearchMax).default(listSupplierCreditNotesQuerySearchDefault),
+  "supplier": zod.int().min(1).optional()
+})
+
+export const listSupplierCreditNotesResponseResultsItemTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemAppliedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemUnitAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listSupplierCreditNotesResponseResultsItemLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierCreditNotesResponseResultsItemAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierCreditNotesResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "invoice": zod.int().nullable(),
+  "invoice_number": zod.string().nullable(),
+  "credited_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "reason": zod.string(),
+  "total_excl_tax": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemVatTotalRegExp),
+  "total": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemTotalRegExp),
+  "applied_amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemAppliedAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "receipt_line": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "product_name": zod.string(),
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemQuantityRegExp),
+  "unit_amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemUnitAmountRegExp),
+  "amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemVatRateRegExp).nullable(),
+  "vat_amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemLinesItemVatAmountRegExp),
+  "from_location": zod.int().nullable(),
+  "from_location_name": zod.string().nullable()
+})),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int(),
+  "invoice_number": zod.string(),
+  "amount": zod.stringFormat('decimal', listSupplierCreditNotesResponseResultsItemAllocationsItemAmountRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Save an avoir fournisseur: per receipt line a return (kilos leave the stock from `from_location`), a
+ * weight gap (invoiced − accepted) or a price cut per kg (`unit_amount`). It settles its invoice, then the
+ * other open invoices; never edited. Errors on `supplier`, `invoice`, `reason`, `credited_on`, `lines`,
+ * `lines.<index>.<field>`. Owner or manager.
+ */
+
+
+export const createSupplierCreditNoteBodySupplierReferenceDefault = ``;
+export const createSupplierCreditNoteBodySupplierReferenceMax = 50;
+
+
+export const createSupplierCreditNoteBodyLinesItemQuantityMax = 20;
+
+export const createSupplierCreditNoteBodyLinesItemUnitAmountDefault = ``;
+export const createSupplierCreditNoteBodyLinesItemUnitAmountMax = 20;
+
+
+
+
+export const CreateSupplierCreditNoteBody = zod.object({
+  "supplier": zod.int().min(1),
+  "invoice": zod.int().min(1).nullish(),
+  "credited_on": zod.iso.date(),
+  "reason": zod.string(),
+  "supplier_reference": zod.string().max(createSupplierCreditNoteBodySupplierReferenceMax).default(createSupplierCreditNoteBodySupplierReferenceDefault),
+  "lines": zod.array(zod.object({
+  "receipt_line": zod.int().min(1),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.string().max(createSupplierCreditNoteBodyLinesItemQuantityMax),
+  "unit_amount": zod.string().max(createSupplierCreditNoteBodyLinesItemUnitAmountMax).default(createSupplierCreditNoteBodyLinesItemUnitAmountDefault),
+  "from_location": zod.int().min(1).nullish()
+}))
+})
+
+export const createSupplierCreditNoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseAppliedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemUnitAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createSupplierCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierCreditNoteResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateSupplierCreditNoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "invoice": zod.int().nullable(),
+  "invoice_number": zod.string().nullable(),
+  "credited_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "reason": zod.string(),
+  "total_excl_tax": zod.stringFormat('decimal', createSupplierCreditNoteResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', createSupplierCreditNoteResponseVatTotalRegExp),
+  "total": zod.stringFormat('decimal', createSupplierCreditNoteResponseTotalRegExp),
+  "applied_amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseAppliedAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "receipt_line": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "product_name": zod.string(),
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemQuantityRegExp),
+  "unit_amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemUnitAmountRegExp),
+  "amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemVatRateRegExp).nullable(),
+  "vat_amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseLinesItemVatAmountRegExp),
+  "from_location": zod.int().nullable(),
+  "from_location_name": zod.string().nullable()
+})),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int(),
+  "invoice_number": zod.string(),
+  "amount": zod.stringFormat('decimal', createSupplierCreditNoteResponseAllocationsItemAmountRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+export const GetSupplierCreditNoteParams = zod.object({
+  "credit_note_id": zod.int()
+})
+
+export const getSupplierCreditNoteResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseAppliedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemUnitAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseLinesItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getSupplierCreditNoteResponseLinesItemVatAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierCreditNoteResponseAllocationsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetSupplierCreditNoteResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string()
+}).describe('A supplier or a product, as shown on a receipt.'),
+  "invoice": zod.int().nullable(),
+  "invoice_number": zod.string().nullable(),
+  "credited_on": zod.iso.date(),
+  "supplier_reference": zod.string(),
+  "reason": zod.string(),
+  "total_excl_tax": zod.stringFormat('decimal', getSupplierCreditNoteResponseTotalExclTaxRegExp),
+  "vat_total": zod.stringFormat('decimal', getSupplierCreditNoteResponseVatTotalRegExp),
+  "total": zod.stringFormat('decimal', getSupplierCreditNoteResponseTotalRegExp),
+  "applied_amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseAppliedAmountRegExp),
+  "lines": zod.array(zod.object({
+  "id": zod.int(),
+  "receipt_line": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "product_name": zod.string(),
+  "batch": zod.int(),
+  "batch_number": zod.string(),
+  "kind": zod.enum(['return', 'weight', 'price']).describe('* `return` - Retour de marchandise\n* `weight` - Écart de poids facturé\n* `price` - Remise ou écart de prix'),
+  "quantity": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemQuantityRegExp),
+  "unit_amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemUnitAmountRegExp),
+  "amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemAmountRegExp),
+  "vat_rate": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemVatRateRegExp).nullable(),
+  "vat_amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseLinesItemVatAmountRegExp),
+  "from_location": zod.int().nullable(),
+  "from_location_name": zod.string().nullable()
+})),
+  "allocations": zod.array(zod.object({
+  "invoice": zod.int(),
+  "invoice_number": zod.string(),
+  "amount": zod.stringFormat('decimal', getSupplierCreditNoteResponseAllocationsItemAmountRegExp)
+})),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * The supplier's receipt lines an avoir may still credit, newest first; with `invoice`, only its own.
+ */
+
+
+
+
+export const ListCreditableReceiptLinesQueryParams = zod.object({
+  "invoice": zod.int().min(1).optional(),
+  "supplier": zod.int().min(1)
+})
+
+export const listCreditableReceiptLinesResponseInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseWeightGapRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseReturnedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listCreditableReceiptLinesResponseAmountLeftRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListCreditableReceiptLinesResponseItem = zod.object({
+  "receipt_line_id": zod.int(),
+  "receipt_id": zod.int(),
+  "receipt_number": zod.string(),
+  "received_on": zod.iso.date(),
+  "invoice_id": zod.int().nullable(),
+  "invoice_number": zod.string(),
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_id": zod.int(),
+  "product_name": zod.string(),
+  "invoiced_quantity": zod.stringFormat('decimal', listCreditableReceiptLinesResponseInvoicedQuantityRegExp),
+  "accepted_quantity": zod.stringFormat('decimal', listCreditableReceiptLinesResponseAcceptedQuantityRegExp),
+  "unit_cost": zod.stringFormat('decimal', listCreditableReceiptLinesResponseUnitCostRegExp),
+  "with_vat": zod.boolean(),
+  "weight_gap": zod.stringFormat('decimal', listCreditableReceiptLinesResponseWeightGapRegExp),
+  "returned": zod.stringFormat('decimal', listCreditableReceiptLinesResponseReturnedRegExp),
+  "amount_left": zod.stringFormat('decimal', listCreditableReceiptLinesResponseAmountLeftRegExp)
+})
+export const ListCreditableReceiptLinesResponse = zod.array(ListCreditableReceiptLinesResponseItem)
+
+
+/**
+ * Per supplier, kilos invoiced above what was accepted and not claimed yet, the biggest amount first.
+ */
+export const listSupplierWeightGapsResponseQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listSupplierWeightGapsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListSupplierWeightGapsResponseItem = zod.object({
+  "supplier_id": zod.int(),
+  "supplier_name": zod.string(),
+  "lines": zod.int(),
+  "quantity": zod.stringFormat('decimal', listSupplierWeightGapsResponseQuantityRegExp),
+  "amount": zod.stringFormat('decimal', listSupplierWeightGapsResponseAmountRegExp)
+})
+export const ListSupplierWeightGapsResponse = zod.array(ListSupplierWeightGapsResponseItem)
 
 
 /**
@@ -21252,6 +22379,7 @@ export const listSupplierInvoicesResponseResultsItemTotalExclTaxRegExp = new Reg
 export const listSupplierInvoicesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemPaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21281,6 +22409,7 @@ export const ListSupplierInvoicesResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21324,6 +22453,7 @@ export const createSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const createSupplierInvoiceBodyNotesDefault = ``;
 export const createSupplierInvoiceBodyFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceBodyPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceBodyPostDefault = false;
 export const createSupplierInvoiceBodyApplyAdvancesDefault = false;
 
@@ -21334,6 +22464,7 @@ export const CreateSupplierInvoiceBody = zod.object({
   "supplier_reference": zod.string().max(createSupplierInvoiceBodySupplierReferenceMax).default(createSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(createSupplierInvoiceBodyNotesDefault),
   "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceBodyFiscalStampRegExp).nullish(),
+  "paper_total": zod.stringFormat('decimal', createSupplierInvoiceBodyPaperTotalRegExp).nullish(),
   "post": zod.boolean().default(createSupplierInvoiceBodyPostDefault),
   "supplier": zod.int().min(1),
   "apply_advances": zod.boolean().default(createSupplierInvoiceBodyApplyAdvancesDefault)
@@ -21343,6 +22474,7 @@ export const createSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\
 export const createSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21368,6 +22500,7 @@ export const CreateSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', createSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', createSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', createSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', createSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21408,6 +22541,7 @@ export const getSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0
 export const getSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21433,6 +22567,7 @@ export const GetSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', getSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', getSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', getSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21479,6 +22614,7 @@ export const updateSupplierInvoiceBodySupplierReferenceMax = 50;
 
 export const updateSupplierInvoiceBodyNotesDefault = ``;
 export const updateSupplierInvoiceBodyFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceBodyPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceBodyPostDefault = false;
 
 export const UpdateSupplierInvoiceBody = zod.object({
@@ -21488,6 +22624,7 @@ export const UpdateSupplierInvoiceBody = zod.object({
   "supplier_reference": zod.string().max(updateSupplierInvoiceBodySupplierReferenceMax).default(updateSupplierInvoiceBodySupplierReferenceDefault),
   "notes": zod.string().default(updateSupplierInvoiceBodyNotesDefault),
   "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceBodyFiscalStampRegExp).nullish(),
+  "paper_total": zod.stringFormat('decimal', updateSupplierInvoiceBodyPaperTotalRegExp).nullish(),
   "post": zod.boolean().default(updateSupplierInvoiceBodyPostDefault)
 })
 
@@ -21495,6 +22632,7 @@ export const updateSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\
 export const updateSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21520,6 +22658,7 @@ export const UpdateSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', updateSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', updateSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -21636,6 +22775,7 @@ export const postSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{
 export const postSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseReceiptsItemAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -21661,6 +22801,7 @@ export const PostSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', postSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', postSupplierInvoiceResponseTotalRegExp),
+  "paper_total": zod.stringFormat('decimal', postSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', postSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', postSupplierInvoiceResponseOutstandingRegExp),
   "is_overdue": zod.boolean().describe('Posted, not fully paid, and its due date has passed.'),
@@ -22356,6 +23497,9 @@ export const ListSuppliersResponseItem = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(listSuppliersResponseContactsItemNameMax),
   "role": zod.string().max(listSuppliersResponseContactsItemRoleMax).default(listSuppliersResponseContactsItemRoleDefault),
@@ -22394,6 +23538,13 @@ export const createSupplierBodyCityMax = 100;
 export const createSupplierBodyNotesDefault = ``;
 export const createSupplierBodyNotesMax = 2000;
 
+export const createSupplierBodyPaymentTermsDaysMin = 0;
+export const createSupplierBodyPaymentTermsDaysMax = 365;
+
+export const createSupplierBodyBuysWithVatDefault = false;
+export const createSupplierBodyHealthApprovalDefault = ``;
+export const createSupplierBodyHealthApprovalMax = 50;
+
 export const createSupplierBodyContactsItemNameMax = 150;
 
 export const createSupplierBodyContactsItemRoleDefault = ``;
@@ -22418,6 +23569,9 @@ export const CreateSupplierBody = zod.object({
   "address": zod.string().max(createSupplierBodyAddressMax).default(createSupplierBodyAddressDefault),
   "city": zod.string().max(createSupplierBodyCityMax).default(createSupplierBodyCityDefault),
   "notes": zod.string().max(createSupplierBodyNotesMax).default(createSupplierBodyNotesDefault),
+  "payment_terms_days": zod.int().min(createSupplierBodyPaymentTermsDaysMin).max(createSupplierBodyPaymentTermsDaysMax).nullish(),
+  "buys_with_vat": zod.boolean().default(createSupplierBodyBuysWithVatDefault),
+  "health_approval": zod.string().max(createSupplierBodyHealthApprovalMax).default(createSupplierBodyHealthApprovalDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierBodyContactsItemNameMax),
   "role": zod.string().max(createSupplierBodyContactsItemRoleMax).default(createSupplierBodyContactsItemRoleDefault),
@@ -22451,6 +23605,9 @@ export const CreateSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierResponseContactsItemNameMax),
   "role": zod.string().max(createSupplierResponseContactsItemRoleMax).default(createSupplierResponseContactsItemRoleDefault),
@@ -22491,6 +23648,9 @@ export const GetSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(getSupplierResponseContactsItemNameMax),
   "role": zod.string().max(getSupplierResponseContactsItemRoleMax).default(getSupplierResponseContactsItemRoleDefault),
@@ -22532,6 +23692,13 @@ export const updateSupplierBodyCityMax = 100;
 export const updateSupplierBodyNotesDefault = ``;
 export const updateSupplierBodyNotesMax = 2000;
 
+export const updateSupplierBodyPaymentTermsDaysMin = 0;
+export const updateSupplierBodyPaymentTermsDaysMax = 365;
+
+export const updateSupplierBodyBuysWithVatDefault = false;
+export const updateSupplierBodyHealthApprovalDefault = ``;
+export const updateSupplierBodyHealthApprovalMax = 50;
+
 export const updateSupplierBodyContactsItemNameMax = 150;
 
 export const updateSupplierBodyContactsItemRoleDefault = ``;
@@ -22556,6 +23723,9 @@ export const UpdateSupplierBody = zod.object({
   "address": zod.string().max(updateSupplierBodyAddressMax).default(updateSupplierBodyAddressDefault),
   "city": zod.string().max(updateSupplierBodyCityMax).default(updateSupplierBodyCityDefault),
   "notes": zod.string().max(updateSupplierBodyNotesMax).default(updateSupplierBodyNotesDefault),
+  "payment_terms_days": zod.int().min(updateSupplierBodyPaymentTermsDaysMin).max(updateSupplierBodyPaymentTermsDaysMax).nullish(),
+  "buys_with_vat": zod.boolean().default(updateSupplierBodyBuysWithVatDefault),
+  "health_approval": zod.string().max(updateSupplierBodyHealthApprovalMax).default(updateSupplierBodyHealthApprovalDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierBodyContactsItemNameMax),
   "role": zod.string().max(updateSupplierBodyContactsItemRoleMax).default(updateSupplierBodyContactsItemRoleDefault),
@@ -22589,6 +23759,9 @@ export const UpdateSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierResponseContactsItemNameMax),
   "role": zod.string().max(updateSupplierResponseContactsItemRoleMax).default(updateSupplierResponseContactsItemRoleDefault),
@@ -22632,6 +23805,9 @@ export const ArchiveSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(archiveSupplierResponseContactsItemNameMax),
   "role": zod.string().max(archiveSupplierResponseContactsItemRoleMax).default(archiveSupplierResponseContactsItemRoleDefault),
@@ -22672,6 +23848,9 @@ export const RestoreSupplierResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "notes": zod.string(),
+  "payment_terms_days": zod.int().nullable(),
+  "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(restoreSupplierResponseContactsItemNameMax),
   "role": zod.string().max(restoreSupplierResponseContactsItemRoleMax).default(restoreSupplierResponseContactsItemRoleDefault),
@@ -22713,6 +23892,83 @@ export const ResolveSyncProblemResponse = zod.object({
   "driver_name": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "resolved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * The temperature log (HACCP), newest first, paginated; filter by place, days, or alerts only.
+ */
+
+export const listTemperatureReadingsQueryOutOfRangeDefault = false;
+
+export const ListTemperatureReadingsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "location": zod.int().min(1).optional(),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "out_of_range": zod.boolean().default(listTemperatureReadingsQueryOutOfRangeDefault)
+})
+
+export const listTemperatureReadingsResponseResultsItemCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const ListTemperatureReadingsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', listTemperatureReadingsResponseResultsItemCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+ * Owner or manager; a driver writes their truck's from the phone.
+ */
+
+export const recordTemperatureBodyCelsiusMax = 10;
+
+export const recordTemperatureBodyNoteDefault = ``;
+export const recordTemperatureBodyNoteMax = 255;
+
+
+
+export const RecordTemperatureBody = zod.object({
+  "location": zod.int().min(1),
+  "celsius": zod.string().max(recordTemperatureBodyCelsiusMax),
+  "taken_at": zod.iso.datetime({"offset":true}).nullish(),
+  "note": zod.string().max(recordTemperatureBodyNoteMax).default(recordTemperatureBodyNoteDefault)
+})
+
+export const recordTemperatureResponseCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const RecordTemperatureResponse = zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', recordTemperatureResponseCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 
@@ -22774,6 +24030,7 @@ export const ListTransfersResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -22887,6 +24144,7 @@ export const CreateTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -22980,6 +24238,7 @@ export const GetTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23123,6 +24382,7 @@ export const UpdateTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23216,6 +24476,7 @@ export const CancelTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23311,6 +24572,7 @@ export const ValidateTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23402,6 +24664,169 @@ export const GetTruckDayResponse = zod.object({
   "amount": zod.stringFormat('decimal', getTruckDayResponseLinesItemAmountRegExp).nullable()
 })),
   "amount": zod.stringFormat('decimal', getTruckDayResponseAmountRegExp)
+})
+
+
+/**
+ * Transformations (cleaning, filleting, downgrading), newest first, paginated; `batch` keeps one lot's.
+ */
+
+export const listTransformationsQuerySearchDefault = ``;
+export const listTransformationsQuerySearchMax = 100;
+
+
+
+export const ListTransformationsQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listTransformationsQuerySearchMax).default(listTransformationsQuerySearchDefault)
+})
+
+export const listTransformationsResponseResultsItemSourceBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemSourceQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemOutputBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemOutputQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemWeightLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemFeeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListTransformationsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "done_on": zod.iso.date(),
+  "source_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', listTransformationsResponseResultsItemSourceBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "source_quantity": zod.stringFormat('decimal', listTransformationsResponseResultsItemSourceQuantityRegExp),
+  "output_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', listTransformationsResponseResultsItemOutputBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "output_quantity": zod.stringFormat('decimal', listTransformationsResponseResultsItemOutputQuantityRegExp),
+  "weight_lost": zod.stringFormat('decimal', listTransformationsResponseResultsItemWeightLostRegExp),
+  "fee": zod.stringFormat('decimal', listTransformationsResponseResultsItemFeeRegExp),
+  "fee_note": zod.string(),
+  "notes": zod.string(),
+  "supplier_name": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+ * cost per kg. Errors on each field. Owner or manager.
+ */
+
+
+export const createTransformationBodySourceQuantityMax = 20;
+
+
+export const createTransformationBodyOutputQuantityMax = 20;
+
+export const createTransformationBodyFeeDefault = `0`;
+export const createTransformationBodyFeeMax = 20;
+
+export const createTransformationBodyFeeNoteDefault = ``;
+export const createTransformationBodyFeeNoteMax = 255;
+
+export const createTransformationBodyNotesDefault = ``;
+
+export const CreateTransformationBody = zod.object({
+  "location": zod.int().min(1),
+  "source_batch": zod.int().min(1),
+  "source_quantity": zod.string().max(createTransformationBodySourceQuantityMax),
+  "output_product": zod.int().min(1),
+  "output_quantity": zod.string().max(createTransformationBodyOutputQuantityMax),
+  "done_on": zod.iso.date(),
+  "fee": zod.string().max(createTransformationBodyFeeMax).default(createTransformationBodyFeeDefault),
+  "fee_note": zod.string().max(createTransformationBodyFeeNoteMax).default(createTransformationBodyFeeNoteDefault),
+  "use_by": zod.iso.date().nullish(),
+  "notes": zod.string().default(createTransformationBodyNotesDefault)
+})
+
+export const createTransformationResponseSourceBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseSourceQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseOutputBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseOutputQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseWeightLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseFeeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateTransformationResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "done_on": zod.iso.date(),
+  "source_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', createTransformationResponseSourceBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "source_quantity": zod.stringFormat('decimal', createTransformationResponseSourceQuantityRegExp),
+  "output_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', createTransformationResponseOutputBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "output_quantity": zod.stringFormat('decimal', createTransformationResponseOutputQuantityRegExp),
+  "weight_lost": zod.stringFormat('decimal', createTransformationResponseWeightLostRegExp),
+  "fee": zod.stringFormat('decimal', createTransformationResponseFeeRegExp),
+  "fee_note": zod.string(),
+  "notes": zod.string(),
+  "supplier_name": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 

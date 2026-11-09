@@ -1143,6 +1143,46 @@ def _by_delivery_uuid(organization: Organization, delivery_uuid: uuid.UUID | Non
     return Sale.objects.for_organization(organization).filter(delivery_uuid=delivery_uuid).first()
 
 
+@transaction.atomic
+def issue_sale(*, sale: Sale, actor: User | None) -> Sale:
+    """Validate a direct BL "à livrer" (D-305, bug 11): it takes its BL number and becomes version 1, printed and
+    taken to the client, but nothing leaves the stock yet. The kilos leave at the delivery (`deliver_sale`, as written
+    or changed at the door), or never ("non livré", `cancel_delivery`). A counter sale is still confirmed at once.
+
+    Refused for a BL of a truck load (validated at the load), a sale held for credit approval, or a line asking more
+    than its place holds now (not expired, D-299): the stock is checked again at the delivery."""
+    sale = _locked_draft_sale(sale)
+    if sale.transfer_id is not None or sale.delivery_status:
+        raise ValidationError(_("Ce bon est déjà validé pour la livraison."))
+    if sale.credit_status == CreditStatus.PENDING:
+        raise ValidationError(_("Cette vente attend l'accord de crédit : faites-la approuver d'abord."))
+    errors = _sale_header_errors(sale.organization, sale.customer, sale.location, sale.sold_at)
+    lines = list(sale.lines.order_by("id"))
+    if not lines:
+        errors["lines"] = _("Ajoutez au moins un produit.")
+    held = {
+        row["product_id"]: row["quantity"]
+        for row in inventory_selectors.location_stock(
+            sale.organization, location_id=sale.location_id, sellable_on=timezone.localdate()
+        )
+    }
+    asked: dict[int, Decimal] = {}
+    for index, line in enumerate(lines):
+        asked[line.product_id] = asked.get(line.product_id, Decimal("0.000")) + line.quantity
+        available = held.get(line.product_id, Decimal("0.000"))
+        if asked[line.product_id] > available:
+            errors[line_error_key(index, "quantity")] = _(
+                "Stock insuffisant : %(available)s kg à « %(location)s »."
+            ) % {
+                "available": available,
+                "location": sale.location.name,
+            }
+    if errors:
+        raise ValidationError(errors)
+    _issue_load_bl(sale, actor)
+    return sale
+
+
 def delivery_by_uuid(organization: Organization, delivery_uuid: uuid.UUID | None) -> Sale | None:
     """The BL a phone already delivered (or gave up) with this `delivery_uuid`, for its retry."""
     return _by_delivery_uuid(organization, delivery_uuid)

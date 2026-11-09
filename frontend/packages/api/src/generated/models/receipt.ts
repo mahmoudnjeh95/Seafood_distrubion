@@ -21,10 +21,16 @@ export interface Receipt {
   readonly received_on: string;
   readonly supplier_reference: string;
   readonly with_vat: boolean;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,1})?$
+     */
+  readonly arrival_temperature: string | null;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly arrival_temperature_out_of_range: string;
   readonly notes: string;
   readonly lines: readonly ReceiptLine[];
   readonly has_differences: boolean;
-  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly invoiced_total: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly invoiced_vat: string;

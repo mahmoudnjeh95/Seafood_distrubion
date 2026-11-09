@@ -173,8 +173,8 @@ _(client document "Frutti_Del_Mare_13_bugs_avec_captures.docx"; screenshots befo
       existing numbers are MF; the documents print the matching label.
 - [x] 10 A generated client invoice opens at once with its reference and a success message; on failure the page
       and the ticked BL stay.
-- [ ] 11 One delivery cycle for every BL (À livrer, Partiellement livré, Livré, Annulé; stock out at the delivery):
-      not done (changes when a direct BL takes the stock out: owner decision).
+- [x] 11 One delivery cycle for every BL (À livrer, Partiellement livré, Livré, Annulé; stock out at the delivery):
+      owner answer 2026-11-08, built in P1-T26 (D-305); counter sales stay delivered at once.
 - [x] 12 Opening balances (OUV) out of the BL list, their own page Trésorerie › Soldes d'ouverture and their own
       detail page (no delivery, no invoice, no margin). Still stored as `Sale(is_opening=True)`: no data moved.
 - [x] 13 Optional draft prefix per document with a draft step (quote, BL, invoice, supplier invoice) with its own

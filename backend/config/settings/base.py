@@ -223,6 +223,8 @@ SPECTACULAR_SETTINGS = {
         "PaymentMethodEnum": "apps.purchasing.models.LINE_METHOD_CHOICES",
         "SupplierPaymentMethodEnum": "apps.purchasing.models.PaymentMethod",
         "PurchaseOrderStatusEnum": "apps.purchasing.models.PurchaseOrderStatus",
+        "SupplierCreditKindEnum": "apps.purchasing.models.SupplierCreditKind",
+        "ProductionMethodEnum": "apps.inventory.models.ProductionMethod",
         "FieldPurchaseStatusEnum": "apps.purchasing.models.FieldPurchaseStatus",
         "PaymentTermsEnum": "apps.purchasing.models.PaymentTerms",
         "FieldPurchaseActionEnum": "apps.purchasing.models.FieldPurchaseAction",

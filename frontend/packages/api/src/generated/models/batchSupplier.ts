@@ -9,4 +9,5 @@ export interface BatchSupplier {
   readonly id: number;
   readonly reference: string;
   readonly name: string;
+  readonly health_approval: string;
 }

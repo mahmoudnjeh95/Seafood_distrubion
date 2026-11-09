@@ -4083,3 +4083,89 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 **D-298 · A customer write-off has a motif; an irrecoverable debt asks for its evidence (P11-T15, review E2)** · accepted · 2026-11-09
 - `CustomerBalanceWriteOff.ground`: `gap` (écart de règlement ou geste commercial, the default and every existing row) or `irrecoverable` (créance irrécouvrable). Asked in the write-off dialog for a customer balance and an invoice gap; a supplier write-off is a gain and asks nothing.
 - The evidence is not required at the write-off: a judgment or a bailiff's report often comes later. It is attached afterwards (new attachment kind `customer_write_off`, D-288) from the client's "Remises à zéro" list, and the row reads "Justificatif manquant" while an irrecoverable write-off has no file. The tax deductibility of the loss is the accountant's call, not checked by the app.
+
+**D-299 · First to expire leaves first; an expired lot is never sold nor loaded (gap review, P1-T20)** · accepted (owner answers 2026-11-08) · 2026-11-08
+- Review of purchases, sales and stock in `docs/guides/purchase-sales-stock-review-2026-11-08.md`; the owner wants every
+  gap (tasks P1-T20 to P1-T27).
+- Picking order is FEFO: earliest `use_by` first, then the oldest receipt, then the id (`inventory.selectors.PICK_ORDER`,
+  `pick_order_key`). A lot without a use-by date comes after every dated lot. Costing is unchanged: each kilo keeps its
+  own lot's cost (Q7). `Batch.Meta.ordering` and `batches_oldest_first` stay by receipt (lists, not picking).
+- Expired = `use_by` before the movement's day; the use-by day itself still sells. `post_fifo_movements(skip_expired)`
+  defaults to on for sales; transfers ask it for a truck load only. Returns from a truck, moves between rooms and losses
+  still take expired kilos (the only way out is a loss). A hand-picked expired lot is refused, never silently replaced.
+- A sale synced late (D-133) is checked against its own day, so a sale made before the lot expired still posts.
+- The pickers and the driver's stock (`location_stock(sellable_on=today)`) leave expired lots out. Owner chose "block
+  always": no override.
+
+**D-300 · Supplier credit notes (avoirs fournisseurs) with returns, weight claims and price cuts (P1-T21)** · accepted · 2026-11-08
+- One document for the three cases (`purchasing.SupplierCreditNote`, number kind `supplier_credit_note`, AVF yearly):
+  each line names a receipt line and a kind: `return` (kg × the receipt's cost, posts a `supplier_return` movement from
+  a place picked on the line), `weight` (kg up to invoiced − accepted − already claimed, nothing moves) or `price`
+  (kg × a cut per kg up to the cost). A line never credits more than its invoiced amount less earlier credits.
+- VAT comes back only for a receipt bought with VAT, at the rate the invoice used (D-294), rounded once per rate. No
+  stamp on an avoir (provisional; the accountant may say otherwise).
+- The invoice is optional (goods sent back before they were invoiced). Settlement mirrors the write-off (D-252):
+  `SupplierCreditAllocation` rows on its invoice first, then the open invoices oldest due first; what is left settles
+  the next invoice when it is posted (`_post`). `_paid_on`, `invoices_of.paid_amount`, `supplier_balance` (new
+  `credited`, `credit_unapplied`) and the supplier statement count it.
+- Lot result: a return already lowers the purchase cost through kg returned (engine); a price cut is a negative cost
+  row `supplier_credit`; a weight gap was never in the lot cost (cost = accepted kg). Returns and price cuts are refused
+  on a lot already settled with its partner.
+- Saved once, never edited nor deleted, by the owner or the manager, audited (`supplier_credit_note.created`).
+
+**D-301 · A supplier's usual deal, and the total typed from the supplier's paper (P1-T22)** · accepted · 2026-11-08
+- `Supplier.payment_terms_days` (nullable, 0 to 365; empty means the 30-day default of D-043) and
+  `Supplier.buys_with_vat` only propose values on the forms (due date, "Achat avec TVA"); every receipt and invoice
+  keeps its own, so changing the supplier never changes a saved document (migration `partners 0007`).
+- `SupplierInvoice.paper_total` (nullable, migration `purchasing 0027`): the total printed on the supplier's invoice.
+  A difference with the computed total is shown, never applied nor blocking: what we owe comes from the receipts
+  (D-039); a real difference is settled by correcting the receipt (D-269) or by a supplier credit note (D-300).
+
+**D-302 · Where a lot comes from, and its recall sheet (P1-T23)** · accepted · 2026-11-09
+- Origin is information, not value: `Product.scientific_name`, `Supplier.health_approval`, and on the lot
+  `catch_area` (free text: an FAO zone such as 37.2.2, or a farm), `production_method` (wild, farmed, or empty) and
+  `origin` (boat or port). Migrations `catalog 0008`, `inventory 0014`, `partners 0008`.
+- Unlike the lot's cost (D-269), the origin may be completed or corrected at any time (`update_lot_origin`, audited):
+  a lot often arrives before its papers. The receipt form types it once for the whole delivery and copies it onto
+  every line's lot.
+- The BL prints, under each line, the origin of the lots it took (`printing.lot_origin_text`); nothing prints when
+  nothing is known, so a BL without origin looks as before.
+- The recall sheet (`sales.selectors.recall_customers`, `GET /batches/{id}/recall`) lists the customers who kept kilos
+  (sold − returned by credit notes), the most first, with phone, city, dates and BL numbers, and the places that still
+  hold the lot. Printed from the browser; no PDF yet.
+
+**D-303 · Cold-chain readings with a range per place (P1-T24)** · accepted · 2026-11-09
+- A cold room or a truck carries the range it must keep (`StockLocation.temp_min`, `temp_max`, °C with one decimal,
+  either end open). Products keep their own storage range (P1-T01); the place's range is what the readings check.
+- `inventory.TemperatureReading` is append-only (HACCP log): place, moment, °C, note, who, `out_of_range` frozen at
+  the reading (a later change of the range does not rewrite the log), `client_uuid` for the phone's retries.
+- Owner and manager note readings in the office; a driver notes their truck's (`POST /my-truck/temperature`), online
+  only for now. Every reading outside the range tells the whole office (`tell_office_of`, kind `temperature_alert`).
+- `GoodsReceipt.arrival_temperature` is information only: the receipt page shows it red when it is outside one of its
+  products' storage range; it refuses nothing (the office decides, and may contest the receipt, D-285).
+- Migrations `inventory 0015`, `purchasing 0028`.
+
+**D-304 · Transformations: a new lot whose cost carries the source kilos, the fee and the weight lost (P1-T25)** · accepted, partner lots provisional · 2026-11-09
+- Owner answer 2026-11-08: transformations are wanted, with a transformation fee that the system adds to the new
+  product's cost. `inventory.Transformation` (number kind `transformation`, TF) takes kg of one lot at one place and
+  creates a new lot of the output product at that place; unit cost = (kg taken × source cost + fee) / kg obtained,
+  rounded to the millime. Never more kg obtained than taken.
+- The new lot keeps the source lot's supplier, receipt day (its place in FEFO/FIFO when it has no use-by date), VAT
+  (D-202) and origin (D-302); its use-by date is typed or the source's.
+- Two movement kinds, `transformation_out` (from the place) and `transformation_in` (to it). The lot result counts
+  `transformation_out` like a supplier return (no longer the source's cost) and `transformation_in` as kg received;
+  the month roll-forward lists both; `transformation_out` makes the source lot "valued" (its cost no longer changes).
+- The fee is only a cost of the new lot (it reaches the month result through the cost of goods sold); paying someone
+  for it is not recorded here. Provisional (Q30): a lot shared with a partner cannot be transformed, and an expired
+  lot never is.
+
+**D-305 · A direct BL is validated "à livrer" and takes its stock out at the delivery (bug 11, P1-T26)** · accepted (owner answer 2026-11-08) · 2026-11-09
+- Owner: "At delivery" for every BL; counter sales are delivered at once. A direct office BL (from a cold room selling
+  at the counter, no truck load) gets `issue_sale`: the same step a load's BL takes at the load (D-178, `_issue_load_bl`):
+  BL number, version 1, `delivery_status` "to_deliver", status still draft, nothing posted.
+- The delivery reuses `deliver_sale` (as written, or kg per line, zero removes a product; the BL takes a new version
+  when changed) and `cancel_delivery` ("non livré"), now also from the office (`POST /sales/{id}/deliver`,
+  `/not-delivered`, owner or manager). `confirm_sale` on a BL to deliver still means "livré as written".
+- The office's immediate validation stays for the counter ("Livré tout de suite (comptoir)", same service).
+- Stock is checked at "à livrer" (sellable kg, D-299) and again at the delivery; nothing is reserved between the two
+  (provisional: reservations would need a new ledger state).

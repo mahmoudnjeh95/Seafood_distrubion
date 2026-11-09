@@ -12,6 +12,8 @@ import { LotPartnerPill } from "../partnerships/LotPartnerPill";
 import { PartnershipSection } from "../partnerships/PartnershipSection";
 import { canReadResults } from "../partnerships/shared";
 import { BatchSalesSection } from "../sales/BatchSalesSection";
+import { canRecordReceipts } from "../receipts/shared";
+import { LotOriginCard } from "./LotOriginCard";
 import { MovementsTable } from "./MovementsTable";
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -90,6 +92,12 @@ export function BatchStockPage() {
           </Detail>
         </dl>
       </Card>
+
+      <LotOriginCard
+        key={`${data.catch_area}|${data.production_method}|${data.origin}`}
+        batch={data}
+        canEdit={canRecordReceipts(session)}
+      />
 
       {/* P6-T01 / P6-T02: the owner's and accountant's view of the lot's partner and result */}
       {canReadResults(session) && (

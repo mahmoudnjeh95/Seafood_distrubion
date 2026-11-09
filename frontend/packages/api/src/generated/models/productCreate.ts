@@ -13,6 +13,8 @@ export interface ProductCreate {
   name: string;
   /** @maxLength 150 */
   name_ar?: string;
+  /** @maxLength 150 */
+  scientific_name?: string;
   category: number;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */
   min_stock?: string;

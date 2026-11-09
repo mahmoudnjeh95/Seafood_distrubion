@@ -1,6 +1,13 @@
 import { ApiError, type ReceiptLine, useGetReceipt } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatQuantity,
+  formatTemperature,
+  useTranslation,
+} from "@frutti/i18n";
 import { Button, Card, CardTitle, cn, Dialog, EmptyState, Icon, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -167,6 +174,16 @@ export function ReceiptDetailPage() {
           </Detail>
           <Detail label={t("admin.receipts.detail.supplierReference")} numeric>
             {data.supplier_reference || none}
+          </Detail>
+          <Detail label={t("admin.receipts.form.arrivalTemperature")} numeric>
+            {data.arrival_temperature === null ? (
+              none
+            ) : (
+              <span className={cn(data.arrival_temperature_out_of_range && "font-semibold text-bad")}>
+                {formatTemperature(data.arrival_temperature)}
+                {data.arrival_temperature_out_of_range && ` · ${t("admin.receipts.detail.tooWarm")}`}
+              </span>
+            )}
           </Detail>
           <Detail label={t("admin.receipts.detail.createdBy")}>{data.created_by || none}</Detail>
           <Detail label={t("admin.receipts.detail.purchaseOrder")} numeric>

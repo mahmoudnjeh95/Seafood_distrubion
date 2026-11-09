@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from apps.dayclose.models import DayClosing, SyncProblem
     from apps.expenses.models import Expense
     from apps.fleet.models import DriverDay, TruckAssignment
-    from apps.inventory.models import StockLoss, Transfer
+    from apps.inventory.models import StockLoss, TemperatureReading, Transfer
     from apps.maintenance.models import OdometerReading
     from apps.partners.models import Customer
     from apps.purchasing.models import FieldPurchase
@@ -96,6 +96,21 @@ def _loss_recorded(entry: AuditLog) -> None:
     kind = "loss_waiting" if loss.status == "pending" else "loss_recorded"
     params = {"number": loss.number, "product": loss.product.name, "quantity": f"{loss.quantity:.3f}"}
     _office(entry, kind, params, f"/stock/pertes/{loss.pk}")
+
+
+def _temperature_recorded(entry: AuditLog) -> None:
+    """A reading outside the place's range tells the office at once (D-303)."""
+    reading = cast("TemperatureReading", entry.target)
+    if not reading.out_of_range:
+        return
+    # Whoever read it, a driver or the office: the whole office must know (D-303).
+    services.tell_office_of(
+        organization=entry.organization,
+        actor=entry.actor,
+        kind="temperature_alert",
+        params={"place": reading.location.name, "celsius": f"{reading.celsius:.1f}"},
+        link="/stock/temperatures",
+    )
 
 
 def _odometer_recorded(entry: AuditLog) -> None:
@@ -259,6 +274,7 @@ RULES: dict[str, Callable[[AuditLog], None]] = {
     "expense.created": _expense_created,
     "loss.recorded": _loss_recorded,
     "odometer.recorded": _odometer_recorded,
+    "temperature.recorded": _temperature_recorded,
     "field_purchase.submitted": _purchase_sent,
     "field_purchase.edited": _purchase_edited,
     "customer.created": _customer_created,

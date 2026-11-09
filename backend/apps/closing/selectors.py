@@ -29,6 +29,9 @@ RECEIPT = "receipt"
 # A correction of what a goods receipt received (D-270): kg received, never written off.
 RECEIPT_CORRECTION = "receipt_correction"
 SUPPLIER_RETURN = "supplier_return"
+# Kilos turned into another lot (D-304): out of this lot's cost, into the new lot's.
+TRANSFORMATION_OUT = "transformation_out"
+TRANSFORMATION_IN = "transformation_in"
 
 # Customer payments exist since P2-T06 (D-062): a lot with a sale still owed money cannot be closed (Q19).
 CUSTOMER_PAYMENTS_BLOCK = True
@@ -70,11 +73,12 @@ def _stock(organization: Organization, batch_id: int) -> _Stock:
     for movement in inventory.movements_of(organization, batch_id=batch_id).order_by("occurred_at", "id"):
         leaves = movement.from_location_id is not None and movement.to_location_id is None
         enters = movement.to_location_id is not None and movement.from_location_id is None
-        if movement.kind == RECEIPT and enters:
+        if movement.kind in (RECEIPT, TRANSFORMATION_IN) and enters:
             received += movement.quantity
         elif movement.kind == RECEIPT_CORRECTION and (leaves or enters):
             received += -movement.quantity if leaves else movement.quantity
-        elif movement.kind == SUPPLIER_RETURN and leaves:
+        elif movement.kind in (SUPPLIER_RETURN, TRANSFORMATION_OUT) and leaves:
+            # Sent back to the supplier, or turned into another lot (D-304): no longer this lot's cost.
             returned += movement.quantity
         elif movement.kind in WRITE_OFF_KINDS and (leaves or enters):
             rows.append(
@@ -169,6 +173,21 @@ def _write_off_rows(organization: Organization, batch_id: int) -> tuple[engine.C
             source_id=share.write_off.supplier_id,
         )
         for share in purchasing.write_off_shares_of_batch(organization, batch_id=batch_id)
+    ]
+    # A price cut the supplier gave on the lot's kilos (avoir fournisseur, D-300): the lot cost less. Returned kilos
+    # are already out of its purchase cost (kg received − returned), and a weight gap was never in it.
+    rows += [
+        engine.CostRow(
+            kind="supplier_credit",
+            on=line.credit_note.credited_on,
+            title=line.credit_note.supplier.name,
+            amount=-line.amount,
+            description=line.credit_note.reason,
+            source_type="supplier_credit_note",
+            source_id=line.credit_note_id,
+            reference=line.credit_note.number,
+        )
+        for line in purchasing.price_credits_of_batch(organization, batch_id=batch_id)
     ]
     return tuple(rows)
 

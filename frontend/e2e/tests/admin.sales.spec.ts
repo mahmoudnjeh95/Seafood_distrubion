@@ -48,7 +48,9 @@ test("a counter sale to the walk-in customer is weighed and confirmed at once, i
   await expect(line.getByLabel("Prix (DT/kg)")).toHaveValue("14,000");
   // No discount nor net price at the counter: the stock is two cells earlier than on the sale form (lot last, D-201).
   await expect(line.getByRole("cell").nth(STOCK_CELL - 2)).toHaveText(/^[\d\s,]+kg$/);
-  await expect(line.getByRole("button", { name: "Lot" })).toHaveText("Lot le plus ancien (FIFO)");
+  await expect(line.getByRole("button", { name: "Lot" })).toHaveText(
+    "Automatique (premier à périmer, puis le plus ancien)",
+  );
   await line.getByLabel("Poids (kg)").fill("1,5");
   await expect(line).toContainText(/21,000\sDT/);
 
@@ -83,7 +85,7 @@ test("a sale is drafted, confirmed, shows on its lot, then is cancelled with a r
   await expect(page.getByRole("note")).toContainText("rien n'est encore sorti du stock");
 
   // Validating the draft makes it the delivery note: VE-2026-0007 becomes BL-2026-0007 (D-095, D-283).
-  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
+  await page.getByRole("button", { name: "Livré tout de suite (comptoir)" }).click();
   // The page shows the draft number until the sale is read again: wait for the BL number.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^BL-\d{4}-\d+$/);
   const number = (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";

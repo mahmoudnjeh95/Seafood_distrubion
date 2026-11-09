@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -16,10 +16,11 @@ from apps.boxes import services as box_services
 from apps.core import audit, numbering
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
-from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total
+from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total, money
 from apps.inventory import selectors as inventory_selectors
 from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
+from apps.partnerships import selectors as partnership_selectors
 from apps.partnerships import services as partnerships
 from apps.sales import selectors as sales_selectors
 from apps.treasury import services as treasury
@@ -50,6 +51,10 @@ from .models import (
     RejectedEffet,
     RejectedRelease,
     SupplierBalanceWriteOff,
+    SupplierCreditAllocation,
+    SupplierCreditKind,
+    SupplierCreditNote,
+    SupplierCreditNoteLine,
     SupplierInvoice,
     SupplierInvoiceReceipt,
     SupplierInvoiceStatus,
@@ -84,6 +89,10 @@ class ReceiptLineFields(TypedDict, total=False):
     accepted_quantity: Number
     unit_cost: Number
     use_by: dt.date | None
+    # Where the fish comes from (D-302), copied onto the lot.
+    catch_area: str
+    production_method: str
+    origin: str
     # The lot is bought together with this supplier (D-100); may be the receipt's own supplier.
     partner: "Supplier | None"
 
@@ -118,6 +127,9 @@ def _checked_line(
         "product": line.get("product"),
         "use_by": line.get("use_by"),
         "partner": line.get("partner"),
+        "catch_area": line.get("catch_area", "") or "",
+        "production_method": line.get("production_method", "") or "",
+        "origin": line.get("origin", "") or "",
     }
     product = checked["product"]
     if product is None or product.organization_id != organization.pk:
@@ -192,6 +204,7 @@ def create_receipt(
     purchase_order: PurchaseOrder | None = None,
     boxes: Mapping[str, int] | None = None,
     with_vat: bool = False,
+    arrival_temperature: Decimal | None = None,
 ) -> GoodsReceipt:
     """Record goods received from a supplier: one batch per line, and its accepted weight into stock.
 
@@ -235,6 +248,7 @@ def create_receipt(
         received_on=received_on,
         supplier_reference=supplier_reference,
         with_vat=with_vat,
+        arrival_temperature=arrival_temperature,
         notes=notes.strip(),
         created_by=actor,
     )
@@ -256,6 +270,9 @@ def create_receipt(
             receipt_reference=supplier_reference or receipt.number,
             use_by=values["use_by"],
             bought_with_vat=with_vat,
+            catch_area=values["catch_area"],
+            production_method=values["production_method"],
+            origin=values["origin"],
         )
         line = GoodsReceiptLine.objects.create(
             organization=organization,
@@ -906,6 +923,18 @@ def _locked_receipts(
     return locked
 
 
+def _checked_paper_total(value: Number | None, errors: dict[str, str]) -> Decimal | None:
+    """The total typed from the supplier's paper (D-301), or None when not typed."""
+    if value is None or value == "":
+        return None
+    try:
+        amount = checked_amount(value)
+    except (ValueError, TypeError) as error:
+        errors["paper_total"] = str(error)
+        return None
+    return amount
+
+
 def _checked_stamp(value: Number | None, errors: dict[str, str]) -> Decimal | None:
     """A typed droit de timbre, or None when none was typed (the default applies)."""
     if value in (None, ""):
@@ -970,6 +999,7 @@ def _invoice_snapshot(invoice: SupplierInvoice) -> dict[str, Any]:
         "vat_total": str(invoice.vat_total),
         "fiscal_stamp": str(invoice.fiscal_stamp),
         "total": str(invoice.total),
+        "paper_total": None if invoice.paper_total is None else str(invoice.paper_total),
         "receipts": {link.receipt.number: str(link.amount) for link in links},
     }
 
@@ -996,6 +1026,8 @@ def _post(invoice: SupplierInvoice, actor: User | None) -> None:
         target=invoice,
         after=_invoice_snapshot(invoice),
     )
+    # A credit note the supplier gave before this invoice settles it first (D-300).
+    _apply_credits(invoice, selectors.unapplied_credit_notes(invoice.organization, supplier_id=invoice.supplier_id))
 
 
 def _locked_draft(invoice: SupplierInvoice) -> SupplierInvoice:
@@ -1022,6 +1054,7 @@ def create_invoice(
     post: bool = False,
     apply_advances: bool = False,
     fiscal_stamp: Number | None = None,
+    paper_total: Number | None = None,
 ) -> SupplierInvoice:
     """Record a supplier's invoice for some of their receipts, as a draft, or posted at once with `post`.
 
@@ -1031,6 +1064,7 @@ def create_invoice(
     """
     errors = _invoice_header_errors(organization, supplier, invoice_date, due_date)
     stamp = _checked_stamp(fiscal_stamp, errors)
+    paper = _checked_paper_total(paper_total, errors)
     locked = _locked_receipts(organization, supplier, receipts, errors) if "supplier" not in errors else []
     if errors:
         raise ValidationError(errors)
@@ -1042,6 +1076,7 @@ def create_invoice(
         invoice_date=invoice_date,
         due_date=due_date,
         notes=notes.strip(),
+        paper_total=paper,
         created_by=actor,
     )
     _set_receipts(invoice, locked, stamp)
@@ -1143,6 +1178,7 @@ def update_invoice(
     notes: str = "",
     post: bool = False,
     fiscal_stamp: Number | None = None,
+    paper_total: Number | None = None,
 ) -> SupplierInvoice:
     """Change a draft invoice (its receipts, dates, reference, notes); with `post`, post it afterwards.
 
@@ -1152,6 +1188,7 @@ def update_invoice(
     organization = invoice.organization
     errors = _invoice_header_errors(organization, invoice.supplier, invoice_date, due_date)
     stamp = _checked_stamp(fiscal_stamp, errors)
+    paper = _checked_paper_total(paper_total, errors)
     locked = _locked_receipts(organization, invoice.supplier, receipts, errors, invoice=invoice)
     if errors:
         raise ValidationError(errors)
@@ -1160,7 +1197,8 @@ def update_invoice(
     invoice.invoice_date = invoice_date
     invoice.due_date = due_date
     invoice.notes = notes.strip()
-    invoice.save(update_fields=["supplier_reference", "invoice_date", "due_date", "notes", "updated_at"])
+    invoice.paper_total = paper
+    invoice.save(update_fields=["supplier_reference", "invoice_date", "due_date", "notes", "paper_total", "updated_at"])
     _set_receipts(invoice, locked, stamp)
     audit.record(
         organization=organization,
@@ -1219,6 +1257,9 @@ def _paid_on(invoice: SupplierInvoice) -> Decimal:
     given_up = SupplierWriteOffAllocation.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
     if given_up:
         paid = (paid or Decimal("0.000")) + given_up
+    credited = SupplierCreditAllocation.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+    if credited:
+        paid = (paid or Decimal("0.000")) + credited
     return paid if paid is not None else Decimal("0.000")
 
 
@@ -2587,6 +2628,7 @@ def receive_goods(
     payments: Sequence[FieldPaymentFields] = (),
     with_vat: bool = False,
     confirm_cash_limit: bool = False,
+    arrival_temperature: Decimal | None = None,
 ) -> GoodsReceipt:
     """Record goods received: the receipt, its batches, stock and boxes (D-268). No invoice is made here: the
     office makes the supplier's invoice afterwards, from this receipt. `payments` are the sums given now (D-192):
@@ -2608,6 +2650,7 @@ def receive_goods(
         purchase_order=purchase_order,
         boxes=boxes,
         with_vat=with_vat,
+        arrival_temperature=arrival_temperature,
     )
     given = sum((payment["amount"] for payment in checked_payments), ZERO)
     received = sum((line.invoiced_amount for line in receipt.lines.all()), ZERO)
@@ -3042,3 +3085,269 @@ def cancel_price_request(*, request: PriceRequest, actor: User | None) -> PriceR
     locked.save(update_fields=["status", "closed_at", "updated_at"])
     audit.record(organization=locked.organization, actor=actor, action="price_request.cancelled", target=locked)
     return locked
+
+
+# ---- Supplier credit notes (avoirs fournisseurs, D-300) ----
+
+
+def credit_line_error_key(index: int, field: str) -> str:
+    return f"lines.{index}.{field}"
+
+
+def _apply_credits(invoice: SupplierInvoice, notes: Sequence[SupplierCreditNote]) -> None:
+    """Settle a posted invoice with what is left of `notes`, in their order, up to what it still owes."""
+    if invoice.status not in selectors.OPEN_STATUSES:
+        return
+    left = invoice.total - _paid_on(invoice)
+    for note in notes:
+        if left <= 0:
+            break
+        applied = SupplierCreditAllocation.objects.filter(credit_note=note).aggregate(total=Sum("amount"))["total"]
+        rest = note.total - (applied or Decimal("0.000"))
+        part = min(left, rest)
+        if part <= 0:
+            continue
+        SupplierCreditAllocation.objects.create(
+            organization=invoice.organization, credit_note=note, invoice=invoice, amount=part
+        )
+        left -= part
+    invoice.status = _invoice_status_from_payments(invoice)
+    invoice.save(update_fields=["status", "updated_at"])
+
+
+def _checked_credit_lines(
+    organization: Organization,
+    supplier: "Supplier",
+    invoice: SupplierInvoice | None,
+    items: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    if not items:
+        raise ValidationError({"lines": _("Ajoutez au moins une ligne.")})
+    creditable = {
+        line.receipt_line_id: line
+        for line in selectors.creditable_lines(
+            organization, supplier_id=supplier.pk, invoice_id=invoice.pk if invoice is not None else None
+        )
+    }
+    settled = partnership_selectors.settled_batch_ids(
+        organization, batch_ids=[line.batch_id for line in creditable.values()]
+    )
+    errors: dict[str, str] = {}
+    checked: list[dict[str, Any]] = []
+    used: dict[int, Decimal] = {}
+    gaps: dict[int, Decimal] = {}
+    for index, item in enumerate(items):
+
+        def key(field: str, index: int = index) -> str:
+            return credit_line_error_key(index, field)
+
+        line_id = item.get("receipt_line")
+        line = creditable.get(line_id) if isinstance(line_id, int) else None
+        if line is None:
+            errors[key("receipt_line")] = _(
+                "Cette ligne de réception n'est pas proposée : autre fournisseur, autre facture ou déjà créditée."
+            )
+            continue
+        kind = item.get("kind")
+        if kind not in SupplierCreditKind.values:
+            errors[key("kind")] = _("Choisissez le motif de la ligne.")
+            continue
+        try:
+            quantity = checked_quantity(item.get("quantity", ""))
+        except (ValueError, TypeError):
+            errors[key("quantity")] = _("Indiquez un poids en kg, supérieur à zéro.")
+            continue
+        unit_amount = line.unit_cost
+        location = None
+        if kind == SupplierCreditKind.PRICE:
+            try:
+                unit_amount = checked_amount(item.get("unit_amount", ""))
+            except (ValueError, TypeError):
+                errors[key("unit_amount")] = _("Indiquez la remise par kg en DT.")
+                continue
+            if unit_amount <= 0 or unit_amount > line.unit_cost:
+                errors[key("unit_amount")] = _(
+                    "La remise par kg doit être entre 0 et le prix d'achat (%(cost)s DT)."
+                ) % {"cost": display_money(line.unit_cost)}
+                continue
+            if quantity > line.invoiced_quantity:
+                errors[key("quantity")] = _("Au plus %(kg)s kg facturés.") % {"kg": line.invoiced_quantity}
+                continue
+        elif kind == SupplierCreditKind.WEIGHT:
+            gap = gaps.get(line.receipt_line_id, line.weight_gap)
+            if quantity > gap:
+                errors[key("quantity")] = _("L'écart restant est de %(kg)s kg (facturé − accepté − déjà réclamé).") % {
+                    "kg": gap
+                }
+                continue
+            gaps[line.receipt_line_id] = gap - quantity
+        else:
+            location_id = item.get("from_location")
+            try:
+                location = (
+                    inventory_selectors.location_of(organization, location_id) if isinstance(location_id, int) else None
+                )
+            except ObjectDoesNotExist:
+                location = None
+            if location is None:
+                errors[key("from_location")] = _("Indiquez d'où partent les kilos rendus.")
+                continue
+        if kind != SupplierCreditKind.WEIGHT and line.batch_id in settled:
+            errors[key("receipt_line")] = _(
+                "Le lot %(lot)s est déjà réglé avec son partenaire : il ne change plus."
+            ) % {"lot": line.batch_number}
+            continue
+        amount = line_total(quantity, unit_amount)
+        if amount <= 0:
+            errors[key("quantity")] = _("Le montant de la ligne est nul.")
+            continue
+        room = line.amount_left - used.get(line.receipt_line_id, Decimal("0.000"))
+        if amount > room:
+            errors[key("quantity")] = _("Au plus %(amount)s DT encore à créditer sur cette ligne.") % {
+                "amount": display_money(room)
+            }
+            continue
+        used[line.receipt_line_id] = used.get(line.receipt_line_id, Decimal("0.000")) + amount
+        checked.append(
+            {
+                "line": line,
+                "kind": kind,
+                "quantity": quantity,
+                "unit_amount": unit_amount,
+                "amount": amount,
+                "location": location,
+            }
+        )
+    if errors:
+        raise ValidationError(errors)
+    return checked
+
+
+def _credit_snapshot(note: SupplierCreditNote) -> dict[str, Any]:
+    return {
+        "number": note.number,
+        "supplier": note.supplier.name,
+        "invoice": note.invoice.number if note.invoice else "",
+        "credited_on": note.credited_on.isoformat(),
+        "reason": note.reason,
+        "total_excl_tax": str(note.total_excl_tax),
+        "vat_total": str(note.vat_total),
+        "total": str(note.total),
+        "lines": [
+            {"batch": line.batch_id, "kind": line.kind, "quantity": str(line.quantity), "amount": str(line.amount)}
+            for line in note.lines.all()
+        ],
+    }
+
+
+@transaction.atomic
+def create_credit_note(
+    *,
+    organization: Organization,
+    actor: User | None,
+    supplier: "Supplier",
+    invoice: SupplierInvoice | None,
+    credited_on: dt.date,
+    reason: str,
+    lines: Sequence[Mapping[str, Any]],
+    supplier_reference: str = "",
+) -> SupplierCreditNote:
+    """Save an avoir fournisseur (D-300): per receipt line, kilos sent back (they leave the stock as a supplier
+    return, from the place named), kilos invoiced but never accepted, or a price cut per kg. VAT is given back at the
+    receipt's rate when it was bought with VAT. It settles its invoice first, then the supplier's other open invoices;
+    the rest waits for the next invoice. Saved once, never edited nor deleted."""
+    if supplier.organization_id != organization.pk:
+        raise ValidationError({"supplier": _("Fournisseur inconnu.")})
+    errors: dict[str, str] = {}
+    if invoice is not None:
+        if invoice.organization_id != organization.pk or invoice.supplier_id != supplier.pk:
+            errors["invoice"] = _("Cette facture n'est pas de ce fournisseur.")
+        elif invoice.status == SupplierInvoiceStatus.DRAFT:
+            errors["invoice"] = _("Validez d'abord la facture, ou supprimez-la et refaites-la.")
+        elif invoice.is_opening:
+            errors["invoice"] = _("Un solde d'ouverture n'a pas de réceptions à créditer.")
+    reason = reason.strip()
+    if not reason:
+        errors["reason"] = _("Indiquez la raison de l'avoir.")
+    if credited_on > timezone.localdate():
+        errors["credited_on"] = _("La date ne peut pas être dans le futur.")
+    if errors:
+        raise ValidationError(errors)
+    # One credit note of a supplier at a time: the receipt lines' remaining amounts are read under this lock.
+    list(
+        SupplierInvoice.objects.select_for_update()
+        .filter(organization=organization, supplier=supplier)
+        .values_list("pk", flat=True)
+    )
+    checked = _checked_credit_lines(organization, supplier, invoice, lines)
+    by_rate: dict[Decimal, Decimal] = {}
+    for values in checked:
+        values["rate"] = None
+        if values["line"].with_vat:
+            receipt_line = GoodsReceiptLine.objects.select_related("product", "receipt").get(
+                pk=values["line"].receipt_line_id
+            )
+            rate = sales_selectors.vat_rate_of_product_on(
+                organization, receipt_line.product, receipt_line.receipt.received_on
+            )
+            values["rate"] = rate
+            by_rate[rate] = by_rate.get(rate, Decimal("0.000")) + values["amount"]
+    total_excl = sum((values["amount"] for values in checked), Decimal("0.000"))
+    # VAT rounded once per rate, as on the invoice (D-294).
+    vat_total = sum((money(base * rate / 100) for rate, base in by_rate.items()), Decimal("0.000"))
+    note = SupplierCreditNote.objects.create(
+        organization=organization,
+        number=numbering.next_number(organization, "supplier_credit_note", year=credited_on.year),
+        supplier=supplier,
+        invoice=invoice,
+        credited_on=credited_on,
+        supplier_reference=supplier_reference.strip()[:50],
+        reason=reason,
+        total_excl_tax=total_excl,
+        vat_total=vat_total,
+        total=total_excl + vat_total,
+        created_by=actor,
+    )
+    moment = inventory.moment_of(credited_on) if credited_on != timezone.localdate() else timezone.now()
+    for values in checked:
+        line = values["line"]
+        rate = values["rate"]
+        row = SupplierCreditNoteLine.objects.create(
+            organization=organization,
+            credit_note=note,
+            receipt_line_id=line.receipt_line_id,
+            batch_id=line.batch_id,
+            kind=values["kind"],
+            quantity=values["quantity"],
+            unit_amount=values["unit_amount"],
+            amount=values["amount"],
+            vat_rate=rate,
+            vat_amount=money(values["amount"] * rate / 100) if rate is not None else Decimal("0.000"),
+            from_location=values["location"],
+        )
+        if values["kind"] == SupplierCreditKind.RETURN:
+            inventory.post_movement(
+                organization=organization,
+                actor=actor,
+                kind=MovementKind.SUPPLIER_RETURN,
+                batch=inventory_selectors.batch_of(organization, line.batch_id),
+                quantity=values["quantity"],
+                from_location=values["location"],
+                reason=_("Retour fournisseur %(number)s") % {"number": note.number},
+                source=row,
+                occurred_at=moment,
+            )
+    open_invoices = list(selectors.open_invoices_of(organization, supplier_id=supplier.pk))
+    if invoice is not None:
+        open_invoices.sort(key=lambda row: row.pk != invoice.pk)
+    for target in open_invoices:
+        locked = SupplierInvoice.objects.select_for_update().get(pk=target.pk)
+        _apply_credits(locked, [note])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="supplier_credit_note.created",
+        target=note,
+        after=_credit_snapshot(note),
+    )
+    return note

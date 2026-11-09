@@ -24,12 +24,22 @@ from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membe
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, Transfer
+from apps.inventory.models import (
+    Batch,
+    StockCount,
+    StockLocation,
+    StockLoss,
+    TemperatureReading,
+    Transfer,
+    Transformation,
+)
 from apps.partners import selectors as partners
 
 from .serializers import (
     BatchFilterSerializer,
+    BatchOriginWriteSerializer,
     BatchSerializer,
+    ColdChainPlaceSerializer,
     CountedSerializer,
     CountFilterSerializer,
     CountSerializer,
@@ -44,6 +54,7 @@ from .serializers import (
     LossWriteSerializer,
     MyStockFilterSerializer,
     MyStockLineSerializer,
+    MyTemperatureWriteSerializer,
     ProductStockDetailSerializer,
     RoadLossSerializer,
     RoadLossWriteSerializer,
@@ -58,10 +69,17 @@ from .serializers import (
     StockOverviewSerializer,
     StockSettingsSerializer,
     StockSettingsWriteSerializer,
+    TemperatureFilterSerializer,
+    TemperatureRangeWriteSerializer,
+    TemperatureReadingSerializer,
+    TemperatureWriteSerializer,
     TransferDetailSerializer,
     TransferFilterSerializer,
     TransferSerializer,
     TransferWriteSerializer,
+    TransformationFilterSerializer,
+    TransformationSerializer,
+    TransformationWriteSerializer,
     TruckDayFilterSerializer,
     TruckDaySerializer,
     VatProductsSerializer,
@@ -196,6 +214,20 @@ class BatchDetailView(OfficeView):
         except Batch.DoesNotExist:
             raise Http404 from None
         return Response(BatchSerializer(batch).data)
+
+
+class BatchOriginView(OfficeView):
+    @extend_schema(operation_id="updateBatchOrigin", request=BatchOriginWriteSerializer, responses=BatchSerializer)
+    def post(self, request: Request, batch_id: int) -> Response:
+        """Complete or correct where a lot comes from (D-302). Information only, audited. Owner or manager."""
+        try:
+            batch = selectors.batch_of(self.organization, batch_id)
+        except Batch.DoesNotExist:
+            raise Http404 from None
+        serializer = BatchOriginWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.update_lot_origin(batch=batch, actor=self.membership.user, **serializer.validated_data)
+        return Response(BatchSerializer(selectors.batch_of(self.organization, batch_id)).data)
 
 
 class LocationStockView(LocationView):
@@ -446,7 +478,9 @@ class MyStockView(APIView):
             raise Http404
         now = timezone.now()
         rows = []
-        for row in selectors.location_stock(membership.organization, location_id=truck.location_id):
+        # Expired lots are not offered: they cannot be sold, only returned and thrown away (D-299).
+        today = timezone.localdate()
+        for row in selectors.location_stock(membership.organization, location_id=truck.location_id, sellable_on=today):
             product = catalog.product_of(membership.organization, row["product_id"])
             price = catalog.price_in_force(product, now, customer_id=customer.pk if customer else None)
             rows.append(
@@ -888,3 +922,172 @@ class MovementListView(OfficeView, ListAPIView[Any]):
         """The stock ledger, newest first, paginated (`limit`, `offset`). A location filter keeps the
         movements coming in or going out of it; dates are inclusive."""
         return super().get(request, *args, **kwargs)
+
+
+# ---- Cold chain (D-303) ----
+
+
+class TemperatureListView(OfficeView, ListAPIView[TemperatureReading]):
+    serializer_class = TemperatureReadingSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[TemperatureReading]:
+        filters = TemperatureFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        data = filters.validated_data
+        return selectors.temperature_readings(
+            self.organization,
+            location_id=data.get("location"),
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+            out_of_range=data["out_of_range"],
+        )
+
+    @extend_schema(operation_id="listTemperatureReadings", parameters=[TemperatureFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """The temperature log (HACCP), newest first, paginated; filter by place, days, or alerts only."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="recordTemperature",
+        request=TemperatureWriteSerializer,
+        responses={201: TemperatureReadingSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+        Owner or manager; a driver writes their truck's from the phone."""
+        serializer = TemperatureWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            location = selectors.location_of(self.organization, data["location"])
+        except StockLocation.DoesNotExist:
+            raise ValidationError({"location": _("Emplacement inconnu.")}) from None
+        reading = services.record_temperature(
+            location=location,
+            actor=self.membership.user,
+            celsius=data["celsius"],
+            taken_at=data["taken_at"],
+            note=data["note"],
+        )
+        return Response(TemperatureReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
+
+
+class ColdChainView(OfficeView):
+    @extend_schema(operation_id="getColdChain", responses=ColdChainPlaceSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """Every cold room and truck with its range, its last reading, today's count and the alerts of 7 days."""
+        return Response(ColdChainPlaceSerializer(selectors.cold_chain_overview(self.organization), many=True).data)
+
+
+class TemperatureRangeView(OfficeView):
+    @extend_schema(
+        operation_id="setTemperatureRange", request=TemperatureRangeWriteSerializer, responses=ColdChainPlaceSerializer
+    )
+    def post(self, request: Request, location_id: int) -> Response:
+        """The temperature a place must keep, in °C; an empty end is open. Owner or manager."""
+        try:
+            location = selectors.location_of(self.organization, location_id)
+        except StockLocation.DoesNotExist:
+            raise Http404 from None
+        serializer = TemperatureRangeWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_temperature_range(location=location, actor=self.membership.user, **serializer.validated_data)
+        place = next(row for row in selectors.cold_chain_overview(self.organization) if row.location.pk == location_id)
+        return Response(ColdChainPlaceSerializer(place).data)
+
+
+class MyTemperatureView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="recordMyTruckTemperature",
+        request=MyTemperatureWriteSerializer,
+        responses={201: TemperatureReadingSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
+        written once. 404 without a truck."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = MyTemperatureWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise Http404
+        taken_at = moment_from_phone(data["taken_at"], field="taken_at") if data["taken_at"] else None
+        reading = services.record_temperature(
+            location=truck.location,
+            actor=membership.user,
+            celsius=data["celsius"],
+            taken_at=taken_at,
+            note=data["note"],
+            client_uuid=data["client_uuid"],
+        )
+        return Response(TemperatureReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
+
+
+# ---- Transformations (D-304) ----
+
+
+class TransformationListView(OfficeView, ListAPIView[Transformation]):
+    serializer_class = TransformationSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[Transformation]:
+        filters = TransformationFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.transformations_of(
+            self.organization, batch_id=filters.validated_data.get("batch"), search=filters.validated_data["search"]
+        )
+
+    @extend_schema(operation_id="listTransformations", parameters=[TransformationFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Transformations (cleaning, filleting, downgrading), newest first, paginated; `batch` keeps one lot's."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createTransformation",
+        request=TransformationWriteSerializer,
+        responses={201: TransformationSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+        cost per kg. Errors on each field. Owner or manager."""
+        serializer = TransformationWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        organization = self.organization
+        errors: dict[str, str] = {}
+        location = batch = product = None
+        try:
+            location = selectors.location_of(organization, data["location"])
+        except StockLocation.DoesNotExist:
+            errors["location"] = _("Emplacement inconnu.")
+        try:
+            batch = selectors.batch_of(organization, data["source_batch"])
+        except Batch.DoesNotExist:
+            errors["source_batch"] = _("Lot inconnu.")
+        try:
+            product = catalog.product_of(organization, data["output_product"])
+        except ObjectDoesNotExist:
+            errors["output_product"] = _("Produit inconnu.")
+        if errors or location is None or batch is None or product is None:
+            raise ValidationError(errors)
+        made = services.create_transformation(
+            organization=organization,
+            actor=self.membership.user,
+            location=location,
+            source_batch=batch,
+            source_quantity=data["source_quantity"],
+            output_product=product,
+            output_quantity=data["output_quantity"],
+            done_on=data["done_on"],
+            fee=data["fee"],
+            fee_note=data["fee_note"],
+            use_by=data["use_by"],
+            notes=data["notes"],
+        )
+        body = TransformationSerializer(selectors.transformations_of(organization).get(pk=made.pk)).data
+        return Response(body, status=status.HTTP_201_CREATED)

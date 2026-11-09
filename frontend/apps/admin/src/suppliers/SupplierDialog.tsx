@@ -17,10 +17,10 @@ import { type FormEvent, useId, useState } from "react";
 import { fieldErrors } from "../lib/errors";
 import { refreshSuppliers } from "./shared";
 
-type TextField = "reference" | "name" | "tax_id" | "phone" | "email" | "address" | "city" | "notes";
+type TextField = "reference" | "name" | "tax_id" | "phone" | "email" | "address" | "city" | "notes" | "health_approval";
 type FormValues = Record<TextField, string>;
 type ContactRow = Required<SupplierContact> & { key: number };
-type Errors = Partial<Record<TextField | "contacts" | "detail", string>>;
+type Errors = Partial<Record<TextField | "contacts" | "detail" | "payment_terms_days", string>>;
 
 const EMPTY: FormValues = {
   reference: "",
@@ -31,6 +31,7 @@ const EMPTY: FormValues = {
   address: "",
   city: "",
   notes: "",
+  health_approval: "",
 };
 
 const CONTACT_FIELDS = [
@@ -93,10 +94,16 @@ export function SupplierDialog({
           address: supplier.address,
           city: supplier.city,
           notes: supplier.notes,
+          health_approval: supplier.health_approval,
         }
       : { ...EMPTY, name: start?.name ?? "", phone: start?.phone ?? "" },
   );
   const [contacts, setContacts] = useState<ContactRow[]>(() => supplier?.contacts.map(contactRow) ?? []);
+  // The usual deal (D-301): days to pay (empty: 30) and goods bought with VAT.
+  const [termsDays, setTermsDays] = useState(() =>
+    supplier?.payment_terms_days != null ? String(supplier.payment_terms_days) : "",
+  );
+  const [buysWithVat, setBuysWithVat] = useState(supplier?.buys_with_vat ?? false);
   const [errors, setErrors] = useState<Errors>({});
 
   const set = (field: TextField) => (value: string) => setValues((current) => ({ ...current, [field]: value }));
@@ -123,6 +130,10 @@ export function SupplierDialog({
     // Blank rows are dropped; a row with something in it needs a name.
     const filled = contacts.filter((row) => row.name.trim() || row.role.trim() || row.phone.trim() || row.email.trim());
     if (filled.some((row) => !row.name.trim())) found.contacts = t("admin.suppliers.form.required");
+    const days = termsDays.trim() === "" ? null : Number(termsDays.trim());
+    if (days !== null && (!Number.isInteger(days) || days < 0 || days > 365)) {
+      found.payment_terms_days = t("admin.suppliers.form.termsInvalid");
+    }
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     const trimmed = (field: TextField) => values[field].trim();
@@ -135,6 +146,9 @@ export function SupplierDialog({
       address: trimmed("address"),
       city: trimmed("city"),
       notes: trimmed("notes"),
+      health_approval: trimmed("health_approval"),
+      payment_terms_days: days,
+      buys_with_vat: buysWithVat,
       contacts: filled.map(({ name, role, phone, email }) => ({
         name: name.trim(),
         role: role.trim(),
@@ -190,7 +204,31 @@ export function SupplierDialog({
         {input("phone", t("admin.suppliers.form.phone"), { type: "tel" })}
         {input("email", t("admin.suppliers.form.email"), { type: "email" })}
         {input("city", t("admin.suppliers.form.city"))}
+        {input("health_approval", t("admin.suppliers.form.healthApproval"))}
         {input("address", t("admin.suppliers.form.address"), { className: "col-span-full" })}
+        <Field
+          label={t("admin.suppliers.form.termsDays")}
+          htmlFor={`${formId}-terms`}
+          error={errors.payment_terms_days}
+        >
+          <Input
+            id={`${formId}-terms`}
+            inputMode="numeric"
+            placeholder="30"
+            value={termsDays}
+            onChange={(event) => setTermsDays(event.target.value)}
+            aria-invalid={errors.payment_terms_days ? true : undefined}
+          />
+        </Field>
+        <label className="flex items-center gap-2 self-end pb-2.5 text-[0.9rem]">
+          <input
+            type="checkbox"
+            checked={buysWithVat}
+            onChange={(event) => setBuysWithVat(event.target.checked)}
+            className="size-4 accent-coral"
+          />
+          {t("admin.suppliers.form.buysWithVat")}
+        </label>
         <Field
           label={t("admin.suppliers.form.notes")}
           htmlFor={`${formId}-notes`}

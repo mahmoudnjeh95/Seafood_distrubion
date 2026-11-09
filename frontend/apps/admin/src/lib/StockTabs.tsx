@@ -9,6 +9,8 @@ const TABS = [
   { to: "/stock/pertes", label: "admin.stockTabs.losses", end: false },
   { to: "/stock/mouvements", label: "admin.stockTabs.movements", end: false },
   { to: "/stock/inventaires", label: "admin.stockTabs.counts", end: false },
+  { to: "/stock/transformations", label: "admin.stockTabs.transformations", end: false },
+  { to: "/stock/temperatures", label: "admin.stockTabs.temperatures", end: false },
 ] as const;
 
 /** Links between the sections of the stock module, the current one marked. */

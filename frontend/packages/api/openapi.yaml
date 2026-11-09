@@ -216,6 +216,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/Batch'
           description: ''
+  /api/v1/batches/{batch_id}/origin:
+    post:
+      operationId: updateBatchOrigin
+      description: Complete or correct where a lot comes from (D-302). Information
+        only, audited. Owner or manager.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchOriginWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BatchOriginWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BatchOriginWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+          description: ''
+  /api/v1/batches/{batch_id}/recall:
+    get:
+      operationId: getLotRecall
+      description: |-
+        A recall sheet for one lot: its origin, the customers who kept kilos of it (the most first, with their
+        phone and BL), and the places that still hold some.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotRecall'
+          description: ''
   /api/v1/batches/{batch_id}/sales:
     get:
       operationId: getBatchSales
@@ -410,6 +467,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/cold-chain:
+    get:
+      operationId: getColdChain
+      description: Every cold room and truck with its range, its last reading, today's
+        count and the alerts of 7 days.
+      tags:
+      - cold-chain
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColdChainPlace'
           description: ''
   /api/v1/cold-room-costs:
     get:
@@ -4320,6 +4395,39 @@ paths:
                 items:
                   $ref: '#/components/schemas/LocationBatch'
           description: ''
+  /api/v1/locations/{location_id}/temperature-range:
+    post:
+      operationId: setTemperatureRange
+      description: The temperature a place must keep, in °C; an empty end is open.
+        Owner or manager.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemperatureRangeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TemperatureRangeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TemperatureRangeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColdChainPlace'
+          description: ''
   /api/v1/losses:
     get:
       operationId: listLosses
@@ -6592,6 +6700,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TruckDay'
+          description: ''
+  /api/v1/my-truck/temperature:
+    post:
+      operationId: recordMyTruckTemperature
+      description: |-
+        The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
+        written once. 404 without a truck.
+      tags:
+      - my-truck
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyTemperatureWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyTemperatureWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyTemperatureWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemperatureReading'
           description: ''
   /api/v1/notifications/payment-orders/{plan_line_id}:
     post:
@@ -9910,6 +10047,96 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/sales/{sale_id}/deliver:
+    post:
+      operationId: deliverSale
+      description: |-
+        The office records the delivery of a BL "à livrer": the lines that changed (kg delivered, zero takes the
+        product off); only the kg delivered leave the stock and are owed. Nothing delivered is "non livré".
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeDeliver'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfficeDeliver'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfficeDeliver'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}/issue:
+    post:
+      operationId: issueSale
+      description: |-
+        Validate a direct BL "à livrer" (D-305): its BL number now, the stock at the delivery. Refused for a load's
+        BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
+  /api/v1/sales/{sale_id}/not-delivered:
+    post:
+      operationId: notDeliveredSale
+      description: 'A BL "à livrer" was not delivered: nothing is sold and nothing
+        left the stock. The note is optional.'
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeNotDelivered'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfficeNotDelivered'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfficeNotDelivered'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/sales/export:
     get:
       operationId: exportSales
@@ -10295,6 +10522,8 @@ paths:
           - loss
           - adjustment
           - count_correction
+          - transformation_out
+          - transformation_in
           type: string
           minLength: 1
         description: |-
@@ -10307,6 +10536,8 @@ paths:
           * `loss` - Perte
           * `adjustment` - Ajustement
           * `count_correction` - Correction d'inventaire
+          * `transformation_out` - Transformation (sortie)
+          * `transformation_in` - Transformation (entrée)
       - name: limit
         required: false
         in: query
@@ -10442,6 +10673,149 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SupplierBalance'
+          description: ''
+  /api/v1/supplier-credit-notes:
+    get:
+      operationId: listSupplierCreditNotes
+      description: Supplier credit notes (avoirs fournisseurs, D-300), newest first,
+        paginated.
+      parameters:
+      - in: query
+        name: invoice
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSupplierCreditNoteList'
+          description: ''
+    post:
+      operationId: createSupplierCreditNote
+      description: |-
+        Save an avoir fournisseur: per receipt line a return (kilos leave the stock from `from_location`), a
+        weight gap (invoiced − accepted) or a price cut per kg (`unit_amount`). It settles its invoice, then the
+        other open invoices; never edited. Errors on `supplier`, `invoice`, `reason`, `credited_on`, `lines`,
+        `lines.<index>.<field>`. Owner or manager.
+      tags:
+      - supplier-credit-notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierCreditNoteWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SupplierCreditNoteWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SupplierCreditNoteWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierCreditNote'
+          description: ''
+  /api/v1/supplier-credit-notes/{credit_note_id}:
+    get:
+      operationId: getSupplierCreditNote
+      parameters:
+      - in: path
+        name: credit_note_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierCreditNote'
+          description: ''
+  /api/v1/supplier-credit-notes/creditable-lines:
+    get:
+      operationId: listCreditableReceiptLines
+      description: The supplier's receipt lines an avoir may still credit, newest
+        first; with `invoice`, only its own.
+      parameters:
+      - in: query
+        name: invoice
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: supplier
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreditableLine'
+          description: ''
+  /api/v1/supplier-credit-notes/weight-gaps:
+    get:
+      operationId: listSupplierWeightGaps
+      description: Per supplier, kilos invoiced above what was accepted and not claimed
+        yet, the biggest amount first.
+      tags:
+      - supplier-credit-notes
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WeightGap'
           description: ''
   /api/v1/supplier-debts:
     get:
@@ -11423,6 +11797,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/SyncProblem'
           description: ''
+  /api/v1/temperatures:
+    get:
+      operationId: listTemperatureReadings
+      description: The temperature log (HACCP), newest first, paginated; filter by
+        place, days, or alerts only.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: out_of_range
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - temperatures
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTemperatureReadingList'
+          description: ''
+    post:
+      operationId: recordTemperature
+      description: |-
+        Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+        Owner or manager; a driver writes their truck's from the phone.
+      tags:
+      - temperatures
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemperatureWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TemperatureWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TemperatureWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemperatureReading'
+          description: ''
   /api/v1/transfers:
     get:
       operationId: listTransfers
@@ -11666,6 +12117,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TruckDay'
+          description: ''
+  /api/v1/transformations:
+    get:
+      operationId: listTransformations
+      description: Transformations (cleaning, filleting, downgrading), newest first,
+        paginated; `batch` keeps one lot's.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - transformations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTransformationList'
+          description: ''
+    post:
+      operationId: createTransformation
+      description: |-
+        Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+        cost per kg. Errors on each field. Owner or manager.
+      tags:
+      - transformations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransformationWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransformationWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransformationWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transformation'
           description: ''
   /api/v1/treasury/accounts:
     get:
@@ -14163,15 +14682,28 @@ components:
           format: date
           readOnly: true
           nullable: true
+        catch_area:
+          type: string
+          readOnly: true
+        production_method:
+          allOf:
+          - $ref: '#/components/schemas/ProductionMethodEnum'
+          readOnly: true
+        origin:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
       required:
+      - catch_area
       - created_at
       - id
       - number
+      - origin
       - product
+      - production_method
       - receipt_reference
       - received_on
       - supplier
@@ -14238,6 +14770,25 @@ components:
       required:
       - location
       - quantity
+    BatchOriginWrite:
+      type: object
+      description: 'Where a lot comes from (D-302): FAO zone or farm, wild or farmed,
+        boat or port.'
+      properties:
+        catch_area:
+          type: string
+          maxLength: 60
+        production_method:
+          oneOf:
+          - $ref: '#/components/schemas/ProductionMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        origin:
+          type: string
+          maxLength: 100
+      required:
+      - catch_area
+      - origin
+      - production_method
     BatchProduct:
       type: object
       properties:
@@ -14250,6 +14801,9 @@ components:
         name:
           type: string
           readOnly: true
+        scientific_name:
+          type: string
+          readOnly: true
         is_active:
           type: boolean
           readOnly: true
@@ -14258,6 +14812,7 @@ components:
       - is_active
       - name
       - reference
+      - scientific_name
     BatchRef:
       type: object
       properties:
@@ -14403,7 +14958,11 @@ components:
         name:
           type: string
           readOnly: true
+        health_approval:
+          type: string
+          readOnly: true
       required:
+      - health_approval
       - id
       - name
       - reference
@@ -15011,6 +15570,51 @@ components:
       - count
       - ok
       - quantity
+    ColdChainPlace:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockLocationKindEnum'
+          readOnly: true
+        temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        last:
+          allOf:
+          - $ref: '#/components/schemas/TemperatureReading'
+          readOnly: true
+          nullable: true
+        readings_today:
+          type: integer
+          readOnly: true
+        alerts_7_days:
+          type: integer
+          readOnly: true
+      required:
+      - alerts_7_days
+      - id
+      - kind
+      - last
+      - name
+      - readings_today
+      - temp_max
+      - temp_min
     ColdRoomEstimateWrite:
       type: object
       properties:
@@ -15754,6 +16358,92 @@ components:
         * `block` - Bloquer la vente
         * `approval` - Demander l'approbation du propriétaire ou du gérant
         * `warn` - Avertir et consigner
+    CreditableLine:
+      type: object
+      properties:
+        receipt_line_id:
+          type: integer
+          readOnly: true
+        receipt_id:
+          type: integer
+          readOnly: true
+        receipt_number:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        invoice_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        invoice_number:
+          type: string
+          readOnly: true
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_id:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        invoiced_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        accepted_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        with_vat:
+          type: boolean
+          readOnly: true
+        weight_gap:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        returned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        amount_left:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - accepted_quantity
+      - amount_left
+      - batch_id
+      - batch_number
+      - invoice_id
+      - invoice_number
+      - invoiced_quantity
+      - product_id
+      - product_name
+      - receipt_id
+      - receipt_line_id
+      - receipt_number
+      - received_on
+      - returned
+      - unit_cost
+      - weight_gap
+      - with_vat
     Customer:
       type: object
       properties:
@@ -22320,6 +23010,11 @@ components:
           type: string
           format: date
           readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
         supplier_id:
           type: integer
           readOnly: true
@@ -22346,6 +23041,7 @@ components:
       - received_on
       - supplier_id
       - supplier_name
+      - use_by
     LocationPingBatch:
       type: object
       properties:
@@ -23169,6 +23865,69 @@ components:
       - partner
       - partner_capital
       - profit_rate
+    LotRecall:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        scientific_name:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        health_approval:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        catch_area:
+          type: string
+          readOnly: true
+        production_method:
+          type: string
+          readOnly: true
+        origin:
+          type: string
+          readOnly: true
+        customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecallCustomer'
+          readOnly: true
+        in_stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecallStock'
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - catch_area
+      - customers
+      - health_approval
+      - in_stock
+      - origin
+      - product_name
+      - production_method
+      - received_on
+      - scientific_name
+      - supplier_name
+      - use_by
     LotResultStatusEnum:
       enum:
       - closed
@@ -24897,6 +25656,26 @@ components:
       - id
       - name
       - reference
+    MyTemperatureWrite:
+      type: object
+      properties:
+        celsius:
+          type: string
+          maxLength: 10
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - celsius
     NamedRef:
       type: object
       properties:
@@ -25177,6 +25956,26 @@ components:
       required:
       - prices
       - supplier
+    OfficeDeliver:
+      type: object
+      description: 'The office records how a BL "à livrer" was delivered (D-305):
+        only the lines that changed.'
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveredLine'
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+    OfficeNotDelivered:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 255
     OfficeSiteProduct:
       type: object
       description: |-
@@ -26066,6 +26865,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StockMovement'
+    PaginatedSupplierCreditNoteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditNote'
     PaginatedSupplierInvoiceList:
       type: object
       required:
@@ -26112,6 +26934,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SupplierPayment'
+    PaginatedTemperatureReadingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemperatureReading'
     PaginatedTransferList:
       type: object
       required:
@@ -26135,6 +26980,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transfer'
+    PaginatedTransformationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transformation'
     PaginatedWebRequestList:
       type: object
       required:
@@ -26935,6 +27803,10 @@ components:
           type: string
           default: ''
           maxLength: 150
+        scientific_name:
+          type: string
+          default: ''
+          maxLength: 150
         category:
           type: integer
         min_stock:
@@ -27054,6 +27926,18 @@ components:
           type: string
           default: ''
           maxLength: 2000
+        payment_terms_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          nullable: true
+        buys_with_vat:
+          type: boolean
+          default: false
+        health_approval:
+          type: string
+          default: ''
+          maxLength: 50
         contacts:
           type: array
           items:
@@ -27827,6 +28711,9 @@ components:
         name_ar:
           type: string
           readOnly: true
+        scientific_name:
+          type: string
+          readOnly: true
         category:
           allOf:
           - $ref: '#/components/schemas/CategoryRef'
@@ -27903,6 +28790,7 @@ components:
       - name_ar
       - photo_url
       - reference
+      - scientific_name
       - storage_temp_max
       - storage_temp_min
       - updated_at
@@ -27918,6 +28806,10 @@ components:
           type: string
           maxLength: 150
         name_ar:
+          type: string
+          default: ''
+          maxLength: 150
+        scientific_name:
           type: string
           default: ''
           maxLength: 150
@@ -28172,6 +29064,14 @@ components:
       - photo_url
       - quantity
       - reference
+    ProductionMethodEnum:
+      enum:
+      - wild
+      - farmed
+      type: string
+      description: |-
+        * `wild` - Pêché (sauvage)
+        * `farmed` - Élevé (aquaculture)
     ProfilePhotoUpload:
       type: object
       properties:
@@ -28867,6 +29767,66 @@ components:
       - credit_note_number
       - invoice_id
       - invoice_number
+    RecallCustomer:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        first_on:
+          type: string
+          format: date
+          readOnly: true
+        last_on:
+          type: string
+          format: date
+          readOnly: true
+        sales:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - city
+      - customer_id
+      - customer_name
+      - first_on
+      - last_on
+      - phone
+      - quantity
+      - sales
+    RecallStock:
+      type: object
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+        location_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - location_id
+      - location_name
+      - quantity
     Receipt:
       type: object
       properties:
@@ -28899,6 +29859,17 @@ components:
         with_vat:
           type: boolean
           readOnly: true
+        arrival_temperature:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        arrival_temperature_out_of_range:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -28912,8 +29883,6 @@ components:
           readOnly: true
         invoiced_total:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         invoiced_vat:
           type: string
@@ -28977,6 +29946,8 @@ components:
           readOnly: true
       required:
       - accepted_total
+      - arrival_temperature
+      - arrival_temperature_out_of_range
       - created_at
       - created_by
       - dispute_reason
@@ -29160,6 +30131,19 @@ components:
           type: string
           format: date
           nullable: true
+        catch_area:
+          type: string
+          default: ''
+          maxLength: 60
+        production_method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/ProductionMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        origin:
+          type: string
+          default: ''
+          maxLength: 100
         partner:
           type: integer
           minimum: 1
@@ -29274,6 +30258,11 @@ components:
         with_vat:
           type: boolean
           default: false
+        arrival_temperature:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
         notes:
           type: string
           default: ''
@@ -32827,6 +33816,8 @@ components:
       - loss
       - adjustment
       - count_correction
+      - transformation_out
+      - transformation_in
       type: string
       description: |-
         * `receipt` - Réception
@@ -32838,6 +33829,8 @@ components:
         * `loss` - Perte
         * `adjustment` - Ajustement
         * `count_correction` - Correction d'inventaire
+        * `transformation_out` - Transformation (sortie)
+        * `transformation_in` - Transformation (entrée)
     StockOverview:
       type: object
       properties:
@@ -32951,6 +33944,16 @@ components:
         notes:
           type: string
           readOnly: true
+        payment_terms_days:
+          type: integer
+          readOnly: true
+          nullable: true
+        buys_with_vat:
+          type: boolean
+          readOnly: true
+        health_approval:
+          type: string
+          readOnly: true
         contacts:
           type: array
           items:
@@ -32965,13 +33968,16 @@ components:
           readOnly: true
       required:
       - address
+      - buys_with_vat
       - city
       - contacts
       - email
+      - health_approval
       - id
       - is_active
       - name
       - notes
+      - payment_terms_days
       - phone
       - reference
       - tax_id
@@ -33000,6 +34006,16 @@ components:
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         written_off:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credited:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        credit_unapplied:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -33048,6 +34064,8 @@ components:
           readOnly: true
       required:
       - balance
+      - credit_unapplied
+      - credited
       - draft_invoices
       - draft_total
       - invoiced
@@ -33113,6 +34131,248 @@ components:
             maxLength: 0
       required:
       - name
+    SupplierCreditAllocation:
+      type: object
+      properties:
+        invoice:
+          type: integer
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - invoice
+      - invoice_number
+    SupplierCreditKindEnum:
+      enum:
+      - return
+      - weight
+      - price
+      type: string
+      description: |-
+        * `return` - Retour de marchandise
+        * `weight` - Écart de poids facturé
+        * `price` - Remise ou écart de prix
+    SupplierCreditNote:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        invoice:
+          type: integer
+          readOnly: true
+          nullable: true
+        invoice_number:
+          type: string
+          readOnly: true
+          nullable: true
+        credited_on:
+          type: string
+          format: date
+          readOnly: true
+        supplier_reference:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        total_excl_tax:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        applied_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditNoteLine'
+          readOnly: true
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditAllocation'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allocations
+      - applied_amount
+      - created_at
+      - created_by
+      - credited_on
+      - id
+      - invoice
+      - invoice_number
+      - lines
+      - number
+      - reason
+      - supplier
+      - supplier_reference
+      - total
+      - total_excl_tax
+      - vat_total
+    SupplierCreditNoteLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        receipt_line:
+          type: integer
+          readOnly: true
+        receipt_id:
+          type: integer
+          readOnly: true
+        receipt_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        batch:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SupplierCreditKindEnum'
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        from_location:
+          type: integer
+          readOnly: true
+          nullable: true
+        from_location_name:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - batch
+      - batch_number
+      - from_location
+      - from_location_name
+      - id
+      - kind
+      - product_name
+      - quantity
+      - receipt_id
+      - receipt_line
+      - receipt_number
+      - unit_amount
+      - vat_amount
+      - vat_rate
+    SupplierCreditNoteLineWrite:
+      type: object
+      properties:
+        receipt_line:
+          type: integer
+          minimum: 1
+        kind:
+          $ref: '#/components/schemas/SupplierCreditKindEnum'
+        quantity:
+          type: string
+          maxLength: 20
+        unit_amount:
+          type: string
+          default: ''
+          maxLength: 20
+        from_location:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - kind
+      - quantity
+      - receipt_line
+    SupplierCreditNoteWrite:
+      type: object
+      properties:
+        supplier:
+          type: integer
+          minimum: 1
+        invoice:
+          type: integer
+          minimum: 1
+          nullable: true
+        credited_on:
+          type: string
+          format: date
+        reason:
+          type: string
+        supplier_reference:
+          type: string
+          default: ''
+          maxLength: 50
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierCreditNoteLineWrite'
+      required:
+      - credited_on
+      - lines
+      - reason
+      - supplier
     SupplierDebt:
       type: object
       properties:
@@ -33261,6 +34521,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        paper_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
         paid_amount:
           type: string
           format: decimal
@@ -33317,6 +34583,7 @@ components:
       - number
       - outstanding
       - paid_amount
+      - paper_total
       - payments
       - posted_at
       - posted_by
@@ -33365,6 +34632,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           nullable: true
+        paper_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
         post:
           type: boolean
           default: false
@@ -33394,6 +34666,11 @@ components:
           type: string
           default: ''
         fiscal_stamp:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+        paper_total:
           type: string
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
@@ -33939,6 +35216,18 @@ components:
           type: string
           default: ''
           maxLength: 2000
+        payment_terms_days:
+          type: integer
+          maximum: 365
+          minimum: 0
+          nullable: true
+        buys_with_vat:
+          type: boolean
+          default: false
+        health_approval:
+          type: string
+          default: ''
+          maxLength: 50
         contacts:
           type: array
           items:
@@ -34051,6 +35340,78 @@ components:
         * `purchase` - purchase
         * `delivery` - delivery
         * `not_delivered` - not_delivered
+    TemperatureRangeWrite:
+      type: object
+      properties:
+        temp_min:
+          type: string
+          nullable: true
+          maxLength: 10
+        temp_max:
+          type: string
+          nullable: true
+          maxLength: 10
+    TemperatureReading:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        taken_at:
+          type: string
+          format: date-time
+          readOnly: true
+        celsius:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+        out_of_range:
+          type: boolean
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        taken_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - celsius
+      - created_at
+      - id
+      - location
+      - note
+      - out_of_range
+      - taken_at
+      - taken_by
+    TemperatureWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        celsius:
+          type: string
+          maxLength: 10
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - celsius
+      - location
     Transfer:
       type: object
       properties:
@@ -34496,6 +35857,155 @@ components:
       - lines
       - to_location
       - transferred_on
+    Transformation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        done_on:
+          type: string
+          format: date
+          readOnly: true
+        source_batch:
+          allOf:
+          - $ref: '#/components/schemas/TransformationLot'
+          readOnly: true
+        source_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        output_batch:
+          allOf:
+          - $ref: '#/components/schemas/TransformationLot'
+          readOnly: true
+        output_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        weight_lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fee_note:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - done_on
+      - fee
+      - fee_note
+      - id
+      - location
+      - notes
+      - number
+      - output_batch
+      - output_quantity
+      - source_batch
+      - source_quantity
+      - supplier_name
+      - weight_lost
+    TransformationLot:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - number
+      - product
+      - unit_cost
+      - use_by
+    TransformationWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        source_batch:
+          type: integer
+          minimum: 1
+        source_quantity:
+          type: string
+          maxLength: 20
+        output_product:
+          type: integer
+          minimum: 1
+        output_quantity:
+          type: string
+          maxLength: 20
+        done_on:
+          type: string
+          format: date
+        fee:
+          type: string
+          default: '0'
+          maxLength: 20
+        fee_note:
+          type: string
+          default: ''
+          maxLength: 255
+        use_by:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+      required:
+      - done_on
+      - location
+      - output_product
+      - output_quantity
+      - source_batch
+      - source_quantity
     TreasuryAccount:
       type: object
       properties:
@@ -35268,6 +36778,34 @@ components:
         * `new` - Nouvelle
         * `handled` - Traitée
         * `cancelled` - Annulée
+    WeightGap:
+      type: object
+      properties:
+        supplier_id:
+          type: integer
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        lines:
+          type: integer
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - amount
+      - lines
+      - quantity
+      - supplier_id
+      - supplier_name
     WhatEnum:
       enum:
       - plan

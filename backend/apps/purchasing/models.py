@@ -44,6 +44,8 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     supplier_reference = models.CharField(max_length=50, blank=True)
     # Bought with VAT: its lots are sold with VAT on the invoice (D-202).
     with_vat = models.BooleanField(default=False)
+    # The goods' temperature measured at arrival, in °C (D-303); empty when not measured.
+    arrival_temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     notes = models.TextField(blank=True)
     # The number of the last change made after saving (D-269): a change must name it, so two people never
     # overwrite each other. Zero until the receipt is changed.
@@ -362,6 +364,9 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp_overridden = models.BooleanField(default=False)
     # What is owed: without VAT + VAT + stamp, kept by the services; frozen once posted.
     total = MoneyField(default=Decimal("0.000"))
+    # The total printed on the supplier's paper, typed to check it (D-301); empty when not typed. A difference with
+    # `total` is shown, never corrected by itself: the receipts are what we owe.
+    paper_total = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     notes = models.TextField(blank=True)
     # What the supplier was owed when the system started (P4-T01, D-112): a posted invoice with no receipts.
     is_opening = models.BooleanField(default=False)
@@ -621,6 +626,104 @@ class SupplierWriteOffLotShare(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.write_off} → {self.batch_id} · {self.amount}"
+
+
+class SupplierCreditKind(models.TextChoices):
+    # Kilos of the lot sent back to the supplier: they leave the stock as a supplier return.
+    RETURN = "return", _("Retour de marchandise")
+    # Kilos invoiced but never accepted (invoiced > accepted on the receipt): nothing moves in stock.
+    WEIGHT = "weight", _("Écart de poids facturé")
+    # A lower price per kg or a discount agreed afterwards: the lot costs less.
+    PRICE = "price", _("Remise ou écart de prix")
+
+
+class SupplierCreditNote(OrganizationScopedModel, TimeStampedModel):
+    """An avoir fournisseur (D-300): what a supplier gives back on goods it charged us, line by line against its
+    receipts. It lowers what we owe; it is never edited nor deleted once saved (a mistake is corrected by the
+    supplier's next invoice or another document).
+
+    Its amount settles its invoice first, then the supplier's other open invoices, oldest due date first
+    (`SupplierCreditAllocation`); what is left waits for the supplier's next invoice, as an advance does.
+    """
+
+    # "AVF-2026-0001"... per organization, given when it is saved.
+    number = models.CharField(max_length=20)
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="credit_notes")
+    # The invoice it corrects; empty for goods sent back before they were invoiced.
+    invoice = models.ForeignKey(
+        SupplierInvoice, null=True, blank=True, on_delete=models.PROTECT, related_name="credit_notes"
+    )
+    credited_on = models.DateField()
+    # The number printed on the supplier's own avoir, when it sends one.
+    supplier_reference = models.CharField(max_length=50, blank=True)
+    reason = models.TextField()
+    total_excl_tax = MoneyField(default=Decimal("0.000"))
+    vat_total = MoneyField(default=Decimal("0.000"))
+    total = MoneyField(default=Decimal("0.000"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-credited_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "number"], name="supplier_credit_number_unique_per_organization"
+            ),
+            models.CheckConstraint(condition=models.Q(total__gt=0), name="supplier_credit_total_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
+class SupplierCreditNoteLine(OrganizationScopedModel):
+    """One receipt line credited: kilos sent back, kilos invoiced but never accepted, or a price cut per kg."""
+
+    credit_note = models.ForeignKey(SupplierCreditNote, on_delete=models.CASCADE, related_name="lines")
+    receipt_line = models.ForeignKey(GoodsReceiptLine, on_delete=models.PROTECT, related_name="credit_lines")
+    # Kept from the receipt line so the lot's result reads it without a join.
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    kind = models.CharField(max_length=10, choices=SupplierCreditKind.choices)
+    quantity = QuantityField()
+    # DT per kg without VAT credited: the receipt's cost for a return or a weight gap, the cut for a price.
+    unit_amount = MoneyField()
+    amount = MoneyField()
+    # The VAT rate of the receipt line when bought with VAT, else empty (no VAT given back).
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    vat_amount = MoneyField(default=Decimal("0.000"))
+    # Where the returned kilos left from (a return only).
+    from_location = models.ForeignKey(
+        "inventory.StockLocation", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["credit_note", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="supplier_credit_line_quantity_positive"),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_credit_line_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.credit_note} · {self.batch_id}"
+
+
+class SupplierCreditAllocation(OrganizationScopedModel, TimeStampedModel):
+    """The part of a supplier credit note that settles one invoice. Written when the credit note is saved, or when a
+    later invoice is posted while some of it was left (D-300)."""
+
+    credit_note = models.ForeignKey(SupplierCreditNote, on_delete=models.PROTECT, related_name="allocations")
+    invoice = models.ForeignKey(SupplierInvoice, on_delete=models.PROTECT, related_name="credit_allocations")
+    amount = MoneyField()
+
+    class Meta:
+        ordering = ["credit_note", "id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="supplier_credit_allocation_positive")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.credit_note} → {self.invoice}"
 
 
 class PlanLineStatus(models.TextChoices):

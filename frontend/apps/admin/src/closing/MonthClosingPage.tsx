@@ -57,7 +57,9 @@ type LedgerKind =
   | "sale"
   | "loss"
   | "count_correction"
-  | "adjustment";
+  | "adjustment"
+  | "transformation_out"
+  | "transformation_in";
 
 const STATE_TONE: Record<MonthStateEnum, "neutral" | "good" | "warn"> = {
   open: "neutral",

@@ -23,6 +23,8 @@ date_to?: string;
  * * `loss` - Perte
  * * `adjustment` - Ajustement
  * * `count_correction` - Correction d'inventaire
+ * * `transformation_out` - Transformation (sortie)
+ * * `transformation_in` - Transformation (entrée)
  * @minLength 1
  */
 kind?: ListMovementsKind;

@@ -35,7 +35,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams, useSearchParams } from "react-router";
 
-import { sum } from "../lib/decimal";
+import { subtract, sum } from "../lib/decimal";
 import { useLeave } from "../lib/embedded";
 import { fieldErrors } from "../lib/errors";
 import { canRecordReceipts, todayInTunis } from "../receipts/shared";
@@ -111,6 +111,8 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   const [notes, setNotes] = useState(invoice?.notes ?? "");
   // The supplier's droit de timbre (D-294): empty follows the default, typed is kept as typed.
   const [stamp, setStamp] = useState(() => (invoice?.fiscal_stamp_overridden ? invoice.fiscal_stamp : ""));
+  // The total printed on the supplier's paper (D-301), to check it against ours.
+  const [paperTotal, setPaperTotal] = useState(invoice?.paper_total ?? "");
   const settings = useGetFinanceSettings();
   // `?reception=12` (from the "Documents" page) ticks that receipt on a new invoice.
   const [chosen, setChosen] = useState<Set<number>>(() => {
@@ -124,7 +126,9 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   // "Valider et en faire une autre": stay on the form with the same supplier for the next invoice (D-200).
   const again = useRef(false);
 
-  const shownDueDate = dueDate || addDays(invoiceDate, DEFAULT_PAYMENT_DAYS);
+  // The supplier's usual days to pay (D-301), else 30 days.
+  const supplierDays = (suppliers.data ?? []).find((one) => String(one.id) === supplier)?.payment_terms_days;
+  const shownDueDate = dueDate || addDays(invoiceDate, supplierDays ?? DEFAULT_PAYMENT_DAYS);
   const uninvoiced = useListReceipts(
     { supplier: Number(supplier), uninvoiced: true, limit: 200 },
     { query: { enabled: supplier !== "" } },
@@ -144,6 +148,8 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
     : "0.000";
   const shownStamp = typedStamp !== null && !typedStamp.startsWith("-") ? typedStamp : defaultStamp;
   const total = sum([totalExclTax, vatTotal, shownStamp]);
+  const typedPaper = paperTotal.trim() ? parseDecimalInput(paperTotal.trim(), 3) : null;
+  const paperGap = typedPaper !== null && !typedPaper.startsWith("-") ? subtract(typedPaper, total) : null;
 
   const save = useMutation({
     mutationFn: (payload: SupplierInvoiceWrite) =>
@@ -155,6 +161,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
             supplier_reference: payload.supplier_reference,
             notes: payload.notes,
             fiscal_stamp: payload.fiscal_stamp,
+            paper_total: payload.paper_total,
             post: payload.post,
           })
         : createSupplierInvoice(payload),
@@ -194,6 +201,9 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
     if (stamp.trim() && (typedStamp === null || typedStamp.startsWith("-"))) {
       found.fiscal_stamp = t("admin.supplierInvoices.form.invalidAmount");
     }
+    if (paperTotal.trim() && (typedPaper === null || typedPaper.startsWith("-"))) {
+      found.paper_total = t("admin.supplierInvoices.form.invalidAmount");
+    }
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     save.mutate({
@@ -204,6 +214,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
       supplier_reference: supplierReference.trim(),
       notes: notes.trim(),
       fiscal_stamp: stamp.trim() ? typedStamp : null,
+      paper_total: paperTotal.trim() ? typedPaper : null,
       post,
       apply_advances: post && applyAdvances,
     });
@@ -383,6 +394,21 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
                 autoComplete="off"
               />
             </Field>
+            <Field
+              label={t("admin.supplierInvoices.form.paperTotal")}
+              htmlFor={id("paper_total")}
+              error={errors.paper_total}
+              className="w-44"
+            >
+              <Input
+                id={id("paper_total")}
+                inputMode="decimal"
+                value={paperTotal}
+                onChange={(event) => setPaperTotal(event.target.value)}
+                aria-invalid={errors.paper_total ? true : undefined}
+                autoComplete="off"
+              />
+            </Field>
             <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1">
               <dt className="text-[0.78rem] font-semibold text-ink-2">
                 {t("admin.supplierInvoices.form.totalExclTax")}
@@ -396,6 +422,12 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
               <dd className="num text-end">{formatMoney(shownStamp)}</dd>
               <dt className="text-[0.78rem] font-semibold text-ink-2">{t("admin.supplierInvoices.form.total")}</dt>
               <dd className="num text-end font-bold">{formatMoney(total)}</dd>
+              {paperGap !== null && paperGap !== "0.000" && (
+                <>
+                  <dt className="text-[0.78rem] font-semibold text-bad">{t("admin.supplierInvoices.form.paperGap")}</dt>
+                  <dd className="num text-end font-bold text-bad">{formatMoney(paperGap)}</dd>
+                </>
+              )}
             </dl>
           </div>
           <p className="text-end text-[0.78rem] text-ink-2">{t("admin.supplierInvoices.form.fiscalStampHint")}</p>

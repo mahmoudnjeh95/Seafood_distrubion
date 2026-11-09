@@ -28,6 +28,7 @@ class ProductFields(TypedDict, total=False):
     reference: str
     name: str
     name_ar: str
+    scientific_name: str
     category: Category
     min_stock: Number
     storage_temp_min: Decimal | None
@@ -42,6 +43,7 @@ def _snapshot(product: Product) -> dict[str, Any]:
         "reference": product.reference,
         "name": product.name,
         "name_ar": product.name_ar,
+        "scientific_name": product.scientific_name,
         "category": product.category.name,
         "min_stock": product.min_stock,
         "storage_temp_min": product.storage_temp_min,
@@ -100,6 +102,7 @@ def _clean_product(product: Product, *, previous_rate: Decimal | None = None) ->
     product.reference = product.reference.strip()
     product.name = product.name.strip()
     product.name_ar = product.name_ar.strip()
+    product.scientific_name = product.scientific_name.strip()
     if not product.reference:
         errors["reference"] = _("La référence est obligatoire.")
     elif (
