@@ -5,7 +5,7 @@ import {
   type SetPrices,
   useGetPriceBoard,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import {
   formatDateTime,
   formatMoney,
@@ -43,7 +43,7 @@ export function PriceBoardPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   const queryClient = useQueryClient();
-  const canEdit = session.role === "owner" || session.role === "manager";
+  const canEdit = canAccess(session, "prices", "write");
   const board = useGetPriceBoard();
   const [edits, setEdits] = useState<Record<number, Edit>>({});
 

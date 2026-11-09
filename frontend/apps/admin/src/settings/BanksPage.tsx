@@ -1,5 +1,5 @@
 import { type Bank, createBank, updateBank, useListBanks } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -26,7 +26,7 @@ import { useOutletContext } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { TresorerieRibbon } from "../treasury/TresorerieRibbon";
 
-const canWrite = (session: Session) => session.role === "owner" || session.role === "manager";
+const canWrite = (session: Session) => canAccess(session, "treasury", "write");
 
 /** The banks a cheque or a traite may be drawn on (D-197): the Tunisian banks come ready; the office adds,
  * renames or takes one off the lists. An effet already written keeps its bank. */

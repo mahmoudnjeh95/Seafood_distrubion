@@ -5,7 +5,7 @@ import {
   setCustomerLocation,
   useGetDayRoute,
 } from "@frutti/api";
-import { useSession } from "@frutti/auth";
+import { canAccess, useSession } from "@frutti/auth";
 import { formatDateTime, useTranslation } from "@frutti/i18n";
 import { Button, Card, toast } from "@frutti/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -130,7 +130,7 @@ export function RouteMap({ dayId, running }: { dayId: number; running: boolean }
   const { t } = useTranslation();
   const k = "admin.dayOverview.detail.route";
   const session = useSession();
-  const canSave = session.data?.role === "owner" || session.data?.role === "manager";
+  const canSave = session.data ? canAccess(session.data, "day_closings", "write") : false;
   const route = useGetDayRoute(dayId, { query: { refetchInterval: running ? REFRESH_MS : false } });
   const points = route.data?.points ?? [];
   const stops = route.data?.stops ?? [];

@@ -1,17 +1,17 @@
 import type { SalaryPaymentKindEnum, SalaryPaymentMethodEnum, SalaryStatusEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { todayInTunis } from "../receipts/shared";
 
 /** The server refuses everything else (403); this only avoids showing screens and buttons that would fail. */
 export function canReadPay(session: Session): boolean {
-  return session.role === "owner" || session.role === "accountant";
+  return canAccess(session, "payroll", "read");
 }
 
 /** Only the owner changes salaries and employees (D-055). */
 export function canWritePay(session: Session): boolean {
-  return session.role === "owner";
+  return canAccess(session, "payroll", "full");
 }
 
 /** After a change, employees, salaries, payments, totals and days on a lot are all refreshed: they show each other. */

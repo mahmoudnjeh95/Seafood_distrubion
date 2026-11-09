@@ -5,6 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './accessSection';
+export * from './accessSectionDefaults';
 export * from './accountKindEnum';
 export * from './accountRef';
 export * from './accountStatement';
@@ -118,6 +120,11 @@ export * from './customerTypeWrite';
 export * from './customerWrite';
 export * from './customerWriteOff';
 export * from './customerWriteOffWrite';
+export * from './customRole';
+export * from './customRoleAccess';
+export * from './customRoleRef';
+export * from './customRoleWrite';
+export * from './customRoleWriteAccess';
 export * from './dashboard';
 export * from './dayBox';
 export * from './dayClosingApprove';
@@ -327,6 +334,7 @@ export * from './justification';
 export * from './languageEnum';
 export * from './lastCost';
 export * from './lateAdjustment';
+export * from './levelsEnum';
 export * from './listAccountTransfersParams';
 export * from './listAttachmentsKind';
 export * from './listAttachmentsParams';
@@ -488,6 +496,8 @@ export * from './matchCandidate';
 export * from './matchedMovement';
 export * from './matchWrite';
 export * from './member';
+export * from './memberAccess';
+export * from './memberAccessOverrides';
 export * from './memberCreate';
 export * from './memberPasswordReset';
 export * from './modeEnum';
@@ -800,6 +810,7 @@ export * from './saleWriteBoxes';
 export * from './saleWritePaymentMethod';
 export * from './sentEmailRow';
 export * from './session';
+export * from './sessionAccess';
 export * from './setPrice';
 export * from './setPrices';
 export * from './settleLot';

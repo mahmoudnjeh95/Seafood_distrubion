@@ -1,5 +1,5 @@
 import { type CustomerType, useListCustomerTypes } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -12,7 +12,7 @@ export function refreshCustomers(queryClient: QueryClient) {
 
 /** The server refuses changes from other roles; this only avoids showing buttons that would fail. */
 export function canEditCustomers(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "customers", "write");
 }
 
 /** The customer types of Paramètres › Types de clients (D-283), with the label of each code. A code no longer in

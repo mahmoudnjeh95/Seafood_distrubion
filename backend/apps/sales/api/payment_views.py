@@ -24,9 +24,9 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.core import access
 from apps.core.api.exports import ORDERING_HELP
 from apps.core.api.pagination import PagedList, ordered
-from apps.core.models import Role
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.documents import services as documents
 from apps.partners import selectors as partners
@@ -444,7 +444,7 @@ class CustomerWriteOffView(CustomerBalanceAnswer):
     def post(self, request: Request, customer_id: int) -> Response:
         """Clear a customer's balance to zero, the rest given up as a loss on them (owner only, D-252). The amount
         typed must be the balance shown now; a reason is required. Answers the customer's balance afterwards."""
-        if self.membership.role != Role.OWNER:
+        if not access.can(self.membership, "treasury", access.Level.FULL):
             raise PermissionDenied(_("Seul le propriétaire remet un solde client à zéro."))
         serializer = CustomerWriteOffWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

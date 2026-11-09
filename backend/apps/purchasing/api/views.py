@@ -17,9 +17,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
+from apps.core import access
 from apps.core.api.exports import ORDERING_HELP, ListExport
 from apps.core.api.pagination import PagedList, ordered
-from apps.core.models import Membership, Organization, Role
+from apps.core.models import Membership, Organization
 from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.core.xlsx import XLSX_TYPE, workbook_bytes, xlsx_response
 from apps.inventory import selectors as inventory
@@ -176,7 +177,11 @@ class ReceiptListView(PurchasingView, ListAPIView[GoodsReceipt]):
         kept as advances the invoice takes (D-268)."""
         serializer = ReceiptWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = _resolved(self.organization, serializer.validated_data, is_owner=self.membership.role == Role.OWNER)
+        data = _resolved(
+            self.organization,
+            serializer.validated_data,
+            is_owner=access.can(self.membership, "purchases", access.Level.FULL),
+        )
         payments = data.pop("payments", [])
         receipt = services.receive_goods(
             organization=self.organization,
@@ -889,7 +894,7 @@ class SupplierBalanceWriteOffView(SupplierBalanceAnswer):
     def post(self, request: Request, supplier_id: int) -> Response:
         """Clear what we owe a supplier to zero, the rest given up as a gain on them (owner only, D-252). The amount
         typed must be the balance shown now; a reason is required. Answers the supplier's balance afterwards."""
-        if self.membership.role != Role.OWNER:
+        if not access.can(self.membership, "treasury", access.Level.FULL):
             raise PermissionDenied(_("Seul le propriétaire remet un solde fournisseur à zéro."))
         serializer = BalanceWriteOffSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1009,7 +1014,7 @@ class FieldPurchaseListView(PurchasingView, ListAPIView[FieldPurchase]):
         fields = _field_purchase_fields(
             self.organization,
             dict(serializer.validated_data),
-            is_owner=self.membership.role == Role.OWNER,
+            is_owner=access.can(self.membership, "purchases", access.Level.FULL),
             kept_partners=set(),
         )
         purchase = services.submit_field_purchase(
@@ -1051,7 +1056,10 @@ class FieldPurchaseDetailView(FieldPurchaseView):
         data = dict(serializer.validated_data)
         kept = {line.partner_id for line in purchase.lines.all() if line.partner_id is not None}
         fields = _field_purchase_fields(
-            self.organization, data, is_owner=self.membership.role == Role.OWNER, kept_partners=kept
+            self.organization,
+            data,
+            is_owner=access.can(self.membership, "purchases", access.Level.FULL),
+            kept_partners=kept,
         )
         services.update_field_purchase(
             purchase=purchase,

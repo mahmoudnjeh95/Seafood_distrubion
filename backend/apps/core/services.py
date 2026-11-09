@@ -11,9 +11,9 @@ from django.db.models import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from . import audit, numbering, selectors
+from . import access, audit, numbering, selectors
 from .images import reencoded_photo
-from .models import Job, JobRun, Membership, NumberPrefix, Organization, Role, User
+from .models import CustomRole, Job, JobRun, Membership, NumberPrefix, Organization, Role, User
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -53,13 +53,24 @@ def set_language(*, user: User, language: str) -> User:
 
 
 @transaction.atomic
-def add_member(*, organization: Organization, user: User, role: Role, actor: User | None = None) -> Membership:
+def add_member(
+    *,
+    organization: Organization,
+    user: User,
+    role: Role,
+    actor: User | None = None,
+    custom_role: CustomRole | None = None,
+) -> Membership:
     """Give `user` a role in `organization`, or change the role they already have."""
+    _check_custom_role(organization=organization, role=role, custom_role=custom_role)
     membership = Membership.objects.filter(organization=organization, user=user).first()
     before = {"role": membership.role, "is_active": membership.is_active} if membership else None
     if membership is None:
         membership = Membership(organization=organization, user=user)
     membership.role = role
+    membership.custom_role = custom_role if role == Role.CUSTOM else None
+    if role in (Role.OWNER, Role.DRIVER):
+        membership.access_overrides = {}
     membership.is_active = True
     membership.save()
     audit.record(
@@ -68,7 +79,11 @@ def add_member(*, organization: Organization, user: User, role: Role, actor: Use
         action="membership.set",
         target=membership,
         before=before,
-        after={"role": membership.role, "is_active": True},
+        after={
+            "role": membership.role,
+            "is_active": True,
+            **({"custom_role": membership.custom_role_id} if role == Role.CUSTOM else {}),
+        },
     )
     return membership
 
@@ -184,8 +199,11 @@ def create_member(
     first_name: str = "",
     last_name: str = "",
     email: str = "",
+    custom_role: CustomRole | None = None,
 ) -> Membership:
-    """The owner adds a new user with a role, and a password they will want to change (no email exists, D-123)."""
+    """The owner adds a new user with a role, and a password they will want to change (no email exists, D-123).
+    A custom role (D-306) names the role the owner made."""
+    _check_custom_role(organization=organization, role=role, custom_role=custom_role)
     validate_password(password)
     try:
         user = User.objects.create_user(
@@ -197,7 +215,7 @@ def create_member(
         )
     except IntegrityError:
         raise ValidationError({"username": _("Cet identifiant existe déjà.")}) from None
-    return add_member(organization=organization, user=user, role=role, actor=actor)
+    return add_member(organization=organization, user=user, role=role, actor=actor, custom_role=custom_role)
 
 
 def _lock_owners(organization: Organization) -> None:
@@ -218,23 +236,170 @@ def _guard_last_owner(*, organization: Organization, membership: Membership) -> 
 
 @transaction.atomic
 def set_member_role(
-    *, organization: Organization, membership: Membership, actor: User | None, role: Role
+    *,
+    organization: Organization,
+    membership: Membership,
+    actor: User | None,
+    role: Role,
+    custom_role: CustomRole | None = None,
 ) -> Membership:
-    """Change a member's role. Refused when it would leave the organization without an active owner."""
+    """Change a member's role. Refused when it would leave the organization without an active owner. A custom role
+    (D-306) names the role the owner made; becoming the owner or a driver drops the person's own levels."""
+    _check_custom_role(organization=organization, role=role, custom_role=custom_role)
     _lock_owners(organization)
     membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
     if role != Role.OWNER:
         _guard_last_owner(organization=organization, membership=membership)
-    before = {"role": membership.role}
+    before = {"role": membership.role, "custom_role": membership.custom_role_id}
     membership.role = role
-    membership.save(update_fields=["role", "updated_at"])
+    membership.custom_role = custom_role if role == Role.CUSTOM else None
+    if role in (Role.OWNER, Role.DRIVER):
+        membership.access_overrides = {}
+    else:
+        # A level equal to the new role's is no longer the person's own.
+        membership.access_overrides = _own_levels(membership, membership.access_overrides)
+    membership.save(update_fields=["role", "custom_role", "access_overrides", "updated_at"])
     audit.record(
         organization=organization,
         actor=actor,
         action="membership.role_set",
         target=membership,
         before=before,
-        after={"role": membership.role},
+        after={"role": membership.role, "custom_role": membership.custom_role_id},
+    )
+    return membership
+
+
+# ---- Custom roles and each person's own levels (D-306) ----
+
+
+def _check_custom_role(*, organization: Organization, role: Role, custom_role: CustomRole | None) -> None:
+    if role == Role.CUSTOM and custom_role is None:
+        raise ValidationError({"custom_role": _("Choisissez le rôle personnalisé.")})
+    if custom_role is not None and custom_role.organization_id != organization.pk:
+        raise ValidationError({"custom_role": _("Rôle inconnu.")})
+
+
+def _matrix_errors(error: ValidationError) -> list[str]:
+    """The errors of a typed matrix, one line per section ("payroll : …")."""
+    return [f"{key} : {text}" for key, texts in error.message_dict.items() for text in texts]
+
+
+def _own_levels(membership: Membership, overrides: Mapping[str, Any]) -> dict[str, str]:
+    """The levels that differ from the person's role: the same level as the role is not their own."""
+    of_role = access.role_matrix(membership)
+    return {key: str(value) for key, value in overrides.items() if of_role.get(key) != value}
+
+
+def _role_name_taken(organization: Organization, name: str, *, exclude: int | None = None) -> bool:
+    rows = CustomRole.objects.filter(organization=organization, name__iexact=name)
+    if exclude is not None:
+        rows = rows.exclude(pk=exclude)
+    return rows.exists() or name.casefold() in {str(label).casefold() for label in Role.labels}
+
+
+def _checked_role_fields(
+    organization: Organization, name: str, levels: Mapping[str, Any], *, exclude: int | None = None
+) -> tuple[str, dict[str, str]]:
+    name = name.strip()
+    if not name:
+        raise ValidationError({"name": _("Donnez un nom au rôle.")})
+    if _role_name_taken(organization, name, exclude=exclude):
+        raise ValidationError({"name": _("Un rôle porte déjà ce nom.")})
+    try:
+        cleaned = access.clean_matrix(levels, partial=False)
+    except ValidationError as error:
+        raise ValidationError({"access": _matrix_errors(error)}) from None
+    return name, cleaned
+
+
+@transaction.atomic
+def create_custom_role(
+    *, organization: Organization, actor: User | None, name: str, access_levels: Mapping[str, Any]
+) -> CustomRole:
+    """The owner makes a role and chooses its level in each section (Paramètres › Rôles, D-306)."""
+    name, levels = _checked_role_fields(organization, name, access_levels)
+    role = CustomRole.objects.create(organization=organization, name=name, access=levels)
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="custom_role.created",
+        target=role,
+        after={"name": name, "access": levels},
+    )
+    return role
+
+
+@transaction.atomic
+def update_custom_role(
+    *, organization: Organization, role: CustomRole, actor: User | None, name: str, access_levels: Mapping[str, Any]
+) -> CustomRole:
+    """Rename a role or change its levels. The people who have it get the new levels at their next call."""
+    role = CustomRole.objects.select_for_update().get(pk=role.pk, organization=organization)
+    name, levels = _checked_role_fields(organization, name, access_levels, exclude=role.pk)
+    before = {"name": role.name, "access": role.access}
+    role.name = name
+    role.access = levels
+    role.save(update_fields=["name", "access", "updated_at"])
+    # A person's own level that the role now gives is no longer their own.
+    for membership in role.memberships.select_for_update():
+        own = _own_levels(membership, membership.access_overrides or {})
+        if own != membership.access_overrides:
+            membership.access_overrides = own
+            membership.save(update_fields=["access_overrides", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="custom_role.updated",
+        target=role,
+        before=before,
+        after={"name": name, "access": levels},
+    )
+    return role
+
+
+@transaction.atomic
+def delete_custom_role(*, organization: Organization, role: CustomRole, actor: User | None) -> None:
+    """Delete a role nobody has (deactivated people included: give them another role first)."""
+    role = CustomRole.objects.select_for_update().get(pk=role.pk, organization=organization)
+    if role.memberships.exists():
+        raise ValidationError({"detail": _("Des utilisateurs ont ce rôle : donnez-leur un autre rôle d'abord.")})
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="custom_role.deleted",
+        target=role,
+        before={"name": role.name, "access": role.access},
+    )
+    role.delete()
+
+
+@transaction.atomic
+def set_member_access(
+    *, organization: Organization, membership: Membership, actor: User | None, overrides: Mapping[str, Any]
+) -> Membership:
+    """The owner gives one person their own level in some sections, over their role's (D-306). The whole set is
+    replaced; a section left out follows the role again. The owner has everything and a driver works only on the
+    phone: neither takes levels of their own."""
+    membership = Membership.objects.select_for_update().get(pk=membership.pk, organization=organization)
+    if membership.role in (Role.OWNER, Role.DRIVER):
+        raise ValidationError(
+            {"detail": _("Le propriétaire a tous les accès et un chauffeur travaille sur le téléphone.")}
+        )
+    try:
+        cleaned = access.clean_matrix(overrides, partial=True)
+    except ValidationError as error:
+        raise ValidationError({"overrides": _matrix_errors(error)}) from None
+    before = dict(membership.access_overrides or {})
+    membership.access_overrides = _own_levels(membership, cleaned)
+    membership.save(update_fields=["access_overrides", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="membership.access_set",
+        target=membership,
+        before=before,
+        after=dict(membership.access_overrides),
     )
     return membership
 

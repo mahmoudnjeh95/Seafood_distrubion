@@ -1,5 +1,5 @@
 import type { TransferKindEnum, TransferStatusEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** After a transfer changes, refresh transfers, truck days and stock: a validation moved kilos. */
@@ -13,7 +13,7 @@ export function refreshAfterTransfer(queryClient: QueryClient) {
 
 /** The server refuses transfers from other roles; this only avoids showing buttons that would fail. */
 export function canRecordTransfers(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "transfers", "write");
 }
 
 export const KIND_ICONS = { load: "truck", return: "return", internal: "snow" } as const satisfies Record<

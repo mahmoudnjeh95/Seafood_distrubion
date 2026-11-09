@@ -35,8 +35,9 @@ def test_a_user_has_one_membership_per_organization():
         MembershipFactory.create(user=membership.user, organization=membership.organization, role=Role.DRIVER)
 
 
-def test_the_four_roles_exist():
-    assert set(Role.values) == {"owner", "manager", "driver", "accountant"}
+def test_the_four_roles_and_the_custom_one_exist():
+    # "custom": a role the owner made in Paramètres › Rôles (D-306).
+    assert set(Role.values) == {"owner", "manager", "driver", "accountant", "custom"}
 
 
 def test_users_default_to_french_and_can_choose_arabic():

@@ -17,9 +17,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core import selectors, services
+from apps.core import access, selectors, services
 from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle, PasswordChangeThrottle
-from apps.core.models import Job, Membership, Organization, User
+from apps.core.models import CustomRole, Job, Membership, Organization, Role, User
 from apps.core.permissions import (
     IsMember,
     IsOwner,
@@ -29,9 +29,13 @@ from apps.core.permissions import (
 )
 
 from .serializers import (
+    AccessSectionSerializer,
     ChangePasswordSerializer,
+    CustomRoleSerializer,
+    CustomRoleWriteSerializer,
     LanguageSerializer,
     LoginSerializer,
+    MemberAccessSerializer,
     MemberCanBuySerializer,
     MemberCreateSerializer,
     MemberPasswordResetSerializer,
@@ -338,6 +342,16 @@ class OrganizationLogoView(APIView):
 # ---- Users management: owner only (D-123) ----
 
 
+def _custom_role(organization: Organization, role_id: int | None) -> CustomRole | None:
+    """The custom role named in a request body, or a field error: another company's id is unknown (D-306)."""
+    if role_id is None:
+        return None
+    role = CustomRole.objects.filter(organization=organization, pk=role_id).first()
+    if role is None:
+        raise serializers.ValidationError({"custom_role": _("Rôle inconnu.")})
+    return role
+
+
 def _member_or_404(organization: Organization, member_id: int) -> Membership:
     member = selectors.members_of(organization).filter(pk=member_id).first()
     if member is None:
@@ -364,9 +378,9 @@ class MemberListView(ListAPIView[Membership]):
         assert membership is not None  # guaranteed by the permission class
         serializer = MemberCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        created = services.create_member(
-            organization=membership.organization, actor=membership.user, **serializer.validated_data
-        )
+        data = dict(serializer.validated_data)
+        data["custom_role"] = _custom_role(membership.organization, data.get("custom_role"))
+        created = services.create_member(organization=membership.organization, actor=membership.user, **data)
         return Response(MemberSerializer(created).data, status=status.HTTP_201_CREATED)
 
 
@@ -407,9 +421,127 @@ class MemberRoleView(APIView):
         serializer = MemberRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         updated = services.set_member_role(
-            organization=membership.organization, membership=target, actor=membership.user, **serializer.validated_data
+            organization=membership.organization,
+            membership=target,
+            actor=membership.user,
+            role=serializer.validated_data["role"],
+            custom_role=_custom_role(membership.organization, serializer.validated_data["custom_role"]),
         )
         return Response(MemberSerializer(updated).data)
+
+
+class MemberAccessView(APIView):
+    """One person's own levels, over their role's (D-306). Owner only."""
+
+    permission_classes = (IsOwner,)
+
+    @extend_schema(operation_id="setMemberAccess", request=MemberAccessSerializer, responses=MemberSerializer)
+    def put(self, request: Request, member_id: int) -> Response:
+        """Replace the sections where this person has their own level; a section left out follows their role
+        again. Refused for the owner (who has everything) and for a driver (the phone app)."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        target = _member_or_404(membership.organization, member_id)
+        serializer = MemberAccessSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = services.set_member_access(
+            organization=membership.organization,
+            membership=target,
+            actor=membership.user,
+            overrides=serializer.validated_data["overrides"],
+        )
+        return Response(MemberSerializer(updated).data)
+
+
+# ---- Custom roles: owner only (D-306) ----
+
+
+class AccessSectionsView(APIView):
+    """The sections of the access matrix, the levels each offers and the built-in roles' levels."""
+
+    permission_classes = (IsOwner,)
+
+    @extend_schema(operation_id="listAccessSections", responses=AccessSectionSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        rows = [
+            {
+                "key": section.key,
+                "title": str(section.label),
+                "group": str(section.group),
+                "levels": [str(level) for level in section.levels],
+                "defaults": {
+                    role: str(access.BUILTIN[role][section.key]) for role in (Role.OWNER, Role.MANAGER, Role.ACCOUNTANT)
+                },
+            }
+            for section in access.SECTIONS
+        ]
+        return Response(AccessSectionSerializer(rows, many=True).data)
+
+
+def _role_or_404(organization: Organization, role_id: int) -> CustomRole:
+    role = CustomRole.objects.filter(organization=organization, pk=role_id).first()
+    if role is None:
+        raise Http404
+    return role
+
+
+class CustomRoleListView(APIView):
+    permission_classes = (IsOwner,)
+
+    @extend_schema(operation_id="listCustomRoles", responses=CustomRoleSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """The roles the owner made, by name, with how many people have each."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        roles = CustomRole.objects.filter(organization=membership.organization).order_by("name")
+        return Response(CustomRoleSerializer(roles, many=True).data)
+
+    @extend_schema(
+        operation_id="createCustomRole", request=CustomRoleWriteSerializer, responses={201: CustomRoleSerializer}
+    )
+    def post(self, request: Request) -> Response:
+        """A new role with a level per section; a section left out is "none"."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = CustomRoleWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        role = services.create_custom_role(
+            organization=membership.organization,
+            actor=membership.user,
+            name=serializer.validated_data["name"],
+            access_levels=serializer.validated_data["access"],
+        )
+        return Response(CustomRoleSerializer(role).data, status=status.HTTP_201_CREATED)
+
+
+class CustomRoleDetailView(APIView):
+    permission_classes = (IsOwner,)
+
+    @extend_schema(operation_id="updateCustomRole", request=CustomRoleWriteSerializer, responses=CustomRoleSerializer)
+    def put(self, request: Request, role_id: int) -> Response:
+        """Rename the role and replace its levels; its people have the new levels at once."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        role = _role_or_404(membership.organization, role_id)
+        serializer = CustomRoleWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = services.update_custom_role(
+            organization=membership.organization,
+            role=role,
+            actor=membership.user,
+            name=serializer.validated_data["name"],
+            access_levels=serializer.validated_data["access"],
+        )
+        return Response(CustomRoleSerializer(updated).data)
+
+    @extend_schema(operation_id="deleteCustomRole", request=None, responses={204: None})
+    def delete(self, request: Request, role_id: int) -> Response:
+        """Delete a role nobody has; refused while someone has it."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        role = _role_or_404(membership.organization, role_id)
+        services.delete_custom_role(organization=membership.organization, role=role, actor=membership.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MemberDeactivateView(APIView):

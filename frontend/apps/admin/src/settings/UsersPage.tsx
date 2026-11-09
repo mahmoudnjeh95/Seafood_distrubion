@@ -1,6 +1,8 @@
 import type { Session } from "@frutti/auth";
 import {
+  type AccessSection,
   createMember,
+  type CustomRole,
   deactivateMember,
   deleteMember,
   getListMembersQueryKey,
@@ -8,9 +10,12 @@ import {
   type RoleEnum,
   reactivateMember,
   resetMemberPassword,
+  setMemberAccess,
   setMemberCanBuy,
   setMemberRole,
   updateMember,
+  useListAccessSections,
+  useListCustomRoles,
   useListMembers,
 } from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
@@ -41,8 +46,109 @@ import { type FormEvent, useId, useState } from "react";
 import { useOutletContext } from "react-router";
 
 import { fieldErrors } from "../lib/errors";
+import { AccessMatrix, type Level, type Levels } from "./AccessMatrix";
 
 const ROLES: RoleEnum[] = ["owner", "manager", "accountant", "driver"];
+
+// A role in the pickers: a built-in one by its name, a custom one as "custom:<id>" (D-306).
+interface RoleChoice {
+  role: RoleEnum;
+  custom_role: number | null;
+}
+
+function choiceValue(choice: RoleChoice): string {
+  return choice.role === "custom" ? `custom:${choice.custom_role}` : choice.role;
+}
+
+function parseChoice(value: string): RoleChoice {
+  if (value.startsWith("custom:")) return { role: "custom", custom_role: Number(value.slice(7)) };
+  return { role: value as RoleEnum, custom_role: null };
+}
+
+function RoleOptions({ customRoles }: { customRoles: CustomRole[] }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {ROLES.map((value) => (
+        <SelectItem key={value} value={value}>
+          {t(`roles.${value}`)}
+        </SelectItem>
+      ))}
+      {customRoles.map((role) => (
+        <SelectItem key={role.id} value={`custom:${role.id}`}>
+          {role.name}
+        </SelectItem>
+      ))}
+    </>
+  );
+}
+
+/** The levels a person's role gives, section by section. */
+function roleLevels(member: Member, sections: AccessSection[], customRoles: CustomRole[]): Record<string, Level> {
+  if (member.role === "custom") {
+    const role = customRoles.find((row) => row.id === member.custom_role?.id);
+    return Object.fromEntries(sections.map((section) => [section.key, role?.access[section.key] ?? "none"]));
+  }
+  const builtIn = member.role as "owner" | "manager" | "accountant";
+  return Object.fromEntries(sections.map((section) => [section.key, section.defaults[builtIn] ?? "none"]));
+}
+
+/** A custom role's own name, or the built-in role's label (`builtIn`). */
+function memberRoleLabel(member: Member, builtIn: string): string {
+  return member.role === "custom" && member.custom_role ? member.custom_role.name : builtIn;
+}
+
+function AccessDialog({ member, onDone }: { member: Member; onDone: () => void }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const sections = useListAccessSections();
+  const customRoles = useListCustomRoles();
+  const [levels, setLevels] = useState<Levels>({ ...member.access_overrides });
+  const name = member.user.first_name || member.user.username;
+
+  const save = useMutation({
+    mutationFn: () => {
+      const overrides = Object.fromEntries(
+        Object.entries(levels).filter((entry): entry is [string, Level] => !!entry[1]),
+      );
+      return setMemberAccess(member.id, { overrides });
+    },
+    onSuccess: async () => {
+      toast.success(t("admin.users.accessSaved"));
+      await queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+      onDone();
+    },
+    onError: (failure) => toast.error(errorText(failure, t("admin.users.error"))),
+  });
+
+  return (
+    <DialogContent className="max-h-[90dvh] w-[min(640px,calc(100vw-2rem))] overflow-y-auto">
+      <DialogTitle>{t("admin.users.accessTitle", { name })}</DialogTitle>
+      <DialogDescription>
+        {t("admin.users.accessDescription", { role: memberRoleLabel(member, t(`roles.${member.role}`)) })}
+      </DialogDescription>
+      {sections.data && customRoles.data ? (
+        <AccessMatrix
+          sections={sections.data}
+          value={levels}
+          onChange={setLevels}
+          inherited={roleLevels(member, sections.data, customRoles.data)}
+          disabled={save.isPending}
+        />
+      ) : (
+        <p className="text-ink-2">{t("common.loading")}</p>
+      )}
+      <DialogFooter>
+        <Button variant="ghost" onClick={onDone}>
+          {t("admin.users.cancel")}
+        </Button>
+        <Button variant="primary" disabled={save.isPending || !sections.data} onClick={() => save.mutate()}>
+          {t("admin.users.save")}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
 
 function errorText(failure: unknown, fallback: string): string {
   return Object.values(fieldErrors(failure))[0] ?? fallback;
@@ -55,7 +161,8 @@ function AddMemberDialog({ onDone }: { onDone: () => void }) {
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState<RoleEnum>("manager");
+  const [role, setRole] = useState<RoleChoice>({ role: "manager", custom_role: null });
+  const customRoles = useListCustomRoles();
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -65,7 +172,8 @@ function AddMemberDialog({ onDone }: { onDone: () => void }) {
         username: username.trim(),
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        role,
+        role: role.role,
+        custom_role: role.custom_role,
         password,
       }),
     onSuccess: async () => {
@@ -107,17 +215,13 @@ function AddMemberDialog({ onDone }: { onDone: () => void }) {
             <Input id={`${formId}-last`} value={lastName} onChange={(event) => setLastName(event.target.value)} />
           </Field>
         </div>
-        <Field label={t("admin.users.role")} htmlFor={`${formId}-role`} error={errors.role}>
-          <Select value={role} onValueChange={(value) => setRole(value as RoleEnum)}>
+        <Field label={t("admin.users.role")} htmlFor={`${formId}-role`} error={errors.role ?? errors.custom_role}>
+          <Select value={choiceValue(role)} onValueChange={(value) => setRole(parseChoice(value))}>
             <SelectTrigger id={`${formId}-role`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {ROLES.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`roles.${value}`)}
-                </SelectItem>
-              ))}
+              <RoleOptions customRoles={customRoles.data ?? []} />
             </SelectContent>
           </Select>
         </Field>
@@ -298,10 +402,15 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
   const [resetting, setResetting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const customRoles = useListCustomRoles();
   const refresh = () => queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+  const ownLevels = Object.keys(member.access_overrides).length;
+  // The owner has everything and a driver works on the phone: neither takes levels of their own (D-306).
+  const takesOwnLevels = member.role !== "owner" && member.role !== "driver";
 
   const changeRole = useMutation({
-    mutationFn: (next: RoleEnum) => setMemberRole(member.id, { role: next }),
+    mutationFn: (next: RoleChoice) => setMemberRole(member.id, next),
     onSuccess: async () => {
       toast.success(t("admin.users.roleChanged"));
       await refresh();
@@ -351,21 +460,22 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
       </Td>
       <Td>
         <Select
-          value={member.role}
-          onValueChange={(value) => changeRole.mutate(value as RoleEnum)}
+          value={choiceValue({ role: member.role, custom_role: member.custom_role?.id ?? null })}
+          onValueChange={(value) => changeRole.mutate(parseChoice(value))}
           disabled={isMe || changeRole.isPending}
         >
           <SelectTrigger aria-label={t("admin.users.role")} className="min-w-[160px]">
-            <SelectValue />
+            <SelectValue placeholder={memberRoleLabel(member, t(`roles.${member.role}`))} />
           </SelectTrigger>
           <SelectContent>
-            {ROLES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {t(`roles.${value}`)}
-              </SelectItem>
-            ))}
+            <RoleOptions customRoles={customRoles.data ?? []} />
           </SelectContent>
         </Select>
+        {takesOwnLevels && ownLevels > 0 && (
+          <div className="mt-1.5">
+            <Pill tone="warn">{t("admin.users.ownLevels", { count: ownLevels })}</Pill>
+          </div>
+        )}
         {member.role === "driver" && (
           // Buying at the port from the phone (D-158): only the drivers the owner chooses.
           <label className="mt-1.5 flex items-center gap-2 text-[0.85rem]">
@@ -392,6 +502,11 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
           <Button variant="ghost" onClick={() => setEditing(true)}>
             {t("admin.users.edit")}
           </Button>
+          {takesOwnLevels && (
+            <Button variant="ghost" onClick={() => setAccessOpen(true)}>
+              {t("admin.users.access")}
+            </Button>
+          )}
           <Button variant="ghost" onClick={() => setResetting(true)}>
             <Icon name="lock" />
             {t("admin.users.resetPassword")}
@@ -410,6 +525,9 @@ function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
         </div>
         <Dialog open={editing} onOpenChange={(open) => !open && setEditing(false)}>
           {editing && <EditMemberDialog member={member} onDone={() => setEditing(false)} />}
+        </Dialog>
+        <Dialog open={accessOpen} onOpenChange={(open) => !open && setAccessOpen(false)}>
+          {accessOpen && <AccessDialog member={member} onDone={() => setAccessOpen(false)} />}
         </Dialog>
         <Dialog open={resetting} onOpenChange={(open) => !open && setResetting(false)}>
           {resetting && <ResetPasswordDialog member={member} onDone={() => setResetting(false)} />}

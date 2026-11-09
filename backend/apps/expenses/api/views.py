@@ -18,10 +18,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core import access
 from apps.core.api.exports import ORDERING_HELP, ListExport
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
-from apps.core.models import Membership, Organization, Role
+from apps.core.models import Membership, Organization
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.core.xlsx import XLSX_TYPE
 from apps.dayclose import selectors as dayclose
@@ -75,7 +76,7 @@ class OfficeView(APIView):
 
 def _require_owner(membership: Membership) -> None:
     """The owner alone adds, renames and archives categories (checked here, D-053)."""
-    if membership.role != Role.OWNER:
+    if not access.can(membership, "expenses", access.Level.FULL):
         raise PermissionDenied(_("Seul le propriétaire gère les catégories de dépenses."))
 
 

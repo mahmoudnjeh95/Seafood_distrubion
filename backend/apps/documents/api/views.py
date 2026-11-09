@@ -35,7 +35,7 @@ class DocumentPdfView(APIView):
         organization = membership.organization
         if not services.is_known(kind):
             raise Http404
-        if not services.may_read(kind, membership.role):
+        if not services.may_read(kind, membership):
             raise PermissionDenied
         retry = request.query_params.get("retry") in {"1", "true"}
         try:
@@ -86,7 +86,7 @@ class DocumentEmailView(APIView):
         assert membership is not None  # guaranteed by the permission class
         if not services.is_known(kind):
             raise Http404
-        if not services.may_read(kind, membership.role):
+        if not services.may_read(kind, membership):
             raise PermissionDenied
         try:
             services.printable(membership.organization, kind, object_id)

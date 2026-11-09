@@ -1,5 +1,5 @@
 import type { CustomerPaymentMethodEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** After a payment or a certificate changes: payments, balances, ageing, sales and invoices all move. */
@@ -20,7 +20,7 @@ export function refreshAfterPayment(queryClient: QueryClient) {
 
 /** The server refuses payments from the accountant; this only avoids showing buttons that would fail. */
 export function canCollect(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "treasury", "write");
 }
 
 /** A moment of today as the API expects ("2026-10-11"), from the browser's local day. */

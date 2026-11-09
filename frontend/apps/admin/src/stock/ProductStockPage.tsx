@@ -1,5 +1,5 @@
 import { ApiError, useGetProductStock, useListLocations, useListMovements } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, Dialog, Icon, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import { useState } from "react";
@@ -22,7 +22,7 @@ export function ProductStockPage() {
   const movements = useListMovements({ product: productId, limit: HISTORY_SIZE });
   const [adjusting, setAdjusting] = useState(false);
   // Adjusting by hand is for the owner and the manager; the server refuses the others too.
-  const canAdjust = session.role === "owner" || session.role === "manager";
+  const canAdjust = canAccess(session, "stock", "write");
 
   const back = (
     <Link to="/stock" className="text-[0.85rem] font-semibold text-sea hover:underline">

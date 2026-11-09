@@ -6,7 +6,7 @@ import {
   useListCustomerRefunds,
   useListTreasuryAccounts,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -178,7 +178,7 @@ function PayDialog({ refund, onClose }: { refund: CustomerRefund; onClose: () =>
 export function RefundsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const canPay = session.role === "owner" || session.role === "manager";
+  const canPay = canAccess(session, "invoices", "write");
   const [filter, setFilter] = useUrlState("statut", "open");
   const [search, setSearch] = useUrlState("q");
   const query = useDebounced(search.trim());

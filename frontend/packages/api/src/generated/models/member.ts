@@ -4,6 +4,8 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { CustomRoleRef } from './customRoleRef';
+import type { MemberAccessOverrides } from './memberAccessOverrides';
 import type { RoleEnum } from './roleEnum';
 import type { User } from './user';
 
@@ -11,6 +13,8 @@ export interface Member {
   readonly id: number;
   readonly user: User;
   readonly role: RoleEnum;
+  readonly custom_role: CustomRoleRef | null;
+  readonly access_overrides: MemberAccessOverrides;
   readonly is_active: boolean;
   readonly can_buy: boolean;
 }

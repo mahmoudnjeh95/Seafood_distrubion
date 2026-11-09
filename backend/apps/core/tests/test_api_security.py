@@ -161,8 +161,8 @@ OWNER_ONLY_CLEARING = (
     "/api/v1/supplier-balances/<int:supplier_id>/write-off",
     "/api/v1/invoices/<int:invoice_id>/give-up-gap",
 )
-# Loading the company's data (P4-T01, D-112) and managing other users (D-123): the owner alone.
-OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members")
+# Loading the company's data (P4-T01, D-112), managing other users (D-123) and the roles (D-306): the owner alone.
+OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members", "/api/v1/roles", "/api/v1/access-sections")
 # The API map: owner and manager only.
 OFFICE_ONLY = ("/api/v1/schema", "/api/v1/notifications/recipients")
 
@@ -352,6 +352,8 @@ OWN_DEFAULTS = {
     # The customer types and VAT rates every company starts with (D-283).
     "/api/v1/customer-types",
     "/api/v1/vat-rates",
+    # The sections of the access matrix (D-306): the same list for every company, no company data.
+    "/api/v1/access-sections",
 }
 
 

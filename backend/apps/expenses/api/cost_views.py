@@ -14,7 +14,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.core.models import Membership, Organization, Role
+from apps.core import access
+from apps.core.models import Membership, Organization
 from apps.expenses import cost_selectors, selectors, services
 from apps.expenses.costing import first_of_month
 from apps.expenses.models import ElectricityBill, GeneralCostPeriod, RecurringCost
@@ -42,7 +43,7 @@ from .views import OfficeView
 
 def _require_owner(membership: Membership) -> None:
     """The owner alone sets the weights of the cold rooms and the recurring costs (D-058, D-059)."""
-    if membership.role != Role.OWNER:
+    if not access.can(membership, "expenses", access.Level.FULL):
         raise PermissionDenied(_("Seul le propriétaire gère les poids des chambres froides et les frais récurrents."))
 
 

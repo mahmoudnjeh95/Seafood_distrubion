@@ -4170,6 +4170,36 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - Stock is checked at "à livrer" (sellable kg, D-299) and again at the delivery; nothing is reserved between the two
   (provisional: reservations would need a new ledger state).
 
+**D-306 · Roles and access per section: custom roles and each person's own levels (owner request, not a phase-file task)** · accepted · 2026-11-09
+- Asked by the owner (2026-11-09): "add any role, and give specific pages to a specific user". Chosen: a **full matrix**
+  (not "built-in role + chosen pages", not "menu only"), and per person both adding and removing sections.
+- **Sections and levels** (`apps/core/access.py`): 22 sections, roughly one per menu entry (Devis, Bons de livraison,
+  Factures, Clients, Prix, Stock, Transferts, Flotte, Journées, Produits, Achats, Fournisseurs, Documents, Charges,
+  Salaires, Partenariats, Clôture, Trésorerie, Site web, Paramètres, Tableau de bord, Rapports). Levels: `none` (hidden,
+  API 403), `read`, `write` (what a manager does), `full` (also what only the owner does: approve, write off, change the
+  rules). Salaires and Partenariats offer none/read/full (their writes were the owner's alone); Tableau de bord and
+  Rapports offer none/read.
+- **Custom role** (`core.CustomRole`, Paramètres › Rôles, owner only): a name and a level per section;
+  `Membership.role = "custom"` with `custom_role` set (check constraint). A role someone has cannot be deleted. A name
+  equal to a built-in role's is refused.
+- **A person's own levels** (`Membership.access_overrides`, Paramètres › Utilisateurs › Accès): per section, over
+  their role's; a level equal to the role's is dropped. Not for the owner (everything) nor a driver (phone app).
+- **Server enforcement:** every permission class now asks the matrix first (`MatrixFirst`/`HasRole`, `role_allows`
+  for the old rule). The matrix decides a call when the person has a custom role, or their own level in the route's
+  section; otherwise the old class decides, so the four built-in roles behave exactly as before. A route's section
+  comes from `access.ROUTES` (path prefix; a document PDF/e-mail by its kind). Reading needs `read`; writing needs
+  `write`, or `full` where the class leaves writes to the owner (`owner_writes`: `IsOwner`, the owner-money classes,
+  the truck day allowance). The owner's checks inside views (`role != OWNER`) became `access.can(..., FULL)` in their
+  section; "owner or manager" checks became `WRITE`.
+- **Kept out of the matrix:** users, roles, the import (owner only), the driver's `my-…` routes. Lists the forms pick
+  from (products, customers, suppliers, cold rooms, batches, trucks, categories, VAT rates, finance settings, logo)
+  stay readable by every office person whatever their levels, or the other sections' forms would break.
+- **Known limits:** a manager's own level equal to the manager default is dropped, so a manager cannot be given the
+  financial reports by override (they read "Rapports" already); give them a custom role instead. Custom roles get the
+  office notifications.
+- **Screens:** the session carries `role_label` and `access`; the menu hides sections at `none`, a screen of such a
+  section shows "no access", buttons use `canAccess(session, section, level)` (`@frutti/auth`). Paramètres opens with
+  `settings` ≥ read; its Utilisateurs and Rôles cards stay the owner's.
 **D-307 · WhatsApp assistant: Meta Cloud API direct, tools through the API as the user (Phase 12, P12-T01)** · accepted (owner 2026-11-09) · 2026-11-09
 - Owner: a WhatsApp bot that talks Tunisian (text and voice) and does what the app does, for every user within their
   role; using it is a permission of the roles matrix. Meta's official Cloud API, connected directly (Twilio /

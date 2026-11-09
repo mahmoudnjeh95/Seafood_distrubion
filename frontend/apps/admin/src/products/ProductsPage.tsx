@@ -1,5 +1,5 @@
 import { useListCategories, useListProducts } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -31,7 +31,7 @@ export function ProductsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
   // The server refuses changes from other roles; this only avoids showing buttons that would fail.
-  const canEdit = session.role === "owner" || session.role === "manager";
+  const canEdit = canAccess(session, "products", "write");
   const [search, setSearch] = useUrlState("q");
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [status, setStatus] = useState<Status>("active");

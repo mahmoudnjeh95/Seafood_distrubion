@@ -10,6 +10,7 @@
  * * `manager` - Gestionnaire
  * * `driver` - Chauffeur
  * * `accountant` - Comptable
+ * * `custom` - Rôle personnalisé
  */
 export type RoleEnum = typeof RoleEnum[keyof typeof RoleEnum];
 
@@ -19,4 +20,5 @@ export const RoleEnum = {
   manager: 'manager',
   driver: 'driver',
   accountant: 'accountant',
+  custom: 'custom',
 } as const;

@@ -16,6 +16,8 @@ function sessionFor(role: Role): Session {
     user: { id: 1, username: "sami", first_name: "Sami", last_name: "B.", email: "", language: "fr", avatar_url: null },
     organization: { id: 1, name: "Frutti Del Mare", logo_url: null },
     role,
+    role_label: role,
+    access: {},
     can_buy: false,
     truck: null,
   };

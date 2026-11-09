@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
+from apps.core import access
 from apps.core.api.exports import ORDERING_HELP, ListExport
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
@@ -107,9 +108,10 @@ class OfficeView(APIView):
 # ---- Quotes (P2-T03) ----
 
 
-def may_approve_below_minimum(membership: Membership) -> bool:
-    """Only the owner and the manager let a price go under a product's minimum, with a reason (D-193)."""
-    return membership.role in (Role.OWNER, Role.MANAGER)
+def may_approve_below_minimum(membership: Membership, section: str) -> bool:
+    """Only the owner and the manager let a price go under a product's minimum, with a reason (D-193): through the
+    access matrix (D-306), whoever writes in the section (quotes or sales)."""
+    return access.can(membership, section, access.Level.WRITE)
 
 
 def _quote_fields(organization: Organization, data: dict[str, Any], *, may_approve: bool = False) -> dict[str, Any]:
@@ -195,7 +197,9 @@ class QuoteListView(QuoteView, ListAPIView[Quote]):
         serializer = QuoteWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = _quote_fields(
-            self.organization, serializer.validated_data, may_approve=may_approve_below_minimum(self.membership)
+            self.organization,
+            serializer.validated_data,
+            may_approve=may_approve_below_minimum(self.membership, "quotes"),
         )
         quote = services.create_quote(organization=self.organization, actor=self.membership.user, **data)
         return _quote_answer(self.organization, quote.pk, status_code=status.HTTP_201_CREATED)
@@ -215,7 +219,9 @@ class QuoteDetailView(QuoteView):
         serializer = QuoteWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = _quote_fields(
-            self.organization, serializer.validated_data, may_approve=may_approve_below_minimum(self.membership)
+            self.organization,
+            serializer.validated_data,
+            may_approve=may_approve_below_minimum(self.membership, "quotes"),
         )
         services.update_quote(quote=quote, actor=self.membership.user, **data)
         return _quote_answer(self.organization, quote.pk)
@@ -262,11 +268,10 @@ class SalesPermission(HasRole):
 
     roles = frozenset({Role.OWNER, Role.MANAGER, Role.ACCOUNTANT, Role.DRIVER})
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        if not super().has_permission(request, view):
+    def role_allows(self, request: Request, view: APIView, membership: Membership) -> bool:
+        if not super().role_allows(request, view, membership):
             return False
-        membership = membership_of(request)
-        return request.method in SAFE_METHODS or (membership is not None and membership.role in SELLER_ROLES)
+        return request.method in SAFE_METHODS or membership.role in SELLER_ROLES
 
 
 def _payment(data: dict[str, Any], *, driver: bool) -> services.PaymentFields | None:
@@ -395,7 +400,9 @@ class SaleView(OfficeView):
             "approve_credit": self.may_approve_credit(data["approve_credit"]),
             "boxes": data["boxes"],
             "delivery_address": data["delivery_address"],
-            "below_minimum_reason": data["below_minimum_reason"] if may_approve_below_minimum(self.membership) else "",
+            "below_minimum_reason": data["below_minimum_reason"]
+            if may_approve_below_minimum(self.membership, "sales")
+            else "",
             # The phone always sells to invoice (D-286): "non facturable" and "offert" are the office's choice.
             **({} if self.is_driver or data["billing"] is None else {"billing": data["billing"]}),
         }
@@ -660,7 +667,7 @@ class FinanceSettingsView(OfficeView):
         data = {
             "in_force": in_force,
             "history": selectors.finance_settings_history(organization),
-            "may_edit": self.membership.role == Role.OWNER,
+            "may_edit": access.can(self.membership, "invoices", access.Level.FULL),
         }
         return Response(FinanceSettingsOverviewSerializer(data).data)
 
@@ -678,7 +685,7 @@ class FinanceSettingsView(OfficeView):
     def post(self, request: Request) -> Response:
         """A new version of the finance settings from `valid_from` (today when empty; the past is refused). The
         owner only: a manager gets 403. Saving again for the same day replaces that day's version."""
-        if self.membership.role != Role.OWNER:
+        if not access.can(self.membership, "invoices", access.Level.FULL):
             raise PermissionDenied(_("Seul le propriétaire change les paramètres financiers."))
         serializer = FinanceSettingsWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -795,7 +802,7 @@ class InvoiceGiveUpGapView(InvoiceView):
         """Give up what is left to pay on a partly paid invoice, as a loss on the customer (owner only, D-256). The
         amount typed must be what the invoice still asks; a reason is required; the loss is charged to the lots of
         its BL picked by hand (`lot_shares`, D-257). Answers the invoice afterwards."""
-        if self.membership.role != Role.OWNER:
+        if not access.can(self.membership, "invoices", access.Level.FULL):
             raise PermissionDenied(_("Seul le propriétaire abandonne l'écart d'une facture."))
         serializer = CustomerWriteOffWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

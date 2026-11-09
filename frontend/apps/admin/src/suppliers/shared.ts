@@ -1,4 +1,4 @@
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** Every cached answer about suppliers (list and detail) is refreshed after a change. */
@@ -10,5 +10,5 @@ export function refreshSuppliers(queryClient: QueryClient) {
 
 /** The server refuses changes from other roles; this only avoids showing buttons that would fail. */
 export function canEditSuppliers(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "suppliers", "write");
 }
