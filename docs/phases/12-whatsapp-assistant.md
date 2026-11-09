@@ -1,0 +1,51 @@
+# Phase 12 · Assistant WhatsApp (D-307)
+
+_Owner request of 2026-11-09: "a bot in my WhatsApp that talks Tunisian and does what I need in the application"._
+Design (approved by the owner 2026-11-09): `docs/superpowers/specs/2026-11-09-whatsapp-assistant-design.md`.
+Plan: `docs/superpowers/plans/2026-11-09-whatsapp-assistant.md`.
+
+Users message the company's WhatsApp Business number, by text or voice, in Tunisian, Arabic or French. The
+assistant answers from the app's data and, after a confirmation, records things. Each phone is one user; the bot
+can do only what that user's role allows in the app. Using the bot is itself a permission of the roles matrix
+(section `assistant`, built with the roles matrix on branch `user-roles-matrix`).
+
+Choices made with the owner: Meta's official WhatsApp Cloud API, connected directly (no Twilio / 360dialog);
+about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
+
+## Owner (outside the code)
+
+- [ ] A SIM with a number not used in the WhatsApp app.
+- [ ] Meta Business account, verified with the company papers; the number on the WhatsApp Business Platform; a
+      payment card (Meta bills service messages beyond 1 000 a month since 2026-10-01).
+- [ ] Anthropic API key with a monthly spending limit.
+- [ ] Accountant or lawyer: does sending customer names and amounts to Anthropic (abroad) need an INPDP declaration
+      (law 2004-63)? Go-live waits for the answer; building does not.
+
+## Tasks
+
+- [x] **P12-T01 Webhook, phone link, answers by text (reads only).** App `apps.assistant`: `WhatsAppLink` (one phone
+      per membership, set in the Django admin until T05), `AssistantMessage` (conversation memory and token usage);
+      webhook `GET/POST /api/v1/whatsapp/webhook` (Meta's verify token; `X-Hub-Signature-256` checked; a message
+      delivered twice is handled once); Celery task: unknown number → refusal (once a day), role without the
+      permission → refusal, switched off, 60 messages an hour, voice → "text only for now"; Claude Sonnet 5.5
+      with read tools that call the app's own endpoints in-process **as the user** (stock, customers and what they
+      owe, receivables, sales, the driver's truck and day); a failure gets an apology. Until the roles matrix
+      merges, only the owner may use the bot.
+- [ ] **P12-T02 Write tools with confirmation.** Pending action (exact payload, summary, 15 min); buttons
+      Confirmer / Annuler; only the latest pending action of the same phone runs, with the stored payload; quote, BL
+      and invoice drafts, issue an invoice (separate confirmation), customer payment, expense; audit "via WhatsApp".
+- [ ] **P12-T03 Voice notes.** Media download; speech-to-text provider chosen on 10 to 20 real Tunisian voice
+      notes from the owner and the drivers.
+- [ ] **P12-T04 PDFs and photos.** Send a document's PDF; a receipt photo on an expense.
+- [ ] **P12-T05 Screens and budget.** After the roles matrix: section `assistant` in `core/access.py`, tools
+      filtered by section and level; WhatsApp number in the users screen; monthly AI budget, usage page, per-user
+      on/off.
+- [ ] **Test set.** 50+ real messages with the expected answer, run on demand (not in CI) to compare models
+      (Haiku 5.5 vs Sonnet 5.5) and to check a prompt change.
+
+## Check on staging (T01)
+
+1. Runbook "WhatsApp assistant": the Meta webhook saved, the keys in `.env`, `ASSISTANT_ENABLED=true`.
+2. Django admin › Assistant WhatsApp › link the owner's phone.
+3. From that phone: "chnowa 3andi f frigo?" → the stock; "9addech ysalni <client>?" → the balance.
+4. From a number linked to nobody → "Ce numéro n'est pas autorisé…"; a voice note → "seulement les messages écrits".

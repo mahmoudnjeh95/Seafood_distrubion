@@ -67,6 +67,7 @@ _OUTSIDE = (
     "access-sections",
     "imports",
     "documents/",
+    "whatsapp/",
 )
 
 

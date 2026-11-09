@@ -319,6 +319,19 @@ changes its data. Not in the nightly backup.
   the app and survive resets (copy in `~/frutti-training/logins/`; if a reset stops halfway, run it again).
 - Production's own logins do not work on the training copy.
 
+## WhatsApp assistant (D-307)
+
+The webhook is `https://<api host>/api/v1/whatsapp/webhook`; the answers are sent by the Celery worker.
+
+1. Meta for Developers › the app › WhatsApp › Configuration: callback URL above, verify token = a random string,
+   then subscribe the webhook to the `messages` field.
+2. In the staging `.env` (then redeploy): `WHATSAPP_VERIFY_TOKEN` (the same string), `WHATSAPP_APP_SECRET` (App
+   settings › Basic), `WHATSAPP_ACCESS_TOKEN` (a permanent system-user token with `whatsapp_business_messaging`),
+   `WHATSAPP_PHONE_NUMBER_ID`, `ANTHROPIC_API_KEY`, `ASSISTANT_ENABLED=true`.
+3. Django admin › Assistant WhatsApp › WhatsApp links: add the user's number (`+216…` or 8 digits).
+4. Off at once: `ASSISTANT_ENABLED=false` and redeploy; the bot answers "désactivé" and calls no AI.
+The messages and their token counts are in Django admin › Assistant messages.
+
 ## Production
 
 Not set up yet (P4-T02). It needs a domain and HTTPS: staging runs on plain HTTP (D-027).

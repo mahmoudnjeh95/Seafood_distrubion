@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-09 (roles and access per section, D-306; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-307)_
+_Last updated: 2026-11-09 (roles and access per section, D-306; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-308)_
 
 ## Where we are
 
@@ -12,6 +12,13 @@ _Last updated: 2026-11-09 (roles and access per section, D-306; Phase 1 gap revi
   a treasury URL shows "no access". Then give a gestionnaire "Salaires" in Lecture and check they see the payroll.
   The WhatsApp assistant session (branch `whatsapp-assistant`) adds a section `assistant` after this merges.
 
+- **Phase 12 · Assistant WhatsApp (D-307, owner request 2026-11-09)** — plan in `docs/phases/12-whatsapp-assistant.md`
+  (design and plan under `docs/superpowers/`). **T01 on branch `whatsapp-assistant`:** app `apps.assistant`
+  (migration `assistant 0001`), webhook `/api/v1/whatsapp/webhook`, phone link in the Django admin, read-only answers
+  by text through the app's own endpoints as the user, Claude Sonnet 5.5. Off until `ASSISTANT_ENABLED=true` and the
+  Meta and Anthropic keys are set (runbook "WhatsApp assistant"). Owner only until the roles matrix (`user-roles-matrix`,
+  another session) merges; then T05 adds the section `assistant`. Next: T02 write tools with confirmation.
+  Owner to do: SIM, Meta Business verification, Anthropic key, INPDP question to the accountant.
 - **Phase 10 · Flotte & entretien (D-295, owner request 2026-11-08)** — plan and the owner's answers in
   `docs/phases/10-fleet-maintenance.md`. T01 compteur merged (#332). **T02 to T05 on branch
   `claude/dreamy-carson-bztvxg`, PR #333 (migrations `maintenance 0002` to `0004`, new expense category `vehicles`):**

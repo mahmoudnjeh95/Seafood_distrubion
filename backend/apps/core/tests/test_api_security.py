@@ -34,6 +34,8 @@ PUBLIC = {
     "/api/v1/site/logo",
     "/api/v1/site/products/<int:product_id>/photo",
     "/api/v1/site/requests",
+    # Meta's WhatsApp webhook (P12-T01): signed with the app secret instead of a session.
+    "/api/v1/whatsapp/webhook",
 }
 # Any logged-in session, whatever the role: leaving.
 ANY_SESSION = {"/api/v1/auth/logout"}
