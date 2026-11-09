@@ -23,7 +23,8 @@ async function newReceipt(page: Page): Promise<string> {
   await line.getByRole("combobox", { name: "Produit" }).click();
   await page.getByRole("option", { name: "Loup de mer · LO-004" }).click();
   await line.getByLabel("Facturé (kg)").fill("10");
-  await line.getByLabel("Coût (DT/kg)").fill("20");
+  // The demo's last price (21.500): admin.receipts.spec.ts expects it to still be the suggested cost.
+  await line.getByLabel("Coût (DT/kg)").fill("21,500");
   await page.getByRole("button", { name: "Enregistrer la réception" }).click();
   await expect(page.getByRole("heading", { name: /^BR-\d+$/, level: 1 })).toBeVisible();
   return (await page.getByRole("heading", { level: 1 }).textContent()) ?? "";
@@ -39,7 +40,7 @@ async function newBl(page: Page, billing: "Facturable" | "Non facturable" | "Off
   await line.getByLabel("Poids (kg)").fill("2");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
   await expect(page.getByText(/Brouillon VE-[\d-]+ enregistré/)).toBeVisible();
-  await page.getByRole("button", { name: "Valider le bon de livraison" }).click();
+  await page.getByRole("button", { name: "Livré tout de suite (comptoir)" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^BL-\d{4}-\d+$/);
 }
 
