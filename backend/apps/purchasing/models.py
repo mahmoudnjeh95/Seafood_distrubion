@@ -44,6 +44,8 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     supplier_reference = models.CharField(max_length=50, blank=True)
     # Bought with VAT: its lots are sold with VAT on the invoice (D-202).
     with_vat = models.BooleanField(default=False)
+    # The goods' temperature measured at arrival, in °C (D-300); empty when not measured.
+    arrival_temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     notes = models.TextField(blank=True)
     # The number of the last change made after saving (D-269): a change must name it, so two people never
     # overwrite each other. Zero until the receipt is changed.

@@ -20,6 +20,7 @@ from apps.inventory.models import (
     StockLocation,
     StockLoss,
     StockSettings,
+    TemperatureReading,
     Transfer,
     TransferDelivery,
     TransferKind,
@@ -759,3 +760,61 @@ class RoadReturnSerializer(serializers.Serializer[Any]):
     number = serializers.CharField(read_only=True)
     to_location = serializers.CharField(source="to_location.name", read_only=True)
     total_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+
+
+# ---- Cold chain (D-300) ----
+
+
+class TemperatureReadingSerializer(serializers.ModelSerializer[TemperatureReading]):
+    location = PlaceSerializer(read_only=True)
+    taken_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TemperatureReading
+        fields = ("id", "location", "taken_at", "celsius", "out_of_range", "note", "taken_by", "created_at")
+        read_only_fields = fields
+
+    def get_taken_by(self, reading: TemperatureReading) -> str:
+        return person_name(reading.taken_by)
+
+
+class TemperatureWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    celsius = serializers.CharField(max_length=10)
+    # When it was read; empty: now.
+    taken_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+
+class MyTemperatureWriteSerializer(serializers.Serializer[Any]):
+    celsius = serializers.CharField(max_length=10)
+    taken_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    client_uuid = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
+class TemperatureFilterSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(required=False, min_value=1)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    out_of_range = serializers.BooleanField(required=False, default=False)
+
+
+class TemperatureRangeWriteSerializer(serializers.Serializer[Any]):
+    temp_min = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True, default=None)
+    temp_max = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class ColdChainPlaceSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="location.id", read_only=True)
+    name = serializers.CharField(source="location.name", read_only=True)
+    kind = serializers.ChoiceField(source="location.kind", choices=LocationKind.choices, read_only=True)
+    temp_min = serializers.DecimalField(
+        source="location.temp_min", max_digits=4, decimal_places=1, read_only=True, allow_null=True
+    )
+    temp_max = serializers.DecimalField(
+        source="location.temp_max", max_digits=4, decimal_places=1, read_only=True, allow_null=True
+    )
+    last = TemperatureReadingSerializer(read_only=True, allow_null=True)
+    readings_today = serializers.IntegerField(read_only=True)
+    alerts_7_days = serializers.IntegerField(read_only=True)

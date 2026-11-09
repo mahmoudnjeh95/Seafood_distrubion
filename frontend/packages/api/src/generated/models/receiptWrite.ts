@@ -22,6 +22,11 @@ export interface ReceiptWrite {
   /** @maxLength 50 */
   supplier_reference?: string;
   with_vat?: boolean;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,1})?$
+     */
+  arrival_temperature?: string | null;
   notes?: string;
   lines: ReceiptLineWrite[];
   boxes?: ReceiptWriteBoxes;

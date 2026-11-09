@@ -486,6 +486,40 @@ export const RenameCategoryResponse = zod.object({
 
 
 /**
+ * Every cold room and truck with its range, its last reading, today's count and the alerts of 7 days.
+ */
+export const getColdChainResponseTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getColdChainResponseTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getColdChainResponseLastOneCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const GetColdChainResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "temp_min": zod.stringFormat('decimal', getColdChainResponseTempMinRegExp).nullable(),
+  "temp_max": zod.stringFormat('decimal', getColdChainResponseTempMaxRegExp).nullable(),
+  "last": zod.union([zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', getColdChainResponseLastOneCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}),zod.null()]),
+  "readings_today": zod.int(),
+  "alerts_7_days": zod.int()
+})
+export const GetColdChainResponse = zod.array(GetColdChainResponseItem)
+
+
+/**
  * One month of cold-room costs: the bill if any, and per room its weight and cost for the month
  * and per day, estimated (the estimate typed for the month, else the previous month's daily rate) until the
  * bill is approved; the estimate and the difference with the real bill come with it.
@@ -9044,6 +9078,54 @@ export const ListLocationBatchesResponse = zod.array(ListLocationBatchesResponse
 
 
 /**
+ * The temperature a place must keep, in °C; an empty end is open. Owner or manager.
+ */
+export const SetTemperatureRangeParams = zod.object({
+  "location_id": zod.int()
+})
+
+export const setTemperatureRangeBodyTempMinMax = 10;
+
+export const setTemperatureRangeBodyTempMaxMax = 10;
+
+
+
+export const SetTemperatureRangeBody = zod.object({
+  "temp_min": zod.string().max(setTemperatureRangeBodyTempMinMax).nullish(),
+  "temp_max": zod.string().max(setTemperatureRangeBodyTempMaxMax).nullish()
+})
+
+export const setTemperatureRangeResponseTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setTemperatureRangeResponseTempMaxRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const setTemperatureRangeResponseLastOneCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const SetTemperatureRangeResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre'),
+  "temp_min": zod.stringFormat('decimal', setTemperatureRangeResponseTempMinRegExp).nullable(),
+  "temp_max": zod.stringFormat('decimal', setTemperatureRangeResponseTempMaxRegExp).nullable(),
+  "last": zod.union([zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', setTemperatureRangeResponseLastOneCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}),zod.null()]),
+  "readings_today": zod.int(),
+  "alerts_7_days": zod.int()
+})
+
+
+/**
  * Losses, newest day first, paginated (`limit`, `offset`). Filter by status, location or `search`
  * (number, product, location).
  */
@@ -13985,6 +14067,43 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
+ * The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+ * written once. 404 without a truck.
+ */
+export const recordMyTruckTemperatureBodyCelsiusMax = 10;
+
+export const recordMyTruckTemperatureBodyNoteDefault = ``;
+export const recordMyTruckTemperatureBodyNoteMax = 255;
+
+
+
+export const RecordMyTruckTemperatureBody = zod.object({
+  "celsius": zod.string().max(recordMyTruckTemperatureBodyCelsiusMax),
+  "taken_at": zod.iso.datetime({"offset":true}).nullish(),
+  "note": zod.string().max(recordMyTruckTemperatureBodyNoteMax).default(recordMyTruckTemperatureBodyNoteDefault),
+  "client_uuid": zod.uuid().nullish()
+})
+
+export const recordMyTruckTemperatureResponseCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const RecordMyTruckTemperatureResponse = zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', recordMyTruckTemperatureResponseCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Tell one person about a payment order (a planned payment to a supplier, D-192): they see it in their bell
  * and it opens the supplier règlements.
  */
@@ -16974,13 +17093,14 @@ export const ListReceiptsQueryParams = zod.object({
   "uninvoiced": zod.boolean().default(listReceiptsQueryUninvoicedDefault)
 })
 
+export const listReceiptsResponseResultsItemArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const listReceiptsResponseResultsItemArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const listReceiptsResponseResultsItemInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listReceiptsResponseResultsItemAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17009,6 +17129,8 @@ export const ListReceiptsResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', listReceiptsResponseResultsItemArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', listReceiptsResponseResultsItemArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17031,7 +17153,7 @@ export const ListReceiptsResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', listReceiptsResponseResultsItemInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', listReceiptsResponseResultsItemAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17080,6 +17202,7 @@ export const createReceiptBodySupplierReferenceDefault = ``;
 export const createReceiptBodySupplierReferenceMax = 50;
 
 export const createReceiptBodyWithVatDefault = false;
+export const createReceiptBodyArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
 export const createReceiptBodyNotesDefault = ``;
 export const createReceiptBodyLinesItemCatchAreaDefault = ``;
 export const createReceiptBodyLinesItemCatchAreaMax = 60;
@@ -17103,6 +17226,7 @@ export const CreateReceiptBody = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string().max(createReceiptBodySupplierReferenceMax).default(createReceiptBodySupplierReferenceDefault),
   "with_vat": zod.boolean().default(createReceiptBodyWithVatDefault),
+  "arrival_temperature": zod.stringFormat('decimal', createReceiptBodyArrivalTemperatureRegExp).nullish(),
   "notes": zod.string().default(createReceiptBodyNotesDefault),
   "lines": zod.array(zod.object({
   "product": zod.int().min(1),
@@ -17126,13 +17250,14 @@ export const CreateReceiptBody = zod.object({
   "confirm_cash_limit": zod.boolean().default(createReceiptBodyConfirmCashLimitDefault)
 })
 
+export const createReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const createReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const createReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17157,6 +17282,8 @@ export const CreateReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', createReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', createReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17179,7 +17306,7 @@ export const CreateReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', createReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', createReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', createReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17217,13 +17344,14 @@ export const GetReceiptParams = zod.object({
   "receipt_id": zod.int()
 })
 
+export const getReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const getReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const getReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17248,6 +17376,8 @@ export const GetReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', getReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', getReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17270,7 +17400,7 @@ export const GetReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', getReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', getReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', getReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17320,13 +17450,14 @@ export const DisputeReceiptBody = zod.object({
   "reason": zod.string().max(disputeReceiptBodyReasonMax)
 })
 
+export const disputeReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const disputeReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const disputeReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const disputeReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17351,6 +17482,8 @@ export const DisputeReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', disputeReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', disputeReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17373,7 +17506,7 @@ export const DisputeReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', disputeReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', disputeReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', disputeReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17423,13 +17556,14 @@ export const ResolveReceiptDisputeBody = zod.object({
   "resolution": zod.string().max(resolveReceiptDisputeBodyResolutionMax)
 })
 
+export const resolveReceiptDisputeResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const resolveReceiptDisputeResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const resolveReceiptDisputeResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const resolveReceiptDisputeResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17454,6 +17588,8 @@ export const ResolveReceiptDisputeResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', resolveReceiptDisputeResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', resolveReceiptDisputeResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17476,7 +17612,7 @@ export const ResolveReceiptDisputeResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', resolveReceiptDisputeResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', resolveReceiptDisputeResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', resolveReceiptDisputeResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -17544,13 +17680,14 @@ export const ReviseReceiptBody = zod.object({
 }))
 })
 
+export const reviseReceiptResponseArrivalTemperatureRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+export const reviseReceiptResponseArrivalTemperatureOutOfRangeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemOrderedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemInvoicedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemAcceptedQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemInvoicedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseLinesItemAcceptedAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
-export const reviseReceiptResponseInvoicedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseInvoicedVatRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const reviseReceiptResponseAcceptedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -17575,6 +17712,8 @@ export const ReviseReceiptResponse = zod.object({
   "received_on": zod.iso.date(),
   "supplier_reference": zod.string(),
   "with_vat": zod.boolean(),
+  "arrival_temperature": zod.stringFormat('decimal', reviseReceiptResponseArrivalTemperatureRegExp).nullable(),
+  "arrival_temperature_out_of_range": zod.stringFormat('decimal', reviseReceiptResponseArrivalTemperatureOutOfRangeRegExp),
   "notes": zod.string(),
   "lines": zod.array(zod.object({
   "id": zod.int(),
@@ -17597,7 +17736,7 @@ export const ReviseReceiptResponse = zod.object({
   "has_difference": zod.boolean()
 })),
   "has_differences": zod.boolean(),
-  "invoiced_total": zod.stringFormat('decimal', reviseReceiptResponseInvoicedTotalRegExp),
+  "invoiced_total": zod.string(),
   "invoiced_vat": zod.stringFormat('decimal', reviseReceiptResponseInvoicedVatRegExp),
   "accepted_total": zod.stringFormat('decimal', reviseReceiptResponseAcceptedTotalRegExp),
   "invoice": zod.union([zod.object({
@@ -23201,6 +23340,83 @@ export const ResolveSyncProblemResponse = zod.object({
   "driver_name": zod.string(),
   "created_at": zod.iso.datetime({"offset":true}),
   "resolved_at": zod.iso.datetime({"offset":true}).nullable()
+})
+
+
+/**
+ * The temperature log (HACCP), newest first, paginated; filter by place, days, or alerts only.
+ */
+
+export const listTemperatureReadingsQueryOutOfRangeDefault = false;
+
+export const ListTemperatureReadingsQueryParams = zod.object({
+  "date_from": zod.iso.date().optional(),
+  "date_to": zod.iso.date().optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "location": zod.int().min(1).optional(),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "out_of_range": zod.boolean().default(listTemperatureReadingsQueryOutOfRangeDefault)
+})
+
+export const listTemperatureReadingsResponseResultsItemCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const ListTemperatureReadingsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', listTemperatureReadingsResponseResultsItemCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+ * Owner or manager; a driver writes their truck's from the phone.
+ */
+
+export const recordTemperatureBodyCelsiusMax = 10;
+
+export const recordTemperatureBodyNoteDefault = ``;
+export const recordTemperatureBodyNoteMax = 255;
+
+
+
+export const RecordTemperatureBody = zod.object({
+  "location": zod.int().min(1),
+  "celsius": zod.string().max(recordTemperatureBodyCelsiusMax),
+  "taken_at": zod.iso.datetime({"offset":true}).nullish(),
+  "note": zod.string().max(recordTemperatureBodyNoteMax).default(recordTemperatureBodyNoteDefault)
+})
+
+export const recordTemperatureResponseCelsiusRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
+
+
+export const RecordTemperatureResponse = zod.object({
+  "id": zod.int(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "taken_at": zod.iso.datetime({"offset":true}),
+  "celsius": zod.stringFormat('decimal', recordTemperatureResponseCelsiusRegExp),
+  "out_of_range": zod.boolean(),
+  "note": zod.string(),
+  "taken_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 

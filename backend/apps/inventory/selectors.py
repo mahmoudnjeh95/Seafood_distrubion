@@ -30,6 +30,7 @@ from .models import (
     StockMovement,
     StockOnHand,
     StockSettings,
+    TemperatureReading,
     Transfer,
     TransferDelivery,
     TransferLine,
@@ -1533,3 +1534,70 @@ def expiring_batches(organization: Organization, *, today: dt.date, within_days:
         )
         for row in rows
     ]
+
+
+# ---- Cold chain (D-300) ----
+
+
+def temperature_readings(
+    organization: Organization,
+    *,
+    location_id: int | None = None,
+    date_from: dt.date | None = None,
+    date_to: dt.date | None = None,
+    out_of_range: bool = False,
+) -> QuerySet[TemperatureReading]:
+    """The temperature log, newest first, with its location and who read it."""
+    rows = (
+        TemperatureReading.objects.for_organization(organization)
+        .select_related("location", "taken_by")
+        .order_by("-taken_at", "-id")
+    )
+    if location_id is not None:
+        rows = rows.filter(location_id=location_id)
+    if date_from is not None:
+        rows = rows.filter(taken_at__date__gte=date_from)
+    if date_to is not None:
+        rows = rows.filter(taken_at__date__lte=date_to)
+    if out_of_range:
+        rows = rows.filter(out_of_range=True)
+    return rows
+
+
+@dataclass(frozen=True)
+class ColdChainPlace:
+    """A cold room or a truck with its range and its last reading."""
+
+    location: StockLocation
+    last: TemperatureReading | None
+    readings_today: int
+    alerts_7_days: int
+
+
+def cold_chain_overview(organization: Organization) -> list[ColdChainPlace]:
+    """Every active cold room and truck (and other places with a range), with the last reading and the alerts."""
+    today = timezone.localdate()
+    places = (
+        StockLocation.objects.for_organization(organization)
+        .filter(is_active=True)
+        .filter(
+            Q(kind__in=[LocationKind.COLD_ROOM, LocationKind.TRUCK])
+            | Q(temp_min__isnull=False)
+            | Q(temp_max__isnull=False)
+        )
+        .order_by("kind", "name", "id")
+    )
+    found = []
+    for place in places:
+        readings = TemperatureReading.objects.filter(location=place)
+        found.append(
+            ColdChainPlace(
+                location=place,
+                last=readings.select_related("taken_by").order_by("-taken_at", "-id").first(),
+                readings_today=readings.filter(taken_at__date=today).count(),
+                alerts_7_days=readings.filter(
+                    out_of_range=True, taken_at__date__gte=today - dt.timedelta(days=6)
+                ).count(),
+            )
+        )
+    return found

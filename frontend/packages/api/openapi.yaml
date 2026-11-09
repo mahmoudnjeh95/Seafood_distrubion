@@ -466,6 +466,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
           description: ''
+  /api/v1/cold-chain:
+    get:
+      operationId: getColdChain
+      description: Every cold room and truck with its range, its last reading, today's
+        count and the alerts of 7 days.
+      tags:
+      - cold-chain
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColdChainPlace'
+          description: ''
   /api/v1/cold-room-costs:
     get:
       operationId: getColdRoomMonth
@@ -4375,6 +4393,39 @@ paths:
                 items:
                   $ref: '#/components/schemas/LocationBatch'
           description: ''
+  /api/v1/locations/{location_id}/temperature-range:
+    post:
+      operationId: setTemperatureRange
+      description: The temperature a place must keep, in °C; an empty end is open.
+        Owner or manager.
+      parameters:
+      - in: path
+        name: location_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemperatureRangeWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TemperatureRangeWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TemperatureRangeWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColdChainPlace'
+          description: ''
   /api/v1/losses:
     get:
       operationId: listLosses
@@ -6647,6 +6698,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TruckDay'
+          description: ''
+  /api/v1/my-truck/temperature:
+    post:
+      operationId: recordMyTruckTemperature
+      description: |-
+        The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+        written once. 404 without a truck.
+      tags:
+      - my-truck
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyTemperatureWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyTemperatureWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyTemperatureWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemperatureReading'
           description: ''
   /api/v1/notifications/payment-orders/{plan_line_id}:
     post:
@@ -11621,6 +11701,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/SyncProblem'
           description: ''
+  /api/v1/temperatures:
+    get:
+      operationId: listTemperatureReadings
+      description: The temperature log (HACCP), newest first, paginated; filter by
+        place, days, or alerts only.
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - in: query
+        name: location
+        schema:
+          type: integer
+          minimum: 1
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: out_of_range
+        schema:
+          type: boolean
+          default: false
+      tags:
+      - temperatures
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTemperatureReadingList'
+          description: ''
+    post:
+      operationId: recordTemperature
+      description: |-
+        Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+        Owner or manager; a driver writes their truck's from the phone.
+      tags:
+      - temperatures
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemperatureWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TemperatureWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TemperatureWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemperatureReading'
+          description: ''
   /api/v1/transfers:
     get:
       operationId: listTransfers
@@ -15247,6 +15404,51 @@ components:
       - count
       - ok
       - quantity
+    ColdChainPlace:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/StockLocationKindEnum'
+          readOnly: true
+        temp_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        temp_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        last:
+          allOf:
+          - $ref: '#/components/schemas/TemperatureReading'
+          readOnly: true
+          nullable: true
+        readings_today:
+          type: integer
+          readOnly: true
+        alerts_7_days:
+          type: integer
+          readOnly: true
+      required:
+      - alerts_7_days
+      - id
+      - kind
+      - last
+      - name
+      - readings_today
+      - temp_max
+      - temp_min
     ColdRoomEstimateWrite:
       type: object
       properties:
@@ -25267,6 +25469,26 @@ components:
       - id
       - name
       - reference
+    MyTemperatureWrite:
+      type: object
+      properties:
+        celsius:
+          type: string
+          maxLength: 10
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+        client_uuid:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - celsius
     NamedRef:
       type: object
       properties:
@@ -26505,6 +26727,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SupplierPayment'
+    PaginatedTemperatureReadingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemperatureReading'
     PaginatedTransferList:
       type: object
       required:
@@ -29384,6 +29629,17 @@ components:
         with_vat:
           type: boolean
           readOnly: true
+        arrival_temperature:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        arrival_temperature_out_of_range:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         notes:
           type: string
           readOnly: true
@@ -29397,8 +29653,6 @@ components:
           readOnly: true
         invoiced_total:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
         invoiced_vat:
           type: string
@@ -29462,6 +29716,8 @@ components:
           readOnly: true
       required:
       - accepted_total
+      - arrival_temperature
+      - arrival_temperature_out_of_range
       - created_at
       - created_by
       - dispute_reason
@@ -29772,6 +30028,11 @@ components:
         with_vat:
           type: boolean
           default: false
+        arrival_temperature:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
         notes:
           type: string
           default: ''
@@ -34845,6 +35106,78 @@ components:
         * `purchase` - purchase
         * `delivery` - delivery
         * `not_delivered` - not_delivered
+    TemperatureRangeWrite:
+      type: object
+      properties:
+        temp_min:
+          type: string
+          nullable: true
+          maxLength: 10
+        temp_max:
+          type: string
+          nullable: true
+          maxLength: 10
+    TemperatureReading:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        taken_at:
+          type: string
+          format: date-time
+          readOnly: true
+        celsius:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+        out_of_range:
+          type: boolean
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        taken_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - celsius
+      - created_at
+      - id
+      - location
+      - note
+      - out_of_range
+      - taken_at
+      - taken_by
+    TemperatureWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        celsius:
+          type: string
+          maxLength: 10
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - celsius
+      - location
     Transfer:
       type: object
       properties:

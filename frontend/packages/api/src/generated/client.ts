@@ -51,6 +51,7 @@ import type {
   Category,
   ChangePassword,
   CloseLot,
+  ColdChainPlace,
   ColdRoomEstimateWrite,
   ColdRoomMonth,
   ColdRoomSharesWrite,
@@ -231,6 +232,7 @@ import type {
   ListSupplierPaymentsParams,
   ListSupplierSettlementsParams,
   ListSuppliersParams,
+  ListTemperatureReadingsParams,
   ListTransfersParams,
   ListTreasuryAccountsParams,
   ListTruckAssignmentsParams,
@@ -286,6 +288,7 @@ import type {
   MyOdometerWrite,
   MyStockLine,
   MySupplier,
+  MyTemperatureWrite,
   NotDelivered,
   NotificationList,
   NumberLine,
@@ -323,6 +326,7 @@ import type {
   PaginatedSupplierCreditNoteList,
   PaginatedSupplierInvoiceList,
   PaginatedSupplierPaymentList,
+  PaginatedTemperatureReadingList,
   PaginatedTransferList,
   PaginatedWebRequestList,
   Paper,
@@ -447,6 +451,9 @@ import type {
   SupplierWrite,
   SyncProblem,
   SyncProblemWrite,
+  TemperatureRangeWrite,
+  TemperatureReading,
+  TemperatureWrite,
   TransferDetail,
   TransferWrite,
   TreasuryAccount,
@@ -2063,6 +2070,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getRenameCategoryMutationOptions(options), queryClient);
     }
+
+export const getGetColdChainUrl = () => {
+
+
+
+
+  return `/api/v1/cold-chain`
+}
+
+/**
+ * Every cold room and truck with its range, its last reading, today's count and the alerts of 7 days.
+ */
+export const getColdChain = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ColdChainPlace[]> => {
+
+  return apiFetch<ColdChainPlace[]>(getGetColdChainUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetColdChainQueryKey = () => {
+    return [
+    `/api/v1/cold-chain`
+    ] as const;
+    }
+
+
+export const getGetColdChainQueryOptions = <TData = Awaited<ReturnType<typeof getColdChain>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getColdChain>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetColdChainQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getColdChain>>> = ({ signal }) => getColdChain({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getColdChain>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetColdChainQueryResult = NonNullable<Awaited<ReturnType<typeof getColdChain>>>
+export type GetColdChainQueryError = unknown
+
+
+export function useGetColdChain<TData = Awaited<ReturnType<typeof getColdChain>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getColdChain>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getColdChain>>,
+          TError,
+          Awaited<ReturnType<typeof getColdChain>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetColdChain<TData = Awaited<ReturnType<typeof getColdChain>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getColdChain>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getColdChain>>,
+          TError,
+          Awaited<ReturnType<typeof getColdChain>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetColdChain<TData = Awaited<ReturnType<typeof getColdChain>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getColdChain>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetColdChain<TData = Awaited<ReturnType<typeof getColdChain>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getColdChain>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetColdChainQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetColdRoomMonthUrl = (params?: GetColdRoomMonthParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -13228,6 +13333,92 @@ export function useListLocationBatches<TData = Awaited<ReturnType<typeof listLoc
 
 
 
+export const getSetTemperatureRangeUrl = (locationId: number,) => {
+
+
+
+
+  return `/api/v1/locations/${locationId}/temperature-range`
+}
+
+/**
+ * The temperature a place must keep, in °C; an empty end is open. Owner or manager.
+ */
+export const setTemperatureRange = async (locationId: number,
+    temperatureRangeWrite?: TemperatureRangeWrite, options?: Parameters<typeof apiFetch>[1]): Promise<ColdChainPlace> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ColdChainPlace>(getSetTemperatureRangeUrl(locationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(temperatureRangeWrite)
+  }
+);}
+
+
+
+
+
+export const getSetTemperatureRangeMutationKey = () => ['setTemperatureRange'] as const;
+
+export const getSetTemperatureRangeMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTemperatureRange>>, TError,SetTemperatureRangeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setTemperatureRange>>, TError,SetTemperatureRangeMutationVariables, TContext> => {
+
+const mutationKey = getSetTemperatureRangeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setTemperatureRange>>, SetTemperatureRangeMutationVariables> = (props) => {
+          const {locationId,data} = props ?? {};
+
+          return  setTemperatureRange(locationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetTemperatureRangeMutationResult = NonNullable<Awaited<ReturnType<typeof setTemperatureRange>>>
+    export type SetTemperatureRangeMutationBody = TemperatureRangeWrite | undefined
+    export type SetTemperatureRangeMutationError = unknown
+    export type SetTemperatureRangeMutationVariables = {locationId: number;data?: TemperatureRangeWrite}
+
+    export const useSetTemperatureRange = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTemperatureRange>>, TError,SetTemperatureRangeMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setTemperatureRange>>,
+        TError,
+        SetTemperatureRangeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetTemperatureRangeMutationOptions(options), queryClient);
+    }
+
 export const getListLossesUrl = (params?: ListLossesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -21465,6 +21656,92 @@ export function useGetMyTruckDay<TData = Awaited<ReturnType<typeof getMyTruckDay
 
 
 
+
+export const getRecordMyTruckTemperatureUrl = () => {
+
+
+
+
+  return `/api/v1/my-truck/temperature`
+}
+
+/**
+ * The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+ * written once. 404 without a truck.
+ */
+export const recordMyTruckTemperature = async (myTemperatureWrite: MyTemperatureWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TemperatureReading> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TemperatureReading>(getRecordMyTruckTemperatureUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(myTemperatureWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordMyTruckTemperatureMutationKey = () => ['recordMyTruckTemperature'] as const;
+
+export const getRecordMyTruckTemperatureMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMyTruckTemperature>>, TError,RecordMyTruckTemperatureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordMyTruckTemperature>>, TError,RecordMyTruckTemperatureMutationVariables, TContext> => {
+
+const mutationKey = getRecordMyTruckTemperatureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordMyTruckTemperature>>, RecordMyTruckTemperatureMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordMyTruckTemperature(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordMyTruckTemperatureMutationResult = NonNullable<Awaited<ReturnType<typeof recordMyTruckTemperature>>>
+    export type RecordMyTruckTemperatureMutationBody = MyTemperatureWrite
+    export type RecordMyTruckTemperatureMutationError = unknown
+    export type RecordMyTruckTemperatureMutationVariables = {data: MyTemperatureWrite}
+
+    export const useRecordMyTruckTemperature = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordMyTruckTemperature>>, TError,RecordMyTruckTemperatureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordMyTruckTemperature>>,
+        TError,
+        RecordMyTruckTemperatureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordMyTruckTemperatureMutationOptions(options), queryClient);
+    }
 
 export const getNotifyPaymentOrderUrl = (planLineId: number,) => {
 
@@ -36127,6 +36404,197 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getResolveSyncProblemMutationOptions(options), queryClient);
+    }
+
+export const getListTemperatureReadingsUrl = (params?: ListTemperatureReadingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/temperatures?${stringifiedParams}` : `/api/v1/temperatures`
+}
+
+/**
+ * The temperature log (HACCP), newest first, paginated; filter by place, days, or alerts only.
+ */
+export const listTemperatureReadings = async (params?: ListTemperatureReadingsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedTemperatureReadingList> => {
+
+  return apiFetch<PaginatedTemperatureReadingList>(getListTemperatureReadingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTemperatureReadingsQueryKey = (params?: ListTemperatureReadingsParams,) => {
+    return [
+    `/api/v1/temperatures`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTemperatureReadingsQueryOptions = <TData = Awaited<ReturnType<typeof listTemperatureReadings>>, TError = unknown>(params?: ListTemperatureReadingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTemperatureReadings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTemperatureReadingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTemperatureReadings>>> = ({ signal }) => listTemperatureReadings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTemperatureReadings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTemperatureReadingsQueryResult = NonNullable<Awaited<ReturnType<typeof listTemperatureReadings>>>
+export type ListTemperatureReadingsQueryError = unknown
+
+
+export function useListTemperatureReadings<TData = Awaited<ReturnType<typeof listTemperatureReadings>>, TError = unknown>(
+ params: undefined |  ListTemperatureReadingsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTemperatureReadings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTemperatureReadings>>,
+          TError,
+          Awaited<ReturnType<typeof listTemperatureReadings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTemperatureReadings<TData = Awaited<ReturnType<typeof listTemperatureReadings>>, TError = unknown>(
+ params?: ListTemperatureReadingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTemperatureReadings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTemperatureReadings>>,
+          TError,
+          Awaited<ReturnType<typeof listTemperatureReadings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTemperatureReadings<TData = Awaited<ReturnType<typeof listTemperatureReadings>>, TError = unknown>(
+ params?: ListTemperatureReadingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTemperatureReadings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTemperatureReadings<TData = Awaited<ReturnType<typeof listTemperatureReadings>>, TError = unknown>(
+ params?: ListTemperatureReadingsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTemperatureReadings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTemperatureReadingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordTemperatureUrl = () => {
+
+
+
+
+  return `/api/v1/temperatures`
+}
+
+/**
+ * Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+ * Owner or manager; a driver writes their truck's from the phone.
+ */
+export const recordTemperature = async (temperatureWrite: TemperatureWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TemperatureReading> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TemperatureReading>(getRecordTemperatureUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(temperatureWrite)
+  }
+);}
+
+
+
+
+
+export const getRecordTemperatureMutationKey = () => ['recordTemperature'] as const;
+
+export const getRecordTemperatureMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordTemperature>>, TError,RecordTemperatureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordTemperature>>, TError,RecordTemperatureMutationVariables, TContext> => {
+
+const mutationKey = getRecordTemperatureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordTemperature>>, RecordTemperatureMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordTemperature(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordTemperatureMutationResult = NonNullable<Awaited<ReturnType<typeof recordTemperature>>>
+    export type RecordTemperatureMutationBody = TemperatureWrite
+    export type RecordTemperatureMutationError = unknown
+    export type RecordTemperatureMutationVariables = {data: TemperatureWrite}
+
+    export const useRecordTemperature = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordTemperature>>, TError,RecordTemperatureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordTemperature>>,
+        TError,
+        RecordTemperatureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordTemperatureMutationOptions(options), queryClient);
     }
 
 export const getListTransfersUrl = (params?: ListTransfersParams,) => {

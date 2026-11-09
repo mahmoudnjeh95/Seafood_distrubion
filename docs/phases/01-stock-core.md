@@ -247,9 +247,15 @@ transformations wanted, with a transformation fee that goes into the new lot's c
 - [ ] Check on staging: a receipt with zone 37.2.2, wild, Port de Sfax; sell from it; the BL shows the origin, the
       recall sheet lists the customer with their phone.
 
-### P1-T24 · Cold-chain readings · S (gap 6)
-- [ ] Temperature at the receipt (per receipt), readings per cold room and per truck (by hand, with time and who),
-      out of the product's range shown in red and notified.
+### P1-T24 · Cold-chain readings · S (gap 6, D-300)
+- [x] A range per cold room or truck (`StockLocation.temp_min`, `temp_max`, open ends allowed), set on Stock ›
+      Températures; readings by hand (`TemperatureReading`, append-only, who and when), flagged when outside the range.
+- [x] A reading outside the range tells the whole office (`temperature_alert`), whoever typed it.
+- [x] Stock › Températures: one card per place (range, last reading, today's count, alerts of 7 days, a field to note
+      one) and the log, alerts only on demand. The driver notes the truck's temperature on the phone's stock screen.
+- [x] Goods receipt: "Température à l'arrivée"; the receipt page shows it in red when outside a product's storage range.
+- [ ] Not done: the driver's reading is not kept offline (needs the network); no reminder when no reading was made.
+- [ ] Check on staging: set the negative room to ≤ -18 °C, note -12, the bell shows the alert; note -20, it is fine.
 
 ### P1-T25 · Transformations with a fee · M (gap 7)
 - [ ] Transformation (TRF): kg out of one source lot, kg into a new lot of the output product (same supplier and partner),

@@ -499,6 +499,15 @@ export const ar: PartialTranslation = {
       retry: "عاود",
       giveBack: "رجّع اللي ما تباعش",
     },
+    // ---- The truck box's temperature (D-300) ----
+    temperature: {
+      title: "سخانة الكميون",
+      save: "سجّل",
+      saved: "السخانة تسجّلت.",
+      alert: "{{celsius}} : خارج الحدود، البيرو تعلم.",
+      refused: "السخانة ما تقبلتش: ثبّت في الرقم.",
+      offline: "ما فماش ريزو: سجّلها مرة أخرى بعد.",
+    },
     // ---- New customer from the phone (P3-T03) ----
     newCustomer: {
       button: "حريف جديد",

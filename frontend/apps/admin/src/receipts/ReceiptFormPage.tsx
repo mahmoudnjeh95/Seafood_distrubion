@@ -155,6 +155,8 @@ export function ReceiptFormPage() {
   const [withVat, setWithVat] = useState(false);
   // Where the delivery comes from (D-299), copied onto each of its lots; a lot can be corrected later on its page.
   const [catchArea, setCatchArea] = useState("");
+  // The goods' temperature at arrival (D-300), optional.
+  const [arrivalTemperature, setArrivalTemperature] = useState("");
   const [method, setMethod] = useState<"" | "wild" | "farmed">("");
   const [origin, setOrigin] = useState("");
   const [notes, setNotes] = useState("");
@@ -301,6 +303,7 @@ export function ReceiptFormPage() {
       received_on: receivedOn,
       supplier_reference: supplierReference.trim(),
       with_vat: withVat,
+      arrival_temperature: arrivalTemperature.trim() ? arrivalTemperature.trim().replace(",", ".") : null,
       notes: notes.trim(),
       lines: payloadLines,
       boxes: boxCounts.counts,
@@ -519,7 +522,7 @@ export function ReceiptFormPage() {
             />
             {t("admin.receipts.form.withVat")}
           </label>
-          <fieldset className="col-span-full grid grid-cols-3 gap-4 max-[640px]:grid-cols-1">
+          <fieldset className="col-span-full grid grid-cols-4 gap-4 max-[640px]:grid-cols-1">
             <legend className="mb-2 text-[0.78rem] font-semibold text-ink-2">{t("admin.receipts.form.origin")}</legend>
             <Input
               aria-label={t("admin.receipts.form.catchArea")}
@@ -538,6 +541,13 @@ export function ReceiptFormPage() {
               <option value="wild">{t("admin.receipts.form.methodWild")}</option>
               <option value="farmed">{t("admin.receipts.form.methodFarmed")}</option>
             </select>
+            <Input
+              aria-label={t("admin.receipts.form.arrivalTemperature")}
+              placeholder={t("admin.receipts.form.arrivalTemperature")}
+              inputMode="decimal"
+              value={arrivalTemperature}
+              onChange={(event) => setArrivalTemperature(event.target.value)}
+            />
             <Input
               aria-label={t("admin.receipts.form.originPlace")}
               placeholder={t("admin.receipts.form.originPlace")}

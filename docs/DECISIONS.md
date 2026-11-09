@@ -4118,3 +4118,14 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The recall sheet (`sales.selectors.recall_customers`, `GET /batches/{id}/recall`) lists the customers who kept kilos
   (sold − returned by credit notes), the most first, with phone, city, dates and BL numbers, and the places that still
   hold the lot. Printed from the browser; no PDF yet.
+
+**D-300 · Cold-chain readings with a range per place (P1-T24)** · accepted · 2026-11-09
+- A cold room or a truck carries the range it must keep (`StockLocation.temp_min`, `temp_max`, °C with one decimal,
+  either end open). Products keep their own storage range (P1-T01); the place's range is what the readings check.
+- `inventory.TemperatureReading` is append-only (HACCP log): place, moment, °C, note, who, `out_of_range` frozen at
+  the reading (a later change of the range does not rewrite the log), `client_uuid` for the phone's retries.
+- Owner and manager note readings in the office; a driver notes their truck's (`POST /my-truck/temperature`), online
+  only for now. Every reading outside the range tells the whole office (`tell_office_of`, kind `temperature_alert`).
+- `GoodsReceipt.arrival_temperature` is information only: the receipt page shows it red when it is outside one of its
+  products' storage range; it refuses nothing (the office decides, and may contest the receipt, D-285).
+- Migrations `inventory 0015`, `purchasing 0028`.

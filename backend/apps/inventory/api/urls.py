@@ -8,6 +8,14 @@ urlpatterns = [
     path("locations/<int:location_id>/archive", views.LocationArchiveView.as_view(), name="location-archive"),
     path("locations/<int:location_id>/restore", views.LocationRestoreView.as_view(), name="location-restore"),
     path("batches", views.BatchListView.as_view(), name="batch-list"),
+    path("temperatures", views.TemperatureListView.as_view(), name="temperature-list"),
+    path("cold-chain", views.ColdChainView.as_view(), name="cold-chain"),
+    path(
+        "locations/<int:location_id>/temperature-range",
+        views.TemperatureRangeView.as_view(),
+        name="temperature-range",
+    ),
+    path("my-truck/temperature", views.MyTemperatureView.as_view(), name="my-truck-temperature"),
     path("batches/<int:batch_id>", views.BatchDetailView.as_view(), name="batch-detail"),
     path("batches/<int:batch_id>/origin", views.BatchOriginView.as_view(), name="batch-origin"),
     # P1-T09 · transfers

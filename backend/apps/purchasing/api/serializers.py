@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.money import line_total
+from apps.inventory import services as inventory_services
 from apps.inventory.services import ProductionMethod
 from apps.purchasing import selectors, services
 from apps.purchasing.models import (
@@ -147,6 +148,8 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     accepted_total = serializers.SerializerMethodField()
     # The supplier invoice it is on (draft or posted), or null while not invoiced.
     invoice = serializers.SerializerMethodField()
+    # The arrival temperature is outside the storage range of one of its products (D-300).
+    arrival_temperature_out_of_range = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     # Every change made after saving, oldest first (D-269); `revision` is the number of the last one.
     revisions = GoodsReceiptRevisionSerializer(many=True, read_only=True)
@@ -168,6 +171,8 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
             "received_on",
             "supplier_reference",
             "with_vat",
+            "arrival_temperature",
+            "arrival_temperature_out_of_range",
             "notes",
             "lines",
             "has_differences",
@@ -197,6 +202,15 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
         return _name_of(receipt.dispute_resolved_by)
 
     @extend_schema_field(AMOUNT)
+    def get_arrival_temperature_out_of_range(self, receipt: GoodsReceipt) -> bool:
+        celsius = receipt.arrival_temperature
+        if celsius is None:
+            return False
+        return any(
+            inventory_services.outside_range(celsius, line.product.storage_temp_min, line.product.storage_temp_max)
+            for line in receipt.lines.all()
+        )
+
     def get_invoiced_total(self, receipt: GoodsReceipt) -> str:
         return str(selectors.receipt_totals(receipt)[0])
 
@@ -260,6 +274,16 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     # Bought with VAT: what is sold from these lots must be invoiced with VAT (D-202).
     with_vat = serializers.BooleanField(required=False, default=False)
+    # The goods' temperature at arrival, in °C (D-300).
+    arrival_temperature = serializers.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        min_value=Decimal("-60"),
+        max_value=Decimal("60"),
+        required=False,
+        allow_null=True,
+        default=None,
+    )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = ReceiptLineWriteSerializer(many=True, allow_empty=True)
     # Returnable boxes that came with the delivery, per box type ("small", "big"): a count, never kg (D-122).

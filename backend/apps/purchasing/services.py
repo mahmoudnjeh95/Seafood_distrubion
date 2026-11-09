@@ -204,6 +204,7 @@ def create_receipt(
     purchase_order: PurchaseOrder | None = None,
     boxes: Mapping[str, int] | None = None,
     with_vat: bool = False,
+    arrival_temperature: Decimal | None = None,
 ) -> GoodsReceipt:
     """Record goods received from a supplier: one batch per line, and its accepted weight into stock.
 
@@ -247,6 +248,7 @@ def create_receipt(
         received_on=received_on,
         supplier_reference=supplier_reference,
         with_vat=with_vat,
+        arrival_temperature=arrival_temperature,
         notes=notes.strip(),
         created_by=actor,
     )
@@ -2626,6 +2628,7 @@ def receive_goods(
     payments: Sequence[FieldPaymentFields] = (),
     with_vat: bool = False,
     confirm_cash_limit: bool = False,
+    arrival_temperature: Decimal | None = None,
 ) -> GoodsReceipt:
     """Record goods received: the receipt, its batches, stock and boxes (D-268). No invoice is made here: the
     office makes the supplier's invoice afterwards, from this receipt. `payments` are the sums given now (D-192):
@@ -2647,6 +2650,7 @@ def receive_goods(
         purchase_order=purchase_order,
         boxes=boxes,
         with_vat=with_vat,
+        arrival_temperature=arrival_temperature,
     )
     given = sum((payment["amount"] for payment in checked_payments), ZERO)
     received = sum((line.invoiced_amount for line in receipt.lines.all()), ZERO)

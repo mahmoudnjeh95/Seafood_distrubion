@@ -33,6 +33,7 @@ from .models import (
     StockMovement,
     StockOnHand,
     StockSettings,
+    TemperatureReading,
     Transfer,
     TransferBoxLine,
     TransferDelivery,
@@ -1682,3 +1683,104 @@ def update_lot_origin(
         after={"catch_area": batch.catch_area, "production_method": batch.production_method, "origin": batch.origin},
     )
     return batch
+
+
+# ---- Cold chain (D-300) ----
+
+MIN_CELSIUS = Decimal("-60.0")
+MAX_CELSIUS = Decimal("60.0")
+
+
+def _checked_celsius(value: Any, field: str, errors: dict[str, str]) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    try:
+        celsius = Decimal(str(value).replace(",", ".")).quantize(Decimal("0.1"))
+    except (ArithmeticError, ValueError):
+        errors[field] = _("Indiquez une température en °C, par exemple -18 ou 2,5.")
+        return None
+    if not MIN_CELSIUS <= celsius <= MAX_CELSIUS:
+        errors[field] = _("Une température entre -60 et 60 °C.")
+        return None
+    return celsius
+
+
+def outside_range(celsius: Decimal, low: Decimal | None, high: Decimal | None) -> bool:
+    """Below the low end or above the high end; an open end never fails."""
+    return (low is not None and celsius < low) or (high is not None and celsius > high)
+
+
+@transaction.atomic
+def set_temperature_range(
+    *, location: StockLocation, actor: User | None, temp_min: Any, temp_max: Any
+) -> StockLocation:
+    """The temperature a cold room or a truck must keep (D-300); empty ends are open."""
+    errors: dict[str, str] = {}
+    low = _checked_celsius(temp_min, "temp_min", errors)
+    high = _checked_celsius(temp_max, "temp_max", errors)
+    if low is not None and high is not None and low > high:
+        errors["temp_max"] = _("Le maximum doit être au-dessus du minimum.")
+    if errors:
+        raise ValidationError(errors)
+    location = StockLocation.objects.select_for_update().get(pk=location.pk)
+    before = {"temp_min": str(location.temp_min), "temp_max": str(location.temp_max)}
+    location.temp_min, location.temp_max = low, high
+    location.save(update_fields=["temp_min", "temp_max", "updated_at"])
+    audit.record(
+        organization=location.organization,
+        actor=actor,
+        action="location.temperature_range_set",
+        target=location,
+        before=before,
+        after={"temp_min": str(low), "temp_max": str(high)},
+    )
+    return location
+
+
+@transaction.atomic
+def record_temperature(
+    *,
+    location: StockLocation,
+    actor: User | None,
+    celsius: Any,
+    taken_at: dt.datetime | None = None,
+    note: str = "",
+    client_uuid: uuid.UUID | None = None,
+) -> TemperatureReading:
+    """Write one temperature read in a cold room or a truck (D-300). Outside the location's range it is flagged and
+    the office is told (notification `temperature_alert`). A retried `client_uuid` returns the first reading."""
+    if client_uuid is not None:
+        found = TemperatureReading.objects.filter(organization=location.organization, client_uuid=client_uuid).first()
+        if found is not None:
+            return found
+    # The range as saved now, not as the caller's copy of the location knew it.
+    location = StockLocation.objects.get(pk=location.pk)
+    errors: dict[str, str] = {}
+    value = _checked_celsius(celsius, "celsius", errors)
+    if value is None and "celsius" not in errors:
+        errors["celsius"] = _("Indiquez la température.")
+    moment = taken_at or timezone.now()
+    if moment > timezone.now() + dt.timedelta(minutes=5):
+        errors["taken_at"] = _("Le relevé ne peut pas être dans le futur.")
+    if not location.is_active:
+        errors["location"] = _("« %(name)s » est archivé.") % {"name": location.name}
+    if errors or value is None:
+        raise ValidationError(errors)
+    reading = TemperatureReading.objects.create(
+        organization=location.organization,
+        location=location,
+        taken_at=moment,
+        celsius=value,
+        out_of_range=outside_range(value, location.temp_min, location.temp_max),
+        note=note.strip()[:255],
+        taken_by=actor,
+        client_uuid=client_uuid,
+    )
+    audit.record(
+        organization=location.organization,
+        actor=actor,
+        action="temperature.recorded",
+        target=reading,
+        after={"location": location.name, "celsius": str(value), "out_of_range": reading.out_of_range},
+    )
+    return reading

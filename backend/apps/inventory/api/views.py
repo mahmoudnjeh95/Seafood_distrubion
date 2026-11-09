@@ -24,13 +24,14 @@ from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membe
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, Transfer
+from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, TemperatureReading, Transfer
 from apps.partners import selectors as partners
 
 from .serializers import (
     BatchFilterSerializer,
     BatchOriginWriteSerializer,
     BatchSerializer,
+    ColdChainPlaceSerializer,
     CountedSerializer,
     CountFilterSerializer,
     CountSerializer,
@@ -45,6 +46,7 @@ from .serializers import (
     LossWriteSerializer,
     MyStockFilterSerializer,
     MyStockLineSerializer,
+    MyTemperatureWriteSerializer,
     ProductStockDetailSerializer,
     RoadLossSerializer,
     RoadLossWriteSerializer,
@@ -59,6 +61,10 @@ from .serializers import (
     StockOverviewSerializer,
     StockSettingsSerializer,
     StockSettingsWriteSerializer,
+    TemperatureFilterSerializer,
+    TemperatureRangeWriteSerializer,
+    TemperatureReadingSerializer,
+    TemperatureWriteSerializer,
     TransferDetailSerializer,
     TransferFilterSerializer,
     TransferSerializer,
@@ -905,3 +911,107 @@ class MovementListView(OfficeView, ListAPIView[Any]):
         """The stock ledger, newest first, paginated (`limit`, `offset`). A location filter keeps the
         movements coming in or going out of it; dates are inclusive."""
         return super().get(request, *args, **kwargs)
+
+
+# ---- Cold chain (D-300) ----
+
+
+class TemperatureListView(OfficeView, ListAPIView[TemperatureReading]):
+    serializer_class = TemperatureReadingSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[TemperatureReading]:
+        filters = TemperatureFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        data = filters.validated_data
+        return selectors.temperature_readings(
+            self.organization,
+            location_id=data.get("location"),
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+            out_of_range=data["out_of_range"],
+        )
+
+    @extend_schema(operation_id="listTemperatureReadings", parameters=[TemperatureFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """The temperature log (HACCP), newest first, paginated; filter by place, days, or alerts only."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="recordTemperature",
+        request=TemperatureWriteSerializer,
+        responses={201: TemperatureReadingSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Write one reading in a cold room or a truck. Outside the place's range it is flagged and the office told.
+        Owner or manager; a driver writes their truck's from the phone."""
+        serializer = TemperatureWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            location = selectors.location_of(self.organization, data["location"])
+        except StockLocation.DoesNotExist:
+            raise ValidationError({"location": _("Emplacement inconnu.")}) from None
+        reading = services.record_temperature(
+            location=location,
+            actor=self.membership.user,
+            celsius=data["celsius"],
+            taken_at=data["taken_at"],
+            note=data["note"],
+        )
+        return Response(TemperatureReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
+
+
+class ColdChainView(OfficeView):
+    @extend_schema(operation_id="getColdChain", responses=ColdChainPlaceSerializer(many=True))
+    def get(self, request: Request) -> Response:
+        """Every cold room and truck with its range, its last reading, today's count and the alerts of 7 days."""
+        return Response(ColdChainPlaceSerializer(selectors.cold_chain_overview(self.organization), many=True).data)
+
+
+class TemperatureRangeView(OfficeView):
+    @extend_schema(
+        operation_id="setTemperatureRange", request=TemperatureRangeWriteSerializer, responses=ColdChainPlaceSerializer
+    )
+    def post(self, request: Request, location_id: int) -> Response:
+        """The temperature a place must keep, in °C; an empty end is open. Owner or manager."""
+        try:
+            location = selectors.location_of(self.organization, location_id)
+        except StockLocation.DoesNotExist:
+            raise Http404 from None
+        serializer = TemperatureRangeWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_temperature_range(location=location, actor=self.membership.user, **serializer.validated_data)
+        place = next(row for row in selectors.cold_chain_overview(self.organization) if row.location.pk == location_id)
+        return Response(ColdChainPlaceSerializer(place).data)
+
+
+class MyTemperatureView(APIView):
+    permission_classes = (IsDriver,)
+
+    @extend_schema(
+        operation_id="recordMyTruckTemperature",
+        request=MyTemperatureWriteSerializer,
+        responses={201: TemperatureReadingSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+        written once. 404 without a truck."""
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = MyTemperatureWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        truck = fleet.truck_of_driver(membership)
+        if truck is None:
+            raise Http404
+        taken_at = moment_from_phone(data["taken_at"], field="taken_at") if data["taken_at"] else None
+        reading = services.record_temperature(
+            location=truck.location,
+            actor=membership.user,
+            celsius=data["celsius"],
+            taken_at=taken_at,
+            note=data["note"],
+            client_uuid=data["client_uuid"],
+        )
+        return Response(TemperatureReadingSerializer(reading).data, status=status.HTTP_201_CREATED)

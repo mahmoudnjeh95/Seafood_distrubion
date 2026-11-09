@@ -33,6 +33,10 @@ class StockLocation(OrganizationScopedModel, TimeStampedModel):
     counter_sales = models.BooleanField(default=False)
     # Archived locations keep their history but receive no more stock.
     is_active = models.BooleanField(default=True)
+    # The temperature it must keep, in °C (D-300): a reading outside it is flagged and the office told. Either end may
+    # be open ("≤ -18 °C"); both empty: no check.
+    temp_min = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    temp_max = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
 
     class Meta:
         ordering = ["kind", "name", "id"]
@@ -570,3 +574,38 @@ class StockCountLine(OrganizationScopedModel):
         if self.counted_quantity is None:
             return None
         return self.counted_quantity - self.expected_quantity
+
+
+# ---- Cold chain (D-300) ----
+
+
+class TemperatureReading(OrganizationScopedModel):
+    """One temperature read in a cold room or a truck, by hand, with when and who (HACCP log). Append-only: a wrong
+    reading is followed by a right one, never edited."""
+
+    location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="temperature_readings")
+    taken_at = models.DateTimeField()
+    celsius = models.DecimalField(max_digits=4, decimal_places=1)
+    # Outside the location's range when it was taken (kept: the range may change later).
+    out_of_range = models.BooleanField(default=False)
+    note = models.CharField(max_length=255, blank=True)
+    taken_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    # The driver app may retry (ARCHITECTURE §4.7).
+    client_uuid = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-taken_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"],
+                condition=models.Q(client_uuid__isnull=False),
+                name="temperature_client_uuid_unique_per_organization",
+            ),
+        ]
+        indexes = [models.Index(fields=["organization", "location", "taken_at"], name="temperature_location_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.location} · {self.celsius} °C"

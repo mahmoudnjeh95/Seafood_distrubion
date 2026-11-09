@@ -5,6 +5,7 @@ import { Link } from "react-router";
 
 import { PricesAsOf } from "./PriceNotice";
 import { ProductPhoto } from "./ProductPhoto";
+import { TruckTemperatureCard } from "./TruckTemperatureCard";
 import { pendingKilos, useQueue } from "./queue";
 import { useTruckStock } from "./myStock";
 
@@ -95,6 +96,7 @@ export function StockPage() {
           <span className="font-bold">{formatMoney(fromMillimes(worth))}</span>
         </p>
       </Card>
+      <TruckTemperatureCard />
       <Button asChild size="lg" className="py-4 text-lg">
         <Link to="/perte">{t("truck.stock.giveBack")}</Link>
       </Button>
