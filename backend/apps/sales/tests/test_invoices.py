@@ -491,6 +491,31 @@ def test_numbers_follow_each_other_and_a_failed_issue_uses_none(
     assert (issued.number, issued.draft_number) == (f"FA-{YEAR}-0002", f"BROUILLON-{YEAR}-0001")
 
 
+@pytest.mark.blank_seller
+def test_an_invoice_is_not_issued_without_the_seller_address_and_tax_id(sale, actor):
+    """Article 18 of the VAT code (D-296): no number is used and the draft stays a draft."""
+    draft = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
+
+    with pytest.raises(ValidationError) as refused:
+        services.issue_invoice(invoice=draft, actor=actor)
+
+    assert "l'adresse et le matricule fiscal" in refused.value.messages[0]
+    draft.refresh_from_db()
+    assert (draft.status, draft.number) == (InvoiceStatus.DRAFT, f"BROUILLON-{YEAR}-0001")
+
+
+@pytest.mark.blank_seller
+def test_the_invoice_is_issued_once_the_seller_is_filled_in(organization, sale, actor):
+    draft = services.create_invoice(apply_vat=True, sale=sale, actor=actor)
+    services.save_finance_settings(
+        organization=organization, actor=actor, address="Sakiet Ezzit, Sfax", tax_id=" 1234567/A/M/000 "
+    )
+
+    issued = services.issue_invoice(invoice=draft, actor=actor)
+
+    assert (issued.number, issued.seller_address) == (f"FA-{YEAR}-0001", "Sakiet Ezzit, Sfax")
+
+
 def test_each_organization_has_its_own_series(actor, counter):
     other_org = OrganizationFactory.create()
     other_location = StockLocationFactory.create(organization=other_org, counter_sales=True)

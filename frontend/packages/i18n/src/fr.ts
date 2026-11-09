@@ -1995,6 +1995,15 @@ export const fr = {
         from: "Refacturation de",
         note: "avoir {{number}}",
       },
+      mentions: {
+        seller:
+          "La société n'a pas d'adresse ou de matricule fiscal : la facture ne peut pas être émise (article 18 du Code de la TVA).",
+        sellerLink: "Compléter les Paramètres financiers",
+        customerTaxId:
+          "Le client n'a pas de matricule fiscal ni de numéro d'identification : un client professionnel en a besoin pour déduire la TVA.",
+        customerAddress: "Le client n'a pas d'adresse : elle est imprimée sur la facture.",
+        customerLink: "Compléter la fiche client",
+      },
       detail: {
         print: "Imprimer",
         creditNote: "Faire un avoir",
@@ -2217,6 +2226,9 @@ export const fr = {
         clear: "Remettre le solde à zéro",
         writeOffs: "Soldes remis à zéro (pertes sur ce client)",
         writeOffReason: "Raison",
+        writeOffGround: "Motif",
+        writeOffEvidence: "Justificatifs",
+        evidenceMissing: "Justificatif manquant",
         writeOffBy: "Par",
       },
       policy: {
@@ -4037,6 +4049,18 @@ export const fr = {
         "Nous devons {{amount}} à {{party}}. Le reste n'est plus dû : il est enregistré comme un gain sur ce fournisseur. Le geste est définitif.",
       reason: "Raison (obligatoire)",
       reasonRequired: "Indiquez la raison de la remise à zéro.",
+      ground: "Motif",
+      grounds: {
+        gap: "Écart de règlement ou geste commercial",
+        irrecoverable: "Créance irrécouvrable",
+      },
+      groundHints: {
+        gap: "Le client a payé un peu moins que dû et l'écart est abandonné.",
+        irrecoverable:
+          "Le client ne paiera pas. La perte n'est déductible qu'avec un justificatif (jugement, PV d'huissier, relances restées sans effet) : joignez-le ensuite à la remise à zéro.",
+      },
+      attachEvidence:
+        "Joignez le justificatif de la créance irrécouvrable dans la fiche du client, rubrique Remises à zéro.",
       continue: "Continuer",
       confirmTitle: "Confirmer la remise à zéro",
       typeAmount: "Pour confirmer, tapez le montant exact : {{amount}}.",

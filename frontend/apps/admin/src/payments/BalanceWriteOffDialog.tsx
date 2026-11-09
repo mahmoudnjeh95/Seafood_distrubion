@@ -25,9 +25,14 @@ export type WriteOffLotChoice = { batch_id: number; number: string; product: str
 
 type LotRow = { batch: string; amount: string };
 
+/** Why a customer's balance is given up (D-298); an irrecoverable debt needs its evidence attached afterwards. */
+export type WriteOffGround = "gap" | "irrecoverable";
+const GROUNDS: readonly WriteOffGround[] = ["gap", "irrecoverable"];
+
 export type WriteOffBody = {
   expected_amount: string;
   reason: string;
+  ground?: WriteOffGround;
   lot_shares?: { batch: number; amount: string }[];
 };
 
@@ -66,6 +71,9 @@ export function BalanceWriteOffDialog({
   const formId = useId();
   const [step, setStep] = useState<"reason" | "lots" | "amount">("reason");
   const [reason, setReason] = useState("");
+  const [ground, setGround] = useState<WriteOffGround>("gap");
+  // A supplier's balance is a gain, not a debt: no ground to give.
+  const asksGround = kind !== "supplier";
   const [rows, setRows] = useState<LotRow[]>(() =>
     lots.length === 1 ? [{ batch: String(lots[0]?.batch_id), amount: owed }] : [{ batch: "", amount: "" }],
   );
@@ -117,6 +125,7 @@ export function BalanceWriteOffDialog({
       await onWrite({
         expected_amount: typed.trim(),
         reason: reason.trim(),
+        ...(asksGround && { ground }),
         ...(lots.length > 0 && {
           lot_shares: rows.map((row) => ({
             batch: Number(row.batch),
@@ -125,6 +134,7 @@ export function BalanceWriteOffDialog({
         }),
       });
       toast.success(t(forInvoice ? "admin.balanceWriteOff.invoiceDone" : "admin.balanceWriteOff.done"));
+      if (asksGround && ground === "irrecoverable") toast.warning(t("admin.balanceWriteOff.attachEvidence"));
       onDone();
     } catch (failure) {
       const fromServer = fieldErrors(failure);
@@ -142,6 +152,34 @@ export function BalanceWriteOffDialog({
         </DialogTitle>
         <DialogDescription>{t(`admin.balanceWriteOff.${kind}Hint`, { party, amount })}</DialogDescription>
         <form id={formId} onSubmit={next} noValidate className="flex flex-col gap-4">
+          {asksGround && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-1 text-[0.86rem] font-semibold">{t("admin.balanceWriteOff.ground")}</legend>
+              {GROUNDS.map((value) => (
+                <label
+                  key={value}
+                  className={
+                    "flex cursor-pointer items-start gap-2 rounded-control border px-3 py-2 text-[0.86rem] " +
+                    (ground === value ? "border-sea bg-sea-soft font-semibold text-sea" : "border-line text-ink")
+                  }
+                >
+                  <input
+                    type="radio"
+                    className="mt-0.5 size-3.5 accent-sea"
+                    name={`${formId}-ground`}
+                    checked={ground === value}
+                    onChange={() => setGround(value)}
+                  />
+                  <span>
+                    {t(`admin.balanceWriteOff.grounds.${value}`)}
+                    <span className="block font-normal text-ink-2">
+                      {t(`admin.balanceWriteOff.groundHints.${value}`)}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           <Field label={t("admin.balanceWriteOff.reason")} htmlFor={`${formId}-reason`} error={errors.reason}>
             <Input
               id={`${formId}-reason`}

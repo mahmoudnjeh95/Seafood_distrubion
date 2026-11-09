@@ -13,13 +13,13 @@ import * as zod from 'zod';
 
 
 export const ListAttachmentsQueryParams = zod.object({
-  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice', 'customer_write_off']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur\n* `customer_write_off` - Remise à zéro d\'un solde client'),
   "object_id": zod.int().min(1)
 })
 
 export const ListAttachmentsResponseItem = zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice', 'customer_write_off']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur\n* `customer_write_off` - Remise à zéro d\'un solde client'),
   "object_id": zod.int(),
   "name": zod.string(),
   "content_type": zod.string(),
@@ -43,7 +43,7 @@ export const addAttachmentBodyNoteMax = 255;
 
 
 export const AddAttachmentBody = zod.object({
-  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice', 'customer_write_off']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur\n* `customer_write_off` - Remise à zéro d\'un solde client'),
   "object_id": zod.int().min(1),
   "file": zod.instanceof(Blob),
   "note": zod.string().max(addAttachmentBodyNoteMax).default(addAttachmentBodyNoteDefault)
@@ -51,7 +51,7 @@ export const AddAttachmentBody = zod.object({
 
 export const AddAttachmentResponse = zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur'),
+  "kind": zod.enum(['quote', 'delivery_note', 'invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'supplier_invoice', 'customer_write_off']).describe('* `quote` - Devis\n* `delivery_note` - Bon de livraison\n* `invoice` - Facture\n* `credit_note` - Avoir\n* `purchase_order` - Bon de commande fournisseur\n* `goods_receipt` - Bon de réception\n* `supplier_invoice` - Facture fournisseur\n* `customer_write_off` - Remise à zéro d\'un solde client'),
   "object_id": zod.int(),
   "name": zod.string(),
   "content_type": zod.string(),
@@ -2713,6 +2713,8 @@ export const GetCustomerBalanceResponse = zod.object({
   "written_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getCustomerBalanceResponseWriteOffsItemAmountRegExp),
   "reason": zod.string(),
+  "ground": zod.enum(['gap', 'irrecoverable']).describe('* `gap` - Écart de règlement ou geste commercial\n* `irrecoverable` - Créance irrécouvrable'),
+  "evidence_missing": zod.boolean(),
   "created_by": zod.string()
 }).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
   "written_off_total": zod.stringFormat('decimal', getCustomerBalanceResponseWrittenOffTotalRegExp),
@@ -2853,7 +2855,7 @@ export const writeOffCustomerBalanceBodyReasonMax = 255;
 
 export const writeOffCustomerBalanceBodyLotSharesItemAmountMax = 30;
 
-
+export const writeOffCustomerBalanceBodyGroundDefault = `gap`;
 
 export const WriteOffCustomerBalanceBody = zod.object({
   "expected_amount": zod.string().max(writeOffCustomerBalanceBodyExpectedAmountMax),
@@ -2861,7 +2863,8 @@ export const WriteOffCustomerBalanceBody = zod.object({
   "lot_shares": zod.array(zod.object({
   "batch": zod.int().min(1),
   "amount": zod.string().max(writeOffCustomerBalanceBodyLotSharesItemAmountMax)
-}).describe('The part of a balance write-off charged to one lot, picked by hand (D-257).')).optional()
+}).describe('The part of a balance write-off charged to one lot, picked by hand (D-257).')).optional(),
+  "ground": zod.enum(['gap', 'irrecoverable']).describe('* `gap` - Écart de règlement ou geste commercial\n* `irrecoverable` - Créance irrécouvrable').default(writeOffCustomerBalanceBodyGroundDefault)
 })
 
 export const writeOffCustomerBalanceResponseCreditLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -2941,6 +2944,8 @@ export const WriteOffCustomerBalanceResponse = zod.object({
   "written_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWriteOffsItemAmountRegExp),
   "reason": zod.string(),
+  "ground": zod.enum(['gap', 'irrecoverable']).describe('* `gap` - Écart de règlement ou geste commercial\n* `irrecoverable` - Créance irrécouvrable'),
+  "evidence_missing": zod.boolean(),
   "created_by": zod.string()
 }).describe('A balance written off (D-252): the loss on the customer, with its reason.')),
   "written_off_total": zod.stringFormat('decimal', writeOffCustomerBalanceResponseWrittenOffTotalRegExp),
@@ -8277,7 +8282,7 @@ export const giveUpInvoiceGapBodyReasonMax = 255;
 
 export const giveUpInvoiceGapBodyLotSharesItemAmountMax = 30;
 
-
+export const giveUpInvoiceGapBodyGroundDefault = `gap`;
 
 export const GiveUpInvoiceGapBody = zod.object({
   "expected_amount": zod.string().max(giveUpInvoiceGapBodyExpectedAmountMax),
@@ -8285,7 +8290,8 @@ export const GiveUpInvoiceGapBody = zod.object({
   "lot_shares": zod.array(zod.object({
   "batch": zod.int().min(1),
   "amount": zod.string().max(giveUpInvoiceGapBodyLotSharesItemAmountMax)
-}).describe('The part of a balance write-off charged to one lot, picked by hand (D-257).')).optional()
+}).describe('The part of a balance write-off charged to one lot, picked by hand (D-257).')).optional(),
+  "ground": zod.enum(['gap', 'irrecoverable']).describe('* `gap` - Écart de règlement ou geste commercial\n* `irrecoverable` - Créance irrécouvrable').default(giveUpInvoiceGapBodyGroundDefault)
 })
 
 export const giveUpInvoiceGapResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');

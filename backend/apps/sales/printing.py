@@ -21,6 +21,7 @@ from .models import (
     CreditNote,
     CreditNoteKind,
     CreditNoteStock,
+    CustomerBalanceWriteOff,
     CustomerPaymentMethod,
     DeliveryStatus,
     Invoice,
@@ -388,3 +389,4 @@ def register_attachables() -> None:
     documents.register_attachable("delivery_note", _exists(Sale))
     documents.register_attachable("invoice", _exists(Invoice))
     documents.register_attachable("credit_note", _exists(CreditNote))
+    documents.register_attachable("customer_write_off", _exists(CustomerBalanceWriteOff))

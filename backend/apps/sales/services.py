@@ -76,6 +76,7 @@ from .models import (
     UnpaidEffet,
     UnpaidRelease,
     WithholdingCertificate,
+    WriteOffGround,
 )
 
 if TYPE_CHECKING:
@@ -2663,6 +2664,21 @@ def _refuse_no_vat_on_vat_lots(sales: Sequence[Sale]) -> None:
         )
 
 
+def _require_seller_identity(version: FinanceSettings) -> None:
+    """Article 18 of the VAT code: an invoice names its seller with an address and a tax ID (D-296). The name
+    falls back to the organization's; the address and the matricule fiscal must be in Paramètres financiers."""
+    missing = [
+        label
+        for field, label in (("address", _("l'adresse")), ("tax_id", _("le matricule fiscal")))
+        if not getattr(version, field).strip()
+    ]
+    if missing:
+        raise ValidationError(
+            _("Avant d'émettre une facture, indiquez %(fields)s de la société dans Paramètres financiers.")
+            % {"fields": _(" et ").join(missing)}
+        )
+
+
 @transaction.atomic
 def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
     """Number and freeze a draft, all in one transaction.
@@ -2682,6 +2698,7 @@ def issue_invoice(*, invoice: Invoice, actor: User | None) -> Invoice:
         raise ValidationError(_("Cette facture n'a aucune ligne."))
     if not invoice.apply_vat:
         _refuse_no_vat_on_vat_lots(sales)
+    _require_seller_identity(version)
     customer = invoice.customer
     today = timezone.localdate()
     invoice.seller_name = version.legal_name or invoice.organization.name
@@ -3823,8 +3840,11 @@ def write_off_customer_balance(
     expected: Number,
     reason: str,
     lot_shares: list[dict[str, Any]] | None = None,
+    ground: str = WriteOffGround.GAP,
 ) -> CustomerBalanceWriteOff:
-    return _write_off(customer=customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares)
+    return _write_off(
+        customer=customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares, ground=ground
+    )
 
 
 def write_off_invoice_gap(
@@ -3834,13 +3854,20 @@ def write_off_invoice_gap(
     expected: Number,
     reason: str,
     lot_shares: list[dict[str, Any]] | None = None,
+    ground: str = WriteOffGround.GAP,
 ) -> CustomerBalanceWriteOff:
     """Give up what is left to pay on one issued invoice (D-256), for instance the VAT and stamp a BL paid at its
     goods did not cover. Same rules as clearing a balance (D-252, D-257): the amount typed again must be what the
     invoice still asks, a reason is required, the loss is charged to the lots of the invoice's BL picked by hand,
     and the record is never edited. It is limited to this invoice's gap."""
     return _write_off(
-        customer=invoice.customer, actor=actor, expected=expected, reason=reason, lot_shares=lot_shares, invoice=invoice
+        customer=invoice.customer,
+        actor=actor,
+        expected=expected,
+        reason=reason,
+        lot_shares=lot_shares,
+        invoice=invoice,
+        ground=ground,
     )
 
 
@@ -3853,6 +3880,7 @@ def _write_off(
     reason: str,
     lot_shares: list[dict[str, Any]] | None = None,
     invoice: Invoice | None = None,
+    ground: str = WriteOffGround.GAP,
 ) -> CustomerBalanceWriteOff:
     """Clear a customer's balance to zero, the rest given up as a loss on them (D-252): they paid less than they
     owed (10 000 of 10 080 DT leaves 80 DT). `expected` must be the balance shown now, typed again by the office,
@@ -3861,7 +3889,12 @@ def _write_off(
 
     The loss is also charged to the lots the owner picks by hand (`lot_shares`: `{"batch", "amount"}` adding up to
     the balance, D-257), so it lowers those lots' net result and their partner shares it. A lot already settled
-    with its partner is refused; a closed lot takes it as a late cost on the partner's next settlement."""
+    with its partner is refused; a closed lot takes it as a late cost on the partner's next settlement.
+
+    `ground` (D-298): a settlement gap or an irrecoverable debt; the evidence of the latter is attached afterwards
+    and the write-off reads "justificatif manquant" until it is."""
+    if ground not in WriteOffGround.values:
+        raise ValidationError({"ground": _("Choisissez le motif de la remise à zéro.")})
     organization = customer.organization
     list(
         Sale.objects.select_for_update(of=("self",))
@@ -3911,6 +3944,7 @@ def _write_off(
         written_on=timezone.localdate(),
         amount=balance,
         reason=reason,
+        ground=ground,
         created_by=actor,
     )
     # The sales still open, oldest first, each settled by what is left; a balance above the open sales (an
@@ -3948,6 +3982,7 @@ def _write_off(
             "invoice": invoice.number if invoice is not None else None,
             "amount": str(balance),
             "reason": reason,
+            "ground": ground,
             "lots": {str(batch_id): str(amount) for batch_id, amount in shares},
         },
     )

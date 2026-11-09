@@ -1,4 +1,5 @@
-# Runs on every push and pull request; the browser tests (e2e) only on pull requests (D-157). Locally: `make lint` and `make test` run the same checks.
+# Runs on pull requests and on pushes to main only (D-297); the browser tests (e2e) only on pull requests (D-157).
+# A push to a task branch runs nothing: its pull request runs the same checks once, not twice. Locally: `make lint` and `make test` run the same checks.
 # Actions are pinned to a commit (D-012); the comment gives the release it belongs to.
 # The runner image is pinned as well: `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19. Change it on purpose, on a branch.
 name: CI
@@ -6,6 +7,7 @@ name: CI
 # A change that touches only docs (docs/ and Markdown files) runs no checks at all (D-157).
 on:
   push:
+    branches: [main]
     paths-ignore:
       - "docs/**"
       - "*.md"

@@ -806,6 +806,7 @@ class InvoiceGiveUpGapView(InvoiceView):
             expected=serializer.validated_data["expected_amount"],
             reason=serializer.validated_data["reason"],
             lot_shares=serializer.validated_data.get("lot_shares", []),
+            ground=serializer.validated_data["ground"],
         )
         return self.answer(invoice_id)
 
