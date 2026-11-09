@@ -4074,3 +4074,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `issue_invoice` refuses, before taking a number, when the finance settings in force have no address or no matricule fiscal (article 18 of the VAT code). The name keeps falling back to the organization's. The draft page disables "Émettre la facture" and links to Paramètres financiers.
 - A customer without a tax ID (or other identification number) or without an address only warns on the draft: individuals and some small shops have neither, and the law asks the tax ID of the buyer who deducts the VAT.
 - Tests: a root `backend/conftest.py` gives every organization's first settings an address and a tax ID; a test marked `blank_seller` keeps them empty. The format of the tax ID is not checked yet (existing data has several spellings).
+
+**D-297 · CI runs on pull requests and on pushes to main only** · accepted (owner request) · 2026-11-09
+- In October the personal repo, private then, used about 11 600 Actions minutes against the 2 000 free: each task-branch commit ran CI twice (its push and its pull request), then again on main after the merge. Mirroring every branch to the private `SmartToolsAgro/SmartFeesh` ran CI on each branch there too (122 of its 128 October runs), its whole 2 000-minute allowance.
+- `push` now runs only on `main`; pull requests still run every check and the e2e (D-157), so nothing is merged untested. Saves about a third of the minutes in the personal repo and almost all of them in SmartFeesh, which keeps its CI and its deploy.
+- Push only `main` to SmartFeesh (`git push org main`), not every branch.
