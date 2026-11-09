@@ -4169,3 +4169,19 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The office's immediate validation stays for the counter ("Livré tout de suite (comptoir)", same service).
 - Stock is checked at "à livrer" (sellable kg, D-299) and again at the delivery; nothing is reserved between the two
   (provisional: reservations would need a new ledger state).
+
+**D-307 · WhatsApp assistant: Meta Cloud API direct, tools through the API as the user (Phase 12, P12-T01)** · accepted (owner 2026-11-09) · 2026-11-09
+- Owner: a WhatsApp bot that talks Tunisian (text and voice) and does what the app does, for every user within their
+  role; using it is a permission of the roles matrix. Meta's official Cloud API, connected directly (Twilio /
+  360dialog cost 90 to 150 DT a month more; an unofficial library risks a ban of the number). Estimated ~180 DT a
+  month at ~3 000 messages, mostly the AI.
+- Every tool is an existing `/api/v1/` endpoint called in-process as the user (`assistant.api_caller`): the views'
+  permission classes, driver scoping and serializers decide what the bot sees, never a second copy of the rules.
+  The tool list offered to the model is also filtered by role, so it does not try what the role cannot do.
+- Model `claude-sonnet-5-5` (setting `ASSISTANT_MODEL`), effort low, server-side refusal fallback; Haiku 5.5 only
+  if a test set of real messages shows the same answers. The system prompt holds no date or name, so it caches.
+- Unknown numbers get one fixed refusal (once a day), no AI call, nothing stored. Until the roles matrix merges,
+  `assistant.access.may_use` lets the owner only (the matrix default for the section).
+- T01 reads only. Writes (T02) will be stored as a pending action with its exact payload and run only on the
+  user's confirmation of that action, never on the model's say-so.
+
