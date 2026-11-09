@@ -21,11 +21,18 @@ else there. Always run `sudo nginx -t` before reloading nginx.
 
 ### Deploy
 
-From a clone with SSH access: commit, then `make deploy-staging` (or `bash deploy/deploy.sh`). It sends
-the committed code (never uncommitted changes) to `~/frutti-staging/releases/<time>-<commit>`, builds the
-images on the server, starts the stack (migrations run at backend start), installs the nginx site if it
+From a clone with SSH access and Docker running: commit, then `make deploy-staging` (or `bash deploy/deploy.sh`).
+It builds the two images **on that machine** (the CI runner, or yours), from the committed code only; sends the code
+to `~/frutti-staging/releases/<time>-<commit>` and the images (`docker save | ssh docker load`, low priority); starts
+the stack (migrations run at backend start), installs the nginx site if it
 changed (test, reload, roll back on failure), checks health on both ports. A deploy never seeds or changes data.
 The last 3 releases and their images are kept.
+
+**Never build images on the server (D-308).** The VPS also runs other clients' production; building there (three
+Vite front ends, then the Python image) used all its memory and took the whole server down, SSH included.
+`remote-deploy.sh` refuses to start when the release's images are missing, and `up` runs with `--no-build`. Two
+deploys at once (personal repo and SmartFeesh) still double the load of the image *load*: push SmartFeesh only after
+the personal repo's deploy has finished.
 
 CI deploys automatically after every green push to `main`, once these GitHub secrets exist
 (Settings → Secrets and variables → Actions):
