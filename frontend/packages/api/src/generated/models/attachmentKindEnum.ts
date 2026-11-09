@@ -13,6 +13,7 @@
  * * `purchase_order` - Bon de commande fournisseur
  * * `goods_receipt` - Bon de réception
  * * `supplier_invoice` - Facture fournisseur
+ * * `customer_write_off` - Remise à zéro d'un solde client
  */
 export type AttachmentKindEnum = typeof AttachmentKindEnum[keyof typeof AttachmentKindEnum];
 
@@ -25,4 +26,5 @@ export const AttachmentKindEnum = {
   purchase_order: 'purchase_order',
   goods_receipt: 'goods_receipt',
   supplier_invoice: 'supplier_invoice',
+  customer_write_off: 'customer_write_off',
 } as const;

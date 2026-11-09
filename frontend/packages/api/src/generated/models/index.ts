@@ -279,6 +279,7 @@ export * from './getSupplierStatementPdfParams';
 export * from './getTruckDayParams';
 export * from './getWithholdingSummaryParams';
 export * from './goodsReceiptRevision';
+export * from './groundEnum';
 export * from './health';
 export * from './historyEntry';
 export * from './historyEntryKindEnum';

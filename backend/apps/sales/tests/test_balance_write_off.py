@@ -7,23 +7,32 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from apps.catalog.tests.factories import ProductFactory, ProductPriceFactory
 from apps.closing import selectors as closing
 from apps.core.models import AuditLog
 from apps.core.tests.factories import OrganizationFactory, UserFactory
+from apps.documents import services as documents
 from apps.inventory import services as stock
 from apps.inventory.models import Batch, MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory, SupplierFactory
 from apps.partnerships.models import LotPartnership, PartnershipStatus
 from apps.sales import receivables, services
-from apps.sales.models import CustomerBalanceWriteOff, CustomerWriteOffAllocation, CustomerWriteOffLotShare
+from apps.sales.api.payment_views import write_off_rows
+from apps.sales.models import (
+    CustomerBalanceWriteOff,
+    CustomerWriteOffAllocation,
+    CustomerWriteOffLotShare,
+    WriteOffGround,
+)
 
 pytestmark = pytest.mark.django_db
 
 D = Decimal
+PDF = b"%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n"
 
 
 @pytest.fixture
@@ -275,3 +284,61 @@ def test_a_lot_settled_with_its_partner_is_not_offered(organization, actor, cust
     services.write_off_customer_balance(customer=customer, actor=actor, expected="10.000", reason="Reste")
     assert not CustomerWriteOffLotShare.objects.exists()
     assert balance(organization, customer).balance == D("0.000")
+
+
+# ---- the ground of the write-off and its evidence (D-298) ----
+
+
+def test_a_write_off_is_a_settlement_gap_by_default(organization, actor, customer, counter, stocked):
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+
+    write_off = services.write_off_customer_balance(
+        customer=customer, actor=actor, expected="10.000", reason="Reste perdu", lot_shares=on_the_lot("10.000")
+    )
+
+    assert write_off.ground == WriteOffGround.GAP
+    entry = AuditLog.objects.get(organization=organization, action="customer.balance_written_off")
+    assert entry.after is not None
+    assert entry.after["ground"] == "gap"
+
+
+def test_an_irrecoverable_debt_reads_evidence_missing_until_a_file_is_attached(
+    settings, tmp_path, organization, actor, customer, counter, stocked
+):
+    settings.MEDIA_ROOT = tmp_path
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+    write_off = services.write_off_customer_balance(
+        customer=customer,
+        actor=actor,
+        expected="10.000",
+        reason="Client en faillite",
+        lot_shares=on_the_lot("10.000"),
+        ground=WriteOffGround.IRRECOVERABLE,
+    )
+
+    assert write_off_rows(organization, customer)[0]["evidence_missing"] is True
+
+    documents.add_attachment(
+        organization=organization,
+        actor=actor,
+        kind="customer_write_off",
+        object_id=write_off.pk,
+        upload=SimpleUploadedFile("jugement.pdf", PDF, content_type="application/pdf"),
+    )
+
+    row = write_off_rows(organization, customer)[0]
+    assert (row["ground"], row["evidence_missing"]) == ("irrecoverable", False)
+
+
+def test_an_unknown_ground_is_refused(organization, actor, customer, counter, stocked):
+    make_sale(organization, actor, customer, counter, stocked, "5")
+    pay(organization, actor, customer, "200.000")
+
+    with pytest.raises(ValidationError) as refused:
+        services.write_off_customer_balance(
+            customer=customer, actor=actor, expected="10.000", reason="Reste", ground="lost"
+        )
+    assert set(refused.value.message_dict) == {"ground"}
+    assert not CustomerBalanceWriteOff.objects.exists()

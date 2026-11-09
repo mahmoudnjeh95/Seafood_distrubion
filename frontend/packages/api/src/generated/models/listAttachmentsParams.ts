@@ -15,6 +15,7 @@ export type ListAttachmentsParams = {
  * * `purchase_order` - Bon de commande fournisseur
  * * `goods_receipt` - Bon de réception
  * * `supplier_invoice` - Facture fournisseur
+ * * `customer_write_off` - Remise à zéro d'un solde client
  * @minLength 1
  */
 kind: ListAttachmentsKind;

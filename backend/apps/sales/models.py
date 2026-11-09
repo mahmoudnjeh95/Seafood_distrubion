@@ -1090,6 +1090,14 @@ class PaymentAllocation(OrganizationScopedModel):
         return f"{self.payment} -> {self.sale} · {self.amount}"
 
 
+class WriteOffGround(models.TextChoices):
+    """Why a customer's balance is given up (D-298). An irrecoverable debt is a deductible loss only with its
+    evidence (a judgment, a bailiff's report, a failed recovery): the office attaches it to the write-off."""
+
+    GAP = "gap", _("Écart de règlement ou geste commercial")
+    IRRECOVERABLE = "irrecoverable", _("Créance irrécouvrable")
+
+
 class CustomerBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
     """The rest of a customer's balance given up (D-252): the customer paid less than what was owed and we clear
     the balance to zero. It is a loss on that customer, kept as it is: never edited, never deleted.
@@ -1106,6 +1114,7 @@ class CustomerBalanceWriteOff(OrganizationScopedModel, TimeStampedModel):
     written_on = models.DateField()
     amount = MoneyField()
     reason = models.CharField(max_length=255)
+    ground = models.CharField(max_length=20, choices=WriteOffGround.choices, default=WriteOffGround.GAP)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
