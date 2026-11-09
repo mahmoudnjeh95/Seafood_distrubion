@@ -79,7 +79,11 @@ def add_member(
         action="membership.set",
         target=membership,
         before=before,
-        after={"role": membership.role, "custom_role": membership.custom_role_id, "is_active": True},
+        after={
+            "role": membership.role,
+            "is_active": True,
+            **({"custom_role": membership.custom_role_id} if role == Role.CUSTOM else {}),
+        },
     )
     return membership
 
@@ -276,6 +280,11 @@ def _check_custom_role(*, organization: Organization, role: Role, custom_role: C
         raise ValidationError({"custom_role": _("Rôle inconnu.")})
 
 
+def _matrix_errors(error: ValidationError) -> list[str]:
+    """The errors of a typed matrix, one line per section ("payroll : …")."""
+    return [f"{key} : {text}" for key, texts in error.message_dict.items() for text in texts]
+
+
 def _own_levels(membership: Membership, overrides: Mapping[str, Any]) -> dict[str, str]:
     """The levels that differ from the person's role: the same level as the role is not their own."""
     of_role = access.role_matrix(membership)
@@ -300,7 +309,7 @@ def _checked_role_fields(
     try:
         cleaned = access.clean_matrix(levels, partial=False)
     except ValidationError as error:
-        raise ValidationError({"access": error.message_dict}) from None
+        raise ValidationError({"access": _matrix_errors(error)}) from None
     return name, cleaned
 
 
@@ -380,7 +389,7 @@ def set_member_access(
     try:
         cleaned = access.clean_matrix(overrides, partial=True)
     except ValidationError as error:
-        raise ValidationError({"overrides": error.message_dict}) from None
+        raise ValidationError({"overrides": _matrix_errors(error)}) from None
     before = dict(membership.access_overrides or {})
     membership.access_overrides = _own_levels(membership, cleaned)
     membership.save(update_fields=["access_overrides", "updated_at"])

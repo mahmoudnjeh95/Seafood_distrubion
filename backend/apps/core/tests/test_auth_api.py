@@ -3,6 +3,7 @@ from django.core.cache import cache
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from apps.core import access
 from apps.core.models import Role
 
 from .factories import MembershipFactory, OrganizationFactory, UserFactory
@@ -50,6 +51,9 @@ def test_login_opens_a_session_and_returns_who_is_logged_in(api):
         },
         "organization": {"id": membership.organization.id, "name": membership.organization.name, "logo_url": None},
         "role": "owner",
+        "role_label": "Propriétaire",
+        # The owner has every section in full (D-306).
+        "access": dict.fromkeys(access.SECTION_BY_KEY, "full"),
         "can_buy": False,
         "truck": None,
     }

@@ -352,6 +352,8 @@ OWN_DEFAULTS = {
     # The customer types and VAT rates every company starts with (D-283).
     "/api/v1/customer-types",
     "/api/v1/vat-rates",
+    # The sections of the access matrix (D-306): the same list for every company, no company data.
+    "/api/v1/access-sections",
 }
 
 
