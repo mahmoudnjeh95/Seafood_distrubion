@@ -9,6 +9,7 @@ urlpatterns = [
     path("locations/<int:location_id>/restore", views.LocationRestoreView.as_view(), name="location-restore"),
     path("batches", views.BatchListView.as_view(), name="batch-list"),
     path("temperatures", views.TemperatureListView.as_view(), name="temperature-list"),
+    path("transformations", views.TransformationListView.as_view(), name="transformation-list"),
     path("cold-chain", views.ColdChainView.as_view(), name="cold-chain"),
     path(
         "locations/<int:location_id>/temperature-range",

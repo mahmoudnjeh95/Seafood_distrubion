@@ -75,6 +75,7 @@ NUMBER_KINDS: tuple[NumberKind, ...] = (
     NumberKind("transfer", _("Transfert"), _STOCK, "TR", 4),
     NumberKind("loss", _("Perte"), _STOCK, "PE", 4),
     NumberKind("count", _("Inventaire"), _STOCK, "INV", 4),
+    NumberKind("transformation", _("Transformation"), _STOCK, "TF", 4),
     NumberKind("expense", _("Dépense"), _TREASURY, "DP", 4, yearly=True),
     NumberKind("deposit", _("Remise en banque"), _TREASURY, "RB", 4, yearly=True),
     NumberKind("account_transfer", _("Mouvement entre comptes"), _TREASURY, "MT", 4, yearly=True),

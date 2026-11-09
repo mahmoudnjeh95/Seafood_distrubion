@@ -86,6 +86,8 @@ import { SupplierCreditNoteFormPage } from "./creditnotes/SupplierCreditNoteForm
 import { SupplierCreditNotesPage } from "./creditnotes/SupplierCreditNotesPage";
 import { LotRecallPage } from "./stock/LotRecallPage";
 import { ColdChainPage } from "./stock/ColdChainPage";
+import { TransformationFormPage } from "./transformations/TransformationFormPage";
+import { TransformationsPage } from "./transformations/TransformationsPage";
 import { PurchaseOrderFormPage } from "./orders/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "./orders/PurchaseOrdersPage";
 import { ReceiptDetailPage } from "./receipts/ReceiptDetailPage";
@@ -383,6 +385,8 @@ function AppRoutes() {
         <Route path="/stock/lots/:batchId" element={<BatchStockPage />} />
         <Route path="/stock/lots/:batchId/rappel" element={<LotRecallPage />} />
         <Route path="/stock/temperatures" element={<ColdChainPage />} />
+        <Route path="/stock/transformations" element={<TransformationsPage />} />
+        <Route path="/stock/transformations/nouvelle" element={<TransformationFormPage />} />
         {/* Stock sections (P1-T09) */}
         <Route path="/stock/transferts" element={<TransfersPage />} />
         <Route path="/stock/transferts/nouveau" element={<TransferFormPage />} />

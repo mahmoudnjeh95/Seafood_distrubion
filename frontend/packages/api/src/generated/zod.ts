@@ -21121,7 +21121,7 @@ export const ListMovementsQueryParams = zod.object({
   "batch": zod.int().min(1).optional(),
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).optional().describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction', 'transformation_out', 'transformation_in']).optional().describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire\n* `transformation_out` - Transformation (sortie)\n* `transformation_in` - Transformation (entrée)'),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
   "location": zod.int().min(1).optional(),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
@@ -21139,7 +21139,7 @@ export const ListMovementsResponse = zod.object({
   "previous": zod.url().nullish(),
   "results": zod.array(zod.object({
   "id": zod.int(),
-  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction']).describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire'),
+  "kind": zod.enum(['receipt', 'receipt_correction', 'transfer', 'sale', 'customer_return', 'supplier_return', 'loss', 'adjustment', 'count_correction', 'transformation_out', 'transformation_in']).describe('* `receipt` - Réception\n* `receipt_correction` - Correction de réception\n* `transfer` - Transfert\n* `sale` - Vente\n* `customer_return` - Retour client\n* `supplier_return` - Retour fournisseur\n* `loss` - Perte\n* `adjustment` - Ajustement\n* `count_correction` - Correction d\'inventaire\n* `transformation_out` - Transformation (sortie)\n* `transformation_in` - Transformation (entrée)'),
   "occurred_at": zod.iso.datetime({"offset":true}),
   "product": zod.object({
   "id": zod.int(),
@@ -24112,6 +24112,169 @@ export const GetTruckDayResponse = zod.object({
   "amount": zod.stringFormat('decimal', getTruckDayResponseLinesItemAmountRegExp).nullable()
 })),
   "amount": zod.stringFormat('decimal', getTruckDayResponseAmountRegExp)
+})
+
+
+/**
+ * Transformations (cleaning, filleting, downgrading), newest first, paginated; `batch` keeps one lot's.
+ */
+
+export const listTransformationsQuerySearchDefault = ``;
+export const listTransformationsQuerySearchMax = 100;
+
+
+
+export const ListTransformationsQueryParams = zod.object({
+  "batch": zod.int().min(1).optional(),
+  "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
+  "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
+  "search": zod.string().max(listTransformationsQuerySearchMax).default(listTransformationsQuerySearchDefault)
+})
+
+export const listTransformationsResponseResultsItemSourceBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemSourceQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemOutputBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemOutputQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemWeightLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const listTransformationsResponseResultsItemFeeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const ListTransformationsResponse = zod.object({
+  "count": zod.int(),
+  "next": zod.url().nullish(),
+  "previous": zod.url().nullish(),
+  "results": zod.array(zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "done_on": zod.iso.date(),
+  "source_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', listTransformationsResponseResultsItemSourceBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "source_quantity": zod.stringFormat('decimal', listTransformationsResponseResultsItemSourceQuantityRegExp),
+  "output_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', listTransformationsResponseResultsItemOutputBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "output_quantity": zod.stringFormat('decimal', listTransformationsResponseResultsItemOutputQuantityRegExp),
+  "weight_lost": zod.stringFormat('decimal', listTransformationsResponseResultsItemWeightLostRegExp),
+  "fee": zod.stringFormat('decimal', listTransformationsResponseResultsItemFeeRegExp),
+  "fee_note": zod.string(),
+  "notes": zod.string(),
+  "supplier_name": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+ * cost per kg. Errors on each field. Owner or manager.
+ */
+
+
+export const createTransformationBodySourceQuantityMax = 20;
+
+
+export const createTransformationBodyOutputQuantityMax = 20;
+
+export const createTransformationBodyFeeDefault = `0`;
+export const createTransformationBodyFeeMax = 20;
+
+export const createTransformationBodyFeeNoteDefault = ``;
+export const createTransformationBodyFeeNoteMax = 255;
+
+export const createTransformationBodyNotesDefault = ``;
+
+export const CreateTransformationBody = zod.object({
+  "location": zod.int().min(1),
+  "source_batch": zod.int().min(1),
+  "source_quantity": zod.string().max(createTransformationBodySourceQuantityMax),
+  "output_product": zod.int().min(1),
+  "output_quantity": zod.string().max(createTransformationBodyOutputQuantityMax),
+  "done_on": zod.iso.date(),
+  "fee": zod.string().max(createTransformationBodyFeeMax).default(createTransformationBodyFeeDefault),
+  "fee_note": zod.string().max(createTransformationBodyFeeNoteMax).default(createTransformationBodyFeeNoteDefault),
+  "use_by": zod.iso.date().nullish(),
+  "notes": zod.string().default(createTransformationBodyNotesDefault)
+})
+
+export const createTransformationResponseSourceBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseSourceQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseOutputBatchOneUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseOutputQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseWeightLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const createTransformationResponseFeeRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const CreateTransformationResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "location": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.enum(['cold_room', 'truck', 'other']).describe('* `cold_room` - Chambre froide\n* `truck` - Camion\n* `other` - Autre')
+}),
+  "done_on": zod.iso.date(),
+  "source_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', createTransformationResponseSourceBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "source_quantity": zod.stringFormat('decimal', createTransformationResponseSourceQuantityRegExp),
+  "output_batch": zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', createTransformationResponseOutputBatchOneUnitCostRegExp),
+  "use_by": zod.iso.date().nullable()
+}),
+  "output_quantity": zod.stringFormat('decimal', createTransformationResponseOutputQuantityRegExp),
+  "weight_lost": zod.stringFormat('decimal', createTransformationResponseWeightLostRegExp),
+  "fee": zod.stringFormat('decimal', createTransformationResponseFeeRegExp),
+  "fee_note": zod.string(),
+  "notes": zod.string(),
+  "supplier_name": zod.string(),
+  "created_by": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
 })
 
 

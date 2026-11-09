@@ -54,6 +54,11 @@ export function LotOriginCard({ batch, canEdit }: { batch: Batch; canEdit: boole
           <Button asChild variant="ghost">
             <Link to={`/stock/lots/${batch.id}/rappel`}>{t("admin.stock.origin.recall")}</Link>
           </Button>
+          {canEdit && (
+            <Button asChild variant="ghost">
+              <Link to={`/stock/transformations/nouvelle?lot=${batch.id}`}>{t("admin.stock.origin.transform")}</Link>
+            </Button>
+          )}
           {canEdit && <Button onClick={() => setOpen(true)}>{t("admin.stock.origin.edit")}</Button>}
         </div>
       </div>

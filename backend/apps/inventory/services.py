@@ -41,6 +41,7 @@ from .models import (
     TransferLine,
     TransferLinePick,
     TransferStatus,
+    Transformation,
 )
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
 from .models import LossReason as LossReason  # re-exported for apps that record losses
@@ -244,6 +245,8 @@ MOVEMENT_SIDES: dict[str, tuple[bool, bool] | None] = {
     MovementKind.RECEIPT_CORRECTION: None,
     MovementKind.ADJUSTMENT: None,
     MovementKind.COUNT_CORRECTION: None,
+    MovementKind.TRANSFORMATION_OUT: (True, False),
+    MovementKind.TRANSFORMATION_IN: (False, True),
 }
 # A person must say why stock disappeared or was changed by hand.
 KINDS_NEEDING_A_REASON = frozenset({MovementKind.LOSS, MovementKind.ADJUSTMENT})
@@ -1784,3 +1787,139 @@ def record_temperature(
         after={"location": location.name, "celsius": str(value), "out_of_range": reading.out_of_range},
     )
     return reading
+
+
+# ---- Transformations (D-301) ----
+
+
+@transaction.atomic
+def create_transformation(
+    *,
+    organization: Organization,
+    actor: User | None,
+    location: StockLocation,
+    source_batch: Batch,
+    source_quantity: Number,
+    output_product: "Product",
+    output_quantity: Number,
+    done_on: dt.date,
+    fee: Number = "0",
+    fee_note: str = "",
+    use_by: dt.date | None = None,
+    notes: str = "",
+) -> Transformation:
+    """Clean, fillet, portion or downgrade kilos of one lot into a new lot of `output_product` at the same place.
+
+    The new lot keeps the source's supplier, receipt day, VAT and origin; its cost per kg is (source kg × source cost
+    + `fee`) / kg obtained, rounded to the millime, so the weight lost is carried by it. Refused (ValidationError per
+    field): more kg out than held, more kg obtained than taken, an expired source lot, a negative fee, or a lot shared
+    with a partner (provisional, D-301)."""
+    from apps.partnerships import selectors as partnerships  # partnerships reads inventory: imported here, not above
+
+    errors: dict[str, str] = {}
+    taken = obtained = fee_amount = None
+    try:
+        taken = checked_quantity(source_quantity)
+    except (ValueError, TypeError):
+        errors["source_quantity"] = _("Indiquez un poids en kg, supérieur à zéro.")
+    try:
+        obtained = checked_quantity(output_quantity)
+    except (ValueError, TypeError):
+        errors["output_quantity"] = _("Indiquez un poids en kg, supérieur à zéro.")
+    try:
+        fee_amount = checked_amount(fee or "0")
+    except (ValueError, TypeError) as error:
+        errors["fee"] = str(error)
+    if source_batch.organization_id != organization.pk:
+        errors["source_batch"] = _("Lot inconnu.")
+    elif selectors.is_expired(source_batch, done_on):
+        errors["source_batch"] = _("Ce lot a dépassé sa date limite : il ne se transforme pas, il se déclare en perte.")
+    elif partnerships.live_partnership_of_batch(organization, batch_id=source_batch.pk) is not None:
+        errors["source_batch"] = _(
+            "Ce lot est partagé avec un partenaire : sa transformation n'est pas encore possible (à décider)."
+        )
+    if output_product.organization_id != organization.pk or not output_product.is_active:
+        errors["output_product"] = _("Produit inconnu ou archivé.")
+    if location.organization_id != organization.pk or not location.is_active:
+        errors["location"] = _("Emplacement inconnu ou archivé.")
+    if done_on > timezone.localdate():
+        errors["done_on"] = _("La date ne peut pas être dans le futur.")
+    elif done_on < source_batch.received_on:
+        errors["done_on"] = _("La transformation ne peut pas précéder la réception du lot.")
+    if taken is not None and obtained is not None and obtained > taken:
+        errors["output_quantity"] = _("Une transformation ne fait pas gagner de poids : au plus %(kg)s kg.") % {
+            "kg": taken
+        }
+    if errors or taken is None or obtained is None or fee_amount is None:
+        raise ValidationError(errors)
+    cost = (taken * source_batch.unit_cost + fee_amount) / obtained
+    unit_cost = cost.quantize(Decimal("0.001"))
+    number = numbering.next_number(organization, "transformation")
+    output = create_batch(
+        organization=organization,
+        actor=actor,
+        product=output_product,
+        supplier=source_batch.supplier,
+        received_on=source_batch.received_on,
+        unit_cost=unit_cost,
+        receipt_reference=number,
+        use_by=use_by if use_by is not None else source_batch.use_by,
+        bought_with_vat=source_batch.bought_with_vat,
+        catch_area=source_batch.catch_area,
+        production_method=source_batch.production_method,
+        origin=source_batch.origin,
+    )
+    transformation = Transformation.objects.create(
+        organization=organization,
+        number=number,
+        location=location,
+        done_on=done_on,
+        source_batch=source_batch,
+        source_quantity=taken,
+        output_batch=output,
+        output_quantity=obtained,
+        fee=fee_amount,
+        fee_note=fee_note.strip()[:255],
+        notes=notes.strip(),
+        created_by=actor,
+    )
+    moment = moment_of(done_on) if done_on != timezone.localdate() else timezone.now()
+    reason = _("Transformation %(number)s") % {"number": number}
+    post_movement(
+        organization=organization,
+        actor=actor,
+        kind=MovementKind.TRANSFORMATION_OUT,
+        batch=source_batch,
+        quantity=taken,
+        from_location=location,
+        reason=reason,
+        source=transformation,
+        occurred_at=moment,
+    )
+    post_movement(
+        organization=organization,
+        actor=actor,
+        kind=MovementKind.TRANSFORMATION_IN,
+        batch=output,
+        quantity=obtained,
+        to_location=location,
+        reason=reason,
+        source=transformation,
+        occurred_at=moment,
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="transformation.created",
+        target=transformation,
+        after={
+            "number": number,
+            "source": source_batch.number,
+            "source_quantity": str(taken),
+            "output": output.number,
+            "output_quantity": str(obtained),
+            "fee": str(fee_amount),
+            "unit_cost": str(unit_cost),
+        },
+    )
+    return transformation

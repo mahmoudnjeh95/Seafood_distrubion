@@ -10430,6 +10430,8 @@ paths:
           - loss
           - adjustment
           - count_correction
+          - transformation_out
+          - transformation_in
           type: string
           minLength: 1
         description: |-
@@ -10442,6 +10444,8 @@ paths:
           * `loss` - Perte
           * `adjustment` - Ajustement
           * `count_correction` - Correction d'inventaire
+          * `transformation_out` - Transformation (sortie)
+          * `transformation_in` - Transformation (entrée)
       - name: limit
         required: false
         in: query
@@ -12021,6 +12025,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TruckDay'
+          description: ''
+  /api/v1/transformations:
+    get:
+      operationId: listTransformations
+      description: Transformations (cleaning, filleting, downgrading), newest first,
+        paginated; `batch` keeps one lot's.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+          minimum: 1
+      - name: limit
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: L'index initial depuis lequel retourner les résultats.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          default: ''
+          maxLength: 100
+      tags:
+      - transformations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTransformationList'
+          description: ''
+    post:
+      operationId: createTransformation
+      description: |-
+        Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+        cost per kg. Errors on each field. Owner or manager.
+      tags:
+      - transformations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransformationWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransformationWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransformationWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transformation'
           description: ''
   /api/v1/treasury/accounts:
     get:
@@ -26773,6 +26845,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transfer'
+    PaginatedTransformationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transformation'
     PaginatedWebRequestList:
       type: object
       required:
@@ -33586,6 +33681,8 @@ components:
       - loss
       - adjustment
       - count_correction
+      - transformation_out
+      - transformation_in
       type: string
       description: |-
         * `receipt` - Réception
@@ -33597,6 +33694,8 @@ components:
         * `loss` - Perte
         * `adjustment` - Ajustement
         * `count_correction` - Correction d'inventaire
+        * `transformation_out` - Transformation (sortie)
+        * `transformation_in` - Transformation (entrée)
     StockOverview:
       type: object
       properties:
@@ -35623,6 +35722,155 @@ components:
       - lines
       - to_location
       - transferred_on
+    Transformation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        location:
+          allOf:
+          - $ref: '#/components/schemas/Place'
+          readOnly: true
+        done_on:
+          type: string
+          format: date
+          readOnly: true
+        source_batch:
+          allOf:
+          - $ref: '#/components/schemas/TransformationLot'
+          readOnly: true
+        source_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        output_batch:
+          allOf:
+          - $ref: '#/components/schemas/TransformationLot'
+          readOnly: true
+        output_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        weight_lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        fee_note:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - done_on
+      - fee
+      - fee_note
+      - id
+      - location
+      - notes
+      - number
+      - output_batch
+      - output_quantity
+      - source_batch
+      - source_quantity
+      - supplier_name
+      - weight_lost
+    TransformationLot:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - number
+      - product
+      - unit_cost
+      - use_by
+    TransformationWrite:
+      type: object
+      properties:
+        location:
+          type: integer
+          minimum: 1
+        source_batch:
+          type: integer
+          minimum: 1
+        source_quantity:
+          type: string
+          maxLength: 20
+        output_product:
+          type: integer
+          minimum: 1
+        output_quantity:
+          type: string
+          maxLength: 20
+        done_on:
+          type: string
+          format: date
+        fee:
+          type: string
+          default: '0'
+          maxLength: 20
+        fee_note:
+          type: string
+          default: ''
+          maxLength: 255
+        use_by:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+      required:
+      - done_on
+      - location
+      - output_product
+      - output_quantity
+      - source_batch
+      - source_quantity
     TreasuryAccount:
       type: object
       properties:

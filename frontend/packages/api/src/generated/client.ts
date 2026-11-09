@@ -234,6 +234,7 @@ import type {
   ListSuppliersParams,
   ListTemperatureReadingsParams,
   ListTransfersParams,
+  ListTransformationsParams,
   ListTreasuryAccountsParams,
   ListTruckAssignmentsParams,
   ListTrucksParams,
@@ -328,6 +329,7 @@ import type {
   PaginatedSupplierPaymentList,
   PaginatedTemperatureReadingList,
   PaginatedTransferList,
+  PaginatedTransformationList,
   PaginatedWebRequestList,
   Paper,
   PaperStatus,
@@ -456,6 +458,8 @@ import type {
   TemperatureWrite,
   TransferDetail,
   TransferWrite,
+  Transformation,
+  TransformationWrite,
   TreasuryAccount,
   TreasuryAccountWrite,
   Truck,
@@ -37224,6 +37228,197 @@ export function useGetTruckDay<TData = Awaited<ReturnType<typeof getTruckDay>>, 
 
 
 
+
+export const getListTransformationsUrl = (params?: ListTransformationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/transformations?${stringifiedParams}` : `/api/v1/transformations`
+}
+
+/**
+ * Transformations (cleaning, filleting, downgrading), newest first, paginated; `batch` keeps one lot's.
+ */
+export const listTransformations = async (params?: ListTransformationsParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedTransformationList> => {
+
+  return apiFetch<PaginatedTransformationList>(getListTransformationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTransformationsQueryKey = (params?: ListTransformationsParams,) => {
+    return [
+    `/api/v1/transformations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTransformationsQueryOptions = <TData = Awaited<ReturnType<typeof listTransformations>>, TError = unknown>(params?: ListTransformationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransformations>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTransformationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTransformations>>> = ({ signal }) => listTransformations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTransformations>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTransformationsQueryResult = NonNullable<Awaited<ReturnType<typeof listTransformations>>>
+export type ListTransformationsQueryError = unknown
+
+
+export function useListTransformations<TData = Awaited<ReturnType<typeof listTransformations>>, TError = unknown>(
+ params: undefined |  ListTransformationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransformations>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTransformations>>,
+          TError,
+          Awaited<ReturnType<typeof listTransformations>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTransformations<TData = Awaited<ReturnType<typeof listTransformations>>, TError = unknown>(
+ params?: ListTransformationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransformations>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTransformations>>,
+          TError,
+          Awaited<ReturnType<typeof listTransformations>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTransformations<TData = Awaited<ReturnType<typeof listTransformations>>, TError = unknown>(
+ params?: ListTransformationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransformations>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListTransformations<TData = Awaited<ReturnType<typeof listTransformations>>, TError = unknown>(
+ params?: ListTransformationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTransformations>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTransformationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTransformationUrl = () => {
+
+
+
+
+  return `/api/v1/transformations`
+}
+
+/**
+ * Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+ * cost per kg. Errors on each field. Owner or manager.
+ */
+export const createTransformation = async (transformationWrite: TransformationWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Transformation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Transformation>(getCreateTransformationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(transformationWrite)
+  }
+);}
+
+
+
+
+
+export const getCreateTransformationMutationKey = () => ['createTransformation'] as const;
+
+export const getCreateTransformationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTransformation>>, TError,CreateTransformationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTransformation>>, TError,CreateTransformationMutationVariables, TContext> => {
+
+const mutationKey = getCreateTransformationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTransformation>>, CreateTransformationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTransformation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTransformationMutationResult = NonNullable<Awaited<ReturnType<typeof createTransformation>>>
+    export type CreateTransformationMutationBody = TransformationWrite
+    export type CreateTransformationMutationError = unknown
+    export type CreateTransformationMutationVariables = {data: TransformationWrite}
+
+    export const useCreateTransformation = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTransformation>>, TError,CreateTransformationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createTransformation>>,
+        TError,
+        CreateTransformationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTransformationMutationOptions(options), queryClient);
+    }
 
 export const getListTreasuryAccountsUrl = (params?: ListTreasuryAccountsParams,) => {
   const normalizedParams = new URLSearchParams();

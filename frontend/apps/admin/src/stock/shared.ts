@@ -22,6 +22,8 @@ export const MOVEMENT_TONES = {
   loss: "bad",
   adjustment: "warn",
   count_correction: "warn",
+  transformation_out: "neutral",
+  transformation_in: "good",
 } as const satisfies Record<StockMovementKindEnum, string>;
 
 const STORAGE_KEY = "frutti.stock.view";

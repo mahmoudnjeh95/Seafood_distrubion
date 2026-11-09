@@ -18,4 +18,6 @@ export const ListMovementsKind = {
   loss: 'loss',
   adjustment: 'adjustment',
   count_correction: 'count_correction',
+  transformation_out: 'transformation_out',
+  transformation_in: 'transformation_in',
 } as const;

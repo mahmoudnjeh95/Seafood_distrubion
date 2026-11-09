@@ -35,6 +35,7 @@ from .models import (
     TransferDelivery,
     TransferLine,
     TransferStatus,
+    Transformation,
 )
 
 type LocationStatus = Literal["active", "archived", "all"]
@@ -107,6 +108,7 @@ VALUED_KINDS = (
     MovementKind.LOSS,
     MovementKind.ADJUSTMENT,
     MovementKind.COUNT_CORRECTION,
+    MovementKind.TRANSFORMATION_OUT,
 )
 
 
@@ -1601,3 +1603,31 @@ def cold_chain_overview(organization: Organization) -> list[ColdChainPlace]:
             )
         )
     return found
+
+
+# ---- Transformations (D-301) ----
+
+
+def transformations_of(
+    organization: Organization, *, batch_id: int | None = None, search: str = ""
+) -> QuerySet[Transformation]:
+    """Transformations newest first, with both lots, their products and the place; `batch_id` keeps those that took
+    from or made that lot."""
+    rows = (
+        Transformation.objects.for_organization(organization)
+        .select_related(
+            "location", "source_batch__product", "source_batch__supplier", "output_batch__product", "created_by"
+        )
+        .order_by("-done_on", "-id")
+    )
+    if batch_id is not None:
+        rows = rows.filter(Q(source_batch_id=batch_id) | Q(output_batch_id=batch_id))
+    if search := search.strip():
+        rows = rows.filter(
+            Q(number__icontains=search)
+            | Q(source_batch__number__icontains=search)
+            | Q(output_batch__number__icontains=search)
+            | Q(source_batch__product__name__icontains=search)
+            | Q(output_batch__product__name__icontains=search)
+        )
+    return rows

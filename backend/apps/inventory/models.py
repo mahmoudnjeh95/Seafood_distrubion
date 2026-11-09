@@ -115,6 +115,9 @@ class MovementKind(models.TextChoices):
     LOSS = "loss", _("Perte")
     ADJUSTMENT = "adjustment", _("Ajustement")
     COUNT_CORRECTION = "count_correction", _("Correction d'inventaire")
+    # Kilos of a lot cleaned, filleted or downgraded into a new lot of another product (D-301).
+    TRANSFORMATION_OUT = "transformation_out", _("Transformation (sortie)")
+    TRANSFORMATION_IN = "transformation_in", _("Transformation (entrée)")
 
 
 class StockMovementQuerySet(OrganizationScopedQuerySet["StockMovement"]):
@@ -609,3 +612,53 @@ class TemperatureReading(OrganizationScopedModel):
 
     def __str__(self) -> str:
         return f"{self.location} · {self.celsius} °C"
+
+
+# ---- Transformations (D-301) ----
+
+
+class Transformation(OrganizationScopedModel, TimeStampedModel):
+    """Kilos of one lot cleaned, filleted, portioned or downgraded at one place into a new lot of another product.
+
+    The new lot keeps the source's supplier, receipt day and origin; its cost per kg is the source kilos' cost plus
+    the transformation fee, over the kilos obtained, so the weight lost is carried by the new lot. Never edited: a
+    mistake is corrected by an adjustment on both lots.
+    """
+
+    # "TF-0001"... per organization.
+    number = models.CharField(max_length=20)
+    location = models.ForeignKey(StockLocation, on_delete=models.PROTECT, related_name="transformations")
+    done_on = models.DateField()
+    source_batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name="transformations_out")
+    source_quantity = QuantityField()
+    output_batch = models.OneToOneField(Batch, on_delete=models.PROTECT, related_name="transformation_in")
+    output_quantity = QuantityField()
+    # What the transformation cost (labour, a cleaner, ice, packing), in DT: it goes into the new lot's cost.
+    fee = MoneyField(default=Decimal("0.000"))
+    fee_note = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-done_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "number"], name="transformation_number_unique_per_organization"
+            ),
+            models.CheckConstraint(condition=models.Q(source_quantity__gt=0), name="transformation_source_positive"),
+            models.CheckConstraint(condition=models.Q(output_quantity__gt=0), name="transformation_output_positive"),
+            models.CheckConstraint(
+                condition=models.Q(output_quantity__lte=models.F("source_quantity")),
+                name="transformation_never_gains_weight",
+            ),
+            models.CheckConstraint(condition=models.Q(fee__gte=0), name="transformation_fee_not_negative"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+    @property
+    def weight_lost(self) -> Decimal:
+        return self.source_quantity - self.output_quantity

@@ -24,7 +24,15 @@ from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membe
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch, StockCount, StockLocation, StockLoss, TemperatureReading, Transfer
+from apps.inventory.models import (
+    Batch,
+    StockCount,
+    StockLocation,
+    StockLoss,
+    TemperatureReading,
+    Transfer,
+    Transformation,
+)
 from apps.partners import selectors as partners
 
 from .serializers import (
@@ -69,6 +77,9 @@ from .serializers import (
     TransferFilterSerializer,
     TransferSerializer,
     TransferWriteSerializer,
+    TransformationFilterSerializer,
+    TransformationSerializer,
+    TransformationWriteSerializer,
     TruckDayFilterSerializer,
     TruckDaySerializer,
     VatProductsSerializer,
@@ -1015,3 +1026,68 @@ class MyTemperatureView(APIView):
             client_uuid=data["client_uuid"],
         )
         return Response(TemperatureReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
+
+
+# ---- Transformations (D-301) ----
+
+
+class TransformationListView(OfficeView, ListAPIView[Transformation]):
+    serializer_class = TransformationSerializer
+    pagination_class = PagedList
+
+    def get_queryset(self) -> QuerySet[Transformation]:
+        filters = TransformationFilterSerializer(data=self.request.query_params)
+        filters.is_valid(raise_exception=True)
+        return selectors.transformations_of(
+            self.organization, batch_id=filters.validated_data.get("batch"), search=filters.validated_data["search"]
+        )
+
+    @extend_schema(operation_id="listTransformations", parameters=[TransformationFilterSerializer])
+    def get(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Transformations (cleaning, filleting, downgrading), newest first, paginated; `batch` keeps one lot's."""
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id="createTransformation",
+        request=TransformationWriteSerializer,
+        responses={201: TransformationSerializer},
+    )
+    def post(self, request: Request) -> Response:
+        """Turn kilos of a lot into a new lot of another product at the same place; the fee goes into the new lot's
+        cost per kg. Errors on each field. Owner or manager."""
+        serializer = TransformationWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        organization = self.organization
+        errors: dict[str, str] = {}
+        location = batch = product = None
+        try:
+            location = selectors.location_of(organization, data["location"])
+        except StockLocation.DoesNotExist:
+            errors["location"] = _("Emplacement inconnu.")
+        try:
+            batch = selectors.batch_of(organization, data["source_batch"])
+        except Batch.DoesNotExist:
+            errors["source_batch"] = _("Lot inconnu.")
+        try:
+            product = catalog.product_of(organization, data["output_product"])
+        except ObjectDoesNotExist:
+            errors["output_product"] = _("Produit inconnu.")
+        if errors or location is None or batch is None or product is None:
+            raise ValidationError(errors)
+        made = services.create_transformation(
+            organization=organization,
+            actor=self.membership.user,
+            location=location,
+            source_batch=batch,
+            source_quantity=data["source_quantity"],
+            output_product=product,
+            output_quantity=data["output_quantity"],
+            done_on=data["done_on"],
+            fee=data["fee"],
+            fee_note=data["fee_note"],
+            use_by=data["use_by"],
+            notes=data["notes"],
+        )
+        body = TransformationSerializer(selectors.transformations_of(organization).get(pk=made.pk)).data
+        return Response(body, status=status.HTTP_201_CREATED)

@@ -27,6 +27,7 @@ from apps.inventory.models import (
     TransferLine,
     TransferLinePick,
     TransferStatus,
+    Transformation,
 )
 
 
@@ -818,3 +819,67 @@ class ColdChainPlaceSerializer(serializers.Serializer[Any]):
     last = TemperatureReadingSerializer(read_only=True, allow_null=True)
     readings_today = serializers.IntegerField(read_only=True)
     alerts_7_days = serializers.IntegerField(read_only=True)
+
+
+# ---- Transformations (D-301) ----
+
+
+class TransformationLotSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.CharField(read_only=True)
+    product = BatchProductSerializer(read_only=True)
+    unit_cost = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+    use_by = serializers.DateField(read_only=True, allow_null=True)
+
+
+class TransformationSerializer(serializers.ModelSerializer[Transformation]):
+    location = PlaceSerializer(read_only=True)
+    source_batch = TransformationLotSerializer(read_only=True)
+    output_batch = TransformationLotSerializer(read_only=True)
+    weight_lost = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    supplier_name = serializers.CharField(source="source_batch.supplier.name", read_only=True)
+    created_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Transformation
+        fields = (
+            "id",
+            "number",
+            "location",
+            "done_on",
+            "source_batch",
+            "source_quantity",
+            "output_batch",
+            "output_quantity",
+            "weight_lost",
+            "fee",
+            "fee_note",
+            "notes",
+            "supplier_name",
+            "created_by",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_created_by(self, transformation: Transformation) -> str:
+        return person_name(transformation.created_by)
+
+
+class TransformationWriteSerializer(serializers.Serializer[Any]):
+    location = serializers.IntegerField(min_value=1)
+    source_batch = serializers.IntegerField(min_value=1)
+    source_quantity = serializers.CharField(max_length=20)
+    output_product = serializers.IntegerField(min_value=1)
+    output_quantity = serializers.CharField(max_length=20)
+    done_on = serializers.DateField()
+    # DT: labour, a cleaner, ice, packing. It goes into the new lot's cost.
+    fee = serializers.CharField(max_length=20, required=False, allow_blank=True, default="0")
+    fee_note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    # The new lot's use-by date; empty: the source lot's.
+    use_by = serializers.DateField(required=False, allow_null=True, default=None)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class TransformationFilterSerializer(serializers.Serializer[Any]):
+    batch = serializers.IntegerField(required=False, min_value=1)
+    search = serializers.CharField(required=False, default="", allow_blank=True, max_length=100)

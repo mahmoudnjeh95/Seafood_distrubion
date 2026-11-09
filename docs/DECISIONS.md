@@ -4129,3 +4129,17 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `GoodsReceipt.arrival_temperature` is information only: the receipt page shows it red when it is outside one of its
   products' storage range; it refuses nothing (the office decides, and may contest the receipt, D-285).
 - Migrations `inventory 0015`, `purchasing 0028`.
+
+**D-301 · Transformations: a new lot whose cost carries the source kilos, the fee and the weight lost (P1-T25)** · accepted, partner lots provisional · 2026-11-09
+- Owner answer 2026-11-08: transformations are wanted, with a transformation fee that the system adds to the new
+  product's cost. `inventory.Transformation` (number kind `transformation`, TF) takes kg of one lot at one place and
+  creates a new lot of the output product at that place; unit cost = (kg taken × source cost + fee) / kg obtained,
+  rounded to the millime. Never more kg obtained than taken.
+- The new lot keeps the source lot's supplier, receipt day (its place in FEFO/FIFO when it has no use-by date), VAT
+  (D-202) and origin (D-299); its use-by date is typed or the source's.
+- Two movement kinds, `transformation_out` (from the place) and `transformation_in` (to it). The lot result counts
+  `transformation_out` like a supplier return (no longer the source's cost) and `transformation_in` as kg received;
+  the month roll-forward lists both; `transformation_out` makes the source lot "valued" (its cost no longer changes).
+- The fee is only a cost of the new lot (it reaches the month result through the cost of goods sold); paying someone
+  for it is not recorded here. Provisional (Q30): a lot shared with a partner cannot be transformed, and an expired
+  lot never is.

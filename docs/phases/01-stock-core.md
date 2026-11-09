@@ -257,9 +257,16 @@ transformations wanted, with a transformation fee that goes into the new lot's c
 - [ ] Not done: the driver's reading is not kept offline (needs the network); no reminder when no reading was made.
 - [ ] Check on staging: set the negative room to ≤ -18 °C, note -12, the bell shows the alert; note -20, it is fine.
 
-### P1-T25 · Transformations with a fee · M (gap 7)
-- [ ] Transformation (TRF): kg out of one source lot, kg into a new lot of the output product (same supplier and partner),
-      loss = difference; the new lot's cost per kg = (source kg × source cost + transformation fee) / output kg.
+### P1-T25 · Transformations with a fee · M (gap 7, D-301)
+- [x] Stock › Transformations (TF-0001, `Transformation`): kilos of one lot at one place become a new lot of the output
+      product at the same place; same supplier, receipt day, VAT and origin; weight lost = taken − obtained.
+- [x] The new lot's cost per kg = (kg taken × source cost + transformation fee) / kg obtained; the form shows it before
+      saving. Movements `transformation_out` / `transformation_in`; each lot's result counts only its own kilos.
+- [x] Refused: more kg obtained than taken, an expired source lot, a negative fee, a lot shared with a partner
+      (provisional, Q30). "Transformer" on the lot page.
+- [ ] Owner (Q30): may a partner's lot be transformed (the new lot then shared with the same partner)? Is the fee also
+      paid to someone (an expense), or only a cost put on the lot?
+- [ ] Check on staging: 10 kg of a lot at 20.000 into 6 kg of fillet with 12 DT of fee; the new lot costs 35.333 / kg.
 
 ### P1-T26 · Every BL takes its stock out at the delivery · M (gap 10, bug 11)
 - [ ] À livrer, Livré en partie, Livré, Non livré on every BL; stock leaves at the delivery; counter sales delivered at once.
