@@ -19,6 +19,7 @@ export interface Supplier {
   /** @nullable */
   readonly payment_terms_days: number | null;
   readonly buys_with_vat: boolean;
+  readonly health_approval: string;
   readonly contacts: readonly SupplierContact[];
   readonly is_active: boolean;
   readonly updated_at: string;

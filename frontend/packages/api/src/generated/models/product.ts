@@ -15,6 +15,7 @@ export interface Product {
   readonly reference: string;
   readonly name: string;
   readonly name_ar: string;
+  readonly scientific_name: string;
   readonly category: CategoryRef;
   readonly base_unit: string;
   /** @pattern ^-?\d{0,9}(?:\.\d{0,3})?$ */

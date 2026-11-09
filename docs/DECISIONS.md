@@ -4105,3 +4105,16 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `SupplierInvoice.paper_total` (nullable, migration `purchasing 0027`): the total printed on the supplier's invoice.
   A difference with the computed total is shown, never applied nor blocking: what we owe comes from the receipts
   (D-039); a real difference is settled by correcting the receipt (D-269) or by a supplier credit note (D-297).
+
+**D-299 · Where a lot comes from, and its recall sheet (P1-T23)** · accepted · 2026-11-09
+- Origin is information, not value: `Product.scientific_name`, `Supplier.health_approval`, and on the lot
+  `catch_area` (free text: an FAO zone such as 37.2.2, or a farm), `production_method` (wild, farmed, or empty) and
+  `origin` (boat or port). Migrations `catalog 0008`, `inventory 0014`, `partners 0008`.
+- Unlike the lot's cost (D-269), the origin may be completed or corrected at any time (`update_lot_origin`, audited):
+  a lot often arrives before its papers. The receipt form types it once for the whole delivery and copies it onto
+  every line's lot.
+- The BL prints, under each line, the origin of the lots it took (`printing.lot_origin_text`); nothing prints when
+  nothing is known, so a BL without origin looks as before.
+- The recall sheet (`sales.selectors.recall_customers`, `GET /batches/{id}/recall`) lists the customers who kept kilos
+  (sold − returned by credit notes), the most first, with phone, city, dates and BL numbers, and the places that still
+  hold the lot. Printed from the browser; no PDF yet.

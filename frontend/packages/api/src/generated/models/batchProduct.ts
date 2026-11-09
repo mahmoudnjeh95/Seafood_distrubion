@@ -9,5 +9,6 @@ export interface BatchProduct {
   readonly id: number;
   readonly reference: string;
   readonly name: string;
+  readonly scientific_name: string;
   readonly is_active: boolean;
 }

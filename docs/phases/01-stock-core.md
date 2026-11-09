@@ -237,10 +237,15 @@ transformations wanted, with a transformation fee that goes into the new lot's c
 - [ ] Check on staging: a supplier at 45 days with VAT; a receipt ticks VAT, the invoice is due at +45 days; type a
       paper total 1 DT above, the gap shows.
 
-### P1-T23 · Lot origin and recall · M (gap 5)
-- [ ] Receipt line / lot: scientific name (on the product), catch zone (FAO) or farm, wild or farmed, boat or port,
-      supplier health approval number. Printed on the BL where filled.
-- [ ] "Rappel de lot": customers, BL, kg and phones of a lot, printable.
+### P1-T23 · Lot origin and recall · M (gap 5, D-299)
+- [x] Product: "Nom scientifique (latin)". Supplier: "N° d'agrément sanitaire". Lot: FAO zone or farm, wild or farmed,
+      boat or port (`Batch.catch_area`, `production_method`, `origin`), typed once on the receipt (copied onto each lot)
+      and completed or corrected later on the lot page ("Compléter l'origine", audited, never valued).
+- [x] The BL prints each line's origin under the product (the lots it took).
+- [x] "Rappel de lot" on the lot page (`/stock/lots/:id/rappel`): origin, customers who kept kilos (most first, phone,
+      city, dates, BL), what is still in stock and where; printable from the browser (`GET /batches/{id}/recall`).
+- [ ] Check on staging: a receipt with zone 37.2.2, wild, Port de Sfax; sell from it; the BL shows the origin, the
+      recall sheet lists the customer with their phone.
 
 ### P1-T24 · Cold-chain readings · S (gap 6)
 - [ ] Temperature at the receipt (per receipt), readings per cold room and per truck (by hand, with time and who),

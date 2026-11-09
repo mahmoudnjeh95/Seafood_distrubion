@@ -6,6 +6,7 @@
  */
 import type { BatchProduct } from './batchProduct';
 import type { BatchSupplier } from './batchSupplier';
+import type { ProductionMethodEnum } from './productionMethodEnum';
 
 export interface Batch {
   readonly id: number;
@@ -18,5 +19,8 @@ export interface Batch {
   readonly unit_cost: string;
   /** @nullable */
   readonly use_by: string | null;
+  readonly catch_area: string;
+  readonly production_method: ProductionMethodEnum;
+  readonly origin: string;
   readonly created_at: string;
 }

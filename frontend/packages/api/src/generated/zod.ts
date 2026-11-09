@@ -154,17 +154,22 @@ export const ListBatchesResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "health_approval": zod.string()
 }),
   "receipt_reference": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', listBatchesResponseResultsItemUnitCostRegExp),
   "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),
+  "origin": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
 }))
 })
@@ -184,18 +189,114 @@ export const GetBatchResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "supplier": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "health_approval": zod.string()
 }),
   "receipt_reference": zod.string(),
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', getBatchResponseUnitCostRegExp),
   "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),
+  "origin": zod.string(),
   "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Complete or correct where a lot comes from (D-299). Information only, audited. Owner or manager.
+ */
+export const UpdateBatchOriginParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const updateBatchOriginBodyCatchAreaMax = 60;
+
+export const updateBatchOriginBodyOriginMax = 100;
+
+
+
+export const UpdateBatchOriginBody = zod.object({
+  "catch_area": zod.string().max(updateBatchOriginBodyCatchAreaMax),
+  "production_method": zod.union([zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),zod.enum([''])]),
+  "origin": zod.string().max(updateBatchOriginBodyOriginMax)
+}).describe('Where a lot comes from (D-299): FAO zone or farm, wild or farmed, boat or port.')
+
+export const updateBatchOriginResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const UpdateBatchOriginResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "health_approval": zod.string()
+}),
+  "receipt_reference": zod.string(),
+  "received_on": zod.iso.date(),
+  "unit_cost": zod.stringFormat('decimal', updateBatchOriginResponseUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),
+  "origin": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * A recall sheet for one lot: its origin, the customers who kept kilos of it (the most first, with their
+ * phone and BL), and the places that still hold some.
+ */
+export const GetLotRecallParams = zod.object({
+  "batch_id": zod.int()
+})
+
+export const getLotRecallResponseCustomersItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotRecallResponseInStockItemQuantityRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+
+
+export const GetLotRecallResponse = zod.object({
+  "batch_id": zod.int(),
+  "batch_number": zod.string(),
+  "product_name": zod.string(),
+  "scientific_name": zod.string(),
+  "supplier_name": zod.string(),
+  "health_approval": zod.string(),
+  "received_on": zod.iso.date(),
+  "use_by": zod.iso.date().nullable(),
+  "catch_area": zod.string(),
+  "production_method": zod.string(),
+  "origin": zod.string(),
+  "customers": zod.array(zod.object({
+  "customer_id": zod.int(),
+  "customer_name": zod.string(),
+  "phone": zod.string(),
+  "city": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLotRecallResponseCustomersItemQuantityRegExp),
+  "first_on": zod.iso.date(),
+  "last_on": zod.iso.date(),
+  "sales": zod.array(zod.string())
+})),
+  "in_stock": zod.array(zod.object({
+  "location_id": zod.int(),
+  "location_name": zod.string(),
+  "quantity": zod.stringFormat('decimal', getLotRecallResponseInStockItemQuantityRegExp)
+}))
 })
 
 
@@ -608,6 +709,7 @@ export const ListCountsResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -663,6 +765,7 @@ export const StartCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -708,6 +811,7 @@ export const GetCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -756,6 +860,7 @@ export const ApproveCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -804,6 +909,7 @@ export const CancelCountResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -863,6 +969,7 @@ export const RecordCountedResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch": zod.object({
@@ -8975,6 +9082,7 @@ export const ListLossesResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', listLossesResponseResultsItemQuantityRegExp),
@@ -9026,6 +9134,7 @@ export const RecordLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', recordLossResponseQuantityRegExp),
@@ -9072,6 +9181,7 @@ export const GetLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', getLossResponseQuantityRegExp),
@@ -9118,6 +9228,7 @@ export const ApproveLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', approveLossResponseQuantityRegExp),
@@ -9168,6 +9279,7 @@ export const AddLossPhotoResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', addLossPhotoResponseQuantityRegExp),
@@ -9218,6 +9330,7 @@ export const RejectLossResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "quantity": zod.stringFormat('decimal', rejectLossResponseQuantityRegExp),
@@ -14581,6 +14694,7 @@ export const GetPriceBoardResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -14658,6 +14772,7 @@ export const SetPriceBoardResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15221,6 +15336,7 @@ export const ListProductsResponseItem = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15249,6 +15365,9 @@ export const createProductBodyNameMax = 150;
 export const createProductBodyNameArDefault = ``;
 export const createProductBodyNameArMax = 150;
 
+export const createProductBodyScientificNameDefault = ``;
+export const createProductBodyScientificNameMax = 150;
+
 export const createProductBodyMinStockDefault = `0.000`;
 export const createProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const createProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
@@ -15262,6 +15381,7 @@ export const CreateProductBody = zod.object({
   "reference": zod.string().max(createProductBodyReferenceMax).default(createProductBodyReferenceDefault),
   "name": zod.string().max(createProductBodyNameMax),
   "name_ar": zod.string().max(createProductBodyNameArMax).default(createProductBodyNameArDefault),
+  "scientific_name": zod.string().max(createProductBodyScientificNameMax).default(createProductBodyScientificNameDefault),
   "category": zod.int(),
   "min_stock": zod.stringFormat('decimal', createProductBodyMinStockRegExp).default(createProductBodyMinStockDefault),
   "storage_temp_min": zod.stringFormat('decimal', createProductBodyStorageTempMinRegExp).nullish(),
@@ -15284,6 +15404,7 @@ export const CreateProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15320,6 +15441,7 @@ export const GetProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15354,6 +15476,9 @@ export const updateProductBodyNameMax = 150;
 export const updateProductBodyNameArDefault = ``;
 export const updateProductBodyNameArMax = 150;
 
+export const updateProductBodyScientificNameDefault = ``;
+export const updateProductBodyScientificNameMax = 150;
+
 export const updateProductBodyMinStockDefault = `0.000`;
 export const updateProductBodyMinStockRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
 export const updateProductBodyStorageTempMinRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,1})?$');
@@ -15366,6 +15491,7 @@ export const UpdateProductBody = zod.object({
   "reference": zod.string().max(updateProductBodyReferenceMax).default(updateProductBodyReferenceDefault),
   "name": zod.string().max(updateProductBodyNameMax).optional(),
   "name_ar": zod.string().max(updateProductBodyNameArMax).default(updateProductBodyNameArDefault),
+  "scientific_name": zod.string().max(updateProductBodyScientificNameMax).default(updateProductBodyScientificNameDefault),
   "category": zod.int().optional(),
   "min_stock": zod.stringFormat('decimal', updateProductBodyMinStockRegExp).default(updateProductBodyMinStockDefault),
   "storage_temp_min": zod.stringFormat('decimal', updateProductBodyStorageTempMinRegExp).nullish(),
@@ -15387,6 +15513,7 @@ export const UpdateProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15426,6 +15553,7 @@ export const ArchiveProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15469,6 +15597,7 @@ export const UploadProductPhotoResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15505,6 +15634,7 @@ export const RemoveProductPhotoResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15572,6 +15702,7 @@ export const SetProductPriceResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -15608,6 +15739,7 @@ export const RestoreProductResponse = zod.object({
   "reference": zod.string(),
   "name": zod.string(),
   "name_ar": zod.string(),
+  "scientific_name": zod.string(),
   "category": zod.object({
   "id": zod.int(),
   "name": zod.string()
@@ -16949,6 +17081,13 @@ export const createReceiptBodySupplierReferenceMax = 50;
 
 export const createReceiptBodyWithVatDefault = false;
 export const createReceiptBodyNotesDefault = ``;
+export const createReceiptBodyLinesItemCatchAreaDefault = ``;
+export const createReceiptBodyLinesItemCatchAreaMax = 60;
+
+export const createReceiptBodyLinesItemProductionMethodDefault = ``;
+export const createReceiptBodyLinesItemOriginDefault = ``;
+export const createReceiptBodyLinesItemOriginMax = 100;
+
 
 export const createReceiptBodyBoxesMinOne = 0;
 
@@ -16972,6 +17111,9 @@ export const CreateReceiptBody = zod.object({
   "accepted_quantity": zod.string(),
   "unit_cost": zod.string(),
   "use_by": zod.iso.date().nullish(),
+  "catch_area": zod.string().max(createReceiptBodyLinesItemCatchAreaMax).default(createReceiptBodyLinesItemCatchAreaDefault),
+  "production_method": zod.union([zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),zod.enum([''])]).default(createReceiptBodyLinesItemProductionMethodDefault),
+  "origin": zod.string().max(createReceiptBodyLinesItemOriginMax).default(createReceiptBodyLinesItemOriginDefault),
   "partner": zod.int().min(1).nullish()
 })),
   "boxes": zod.record(zod.string(), zod.int().min(createReceiptBodyBoxesMinOne)).optional(),
@@ -20864,6 +21006,7 @@ export const ListMovementsResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "batch_id": zod.int(),
@@ -22665,6 +22808,7 @@ export const ListSuppliersResponseItem = zod.object({
   "notes": zod.string(),
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(listSuppliersResponseContactsItemNameMax),
   "role": zod.string().max(listSuppliersResponseContactsItemRoleMax).default(listSuppliersResponseContactsItemRoleDefault),
@@ -22707,6 +22851,9 @@ export const createSupplierBodyPaymentTermsDaysMin = 0;
 export const createSupplierBodyPaymentTermsDaysMax = 365;
 
 export const createSupplierBodyBuysWithVatDefault = false;
+export const createSupplierBodyHealthApprovalDefault = ``;
+export const createSupplierBodyHealthApprovalMax = 50;
+
 export const createSupplierBodyContactsItemNameMax = 150;
 
 export const createSupplierBodyContactsItemRoleDefault = ``;
@@ -22733,6 +22880,7 @@ export const CreateSupplierBody = zod.object({
   "notes": zod.string().max(createSupplierBodyNotesMax).default(createSupplierBodyNotesDefault),
   "payment_terms_days": zod.int().min(createSupplierBodyPaymentTermsDaysMin).max(createSupplierBodyPaymentTermsDaysMax).nullish(),
   "buys_with_vat": zod.boolean().default(createSupplierBodyBuysWithVatDefault),
+  "health_approval": zod.string().max(createSupplierBodyHealthApprovalMax).default(createSupplierBodyHealthApprovalDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierBodyContactsItemNameMax),
   "role": zod.string().max(createSupplierBodyContactsItemRoleMax).default(createSupplierBodyContactsItemRoleDefault),
@@ -22768,6 +22916,7 @@ export const CreateSupplierResponse = zod.object({
   "notes": zod.string(),
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierResponseContactsItemNameMax),
   "role": zod.string().max(createSupplierResponseContactsItemRoleMax).default(createSupplierResponseContactsItemRoleDefault),
@@ -22810,6 +22959,7 @@ export const GetSupplierResponse = zod.object({
   "notes": zod.string(),
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(getSupplierResponseContactsItemNameMax),
   "role": zod.string().max(getSupplierResponseContactsItemRoleMax).default(getSupplierResponseContactsItemRoleDefault),
@@ -22855,6 +23005,9 @@ export const updateSupplierBodyPaymentTermsDaysMin = 0;
 export const updateSupplierBodyPaymentTermsDaysMax = 365;
 
 export const updateSupplierBodyBuysWithVatDefault = false;
+export const updateSupplierBodyHealthApprovalDefault = ``;
+export const updateSupplierBodyHealthApprovalMax = 50;
+
 export const updateSupplierBodyContactsItemNameMax = 150;
 
 export const updateSupplierBodyContactsItemRoleDefault = ``;
@@ -22881,6 +23034,7 @@ export const UpdateSupplierBody = zod.object({
   "notes": zod.string().max(updateSupplierBodyNotesMax).default(updateSupplierBodyNotesDefault),
   "payment_terms_days": zod.int().min(updateSupplierBodyPaymentTermsDaysMin).max(updateSupplierBodyPaymentTermsDaysMax).nullish(),
   "buys_with_vat": zod.boolean().default(updateSupplierBodyBuysWithVatDefault),
+  "health_approval": zod.string().max(updateSupplierBodyHealthApprovalMax).default(updateSupplierBodyHealthApprovalDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierBodyContactsItemNameMax),
   "role": zod.string().max(updateSupplierBodyContactsItemRoleMax).default(updateSupplierBodyContactsItemRoleDefault),
@@ -22916,6 +23070,7 @@ export const UpdateSupplierResponse = zod.object({
   "notes": zod.string(),
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierResponseContactsItemNameMax),
   "role": zod.string().max(updateSupplierResponseContactsItemRoleMax).default(updateSupplierResponseContactsItemRoleDefault),
@@ -22961,6 +23116,7 @@ export const ArchiveSupplierResponse = zod.object({
   "notes": zod.string(),
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(archiveSupplierResponseContactsItemNameMax),
   "role": zod.string().max(archiveSupplierResponseContactsItemRoleMax).default(archiveSupplierResponseContactsItemRoleDefault),
@@ -23003,6 +23159,7 @@ export const RestoreSupplierResponse = zod.object({
   "notes": zod.string(),
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
+  "health_approval": zod.string(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(restoreSupplierResponseContactsItemNameMax),
   "role": zod.string().max(restoreSupplierResponseContactsItemRoleMax).default(restoreSupplierResponseContactsItemRoleDefault),
@@ -23105,6 +23262,7 @@ export const ListTransfersResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23218,6 +23376,7 @@ export const CreateTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23311,6 +23470,7 @@ export const GetTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23454,6 +23614,7 @@ export const UpdateTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23547,6 +23708,7 @@ export const CancelTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({
@@ -23642,6 +23804,7 @@ export const ValidateTransferResponse = zod.object({
   "id": zod.int(),
   "reference": zod.string(),
   "name": zod.string(),
+  "scientific_name": zod.string(),
   "is_active": zod.boolean()
 }),
   "customer": zod.union([zod.object({

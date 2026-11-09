@@ -89,6 +89,10 @@ class ReceiptLineFields(TypedDict, total=False):
     accepted_quantity: Number
     unit_cost: Number
     use_by: dt.date | None
+    # Where the fish comes from (D-299), copied onto the lot.
+    catch_area: str
+    production_method: str
+    origin: str
     # The lot is bought together with this supplier (D-100); may be the receipt's own supplier.
     partner: "Supplier | None"
 
@@ -123,6 +127,9 @@ def _checked_line(
         "product": line.get("product"),
         "use_by": line.get("use_by"),
         "partner": line.get("partner"),
+        "catch_area": line.get("catch_area", "") or "",
+        "production_method": line.get("production_method", "") or "",
+        "origin": line.get("origin", "") or "",
     }
     product = checked["product"]
     if product is None or product.organization_id != organization.pk:
@@ -261,6 +268,9 @@ def create_receipt(
             receipt_reference=supplier_reference or receipt.number,
             use_by=values["use_by"],
             bought_with_vat=with_vat,
+            catch_area=values["catch_area"],
+            production_method=values["production_method"],
+            origin=values["origin"],
         )
         line = GoodsReceiptLine.objects.create(
             organization=organization,

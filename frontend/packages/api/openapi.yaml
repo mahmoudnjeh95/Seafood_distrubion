@@ -214,6 +214,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/Batch'
           description: ''
+  /api/v1/batches/{batch_id}/origin:
+    post:
+      operationId: updateBatchOrigin
+      description: Complete or correct where a lot comes from (D-299). Information
+        only, audited. Owner or manager.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchOriginWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BatchOriginWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BatchOriginWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+          description: ''
+  /api/v1/batches/{batch_id}/recall:
+    get:
+      operationId: getLotRecall
+      description: |-
+        A recall sheet for one lot: its origin, the customers who kept kilos of it (the most first, with their
+        phone and BL), and the places that still hold some.
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - batches
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotRecall'
+          description: ''
   /api/v1/batches/{batch_id}/sales:
     get:
       operationId: getBatchSales
@@ -14302,15 +14359,28 @@ components:
           format: date
           readOnly: true
           nullable: true
+        catch_area:
+          type: string
+          readOnly: true
+        production_method:
+          allOf:
+          - $ref: '#/components/schemas/ProductionMethodEnum'
+          readOnly: true
+        origin:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
       required:
+      - catch_area
       - created_at
       - id
       - number
+      - origin
       - product
+      - production_method
       - receipt_reference
       - received_on
       - supplier
@@ -14377,6 +14447,25 @@ components:
       required:
       - location
       - quantity
+    BatchOriginWrite:
+      type: object
+      description: 'Where a lot comes from (D-299): FAO zone or farm, wild or farmed,
+        boat or port.'
+      properties:
+        catch_area:
+          type: string
+          maxLength: 60
+        production_method:
+          oneOf:
+          - $ref: '#/components/schemas/ProductionMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        origin:
+          type: string
+          maxLength: 100
+      required:
+      - catch_area
+      - origin
+      - production_method
     BatchProduct:
       type: object
       properties:
@@ -14389,6 +14478,9 @@ components:
         name:
           type: string
           readOnly: true
+        scientific_name:
+          type: string
+          readOnly: true
         is_active:
           type: boolean
           readOnly: true
@@ -14397,6 +14489,7 @@ components:
       - is_active
       - name
       - reference
+      - scientific_name
     BatchRef:
       type: object
       properties:
@@ -14542,7 +14635,11 @@ components:
         name:
           type: string
           readOnly: true
+        health_approval:
+          type: string
+          readOnly: true
       required:
+      - health_approval
       - id
       - name
       - reference
@@ -23379,6 +23476,69 @@ components:
       - partner
       - partner_capital
       - profit_rate
+    LotRecall:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        batch_number:
+          type: string
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        scientific_name:
+          type: string
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        health_approval:
+          type: string
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        catch_area:
+          type: string
+          readOnly: true
+        production_method:
+          type: string
+          readOnly: true
+        origin:
+          type: string
+          readOnly: true
+        customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecallCustomer'
+          readOnly: true
+        in_stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecallStock'
+          readOnly: true
+      required:
+      - batch_id
+      - batch_number
+      - catch_area
+      - customers
+      - health_approval
+      - in_stock
+      - origin
+      - product_name
+      - production_method
+      - received_on
+      - scientific_name
+      - supplier_name
+      - use_by
     LotResultStatusEnum:
       enum:
       - closed
@@ -27168,6 +27328,10 @@ components:
           type: string
           default: ''
           maxLength: 150
+        scientific_name:
+          type: string
+          default: ''
+          maxLength: 150
         category:
           type: integer
         min_stock:
@@ -27295,6 +27459,10 @@ components:
         buys_with_vat:
           type: boolean
           default: false
+        health_approval:
+          type: string
+          default: ''
+          maxLength: 50
         contacts:
           type: array
           items:
@@ -28068,6 +28236,9 @@ components:
         name_ar:
           type: string
           readOnly: true
+        scientific_name:
+          type: string
+          readOnly: true
         category:
           allOf:
           - $ref: '#/components/schemas/CategoryRef'
@@ -28144,6 +28315,7 @@ components:
       - name_ar
       - photo_url
       - reference
+      - scientific_name
       - storage_temp_max
       - storage_temp_min
       - updated_at
@@ -28159,6 +28331,10 @@ components:
           type: string
           maxLength: 150
         name_ar:
+          type: string
+          default: ''
+          maxLength: 150
+        scientific_name:
           type: string
           default: ''
           maxLength: 150
@@ -28413,6 +28589,14 @@ components:
       - photo_url
       - quantity
       - reference
+    ProductionMethodEnum:
+      enum:
+      - wild
+      - farmed
+      type: string
+      description: |-
+        * `wild` - Pêché (sauvage)
+        * `farmed` - Élevé (aquaculture)
     ProfilePhotoUpload:
       type: object
       properties:
@@ -29108,6 +29292,66 @@ components:
       - credit_note_number
       - invoice_id
       - invoice_number
+    RecallCustomer:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        first_on:
+          type: string
+          format: date
+          readOnly: true
+        last_on:
+          type: string
+          format: date
+          readOnly: true
+        sales:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - city
+      - customer_id
+      - customer_name
+      - first_on
+      - last_on
+      - phone
+      - quantity
+      - sales
+    RecallStock:
+      type: object
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+        location_name:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - location_id
+      - location_name
+      - quantity
     Receipt:
       type: object
       properties:
@@ -29401,6 +29645,19 @@ components:
           type: string
           format: date
           nullable: true
+        catch_area:
+          type: string
+          default: ''
+          maxLength: 60
+        production_method:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/ProductionMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        origin:
+          type: string
+          default: ''
+          maxLength: 100
         partner:
           type: integer
           minimum: 1
@@ -33199,6 +33456,9 @@ components:
         buys_with_vat:
           type: boolean
           readOnly: true
+        health_approval:
+          type: string
+          readOnly: true
         contacts:
           type: array
           items:
@@ -33217,6 +33477,7 @@ components:
       - city
       - contacts
       - email
+      - health_approval
       - id
       - is_active
       - name
@@ -34468,6 +34729,10 @@ components:
         buys_with_vat:
           type: boolean
           default: false
+        health_approval:
+          type: string
+          default: ''
+          maxLength: 50
         contacts:
           type: array
           items:

@@ -216,6 +216,7 @@ def test_the_office_lists_batches_newest_first_with_product_and_supplier():
         "id": new.product.pk,
         "reference": new.product.reference,
         "name": new.product.name,
+        "scientific_name": "",
         "is_active": True,
     }
     assert row["supplier"]["reference"] == new.supplier.reference

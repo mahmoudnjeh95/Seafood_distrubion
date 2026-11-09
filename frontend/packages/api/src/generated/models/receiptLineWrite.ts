@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { ReceiptLineWriteProductionMethod } from './receiptLineWriteProductionMethod';
 
 export interface ReceiptLineWrite {
   /** @minimum 1 */
@@ -15,6 +16,11 @@ export interface ReceiptLineWrite {
   unit_cost: string;
   /** @nullable */
   use_by?: string | null;
+  /** @maxLength 60 */
+  catch_area?: string;
+  production_method?: typeof ReceiptLineWriteProductionMethod[keyof typeof ReceiptLineWriteProductionMethod];
+  /** @maxLength 100 */
+  origin?: string;
   /**
      * @minimum 1
      * @nullable

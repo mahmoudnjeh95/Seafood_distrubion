@@ -53,6 +53,11 @@ class StockLocation(OrganizationScopedModel, TimeStampedModel):
 FIFO_ORDER = ("received_on", "id")
 
 
+class ProductionMethod(models.TextChoices):
+    WILD = "wild", _("Pêché (sauvage)")
+    FARMED = "farmed", _("Élevé (aquaculture)")
+
+
 class Batch(OrganizationScopedModel, TimeStampedModel):
     """A lot: one product delivered by one supplier on one day, at one cost per kg.
 
@@ -76,6 +81,11 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
     use_by = models.DateField(null=True, blank=True)
     # Bought with VAT (the supplier's paper carries it): what is sold from this lot is invoiced with VAT (D-202).
     bought_with_vat = models.BooleanField(default=False)
+    # Where the fish comes from (D-299), for the label and a recall: the FAO catch zone ("37.2.2") or the farm, wild or
+    # farmed, and the boat or the port. Information only: it may be completed after the receipt, never valued.
+    catch_area = models.CharField(max_length=60, blank=True)
+    production_method = models.CharField(max_length=10, choices=ProductionMethod.choices, blank=True)
+    origin = models.CharField(max_length=100, blank=True)
 
     class Meta:
         ordering = list(FIFO_ORDER)

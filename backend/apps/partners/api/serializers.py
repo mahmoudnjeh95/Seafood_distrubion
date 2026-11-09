@@ -42,6 +42,7 @@ class SupplierSerializer(serializers.ModelSerializer[Supplier]):
             "notes",
             "payment_terms_days",
             "buys_with_vat",
+            "health_approval",
             "contacts",
             "is_active",
             "updated_at",
@@ -66,6 +67,8 @@ class SupplierWriteSerializer(serializers.Serializer[Any]):
     )
     # Its goods come with VAT: the receipt form ticks "Achat avec TVA" (D-298).
     buys_with_vat = serializers.BooleanField(required=False, default=False)
+    # The supplier's health approval number ("agrément sanitaire", D-299).
+    health_approval = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     # The whole list: on a change it replaces the contacts; left out, they are kept.
     contacts = SupplierContactSerializer(many=True, required=False)
 

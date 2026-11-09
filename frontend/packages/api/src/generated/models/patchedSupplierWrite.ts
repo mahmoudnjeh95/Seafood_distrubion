@@ -29,5 +29,7 @@ export interface PatchedSupplierWrite {
      */
   payment_terms_days?: number | null;
   buys_with_vat?: boolean;
+  /** @maxLength 50 */
+  health_approval?: string;
   contacts?: SupplierContact[];
 }

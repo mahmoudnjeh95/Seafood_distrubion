@@ -1,8 +1,9 @@
 from django.urls import path
 
-from . import driver_payment_views, payment_views, views
+from . import driver_payment_views, payment_views, recall_views, views
 
 urlpatterns = [
+    path("batches/<int:batch_id>/recall", recall_views.LotRecallView.as_view(), name="lot-recall"),
     path("my-deliveries", views.MyDeliveriesView.as_view(), name="my-deliveries"),
     path("my-deliveries/done", views.MyDeliveredView.as_view(), name="my-delivered"),
     path("my-deliveries/<int:sale_id>/deliver", views.MyDeliveryDeliverView.as_view(), name="my-delivery-deliver"),

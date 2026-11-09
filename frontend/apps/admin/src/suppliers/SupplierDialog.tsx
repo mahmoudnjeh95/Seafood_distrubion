@@ -17,7 +17,7 @@ import { type FormEvent, useId, useState } from "react";
 import { fieldErrors } from "../lib/errors";
 import { refreshSuppliers } from "./shared";
 
-type TextField = "reference" | "name" | "tax_id" | "phone" | "email" | "address" | "city" | "notes";
+type TextField = "reference" | "name" | "tax_id" | "phone" | "email" | "address" | "city" | "notes" | "health_approval";
 type FormValues = Record<TextField, string>;
 type ContactRow = Required<SupplierContact> & { key: number };
 type Errors = Partial<Record<TextField | "contacts" | "detail" | "payment_terms_days", string>>;
@@ -31,6 +31,7 @@ const EMPTY: FormValues = {
   address: "",
   city: "",
   notes: "",
+  health_approval: "",
 };
 
 const CONTACT_FIELDS = [
@@ -93,6 +94,7 @@ export function SupplierDialog({
           address: supplier.address,
           city: supplier.city,
           notes: supplier.notes,
+          health_approval: supplier.health_approval,
         }
       : { ...EMPTY, name: start?.name ?? "", phone: start?.phone ?? "" },
   );
@@ -144,6 +146,7 @@ export function SupplierDialog({
       address: trimmed("address"),
       city: trimmed("city"),
       notes: trimmed("notes"),
+      health_approval: trimmed("health_approval"),
       payment_terms_days: days,
       buys_with_vat: buysWithVat,
       contacts: filled.map(({ name, role, phone, email }) => ({
@@ -201,6 +204,7 @@ export function SupplierDialog({
         {input("phone", t("admin.suppliers.form.phone"), { type: "tel" })}
         {input("email", t("admin.suppliers.form.email"), { type: "email" })}
         {input("city", t("admin.suppliers.form.city"))}
+        {input("health_approval", t("admin.suppliers.form.healthApproval"))}
         {input("address", t("admin.suppliers.form.address"), { className: "col-span-full" })}
         <Field
           label={t("admin.suppliers.form.termsDays")}

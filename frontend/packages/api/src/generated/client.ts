@@ -39,6 +39,7 @@ import type {
   BankStatementLine,
   BankWrite,
   Batch,
+  BatchOriginWrite,
   BatchSales,
   BoxAdjustmentWrite,
   BoxBalance,
@@ -251,6 +252,7 @@ import type {
   LotPartnershipCancel,
   LotPartnershipDetail,
   LotPartnershipWrite,
+  LotRecall,
   LotResultView,
   LotSettlementView,
   LotWorkDay,
@@ -1215,6 +1217,191 @@ export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetBatchQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateBatchOriginUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/batches/${batchId}/origin`
+}
+
+/**
+ * Complete or correct where a lot comes from (D-299). Information only, audited. Owner or manager.
+ */
+export const updateBatchOrigin = async (batchId: number,
+    batchOriginWrite: BatchOriginWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Batch> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Batch>(getUpdateBatchOriginUrl(batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(batchOriginWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateBatchOriginMutationKey = () => ['updateBatchOrigin'] as const;
+
+export const getUpdateBatchOriginMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBatchOrigin>>, TError,UpdateBatchOriginMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBatchOrigin>>, TError,UpdateBatchOriginMutationVariables, TContext> => {
+
+const mutationKey = getUpdateBatchOriginMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBatchOrigin>>, UpdateBatchOriginMutationVariables> = (props) => {
+          const {batchId,data} = props ?? {};
+
+          return  updateBatchOrigin(batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBatchOriginMutationResult = NonNullable<Awaited<ReturnType<typeof updateBatchOrigin>>>
+    export type UpdateBatchOriginMutationBody = BatchOriginWrite
+    export type UpdateBatchOriginMutationError = unknown
+    export type UpdateBatchOriginMutationVariables = {batchId: number;data: BatchOriginWrite}
+
+    export const useUpdateBatchOrigin = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBatchOrigin>>, TError,UpdateBatchOriginMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateBatchOrigin>>,
+        TError,
+        UpdateBatchOriginMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateBatchOriginMutationOptions(options), queryClient);
+    }
+
+export const getGetLotRecallUrl = (batchId: number,) => {
+
+
+
+
+  return `/api/v1/batches/${batchId}/recall`
+}
+
+/**
+ * A recall sheet for one lot: its origin, the customers who kept kilos of it (the most first, with their
+ * phone and BL), and the places that still hold some.
+ */
+export const getLotRecall = async (batchId: number, options?: Parameters<typeof apiFetch>[1]): Promise<LotRecall> => {
+
+  return apiFetch<LotRecall>(getGetLotRecallUrl(batchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLotRecallQueryKey = (batchId: number,) => {
+    return [
+    `/api/v1/batches/${batchId}/recall`
+    ] as const;
+    }
+
+
+export const getGetLotRecallQueryOptions = <TData = Awaited<ReturnType<typeof getLotRecall>>, TError = unknown>(batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotRecall>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLotRecallQueryKey(batchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLotRecall>>> = ({ signal }) => getLotRecall(batchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLotRecall>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLotRecallQueryResult = NonNullable<Awaited<ReturnType<typeof getLotRecall>>>
+export type GetLotRecallQueryError = unknown
+
+
+export function useGetLotRecall<TData = Awaited<ReturnType<typeof getLotRecall>>, TError = unknown>(
+ batchId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotRecall>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotRecall>>,
+          TError,
+          Awaited<ReturnType<typeof getLotRecall>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotRecall<TData = Awaited<ReturnType<typeof getLotRecall>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotRecall>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLotRecall>>,
+          TError,
+          Awaited<ReturnType<typeof getLotRecall>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLotRecall<TData = Awaited<ReturnType<typeof getLotRecall>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotRecall>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLotRecall<TData = Awaited<ReturnType<typeof getLotRecall>>, TError = unknown>(
+ batchId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLotRecall>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLotRecallQueryOptions(batchId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

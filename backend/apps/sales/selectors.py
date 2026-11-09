@@ -1310,3 +1310,55 @@ def refunds_of(
     elif status == "refunded":
         refunds = refunds.filter(paid__gte=F("amount"))
     return refunds
+
+
+# ---- Lot recall (D-299) ----
+
+
+@dataclass(frozen=True)
+class RecallCustomer:
+    """One customer who received kilos of a recalled lot: what they kept (sold − returned) and on which BL."""
+
+    customer_id: int
+    customer_name: str
+    phone: str
+    city: str
+    quantity: Decimal
+    first_on: dt.date
+    last_on: dt.date
+    sales: tuple[str, ...]
+
+
+def recall_customers(organization: Organization, *, batch_id: int) -> list[RecallCustomer]:
+    """The customers of one lot, the most kilos first: who to call when the lot is recalled. Kilos given back by a
+    credit note are left out; a customer who gave everything back is left out."""
+    found: dict[int, dict[str, Any]] = {}
+    for row in batch_sales(organization, batch_id=batch_id):
+        kept = row.quantity - getattr(row, "returned_quantity")  # noqa: B009
+        if kept <= 0:
+            continue
+        sale = row.line.sale
+        day = timezone.localtime(sale.sold_at).date()
+        entry = found.setdefault(
+            sale.customer_id,
+            {"customer": sale.customer, "quantity": Decimal("0.000"), "first": day, "last": day, "sales": []},
+        )
+        entry["quantity"] += kept
+        entry["first"] = min(entry["first"], day)
+        entry["last"] = max(entry["last"], day)
+        if sale.number not in entry["sales"]:
+            entry["sales"].append(sale.number)
+    rows = [
+        RecallCustomer(
+            customer_id=pk,
+            customer_name=entry["customer"].name,
+            phone=entry["customer"].phone,
+            city=entry["customer"].city,
+            quantity=entry["quantity"],
+            first_on=entry["first"],
+            last_on=entry["last"],
+            sales=tuple(entry["sales"]),
+        )
+        for pk, entry in found.items()
+    ]
+    return sorted(rows, key=lambda row: (-row.quantity, row.customer_name))

@@ -44,6 +44,7 @@ from .models import (
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
 from .models import LossReason as LossReason  # re-exported for apps that record losses
 from .models import MovementKind as MovementKind  # re-exported for apps that post movements
+from .models import ProductionMethod as ProductionMethod  # re-exported for the receipt lines (D-299)
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -177,6 +178,9 @@ def create_batch(
     receipt_reference: str = "",
     use_by: dt.date | None = None,
     bought_with_vat: bool = False,
+    catch_area: str = "",
+    production_method: str = "",
+    origin: str = "",
 ) -> Batch:
     """A new batch with the next number. Called by the goods receipt (P1-T07) and the demo data.
 
@@ -197,6 +201,8 @@ def create_batch(
         errors["received_on"] = _("La date de réception ne peut pas être dans le futur.")
     if use_by is not None and use_by < received_on:
         errors["use_by"] = _("La date limite ne peut pas précéder la réception.")
+    if production_method and production_method not in ProductionMethod.values:
+        errors["production_method"] = _("Choisissez pêché ou élevé.")
     cost = None
     try:
         cost = checked_amount(unit_cost)
@@ -215,6 +221,9 @@ def create_batch(
         unit_cost=cost,
         use_by=use_by,
         bought_with_vat=bought_with_vat,
+        catch_area=catch_area.strip()[:60],
+        production_method=production_method,
+        origin=origin.strip()[:100],
     )
     audit.record(
         organization=organization, actor=actor, action="batch.created", target=batch, after=_batch_snapshot(batch)
@@ -1647,4 +1656,29 @@ def correct_batch(
     batch.bought_with_vat = bought_with_vat
     batch.receipt_reference = receipt_reference
     batch.save(update_fields=["unit_cost", "use_by", "bought_with_vat", "receipt_reference", "updated_at"])
+    return batch
+
+
+@transaction.atomic
+def update_lot_origin(
+    *, batch: Batch, actor: User | None, catch_area: str, production_method: str, origin: str
+) -> Batch:
+    """Complete or correct where a lot comes from (D-299): information only, never valued, so it may change at any
+    time; every change is audited."""
+    if production_method and production_method not in ProductionMethod.values:
+        raise ValidationError({"production_method": _("Choisissez pêché ou élevé.")})
+    batch = Batch.objects.select_for_update().get(pk=batch.pk)
+    before = {"catch_area": batch.catch_area, "production_method": batch.production_method, "origin": batch.origin}
+    batch.catch_area = catch_area.strip()[:60]
+    batch.production_method = production_method
+    batch.origin = origin.strip()[:100]
+    batch.save(update_fields=["catch_area", "production_method", "origin", "updated_at"])
+    audit.record(
+        organization=batch.organization,
+        actor=actor,
+        action="batch.origin_changed",
+        target=batch,
+        before=before,
+        after={"catch_area": batch.catch_area, "production_method": batch.production_method, "origin": batch.origin},
+    )
     return batch

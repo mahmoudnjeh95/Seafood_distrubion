@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.money import line_total
+from apps.inventory.services import ProductionMethod
 from apps.purchasing import selectors, services
 from apps.purchasing.models import (
     LINE_METHOD_CHOICES,
@@ -232,6 +233,12 @@ class ReceiptLineWriteSerializer(serializers.Serializer[Any]):
     accepted_quantity = serializers.CharField(allow_blank=True)
     unit_cost = serializers.CharField(allow_blank=True)
     use_by = serializers.DateField(required=False, allow_null=True, default=None)
+    # Where the fish comes from (D-299): FAO zone or farm, wild or farmed, boat or port. Optional.
+    catch_area = serializers.CharField(max_length=60, required=False, allow_blank=True, default="")
+    production_method = serializers.ChoiceField(
+        choices=ProductionMethod.choices, required=False, allow_blank=True, default=""
+    )
+    origin = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     # Buy this lot together with a partner supplier (D-100): the owner's choice, the receipt's own supplier
     # allowed. Capital and percentages are filled in later, on the lot.
     partner = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)

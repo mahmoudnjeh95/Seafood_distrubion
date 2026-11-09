@@ -37,6 +37,8 @@ class Supplier(OrganizationScopedModel, TimeStampedModel):
     # Both only propose a value on the receipt and invoice forms; each document keeps its own.
     payment_terms_days = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MaxValueValidator(365)])
     buys_with_vat = models.BooleanField(default=False)
+    # The supplier's health approval number ("agrément sanitaire"), printed with its lots' origin (D-299).
+    health_approval = models.CharField(max_length=50, blank=True)
     # Archived suppliers keep their history but cannot be bought from.
     is_active = models.BooleanField(default=True)
 

@@ -14,6 +14,7 @@ from apps.inventory.models import (
     LossReason,
     LossStatus,
     MovementKind,
+    ProductionMethod,
     StockCount,
     StockCountLine,
     StockLocation,
@@ -63,6 +64,7 @@ class BatchProductSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    scientific_name = serializers.CharField(read_only=True)
     # Lot pickers leave out the lots of an archived product (D-145).
     is_active = serializers.BooleanField(read_only=True)
 
@@ -71,6 +73,7 @@ class BatchSupplierSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(read_only=True)
     reference = serializers.CharField(read_only=True)
     name = serializers.CharField(read_only=True)
+    health_approval = serializers.CharField(read_only=True)
 
 
 class BatchSerializer(serializers.ModelSerializer[Batch]):
@@ -88,9 +91,20 @@ class BatchSerializer(serializers.ModelSerializer[Batch]):
             "received_on",
             "unit_cost",
             "use_by",
+            "catch_area",
+            "production_method",
+            "origin",
             "created_at",
         )
         read_only_fields = fields
+
+
+class BatchOriginWriteSerializer(serializers.Serializer[Any]):
+    """Where a lot comes from (D-299): FAO zone or farm, wild or farmed, boat or port."""
+
+    catch_area = serializers.CharField(max_length=60, allow_blank=True)
+    production_method = serializers.ChoiceField(choices=ProductionMethod.choices, allow_blank=True)
+    origin = serializers.CharField(max_length=100, allow_blank=True)
 
 
 class BatchFilterSerializer(serializers.Serializer[Any]):

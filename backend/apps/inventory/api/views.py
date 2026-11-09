@@ -29,6 +29,7 @@ from apps.partners import selectors as partners
 
 from .serializers import (
     BatchFilterSerializer,
+    BatchOriginWriteSerializer,
     BatchSerializer,
     CountedSerializer,
     CountFilterSerializer,
@@ -196,6 +197,20 @@ class BatchDetailView(OfficeView):
         except Batch.DoesNotExist:
             raise Http404 from None
         return Response(BatchSerializer(batch).data)
+
+
+class BatchOriginView(OfficeView):
+    @extend_schema(operation_id="updateBatchOrigin", request=BatchOriginWriteSerializer, responses=BatchSerializer)
+    def post(self, request: Request, batch_id: int) -> Response:
+        """Complete or correct where a lot comes from (D-299). Information only, audited. Owner or manager."""
+        try:
+            batch = selectors.batch_of(self.organization, batch_id)
+        except Batch.DoesNotExist:
+            raise Http404 from None
+        serializer = BatchOriginWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.update_lot_origin(batch=batch, actor=self.membership.user, **serializer.validated_data)
+        return Response(BatchSerializer(selectors.batch_of(self.organization, batch_id)).data)
 
 
 class LocationStockView(LocationView):

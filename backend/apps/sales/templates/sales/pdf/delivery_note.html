@@ -22,7 +22,7 @@
   <tbody>
     {% for line in lines %}
     <tr>
-      <td>{{ line.product.name }}</td>
+      <td>{{ line.product.name }}{% if line.origin_text %}<div class="muted small">{{ line.origin_text }}</div>{% endif %}</td>
       {% if to_deliver %}<td class="r num">{{ line.quantity|kilos }}</td><td class="r num">&nbsp;</td>
       {% elif delivered %}<td class="r num">{% if line.ordered_quantity is not None %}{{ line.ordered_quantity|kilos }}{% else %}{{ line.quantity|kilos }}{% endif %}</td><td class="r num">{{ line.quantity|kilos }}</td>
       {% else %}<td class="r num">{{ line.quantity|kilos }}</td>{% endif %}

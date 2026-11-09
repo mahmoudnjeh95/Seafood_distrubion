@@ -9,6 +9,7 @@ urlpatterns = [
     path("locations/<int:location_id>/restore", views.LocationRestoreView.as_view(), name="location-restore"),
     path("batches", views.BatchListView.as_view(), name="batch-list"),
     path("batches/<int:batch_id>", views.BatchDetailView.as_view(), name="batch-detail"),
+    path("batches/<int:batch_id>/origin", views.BatchOriginView.as_view(), name="batch-origin"),
     # P1-T09 · transfers
     path("locations/<int:location_id>/stock", views.LocationStockView.as_view(), name="location-stock"),
     path(
