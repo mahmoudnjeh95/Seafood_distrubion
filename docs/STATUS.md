@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-09 (P11-T15 write-off evidence, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-298)_
+_Last updated: 2026-11-09 (P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-299)_
 
 ## Where we are
 
@@ -68,7 +68,7 @@ _Last updated: 2026-11-09 (P11-T15 write-off evidence, D-297; Phase 10 Flotte & 
    `docs/guides/market-readiness-review-2026-11-08.md` is a task of `docs/phases/11-compliance.md`. P11-T01 merged
    (#334): no invoice issued without the seller's address and matricule fiscal; a customer without tax ID or address
    warns. Check on staging: blank the address in Paramètres financiers, a draft cannot be issued.
-   **P11-T15 (D-297, branch `claude/write-off-evidence`, migrations `sales 0036`, `documents 0008`):** a customer
+   **P11-T15 (D-298, branch `claude/write-off-evidence`, migrations `sales 0036`, `documents 0008`):** a customer
    write-off says its motif (écart de règlement / créance irrécouvrable); an irrecoverable one reads "Justificatif
    manquant" until a file is attached from the client's Remises à zéro list. Check on staging: clear a balance as
    "Créance irrécouvrable", see the pill, attach a PDF, the pill goes. Next code tasks without the accountant:

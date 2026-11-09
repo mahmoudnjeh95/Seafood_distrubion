@@ -112,7 +112,7 @@ def _lines(organization: Any, data: Any) -> Any:
 
 
 def write_off_rows(organization: Any, customer: Any) -> list[dict[str, Any]]:
-    """A customer's balance write-offs, newest first, each saying whether its evidence is still missing (D-297)."""
+    """A customer's balance write-offs, newest first, each saying whether its evidence is still missing (D-298)."""
     write_offs = list(customer.balance_write_offs.select_related("created_by"))
     attached = documents.attached_ids(organization, "customer_write_off", [row.pk for row in write_offs])
     return [

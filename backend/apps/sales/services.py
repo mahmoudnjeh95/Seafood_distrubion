@@ -3851,7 +3851,7 @@ def _write_off(
     the balance, D-257), so it lowers those lots' net result and their partner shares it. A lot already settled
     with its partner is refused; a closed lot takes it as a late cost on the partner's next settlement.
 
-    `ground` (D-297): a settlement gap or an irrecoverable debt; the evidence of the latter is attached afterwards
+    `ground` (D-298): a settlement gap or an irrecoverable debt; the evidence of the latter is attached afterwards
     and the write-off reads "justificatif manquant" until it is."""
     if ground not in WriteOffGround.values:
         raise ValidationError({"ground": _("Choisissez le motif de la remise à zéro.")})

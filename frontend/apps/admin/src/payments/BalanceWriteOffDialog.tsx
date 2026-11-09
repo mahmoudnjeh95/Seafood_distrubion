@@ -25,7 +25,7 @@ export type WriteOffLotChoice = { batch_id: number; number: string; product: str
 
 type LotRow = { batch: string; amount: string };
 
-/** Why a customer's balance is given up (D-297); an irrecoverable debt needs its evidence attached afterwards. */
+/** Why a customer's balance is given up (D-298); an irrecoverable debt needs its evidence attached afterwards. */
 export type WriteOffGround = "gap" | "irrecoverable";
 const GROUNDS: readonly WriteOffGround[] = ["gap", "irrecoverable"];
 

@@ -4075,6 +4075,11 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - A customer without a tax ID (or other identification number) or without an address only warns on the draft: individuals and some small shops have neither, and the law asks the tax ID of the buyer who deducts the VAT.
 - Tests: a root `backend/conftest.py` gives every organization's first settings an address and a tax ID; a test marked `blank_seller` keeps them empty. The format of the tax ID is not checked yet (existing data has several spellings).
 
-**D-297 · A customer write-off has a motif; an irrecoverable debt asks for its evidence (P11-T15, review E2)** · accepted · 2026-11-09
+**D-297 · CI runs on pull requests and on pushes to main only** · accepted (owner request) · 2026-11-09
+- In October the personal repo, private then, used about 11 600 Actions minutes against the 2 000 free: each task-branch commit ran CI twice (its push and its pull request), then again on main after the merge. Mirroring every branch to the private `SmartToolsAgro/SmartFeesh` ran CI on each branch there too (122 of its 128 October runs), its whole 2 000-minute allowance.
+- `push` now runs only on `main`; pull requests still run every check and the e2e (D-157), so nothing is merged untested. Saves about a third of the minutes in the personal repo and almost all of them in SmartFeesh, which keeps its CI and its deploy.
+- Push only `main` to SmartFeesh (`git push org main`), not every branch.
+
+**D-298 · A customer write-off has a motif; an irrecoverable debt asks for its evidence (P11-T15, review E2)** · accepted · 2026-11-09
 - `CustomerBalanceWriteOff.ground`: `gap` (écart de règlement ou geste commercial, the default and every existing row) or `irrecoverable` (créance irrécouvrable). Asked in the write-off dialog for a customer balance and an invoice gap; a supplier write-off is a gain and asks nothing.
 - The evidence is not required at the write-off: a judgment or a bailiff's report often comes later. It is attached afterwards (new attachment kind `customer_write_off`, D-288) from the client's "Remises à zéro" list, and the row reads "Justificatif manquant" while an irrecoverable write-off has no file. The tax deductibility of the loss is the accountant's call, not checked by the app.

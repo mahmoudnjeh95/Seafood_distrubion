@@ -1091,7 +1091,7 @@ class PaymentAllocation(OrganizationScopedModel):
 
 
 class WriteOffGround(models.TextChoices):
-    """Why a customer's balance is given up (D-297). An irrecoverable debt is a deductible loss only with its
+    """Why a customer's balance is given up (D-298). An irrecoverable debt is a deductible loss only with its
     evidence (a judgment, a bailiff's report, a failed recovery): the office attaches it to the write-off."""
 
     GAP = "gap", _("Écart de règlement ou geste commercial")

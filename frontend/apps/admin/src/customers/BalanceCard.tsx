@@ -27,7 +27,7 @@ export function BalanceCard({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [clearing, setClearing] = useState(false);
-  // The write-off whose evidence files are open below the list (D-297).
+  // The write-off whose evidence files are open below the list (D-298).
   const [evidenceFor, setEvidenceFor] = useState<number | null>(null);
   const query = useGetCustomerBalance(customer.id);
   // The effets received and not yet cashed: the same query as the règlement form, for the encours (D-210).

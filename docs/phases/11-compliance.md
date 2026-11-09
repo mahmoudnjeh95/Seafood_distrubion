@@ -64,7 +64,7 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   stamps, withholdings made, TCL, TFP, FOPROLOS; export.
 - [ ] **P11-T14 Withholding certificates received (R3)** · S. Typed against the customer payment; yearly total.
 - [x] **P11-T15 Write-off evidence (E2)** · S. A customer write-off says its motif: a settlement gap or an
-  irrecoverable debt; the latter reads "Justificatif manquant" until a file is attached (D-297). _Done 2026-11-09._
+  irrecoverable debt; the latter reads "Justificatif manquant" until a file is attached (D-298). _Done 2026-11-09._
 - [ ] **P11-T16 Period lock (E3)** · M. A declared month is locked; a correction is dated in the open month.
 - [ ] **P11-T17 Accounting export (E4)** · M · plan of accounts from the **Accountant**. Journal entries (CSV / Excel).
 - [ ] **P11-T18 Lot traceability (M1)** · M. Origin (catch / farm), catch zone and date, supplier sanitary approval

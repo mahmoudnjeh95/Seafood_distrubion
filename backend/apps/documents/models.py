@@ -81,7 +81,7 @@ class AttachmentKind(models.TextChoices):
     PURCHASE_ORDER = "purchase_order", _("Bon de commande fournisseur")
     GOODS_RECEIPT = "goods_receipt", _("Bon de réception")
     SUPPLIER_INVOICE = "supplier_invoice", _("Facture fournisseur")
-    # The evidence of an irrecoverable customer debt (D-297).
+    # The evidence of an irrecoverable customer debt (D-298).
     CUSTOMER_WRITE_OFF = "customer_write_off", _("Remise à zéro d'un solde client")
 
 

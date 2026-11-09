@@ -286,7 +286,7 @@ def test_a_lot_settled_with_its_partner_is_not_offered(organization, actor, cust
     assert balance(organization, customer).balance == D("0.000")
 
 
-# ---- the ground of the write-off and its evidence (D-297) ----
+# ---- the ground of the write-off and its evidence (D-298) ----
 
 
 def test_a_write_off_is_a_settlement_gap_by_default(organization, actor, customer, counter, stocked):
