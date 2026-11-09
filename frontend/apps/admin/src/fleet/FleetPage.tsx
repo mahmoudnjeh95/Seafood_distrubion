@@ -11,7 +11,7 @@ import {
   useListLocations,
   useListTruckOdometer,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatDate, formatDateTime, useTranslation } from "@frutti/i18n";
 import { Button, Card, Field, Input, PageHeader, Pill, Table, Td, Th, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -309,7 +309,7 @@ function Overview({ onTruck }: { onTruck: (truckId: number) => void }) {
 export function FleetPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const canEdit = session.role === "owner" || session.role === "manager";
+  const canEdit = canAccess(session, "fleet", "write");
   const [params, setParams] = useSearchParams();
   const fleet = useListFleetOdometer();
   const states = truckStates(useListFleetAlerts().data);
@@ -377,7 +377,7 @@ export function FleetPage() {
           canEdit={canEdit}
         />
       )}
-      {chosen && <DayAllowance truckId={chosen.truck_id} isOwner={session.role === "owner"} />}
+      {chosen && <DayAllowance truckId={chosen.truck_id} isOwner={canAccess(session, "fleet", "full")} />}
       {chosen && <TruckReadings key={chosen.truck_id} row={chosen} canEdit={canEdit} />}
       <ColdRooms canEdit={canEdit} />
       <PapersPanel canEdit={canEdit} />

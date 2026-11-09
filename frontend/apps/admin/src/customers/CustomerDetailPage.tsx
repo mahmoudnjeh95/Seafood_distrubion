@@ -1,5 +1,5 @@
 import { ApiError, archiveCustomer, type Customer, restoreCustomer, useGetCustomer } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatMoney, useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, cn, Dialog, EmptyState, PageHeader, Pill, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -169,7 +169,7 @@ export function CustomerDetailPage() {
           <BalanceCard
             customer={{ id: data.id, name: data.name }}
             canCollect={canCollect(session)}
-            canClear={session.role === "owner"}
+            canClear={canAccess(session, "treasury", "full")}
           />
         )}
         {!data.is_walk_in && <CustomerBoxesCard customerName={data.name} />}

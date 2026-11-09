@@ -1,16 +1,16 @@
 import type { PartnershipStatusEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** Lot results and partnerships are the owner's business (D-060, D-061): the accountant reads them too.
  * The server refuses everyone else (403); this only avoids showing screens that would fail. */
 export function canReadResults(session: Session): boolean {
-  return session.role === "owner" || session.role === "accountant";
+  return canAccess(session, "closing", "read") || canAccess(session, "partnerships", "read");
 }
 
 /** Only the owner sets partnerships and closes or reopens a lot. */
 export function canWriteResults(session: Session): boolean {
-  return session.role === "owner";
+  return canAccess(session, "closing", "full") || canAccess(session, "partnerships", "full");
 }
 
 /** A rate as typed by people: "40.00" → "40", "25.50" → "25,5". */

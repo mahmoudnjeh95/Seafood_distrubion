@@ -5,7 +5,7 @@ import {
   useListCreditNotes,
   useListInvoices,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatDate, formatMoney, useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -270,7 +270,7 @@ export function InvoicesPage() {
             {t("admin.invoiceBuilder.title")}
           </Button>
         )}
-        {(session.role === "owner" || session.role === "manager" || session.role === "accountant") && (
+        {canAccess(session, "invoices", "read") && (
           <Button onClick={() => void navigate("/factures/parametres")}>
             <Icon name="percent" />
             {t("admin.financeSettings.title")}

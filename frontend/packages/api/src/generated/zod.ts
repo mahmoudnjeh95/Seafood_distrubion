@@ -7,6 +7,19 @@
 import * as zod from 'zod';
 
 /**
+ * The sections of the access matrix, the levels each offers and the built-in roles' levels.
+ */
+export const ListAccessSectionsResponseItem = zod.object({
+  "key": zod.string(),
+  "title": zod.string(),
+  "group": zod.string(),
+  "levels": zod.array(zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
+  "defaults": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full'))
+})
+export const ListAccessSectionsResponse = zod.array(ListAccessSectionsResponseItem)
+
+
+/**
  * The files attached to one document (`kind`, `object_id`), oldest first.
  */
 
@@ -106,7 +119,9 @@ export const LoginResponse = zod.object({
   "name": zod.string(),
   "logo_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "role_label": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "can_buy": zod.boolean(),
   "truck": zod.union([zod.object({
   "id": zod.int(),
@@ -10927,7 +10942,9 @@ export const GetSessionResponse = zod.object({
   "name": zod.string(),
   "logo_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "role_label": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "can_buy": zod.boolean(),
   "truck": zod.union([zod.object({
   "id": zod.int(),
@@ -10960,7 +10977,9 @@ export const SetLanguageResponse = zod.object({
   "name": zod.string(),
   "logo_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "role_label": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "can_buy": zod.boolean(),
   "truck": zod.union([zod.object({
   "id": zod.int(),
@@ -10993,7 +11012,9 @@ export const UploadMyAvatarResponse = zod.object({
   "name": zod.string(),
   "logo_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "role_label": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "can_buy": zod.boolean(),
   "truck": zod.union([zod.object({
   "id": zod.int(),
@@ -11096,7 +11117,9 @@ export const UpdateMyProfileResponse = zod.object({
   "name": zod.string(),
   "logo_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "role_label": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "can_buy": zod.boolean(),
   "truck": zod.union([zod.object({
   "id": zod.int(),
@@ -11121,7 +11144,12 @@ export const ListMembersResponseItem = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -11149,7 +11177,8 @@ export const createMemberBodyEmailTwoMax = 0;
 export const CreateMemberBody = zod.object({
   "username": zod.string().max(createMemberBodyUsernameMax),
   "password": zod.string().max(createMemberBodyPasswordMax),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.int().nullish(),
   "first_name": zod.string().max(createMemberBodyFirstNameMax).default(createMemberBodyFirstNameDefault),
   "last_name": zod.string().max(createMemberBodyLastNameMax).default(createMemberBodyLastNameDefault),
   "email": zod.union([zod.email().default(createMemberBodyEmailOneDefault),zod.string().max(createMemberBodyEmailTwoMax)]).optional()
@@ -11166,7 +11195,12 @@ export const CreateMemberResponse = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -11206,7 +11240,12 @@ export const UpdateMemberResponse = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -11220,6 +11259,40 @@ export const DeleteMemberParams = zod.object({
 })
 
 export const DeleteMemberResponse = zod.void()
+
+
+/**
+ * Replace the sections where this person has their own level; a section left out follows their role
+ * again. Refused for the owner (who has everything) and for a driver (the phone app).
+ */
+export const SetMemberAccessParams = zod.object({
+  "member_id": zod.int()
+})
+
+export const SetMemberAccessBody = zod.object({
+  "overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full'))
+})
+
+export const SetMemberAccessResponse = zod.object({
+  "id": zod.int(),
+  "user": zod.object({
+  "id": zod.int(),
+  "username": zod.string().describe('Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».'),
+  "first_name": zod.string(),
+  "last_name": zod.string(),
+  "email": zod.email(),
+  "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
+  "avatar_url": zod.string().nullable()
+}),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
+  "is_active": zod.boolean(),
+  "can_buy": zod.boolean()
+})
 
 
 /**
@@ -11244,7 +11317,12 @@ export const SetMemberCanBuyResponse = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -11265,7 +11343,12 @@ export const DeactivateMemberResponse = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -11286,7 +11369,12 @@ export const ReactivateMemberResponse = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -11315,7 +11403,8 @@ export const SetMemberRoleParams = zod.object({
 })
 
 export const SetMemberRoleBody = zod.object({
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).optional().describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable')
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).optional().describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.int().nullish()
 })
 
 export const SetMemberRoleResponse = zod.object({
@@ -11329,7 +11418,12 @@ export const SetMemberRoleResponse = zod.object({
   "language": zod.enum(['fr', 'ar']).describe('* `fr` - Français\n* `ar` - العربية'),
   "avatar_url": zod.string().nullable()
 }),
-  "role": zod.enum(['owner', 'manager', 'driver', 'accountant']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable'),
+  "role": zod.enum(['owner', 'manager', 'driver', 'accountant', 'custom']).describe('* `owner` - Propriétaire\n* `manager` - Gestionnaire\n* `driver` - Chauffeur\n* `accountant` - Comptable\n* `custom` - Rôle personnalisé'),
+  "custom_role": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "access_overrides": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
   "is_active": zod.boolean(),
   "can_buy": zod.boolean()
 })
@@ -18696,6 +18790,72 @@ export const GetUnpaidSalariesReportResponse = zod.object({
  * Unpaid salaries as an Excel file.
  */
 export const ExportUnpaidSalariesReportResponse = zod.unknown()
+
+
+/**
+ * The roles the owner made, by name, with how many people have each.
+ */
+export const ListCustomRolesResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
+  "member_count": zod.int()
+})
+export const ListCustomRolesResponse = zod.array(ListCustomRolesResponseItem)
+
+
+/**
+ * A new role with a level per section; a section left out is "none".
+ */
+export const createCustomRoleBodyNameMax = 60;
+
+
+
+export const CreateCustomRoleBody = zod.object({
+  "name": zod.string().max(createCustomRoleBodyNameMax),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full'))
+})
+
+export const CreateCustomRoleResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
+  "member_count": zod.int()
+})
+
+
+/**
+ * Rename the role and replace its levels; its people have the new levels at once.
+ */
+export const UpdateCustomRoleParams = zod.object({
+  "role_id": zod.int()
+})
+
+export const updateCustomRoleBodyNameMax = 60;
+
+
+
+export const UpdateCustomRoleBody = zod.object({
+  "name": zod.string().max(updateCustomRoleBodyNameMax),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full'))
+})
+
+export const UpdateCustomRoleResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "access": zod.record(zod.string(), zod.enum(['none', 'read', 'write', 'full']).describe('* `none` - none\n* `read` - read\n* `write` - write\n* `full` - full')),
+  "member_count": zod.int()
+})
+
+
+/**
+ * Delete a role nobody has; refused while someone has it.
+ */
+export const DeleteCustomRoleParams = zod.object({
+  "role_id": zod.int()
+})
+
+export const DeleteCustomRoleResponse = zod.void()
 
 
 /**

@@ -12,6 +12,8 @@ export interface MemberCreate {
   /** @maxLength 128 */
   password: string;
   role: RoleEnum;
+  /** @nullable */
+  custom_role?: number | null;
   /** @maxLength 150 */
   first_name?: string;
   /** @maxLength 150 */

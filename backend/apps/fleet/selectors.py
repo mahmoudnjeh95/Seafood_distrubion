@@ -15,7 +15,8 @@ from .trail import distance_m, stops_of
 
 type TruckStatus = Literal["active", "archived", "all"]
 
-OFFICE_ROLES = frozenset({Role.OWNER, Role.MANAGER, Role.ACCOUNTANT})
+# A custom role (D-306) works in the office like the others; its levels are checked by the API.
+OFFICE_ROLES = frozenset({Role.OWNER, Role.MANAGER, Role.ACCOUNTANT, Role.CUSTOM})
 
 
 def trucks_of(organization: Organization, *, status: TruckStatus = "active") -> QuerySet[Truck]:

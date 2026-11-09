@@ -17,9 +17,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors as catalog
+from apps.core import access
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
-from apps.core.models import Membership, Organization, Role
+from apps.core.models import Membership, Organization
 from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
@@ -583,7 +584,7 @@ class MyReturnView(APIView):
 
 def _require_owner(membership: Membership, message: str) -> None:
     """Approving a loss and changing the stock rules are the owner's alone (checked here, D-045)."""
-    if membership.role != Role.OWNER:
+    if not access.can(membership, "stock", access.Level.FULL):
         raise PermissionDenied(message)
 
 
@@ -668,7 +669,7 @@ class LossListView(LossView, ListAPIView[StockLoss]):
         loss = services.record_loss(
             organization=self.organization,
             actor=self.membership.user,
-            may_approve=self.membership.role == Role.OWNER,
+            may_approve=access.can(self.membership, "stock", access.Level.FULL),
             **data,
         )
         return _loss_answer(self.organization, loss.pk, status_code=status.HTTP_201_CREATED)

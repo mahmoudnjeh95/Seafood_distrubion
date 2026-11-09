@@ -11,7 +11,7 @@ import {
   useListPriceLists,
   useListProducts,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
@@ -192,7 +192,7 @@ function SaleForm({ draft }: { draft?: SaleDetail }) {
 
   // Rows whose price after the discount is under the product's minimum (D-163): the owner and the manager may
   // accept them with a reason, the others must correct them (D-193).
-  const canApprove = session.role === "owner" || session.role === "manager";
+  const canApprove = canAccess(session, "sales", "write");
   // A gift is below every minimum on purpose: no reason asked (D-286).
   const free = billing === "free" && customer !== WALK_IN;
   const belowCount = free

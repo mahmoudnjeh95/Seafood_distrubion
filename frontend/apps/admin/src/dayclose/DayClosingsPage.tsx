@@ -14,7 +14,7 @@ import {
   useResolveSyncProblem,
   useRequestDayJustification,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import {
   formatDate,
   formatDateTime,
@@ -710,7 +710,7 @@ function SyncProblems({ canDecide }: { canDecide: boolean }) {
 export function DayClosingsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const canDecide = session.role === "owner" || session.role === "manager";
+  const canDecide = canAccess(session, "day_closings", "write");
   const [view, setView] = useState<"overview" | "closings">("overview");
   const tab = (value: typeof view, label: string) => (
     <button
@@ -742,7 +742,7 @@ export function DayClosingsPage() {
 function ClosingsList() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
-  const canDecide = session.role === "owner" || session.role === "manager";
+  const canDecide = canAccess(session, "day_closings", "write");
   const [status, setStatus] = useState<(typeof STATUSES)[number] | "">("submitted");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");

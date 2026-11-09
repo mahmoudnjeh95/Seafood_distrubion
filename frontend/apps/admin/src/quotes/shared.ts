@@ -1,5 +1,5 @@
 import type { QuoteStatusEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { currentLanguage } from "@frutti/i18n";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -20,7 +20,7 @@ export function refreshAfterQuote(queryClient: QueryClient) {
 
 /** The server refuses quote changes from other roles; this only avoids showing buttons that would fail. */
 export function canWriteQuotes(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "quotes", "write");
 }
 
 export const QUOTE_STATUSES: QuoteStatusEnum[] = ["draft", "sent", "accepted", "refused", "expired"];

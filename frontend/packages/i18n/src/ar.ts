@@ -57,6 +57,7 @@ export const ar: PartialTranslation = {
     manager: "المسيّر",
     accountant: "المحاسب",
     driver: "الشوفير",
+    custom: "دور خاص",
   },
   // Provisional, like the rest of this file (D-103, D-175, D-282).
   notifications: {

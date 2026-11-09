@@ -1,5 +1,5 @@
 import type { DeliveryStatusEnum, SaleStatusEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** After a sale changes, refresh sales, quotes (their sale link), stock and lots: a sale moves all of them. */
@@ -20,7 +20,7 @@ export function refreshAfterSale(queryClient: QueryClient) {
 
 /** The server refuses sales from the accountant; this only avoids showing buttons that would fail. */
 export function canSell(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "sales", "write");
 }
 
 export const SALE_STATUSES: SaleStatusEnum[] = ["draft", "confirmed", "cancelled"];

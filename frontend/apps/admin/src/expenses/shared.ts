@@ -1,5 +1,5 @@
 import type { ExpenseStatusEnum, PaymentMethodEnum, WorkTypeEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** After an expense or a day worked changes, refresh every list that shows them (lot costs, the month result). */
@@ -25,12 +25,12 @@ export function refreshExpenses(queryClient: QueryClient) {
 
 /** Owner and manager record and approve; the accountant reads. The server checks it too. */
 export function canWriteExpenses(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "expenses", "write");
 }
 
 /** Only the owner manages the categories (checked by the server too). */
 export function canManageCategories(session: Session): boolean {
-  return session.role === "owner";
+  return canAccess(session, "expenses", "full");
 }
 
 export const EXPENSE_STATUSES: ExpenseStatusEnum[] = ["draft", "pending", "approved", "rejected"];

@@ -1,5 +1,5 @@
 import { ApiError, archiveSupplier, restoreSupplier, type Supplier, useGetSupplier } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, cn, Dialog, EmptyState, PageHeader, Pill, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -149,7 +149,7 @@ export function SupplierDetailPage() {
           supplierId={data.id}
           supplierName={data.name}
           canRecord={canEdit}
-          canClear={session.role === "owner"}
+          canClear={canAccess(session, "treasury", "full")}
         />
       </div>
 

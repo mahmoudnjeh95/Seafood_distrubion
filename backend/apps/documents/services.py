@@ -22,9 +22,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core import audit
+from apps.core import access, audit
 from apps.core.images import reencoded_photo
-from apps.core.models import Organization, User
+from apps.core.models import Membership, Organization, User
 
 from . import rendering
 from .models import Attachment, AttachmentKind, GeneratedDocument, SentEmail
@@ -66,8 +66,13 @@ def register(kind: str, provider: Provider, *, roles: frozenset[str] | None = No
         _roles[kind] = roles
 
 
-def may_read(kind: str, role: str) -> bool:
-    return role in _roles.get(kind, frozenset({"owner", "manager", "accountant"}))
+def may_read(kind: str, membership: Membership) -> bool:
+    """Whether this person may read this kind of document. A custom role, or a person with their own level in
+    the document's section, was already checked by the access matrix on the route (D-306)."""
+    section = access.DOCUMENT_KINDS.get(kind, "documents")
+    if access.governs(membership, section):
+        return access.can(membership, section, access.Level.READ)
+    return membership.role in _roles.get(kind, frozenset({"owner", "manager", "accountant"}))
 
 
 def is_known(kind: str) -> bool:

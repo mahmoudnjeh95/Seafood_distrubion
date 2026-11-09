@@ -61,6 +61,29 @@ class Role(models.TextChoices):
     MANAGER = "manager", _("Gestionnaire")
     DRIVER = "driver", _("Chauffeur")
     ACCOUNTANT = "accountant", _("Comptable")
+    # A role the owner made in Paramètres › Rôles: what it may do is its own access matrix (D-306).
+    CUSTOM = "custom", _("Rôle personnalisé")
+
+
+class CustomRole(TimeStampedModel):
+    """A role the owner names and gives an access level per section of the application (D-306).
+
+    `access` maps a section key of `apps.core.access.SECTIONS` to a level ("none", "read", "write", "full");
+    a section left out is "none".
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="custom_roles")
+    name = models.CharField(max_length=60)
+    access = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="one_custom_role_name_per_organization"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Membership(TimeStampedModel):
@@ -72,10 +95,21 @@ class Membership(TimeStampedModel):
     is_active = models.BooleanField(default=True)
     # A driver the owner lets buy at the port and send the purchase from the phone (D-158). Not every driver may.
     can_buy = models.BooleanField(default=False)
+    # Set when `role` is "custom": the role the owner made (D-306). A role still in use cannot be deleted.
+    custom_role = models.ForeignKey(
+        CustomRole, null=True, blank=True, on_delete=models.PROTECT, related_name="memberships"
+    )
+    # This person's own levels, section by section, over those of their role (D-306): {"sales": "read", ...}.
+    access_overrides = models.JSONField(default=dict, blank=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["user", "organization"], name="one_membership_per_user_and_organization"),
+            models.CheckConstraint(
+                condition=(models.Q(role="custom") & models.Q(custom_role__isnull=False))
+                | (~models.Q(role="custom") & models.Q(custom_role__isnull=True)),
+                name="custom_role_set_only_for_the_custom_role",
+            ),
         ]
 
     def __str__(self) -> str:

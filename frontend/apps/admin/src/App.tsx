@@ -1,8 +1,10 @@
 import {
+  canAccess,
   createQueryClient,
   LoginPage,
   NotificationCenter,
   RequireRole,
+  type Section,
   type Session,
   TrainingTag,
   useLogout,
@@ -21,7 +23,7 @@ import {
 import { useListFleetAlerts } from "@frutti/api";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useOutletContext } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useOutletContext } from "react-router";
 
 import { DashboardPage } from "./dashboard/DashboardPage";
 import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
@@ -49,6 +51,7 @@ import { PartnershipsPage } from "./partnerships/PartnershipsPage";
 import { ProfilePage } from "./settings/ProfilePage";
 import { BanksPage } from "./settings/BanksPage";
 import { NumberingPage } from "./settings/NumberingPage";
+import { RolesPage } from "./settings/RolesPage";
 import { CustomerTypesPage } from "./settings/CustomerTypesPage";
 import { VatRatesPage } from "./settings/VatRatesPage";
 import { OpeningBalancesPage } from "./treasury/OpeningBalancesPage";
@@ -214,11 +217,7 @@ const SCREENS: Record<string, ReactNode> = {
   "/charges": <ExpensesPage />,
   "/partenariats": <PartnershipsPage />,
   "/import": <ImportPage />,
-  "/parametres": (
-    <OwnerOnly>
-      <SettingsPage />
-    </OwnerOnly>
-  ),
+  "/parametres": <SettingsPage />,
   "/cloture": <MonthClosingPage />,
   "/rapports": <ReportsPage />,
   "/demandes-site": <WebRequestsPage />,
@@ -237,27 +236,91 @@ function OwnerOnly({ children }: { children: ReactNode }) {
   return session.role === "owner" ? children : <Navigate to="/" replace />;
 }
 
-function Shell({ session }: { session: Session }) {
+// The section of the access matrix behind each screen (D-306), the most precise path first. A screen of a section
+// the person has at "none" shows "no access" (the server refuses its data anyway); the home page has none.
+const PATH_SECTIONS: [string, Section][] = (
+  [
+    ["/rapports", "reports"],
+    ["/devis", "quotes"],
+    ["/ventes", "sales"],
+    ["/factures", "invoices"],
+    ["/clients", "customers"],
+    ["/prix", "prices"],
+    ["/stock/transferts", "transfers"],
+    ["/stock", "stock"],
+    ["/camions", "fleet"],
+    ["/flotte", "fleet"],
+    ["/journees", "day_closings"],
+    ["/produits", "products"],
+    ["/achats/paiements", "treasury"],
+    ["/achats/reglements", "treasury"],
+    ["/achats", "purchases"],
+    ["/fournisseurs", "suppliers"],
+    ["/documents", "documents"],
+    ["/charges", "expenses"],
+    ["/salaires", "payroll"],
+    ["/partenariats", "partnerships"],
+    ["/cloture", "closing"],
+    ["/reglements", "treasury"],
+    ["/tresorerie", "treasury"],
+    ["/demandes-site", "website"],
+    ["/site-produits", "website"],
+    ["/site-parametres", "website"],
+    ["/parametres", "settings"],
+  ] as [string, Section][]
+).sort((a, b) => b[0].length - a[0].length);
+
+// Screens only the owner reaches, whatever the matrix says: the import and the users and roles (D-123, D-306).
+const OWNER_PATHS = ["/import", "/parametres/utilisateurs", "/parametres/roles"];
+
+function underPath(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function sectionOfPath(pathname: string): Section | null {
+  return PATH_SECTIONS.find(([prefix]) => underPath(pathname, prefix))?.[1] ?? null;
+}
+
+/** Whether the person may open a screen: the owner's screens for the owner, the others by their section. */
+function mayOpen(session: Session, pathname: string): boolean {
+  if (OWNER_PATHS.some((prefix) => underPath(pathname, prefix))) return session.role === "owner";
+  const section = sectionOfPath(pathname);
+  return section === null || canAccess(session, section, "read");
+}
+
+function NoAccess() {
   const { t } = useTranslation();
+  return (
+    <EmptyState illustration="mix" title={t("admin.access.noAccess")}>
+      {t("admin.access.noAccessBody")}
+    </EmptyState>
+  );
+}
+
+function Shell({ session }: { session: Session }) {
   const logout = useLogout();
   // The maintenance and papers soon or late show on the Flotte & entretien entry (P10-T05, D-295).
   const alerts = useListFleetAlerts({ query: { refetchInterval: 5 * 60_000 } }).data?.length ?? 0;
-  const nav = useNav().map((group) => ({
-    ...group,
-    items: group.items
-      .filter((item) => session.role === "owner" || item.to !== "/parametres")
-      .map((item) => (item.to === "/flotte" && alerts > 0 ? { ...item, badge: String(alerts) } : item)),
-  }));
+  const { pathname } = useLocation();
+  // The menu shows only the sections the person may open (D-306).
+  const nav = useNav()
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => mayOpen(session, item.to))
+        .map((item) => (item.to === "/flotte" && alerts > 0 ? { ...item, badge: String(alerts) } : item)),
+    }))
+    .filter((group) => group.items.length > 0);
   useFavicon(session.organization.logo_url);
   return (
     <AdminShell
       nav={nav}
-      user={{ name: displayName(session), role: t(`roles.${session.role}`), avatarUrl: session.user.avatar_url }}
+      user={{ name: displayName(session), role: session.role_label, avatarUrl: session.user.avatar_url }}
       logoUrl={session.organization.logo_url}
       actions={<NotificationCenter userId={session.user.id} />}
       onLogout={() => logout.mutate()}
     >
-      <Outlet context={session} />
+      {mayOpen(session, pathname) ? <Outlet context={session} /> : <NoAccess />}
     </AdminShell>
   );
 }
@@ -282,7 +345,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage title={t("admin.appName")} app="admin" />} />
       <Route
         element={
-          <RequireRole allow={["owner", "manager", "accountant"]} wrongAppMessage={t("admin.wrongApp")}>
+          <RequireRole allow={["owner", "manager", "accountant", "custom"]} wrongAppMessage={t("admin.wrongApp")}>
             {(session) => <Shell session={session} />}
           </RequireRole>
         }
@@ -298,29 +361,16 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/parametres/numerotation"
+          path="/parametres/roles"
           element={
             <OwnerOnly>
-              <NumberingPage />
+              <RolesPage />
             </OwnerOnly>
           }
         />
-        <Route
-          path="/parametres/types-clients"
-          element={
-            <OwnerOnly>
-              <CustomerTypesPage />
-            </OwnerOnly>
-          }
-        />
-        <Route
-          path="/parametres/tva"
-          element={
-            <OwnerOnly>
-              <VatRatesPage />
-            </OwnerOnly>
-          }
-        />
+        <Route path="/parametres/numerotation" element={<NumberingPage />} />
+        <Route path="/parametres/types-clients" element={<CustomerTypesPage />} />
+        <Route path="/parametres/tva" element={<VatRatesPage />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}

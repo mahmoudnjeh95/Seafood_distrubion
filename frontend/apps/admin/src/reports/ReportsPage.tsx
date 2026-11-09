@@ -1,5 +1,5 @@
 import { useGetLossesReport, useGetSalesReport, useGetSlowMovingReport, useGetStockValueReport } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, cn, EmptyState, Field, Input, PageHeader, Table, Td, Th } from "@frutti/ui";
 import { useId, useState } from "react";
@@ -340,7 +340,8 @@ export function ReportsPage() {
   // The company's money is for the owner and the accountant (the server refuses the others too).
   const tabs = TABS.filter(
     (value) =>
-      (value !== "financial" && value !== "partners") || session.role === "owner" || session.role === "accountant",
+      (value !== "financial" && value !== "partners") ||
+      (session.role !== "manager" && canAccess(session, "reports", "read")),
   );
   const [tab, setTab] = useState<Tab>("sales");
   return (

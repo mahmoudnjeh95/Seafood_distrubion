@@ -1,4 +1,4 @@
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** After a receipt, refresh receipts, batches, last costs and stock: the receipt changed all of them. */
@@ -12,7 +12,7 @@ export function refreshAfterReceipt(queryClient: QueryClient) {
 
 /** The server refuses receipts from other roles; this only avoids showing buttons that would fail. */
 export function canRecordReceipts(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "purchases", "write");
 }
 
 /** Today in Tunisia, as the API writes dates ("2026-10-11"). */

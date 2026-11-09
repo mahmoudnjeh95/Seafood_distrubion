@@ -1,8 +1,16 @@
 # Project status
 
-_Last updated: 2026-11-09 (Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-306)_
+_Last updated: 2026-11-09 (roles and access per section, D-306; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-307)_
 
 ## Where we are
+
+- **D-306 roles and access per section (owner request 2026-11-09, branch `user-roles-matrix`, migration `core 0008`):**
+  Paramètres › Rôles makes a role with a level per section (Aucun / Lecture / Écriture / Tout); Paramètres ›
+  Utilisateurs gives it to someone, and "Accès" sets one person's own levels over their role. The API enforces it
+  (`apps/core/access.py`); the built-in roles behave as before. Check on staging: make a role "Commercial" (Bons de
+  livraison and Devis in Écriture, the rest Aucun), give it to a test user, log in as them: the menu shows only Ventes,
+  a treasury URL shows "no access". Then give a gestionnaire "Salaires" in Lecture and check they see the payroll.
+  The WhatsApp assistant session (branch `whatsapp-assistant`) adds a section `assistant` after this merges.
 
 - **Phase 10 · Flotte & entretien (D-295, owner request 2026-11-08)** — plan and the owner's answers in
   `docs/phases/10-fleet-maintenance.md`. T01 compteur merged (#332). **T02 to T05 on branch

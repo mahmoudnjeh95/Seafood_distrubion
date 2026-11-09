@@ -21,7 +21,8 @@ def visible_to(membership: Membership) -> QuerySet[Notification]:
     of the last `KEPT_DAYS` days. Never their own actions."""
     since = timezone.now() - dt.timedelta(days=KEPT_DAYS)
     rows = Notification.objects.for_organization(membership.organization).filter(created_at__gte=since)
-    if membership.role in OFFICE_READERS:
+    # A custom role (D-306) works in the office: it is told what the office is told.
+    if membership.role in OFFICE_READERS or membership.role == Role.CUSTOM:
         # The whole office's, or one addressed to this person (a payment order sent to them, D-255).
         rows = rows.filter(Q(recipient__isnull=True) | Q(recipient_id=membership.user_id), audience=Audience.OFFICE)
     elif membership.role == Role.DRIVER:

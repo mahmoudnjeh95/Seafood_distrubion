@@ -8,4 +8,6 @@ import type { RoleEnum } from './roleEnum';
 
 export interface PatchedMemberRole {
   role?: RoleEnum;
+  /** @nullable */
+  custom_role?: number | null;
 }

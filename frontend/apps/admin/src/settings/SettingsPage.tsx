@@ -124,6 +124,19 @@ function UsersCard() {
   );
 }
 
+function RolesCard() {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardTitle>{t("admin.settings.roles")}</CardTitle>
+      <p className="mb-4 text-[0.85rem] text-ink-2">{t("admin.settings.rolesHint")}</p>
+      <Link to="/parametres/roles" className="text-[0.9rem] font-semibold text-sea hover:underline">
+        {t("admin.settings.rolesOpen")}
+      </Link>
+    </Card>
+  );
+}
+
 function BanksCard() {
   const { t } = useTranslation();
   return (
@@ -162,7 +175,7 @@ function LinkCard({ title, hint, to, open }: { title: string; hint: string; to: 
   );
 }
 
-/** "Paramètres": the company's logo and legal identity, and the accounts that log in. Owner only. */
+/** "Paramètres": the company's logo and legal identity; the users and roles for the owner (D-306). */
 export function SettingsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
@@ -173,7 +186,9 @@ export function SettingsPage() {
       <div className="grid grid-cols-2 items-start gap-4 max-[900px]:grid-cols-1">
         <LogoCard session={session} />
         <LegalCard />
-        <UsersCard />
+        {/* Users and roles stay the owner's whatever the access matrix says (D-306). */}
+        {session.role === "owner" && <UsersCard />}
+        {session.role === "owner" && <RolesCard />}
         <BanksCard />
         <NumberingCard />
         <LinkCard

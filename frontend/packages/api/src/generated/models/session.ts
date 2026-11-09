@@ -6,6 +6,7 @@
  */
 import type { Organization } from './organization';
 import type { RoleEnum } from './roleEnum';
+import type { SessionAccess } from './sessionAccess';
 import type { TruckRef } from './truckRef';
 import type { User } from './user';
 
@@ -16,6 +17,8 @@ export interface Session {
   readonly user: User;
   readonly organization: Organization;
   readonly role: RoleEnum;
+  readonly role_label: string;
+  readonly access: SessionAccess;
   readonly can_buy: boolean;
   readonly truck: TruckRef | null;
 }

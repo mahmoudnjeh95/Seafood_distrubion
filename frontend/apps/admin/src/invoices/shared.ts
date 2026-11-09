@@ -1,5 +1,5 @@
 import type { InvoiceStatusEnum } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import type { QueryClient } from "@tanstack/react-query";
 
 /** After an invoice or a credit note changes, refresh invoices, credit notes and sales (their invoice link). */
@@ -13,7 +13,7 @@ export function refreshAfterInvoice(queryClient: QueryClient) {
 
 /** The server refuses invoices from the accountant; this only avoids showing buttons that would fail. */
 export function canInvoice(session: Session): boolean {
-  return session.role === "owner" || session.role === "manager";
+  return canAccess(session, "invoices", "write");
 }
 
 export const INVOICE_STATUSES: InvoiceStatusEnum[] = ["draft", "issued", "cancelled"];

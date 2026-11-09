@@ -4,8 +4,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core import access
 from apps.core.documents import DocumentFilters
-from apps.core.permissions import IsOwnerOrManager, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import ReadOfficeWriteOwnerOrManager, membership_of
 from apps.doclist import selectors
 
 from .serializers import DocumentFilterSerializer, DocumentListSerializer
@@ -38,7 +39,7 @@ class DocumentListView(APIView):
         found = selectors.document_list(
             membership.organization,
             filters,
-            may_write=membership.role in IsOwnerOrManager.roles,
+            may_write=access.can(membership, "documents", access.Level.WRITE),
             tone=data.get("tone", ""),
         )
         payload = {

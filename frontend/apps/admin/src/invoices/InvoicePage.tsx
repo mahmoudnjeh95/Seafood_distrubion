@@ -9,7 +9,7 @@ import {
   updateInvoice,
   useGetInvoice,
 } from "@frutti/api";
-import type { Session } from "@frutti/auth";
+import { canAccess, type Session } from "@frutti/auth";
 import {
   formatDate,
   formatDateTime,
@@ -767,7 +767,7 @@ export function InvoicePage() {
             }
           />
           <LinesTable invoice={invoice} />
-          <Totals invoice={invoice} owner={session.role === "owner"} />
+          <Totals invoice={invoice} owner={canAccess(session, "invoices", "full")} />
           {invoice.notes && (
             <p className="mt-4 border-t border-line pt-3 text-[0.9rem] whitespace-pre-line">{invoice.notes}</p>
           )}

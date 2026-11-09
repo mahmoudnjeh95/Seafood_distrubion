@@ -17,7 +17,7 @@ def active_membership(user: User) -> Membership | None:
     """The user's membership in an active organization. One organization exists today (ARCHITECTURE §4.6)."""
     return (
         Membership.objects.filter(user=user, is_active=True, organization__is_active=True)
-        .select_related("organization", "user")
+        .select_related("organization", "user", "custom_role")
         .order_by("id")
         .first()
     )
@@ -25,7 +25,11 @@ def active_membership(user: User) -> Membership | None:
 
 def members_of(organization: Organization) -> MembershipQuerySet:
     """Every membership of one organization, active or not, with its user."""
-    return Membership.objects.filter(organization=organization).select_related("user").order_by("user__username")
+    return (
+        Membership.objects.filter(organization=organization)
+        .select_related("user", "custom_role")
+        .order_by("user__username")
+    )
 
 
 def active_owner_count(organization: Organization) -> int:

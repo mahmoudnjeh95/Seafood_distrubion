@@ -3,6 +3,24 @@ info:
   title: Frutti Del Mare ERP API
   version: 1.0.0
 paths:
+  /api/v1/access-sections:
+    get:
+      operationId: listAccessSections
+      description: The sections of the access matrix, the levels each offers and the
+        built-in roles' levels.
+      tags:
+      - access-sections
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccessSection'
+          description: ''
   /api/v1/attachments:
     get:
       operationId: listAttachments
@@ -5479,6 +5497,41 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/members/{member_id}/access:
+    put:
+      operationId: setMemberAccess
+      description: |-
+        Replace the sections where this person has their own level; a section left out follows their role
+        again. Refused for the owner (who has everything) and for a driver (the phone app).
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberAccess'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MemberAccess'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MemberAccess'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
   /api/v1/members/{member_id}/can-buy:
     patch:
       operationId: setMemberCanBuy
@@ -9356,6 +9409,99 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/roles:
+    get:
+      operationId: listCustomRoles
+      description: The roles the owner made, by name, with how many people have each.
+      tags:
+      - roles
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomRole'
+          description: ''
+    post:
+      operationId: createCustomRole
+      description: A new role with a level per section; a section left out is "none".
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRoleWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomRoleWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomRoleWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomRole'
+          description: ''
+  /api/v1/roles/{role_id}:
+    put:
+      operationId: updateCustomRole
+      description: Rename the role and replace its levels; its people have the new
+        levels at once.
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRoleWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomRoleWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomRoleWrite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomRole'
+          description: ''
+    delete:
+      operationId: deleteCustomRole
+      description: Delete a role nobody has; refused while someone has it.
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - roles
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/salary-payments:
     get:
       operationId: listSalaryPayments
@@ -14059,6 +14205,39 @@ paths:
           description: ''
 components:
   schemas:
+    AccessSection:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        group:
+          type: string
+        levels:
+          type: array
+          items:
+            $ref: '#/components/schemas/LevelsEnum'
+        defaults:
+          type: object
+          additionalProperties:
+            enum:
+            - none
+            - read
+            - write
+            - full
+            type: string
+            description: |-
+              * `none` - none
+              * `read` - read
+              * `write` - write
+              * `full` - full
+      required:
+      - defaults
+      - group
+      - key
+      - levels
+      - title
     AccountKindEnum:
       enum:
       - cash
@@ -16444,6 +16623,73 @@ components:
       - unit_cost
       - weight_gap
       - with_vat
+    CustomRole:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        access:
+          type: object
+          additionalProperties:
+            enum:
+            - none
+            - read
+            - write
+            - full
+            type: string
+            description: |-
+              * `none` - none
+              * `read` - read
+              * `write` - write
+              * `full` - full
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+      required:
+      - access
+      - id
+      - member_count
+      - name
+    CustomRoleRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    CustomRoleWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 60
+        access:
+          type: object
+          additionalProperties:
+            enum:
+            - none
+            - read
+            - write
+            - full
+            type: string
+            description: |-
+              * `none` - none
+              * `read` - read
+              * `write` - write
+              * `full` - full
+      required:
+      - access
+      - name
     Customer:
       type: object
       properties:
@@ -22968,6 +23214,18 @@ components:
       - drift
       - pending_basis
       - pending_share
+    LevelsEnum:
+      enum:
+      - none
+      - read
+      - write
+      - full
+      type: string
+      description: |-
+        * `none` - none
+        * `read` - read
+        * `write` - write
+        * `full` - full
     LoadClient:
       type: object
       description: The client a part of a load is for (D-160).
@@ -24483,6 +24741,26 @@ components:
           allOf:
           - $ref: '#/components/schemas/RoleEnum'
           readOnly: true
+        custom_role:
+          allOf:
+          - $ref: '#/components/schemas/CustomRoleRef'
+          readOnly: true
+          nullable: true
+        access_overrides:
+          type: object
+          additionalProperties:
+            enum:
+            - none
+            - read
+            - write
+            - full
+            type: string
+            description: |-
+              * `none` - none
+              * `read` - read
+              * `write` - write
+              * `full` - full
+          readOnly: true
         is_active:
           type: boolean
           readOnly: true
@@ -24490,11 +24768,32 @@ components:
           type: boolean
           readOnly: true
       required:
+      - access_overrides
       - can_buy
+      - custom_role
       - id
       - is_active
       - role
       - user
+    MemberAccess:
+      type: object
+      properties:
+        overrides:
+          type: object
+          additionalProperties:
+            enum:
+            - none
+            - read
+            - write
+            - full
+            type: string
+            description: |-
+              * `none` - none
+              * `read` - read
+              * `write` - write
+              * `full` - full
+      required:
+      - overrides
     MemberCreate:
       type: object
       properties:
@@ -24507,6 +24806,9 @@ components:
           maxLength: 128
         role:
           $ref: '#/components/schemas/RoleEnum'
+        custom_role:
+          type: integer
+          nullable: true
         first_name:
           type: string
           default: ''
@@ -27789,6 +28091,9 @@ components:
       properties:
         role:
           $ref: '#/components/schemas/RoleEnum'
+        custom_role:
+          type: integer
+          nullable: true
     PatchedProductUpdate:
       type: object
       properties:
@@ -31258,12 +31563,14 @@ components:
       - manager
       - driver
       - accountant
+      - custom
       type: string
       description: |-
         * `owner` - Propriétaire
         * `manager` - Gestionnaire
         * `driver` - Chauffeur
         * `accountant` - Comptable
+        * `custom` - Rôle personnalisé
     RoutePoint:
       type: object
       properties:
@@ -32897,6 +33204,24 @@ components:
           allOf:
           - $ref: '#/components/schemas/RoleEnum'
           readOnly: true
+        role_label:
+          type: string
+          readOnly: true
+        access:
+          type: object
+          additionalProperties:
+            enum:
+            - none
+            - read
+            - write
+            - full
+            type: string
+            description: |-
+              * `none` - none
+              * `read` - read
+              * `write` - write
+              * `full` - full
+          readOnly: true
         can_buy:
           type: boolean
           readOnly: true
@@ -32906,9 +33231,11 @@ components:
           nullable: true
           readOnly: true
       required:
+      - access
       - can_buy
       - organization
       - role
+      - role_label
       - truck
       - user
     SetPrice:
