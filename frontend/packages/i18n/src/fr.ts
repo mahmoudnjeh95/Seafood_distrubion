@@ -1989,6 +1989,15 @@ export const fr = {
         from: "Refacturation de",
         note: "avoir {{number}}",
       },
+      mentions: {
+        seller:
+          "La société n'a pas d'adresse ou de matricule fiscal : la facture ne peut pas être émise (article 18 du Code de la TVA).",
+        sellerLink: "Compléter les Paramètres financiers",
+        customerTaxId:
+          "Le client n'a pas de matricule fiscal ni de numéro d'identification : un client professionnel en a besoin pour déduire la TVA.",
+        customerAddress: "Le client n'a pas d'adresse : elle est imprimée sur la facture.",
+        customerLink: "Compléter la fiche client",
+      },
       detail: {
         print: "Imprimer",
         creditNote: "Faire un avoir",

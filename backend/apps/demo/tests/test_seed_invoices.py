@@ -8,6 +8,7 @@ from apps.sales import selectors as sales
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.blank_seller
 def test_the_seed_gives_the_seller_an_issued_invoice_and_a_draft(settings):
     settings.DEBUG = True
 

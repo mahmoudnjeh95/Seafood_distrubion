@@ -117,6 +117,39 @@ function draftOf(invoice: InvoiceDetail): DraftValues {
 
 class FormInvalid extends Error {}
 
+/** Whether the seller has what article 18 of the VAT code asks for; the server refuses to issue without it (D-296). */
+function sellerComplete(invoice: InvoiceDetail): boolean {
+  return invoice.seller.address.trim() !== "" && invoice.seller.tax_id.trim() !== "";
+}
+
+/** What a draft lacks of the invoice's legal mentions (D-296): the seller's blocks the issue, the customer's warns. */
+function MissingMentions({ invoice }: { invoice: InvoiceDetail }) {
+  const { t } = useTranslation();
+  const customerTaxId = invoice.bill_to.tax_id.trim() !== "";
+  const customerAddress = invoice.bill_to.address.trim() !== "";
+  if (sellerComplete(invoice) && customerTaxId && customerAddress) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {!sellerComplete(invoice) && (
+        <p role="alert" className="rounded-chip bg-bad-soft px-3 py-2 text-[0.88rem] font-semibold text-bad">
+          {t("admin.invoices.mentions.seller")}{" "}
+          <Link to="/factures/parametres" className="underline">
+            {t("admin.invoices.mentions.sellerLink")}
+          </Link>
+        </p>
+      )}
+      {(!customerTaxId || !customerAddress) && (
+        <p role="note" className="rounded-chip bg-warn-soft px-3 py-2 text-[0.88rem] text-warn">
+          {!customerTaxId ? t("admin.invoices.mentions.customerTaxId") : t("admin.invoices.mentions.customerAddress")}{" "}
+          <Link to={`/clients/${invoice.customer.id}`} className="underline">
+            {t("admin.invoices.mentions.customerLink")}
+          </Link>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** The draft's form: VAT on or off, rate per line, VAT amount per rate, stamp, withholding. Freezes at issue. */
 function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
   const { t } = useTranslation();
@@ -357,11 +390,12 @@ function DraftForm({ invoice }: { invoice: InvoiceDetail }) {
             {generalError}
           </p>
         )}
+        <MissingMentions invoice={invoice} />
         <div className="flex flex-wrap gap-2">
           <Button disabled={busy} onClick={() => save.mutate({ issueNow: false })}>
             {save.isPending && !issuing ? t("admin.invoices.form.saving") : t("admin.invoices.form.save")}
           </Button>
-          <Button variant="primary" disabled={busy} onClick={() => setIssuing(true)}>
+          <Button variant="primary" disabled={busy || !sellerComplete(invoice)} onClick={() => setIssuing(true)}>
             <Icon name="check" />
             {t("admin.invoices.detail.issue")}
           </Button>

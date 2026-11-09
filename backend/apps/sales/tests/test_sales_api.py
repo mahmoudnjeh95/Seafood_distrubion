@@ -450,6 +450,7 @@ def test_a_customer_price_list_wins_over_the_price_the_phone_showed(
     assert (line["unit_price"], line["price_source"]) == ("40.000", "price_list")
 
 
+@pytest.mark.blank_seller
 def test_the_driver_reads_the_seller_printed_on_receipts(manager, organization, driver_with_truck):
     """D-281: the name, address, phone and matricule fiscal of the finance settings, the company name by default."""
     driver, _ = driver_with_truck
