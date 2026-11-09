@@ -26,7 +26,7 @@ function useFailure() {
   };
 }
 
-/** "Valider (à livrer)" on a direct draft BL (D-302): its number now, the stock at the delivery. */
+/** "Valider (à livrer)" on a direct draft BL (D-305): its number now, the stock at the delivery. */
 export function IssueButton({ sale, disabled }: { sale: SaleDetail; disabled: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -47,7 +47,7 @@ export function IssueButton({ sale, disabled }: { sale: SaleDetail; disabled: bo
   );
 }
 
-/** A direct BL "à livrer": delivered as written, in part, or not delivered (D-302). */
+/** A direct BL "à livrer": delivered as written, in part, or not delivered (D-305). */
 export function DirectDeliveryButtons({ sale, disabled }: { sale: SaleDetail; disabled: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();

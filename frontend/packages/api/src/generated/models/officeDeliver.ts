@@ -7,7 +7,7 @@
 import type { DeliveredLine } from './deliveredLine';
 
 /**
- * The office records how a BL "à livrer" was delivered (D-302): only the lines that changed.
+ * The office records how a BL "à livrer" was delivered (D-305): only the lines that changed.
  */
 export interface OfficeDeliver {
   lines?: DeliveredLine[];

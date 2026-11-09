@@ -6,7 +6,7 @@ import { type FormEvent, useState } from "react";
 
 import { newUuid } from "./uuid";
 
-/** The driver notes the temperature of the truck's box (D-300); outside its range the office is told. Needs the
+/** The driver notes the temperature of the truck's box (D-303); outside its range the office is told. Needs the
  * network: without it, the driver tries again later. */
 export function TruckTemperatureCard() {
   const { t } = useTranslation();

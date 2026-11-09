@@ -23,7 +23,7 @@ import { useDebounced } from "../lib/useDebounced";
 import { PurchasingTabs } from "../purchasing/PurchasingTabs";
 import { canRecordReceipts } from "../receipts/shared";
 
-/** Achats › Avoirs fournisseurs (D-297): the credit notes, and the kilos suppliers invoiced but we never accepted. */
+/** Achats › Avoirs fournisseurs (D-300): the credit notes, and the kilos suppliers invoiced but we never accepted. */
 export function SupplierCreditNotesPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

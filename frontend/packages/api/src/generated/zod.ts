@@ -210,7 +210,7 @@ export const GetBatchResponse = zod.object({
 
 
 /**
- * Complete or correct where a lot comes from (D-299). Information only, audited. Owner or manager.
+ * Complete or correct where a lot comes from (D-302). Information only, audited. Owner or manager.
  */
 export const UpdateBatchOriginParams = zod.object({
   "batch_id": zod.int()
@@ -226,7 +226,7 @@ export const UpdateBatchOriginBody = zod.object({
   "catch_area": zod.string().max(updateBatchOriginBodyCatchAreaMax),
   "production_method": zod.union([zod.enum(['wild', 'farmed']).describe('* `wild` - Pêché (sauvage)\n* `farmed` - Élevé (aquaculture)'),zod.enum([''])]),
   "origin": zod.string().max(updateBatchOriginBodyOriginMax)
-}).describe('Where a lot comes from (D-299): FAO zone or farm, wild or farmed, boat or port.')
+}).describe('Where a lot comes from (D-302): FAO zone or farm, wild or farmed, boat or port.')
 
 export const updateBatchOriginResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
@@ -14067,7 +14067,7 @@ export const GetMyTruckDayResponse = zod.object({
 
 
 /**
- * The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+ * The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
  * written once. 404 without a truck.
  */
 export const recordMyTruckTemperatureBodyCelsiusMax = 10;
@@ -20747,7 +20747,7 @@ export const DeliverSaleBody = zod.object({
   "quantity": zod.string().max(deliverSaleBodyLinesItemQuantityMax)
 })).optional(),
   "note": zod.string().max(deliverSaleBodyNoteMax).default(deliverSaleBodyNoteDefault)
-}).describe('The office records how a BL "à livrer" was delivered (D-302): only the lines that changed.')
+}).describe('The office records how a BL "à livrer" was delivered (D-305): only the lines that changed.')
 
 export const deliverSaleResponseSubtotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const deliverSaleResponseDiscountTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -20916,7 +20916,7 @@ export const DeliverSaleResponse = zod.object({
 
 
 /**
- * Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+ * Validate a direct BL "à livrer" (D-305): its BL number now, the stock at the delivery. Refused for a load's
  * BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
  */
 export const IssueSaleParams = zod.object({
@@ -21920,7 +21920,7 @@ export const WriteOffSupplierBalanceResponse = zod.object({
 
 
 /**
- * Supplier credit notes (avoirs fournisseurs, D-297), newest first, paginated.
+ * Supplier credit notes (avoirs fournisseurs, D-300), newest first, paginated.
  */
 
 export const listSupplierCreditNotesQuerySearchDefault = ``;

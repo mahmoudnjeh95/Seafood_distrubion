@@ -499,7 +499,7 @@ export const ar: PartialTranslation = {
       retry: "عاود",
       giveBack: "رجّع اللي ما تباعش",
     },
-    // ---- The truck box's temperature (D-300) ----
+    // ---- The truck box's temperature (D-303) ----
     temperature: {
       title: "سخانة الكميون",
       save: "سجّل",

@@ -33,7 +33,7 @@ class StockLocation(OrganizationScopedModel, TimeStampedModel):
     counter_sales = models.BooleanField(default=False)
     # Archived locations keep their history but receive no more stock.
     is_active = models.BooleanField(default=True)
-    # The temperature it must keep, in °C (D-300): a reading outside it is flagged and the office told. Either end may
+    # The temperature it must keep, in °C (D-303): a reading outside it is flagged and the office told. Either end may
     # be open ("≤ -18 °C"); both empty: no check.
     temp_min = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     temp_max = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
@@ -85,7 +85,7 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
     use_by = models.DateField(null=True, blank=True)
     # Bought with VAT (the supplier's paper carries it): what is sold from this lot is invoiced with VAT (D-202).
     bought_with_vat = models.BooleanField(default=False)
-    # Where the fish comes from (D-299), for the label and a recall: the FAO catch zone ("37.2.2") or the farm, wild or
+    # Where the fish comes from (D-302), for the label and a recall: the FAO catch zone ("37.2.2") or the farm, wild or
     # farmed, and the boat or the port. Information only: it may be completed after the receipt, never valued.
     catch_area = models.CharField(max_length=60, blank=True)
     production_method = models.CharField(max_length=10, choices=ProductionMethod.choices, blank=True)
@@ -115,7 +115,7 @@ class MovementKind(models.TextChoices):
     LOSS = "loss", _("Perte")
     ADJUSTMENT = "adjustment", _("Ajustement")
     COUNT_CORRECTION = "count_correction", _("Correction d'inventaire")
-    # Kilos of a lot cleaned, filleted or downgraded into a new lot of another product (D-301).
+    # Kilos of a lot cleaned, filleted or downgraded into a new lot of another product (D-304).
     TRANSFORMATION_OUT = "transformation_out", _("Transformation (sortie)")
     TRANSFORMATION_IN = "transformation_in", _("Transformation (entrée)")
 
@@ -579,7 +579,7 @@ class StockCountLine(OrganizationScopedModel):
         return self.counted_quantity - self.expected_quantity
 
 
-# ---- Cold chain (D-300) ----
+# ---- Cold chain (D-303) ----
 
 
 class TemperatureReading(OrganizationScopedModel):
@@ -614,7 +614,7 @@ class TemperatureReading(OrganizationScopedModel):
         return f"{self.location} · {self.celsius} °C"
 
 
-# ---- Transformations (D-301) ----
+# ---- Transformations (D-304) ----
 
 
 class Transformation(OrganizationScopedModel, TimeStampedModel):

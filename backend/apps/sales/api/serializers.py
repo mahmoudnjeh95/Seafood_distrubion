@@ -600,7 +600,7 @@ class NotDeliveredSerializer(serializers.Serializer[Any]):
 
 
 class OfficeDeliverSerializer(serializers.Serializer[Any]):
-    """The office records how a BL "à livrer" was delivered (D-302): only the lines that changed."""
+    """The office records how a BL "à livrer" was delivered (D-305): only the lines that changed."""
 
     lines = DeliveredLineSerializer(many=True, required=False, default=list)
     note = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)

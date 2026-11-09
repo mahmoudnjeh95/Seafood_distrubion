@@ -99,11 +99,11 @@ def _loss_recorded(entry: AuditLog) -> None:
 
 
 def _temperature_recorded(entry: AuditLog) -> None:
-    """A reading outside the place's range tells the office at once (D-300)."""
+    """A reading outside the place's range tells the office at once (D-303)."""
     reading = cast("TemperatureReading", entry.target)
     if not reading.out_of_range:
         return
-    # Whoever read it, a driver or the office: the whole office must know (D-300).
+    # Whoever read it, a driver or the office: the whole office must know (D-303).
     services.tell_office_of(
         organization=entry.organization,
         actor=entry.actor,

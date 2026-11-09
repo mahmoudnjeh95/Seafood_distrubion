@@ -4069,7 +4069,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - **P10-T04 (2026-11-08):** a paper is renewed by typing a new one (append-only); the current one is the one valid the longest. Only the latest assurance and visite technique block a truck (`fleet.assign_truck`, `open_driver_day`), and only once typed and expired, so trucks are not blocked the day the module arrives. The owner's one-day permission (`TruckDayAllowance`) is owner only; the reason is kept. `fleet` reads `maintenance.selectors` inside the function (a module import would be circular, as catalog → sales).
 - **P10-T05 (2026-11-08):** warnings go to the whole office (owner and manager, answer 7) through the existing notifications, written by a nightly command, not from an audit entry (a due date passes without anybody acting). Each step is sent once (`MaintenanceWarningSent` keys). The driver gets no notification; his phone shows his truck's and his own papers' warnings on Ma journée. A missing paper is "À renseigner", not a warning.
 
-**D-296 · First to expire leaves first; an expired lot is never sold nor loaded (gap review, P1-T20)** · accepted (owner answers 2026-11-08) · 2026-11-08
+**D-299 · First to expire leaves first; an expired lot is never sold nor loaded (gap review, P1-T20)** · accepted (owner answers 2026-11-08) · 2026-11-08
 - Review of purchases, sales and stock in `docs/guides/purchase-sales-stock-review-2026-11-08.md`; the owner wants every
   gap (tasks P1-T20 to P1-T27).
 - Picking order is FEFO: earliest `use_by` first, then the oldest receipt, then the id (`inventory.selectors.PICK_ORDER`,
@@ -4082,7 +4082,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The pickers and the driver's stock (`location_stock(sellable_on=today)`) leave expired lots out. Owner chose "block
   always": no override.
 
-**D-297 · Supplier credit notes (avoirs fournisseurs) with returns, weight claims and price cuts (P1-T21)** · accepted · 2026-11-08
+**D-300 · Supplier credit notes (avoirs fournisseurs) with returns, weight claims and price cuts (P1-T21)** · accepted · 2026-11-08
 - One document for the three cases (`purchasing.SupplierCreditNote`, number kind `supplier_credit_note`, AVF yearly):
   each line names a receipt line and a kind: `return` (kg × the receipt's cost, posts a `supplier_return` movement from
   a place picked on the line), `weight` (kg up to invoiced − accepted − already claimed, nothing moves) or `price`
@@ -4098,15 +4098,15 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   on a lot already settled with its partner.
 - Saved once, never edited nor deleted, by the owner or the manager, audited (`supplier_credit_note.created`).
 
-**D-298 · A supplier's usual deal, and the total typed from the supplier's paper (P1-T22)** · accepted · 2026-11-08
+**D-301 · A supplier's usual deal, and the total typed from the supplier's paper (P1-T22)** · accepted · 2026-11-08
 - `Supplier.payment_terms_days` (nullable, 0 to 365; empty means the 30-day default of D-043) and
   `Supplier.buys_with_vat` only propose values on the forms (due date, "Achat avec TVA"); every receipt and invoice
   keeps its own, so changing the supplier never changes a saved document (migration `partners 0007`).
 - `SupplierInvoice.paper_total` (nullable, migration `purchasing 0027`): the total printed on the supplier's invoice.
   A difference with the computed total is shown, never applied nor blocking: what we owe comes from the receipts
-  (D-039); a real difference is settled by correcting the receipt (D-269) or by a supplier credit note (D-297).
+  (D-039); a real difference is settled by correcting the receipt (D-269) or by a supplier credit note (D-300).
 
-**D-299 · Where a lot comes from, and its recall sheet (P1-T23)** · accepted · 2026-11-09
+**D-302 · Where a lot comes from, and its recall sheet (P1-T23)** · accepted · 2026-11-09
 - Origin is information, not value: `Product.scientific_name`, `Supplier.health_approval`, and on the lot
   `catch_area` (free text: an FAO zone such as 37.2.2, or a farm), `production_method` (wild, farmed, or empty) and
   `origin` (boat or port). Migrations `catalog 0008`, `inventory 0014`, `partners 0008`.
@@ -4119,7 +4119,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   (sold − returned by credit notes), the most first, with phone, city, dates and BL numbers, and the places that still
   hold the lot. Printed from the browser; no PDF yet.
 
-**D-300 · Cold-chain readings with a range per place (P1-T24)** · accepted · 2026-11-09
+**D-303 · Cold-chain readings with a range per place (P1-T24)** · accepted · 2026-11-09
 - A cold room or a truck carries the range it must keep (`StockLocation.temp_min`, `temp_max`, °C with one decimal,
   either end open). Products keep their own storage range (P1-T01); the place's range is what the readings check.
 - `inventory.TemperatureReading` is append-only (HACCP log): place, moment, °C, note, who, `out_of_range` frozen at
@@ -4130,13 +4130,13 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   products' storage range; it refuses nothing (the office decides, and may contest the receipt, D-285).
 - Migrations `inventory 0015`, `purchasing 0028`.
 
-**D-301 · Transformations: a new lot whose cost carries the source kilos, the fee and the weight lost (P1-T25)** · accepted, partner lots provisional · 2026-11-09
+**D-304 · Transformations: a new lot whose cost carries the source kilos, the fee and the weight lost (P1-T25)** · accepted, partner lots provisional · 2026-11-09
 - Owner answer 2026-11-08: transformations are wanted, with a transformation fee that the system adds to the new
   product's cost. `inventory.Transformation` (number kind `transformation`, TF) takes kg of one lot at one place and
   creates a new lot of the output product at that place; unit cost = (kg taken × source cost + fee) / kg obtained,
   rounded to the millime. Never more kg obtained than taken.
 - The new lot keeps the source lot's supplier, receipt day (its place in FEFO/FIFO when it has no use-by date), VAT
-  (D-202) and origin (D-299); its use-by date is typed or the source's.
+  (D-202) and origin (D-302); its use-by date is typed or the source's.
 - Two movement kinds, `transformation_out` (from the place) and `transformation_in` (to it). The lot result counts
   `transformation_out` like a supplier return (no longer the source's cost) and `transformation_in` as kg received;
   the month roll-forward lists both; `transformation_out` makes the source lot "valued" (its cost no longer changes).
@@ -4144,7 +4144,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   for it is not recorded here. Provisional (Q30): a lot shared with a partner cannot be transformed, and an expired
   lot never is.
 
-**D-302 · A direct BL is validated "à livrer" and takes its stock out at the delivery (bug 11, P1-T26)** · accepted (owner answer 2026-11-08) · 2026-11-09
+**D-305 · A direct BL is validated "à livrer" and takes its stock out at the delivery (bug 11, P1-T26)** · accepted (owner answer 2026-11-08) · 2026-11-09
 - Owner: "At delivery" for every BL; counter sales are delivered at once. A direct office BL (from a cold room selling
   at the counter, no truck load) gets `issue_sale`: the same step a load's BL takes at the load (D-178, `_issue_load_bl`):
   BL number, version 1, `delivery_status` "to_deliver", status still draft, nothing posted.
@@ -4152,5 +4152,5 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   when changed) and `cancel_delivery` ("non livré"), now also from the office (`POST /sales/{id}/deliver`,
   `/not-delivered`, owner or manager). `confirm_sale` on a BL to deliver still means "livré as written".
 - The office's immediate validation stays for the counter ("Livré tout de suite (comptoir)", same service).
-- Stock is checked at "à livrer" (sellable kg, D-296) and again at the delivery; nothing is reserved between the two
+- Stock is checked at "à livrer" (sellable kg, D-299) and again at the delivery; nothing is reserved between the two
   (provisional: reservations would need a new ledger state).

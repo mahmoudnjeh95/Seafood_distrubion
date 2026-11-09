@@ -219,7 +219,7 @@ def movements_of(
 # One part of a quantity taken from one batch.
 type Allocation = tuple[Batch, Decimal]
 
-# The order stock leaves a place (D-296): the lot that expires first, then the oldest receipt (FEFO, FIFO as the
+# The order stock leaves a place (D-299): the lot that expires first, then the oldest receipt (FEFO, FIFO as the
 # tiebreak). A lot without a use-by date comes after the dated ones. The cost stays the lot's own (Q7).
 PICK_ORDER = (F("batch__use_by").asc(nulls_last=True), "batch__received_on", "batch_id")
 
@@ -230,7 +230,7 @@ def pick_order_key(batch: Batch) -> tuple[bool, dt.date, dt.date, int]:
 
 
 def is_expired(batch: Batch, day: dt.date) -> bool:
-    """A lot past its use-by date on `day`: it is never sold nor loaded on a truck, only thrown away (D-296).
+    """A lot past its use-by date on `day`: it is never sold nor loaded on a truck, only thrown away (D-299).
     The use-by day itself still sells."""
     return batch.use_by is not None and batch.use_by < day
 
@@ -249,7 +249,7 @@ def expired_lot_error(batch: Batch) -> ValidationError:
 
 def holdings_oldest_first(organization: Organization, *, product_id: int, location_id: int) -> QuerySet[StockOnHand]:
     """What one location holds of one product, per batch, in the order it leaves: first to expire, then oldest
-    receipt (`PICK_ORDER`, D-296)."""
+    receipt (`PICK_ORDER`, D-299)."""
     return (
         StockOnHand.objects.for_organization(organization)
         .filter(product_id=product_id, location_id=location_id, quantity__gt=0)
@@ -267,7 +267,7 @@ def location_batches(organization: Organization, *, product_id: int, location_id
     hand on a sale (overriding FIFO). Each row carries its batch (with the supplier) and the location.
 
     Shown as a hint only (which cold room, which supplier): never printed on a devis or a BL. Expired lots are left
-    out: they cannot be sold (D-296).
+    out: they cannot be sold (D-299).
     """
     rows = holdings_oldest_first(organization, product_id=product_id, location_id=location_id)
     return _not_expired(rows, timezone.localdate()).select_related("location")
@@ -276,7 +276,7 @@ def location_batches(organization: Organization, *, product_id: int, location_id
 def product_batches(organization: Organization, *, product_id: int) -> QuerySet[StockOnHand]:
     """The lots of one product in every cold room (not on the trucks), oldest first: for picking a lot on a quote
     or a sale before its place is known (D-201). Each row carries its batch, supplier and location. First to expire
-    first; expired lots are left out (D-296)."""
+    first; expired lots are left out (D-299)."""
     rows = (
         StockOnHand.objects.for_organization(organization)
         .filter(product_id=product_id, quantity__gt=0)
@@ -406,7 +406,7 @@ def held_by_location(
     organization: Organization, *, product_id: int, location_ids: list[int], day: dt.date, skip_expired: bool = False
 ) -> dict[int, Decimal]:
     """Kilos of one product per place, counting only the lots received by `day` (what a movement of that day may
-    take, D-106), and with `skip_expired` only the lots not past their use-by date that day (D-296)."""
+    take, D-106), and with `skip_expired` only the lots not past their use-by date that day (D-299)."""
     held: QuerySet[StockOnHand] = StockOnHand.objects.filter(
         organization=organization,
         product_id=product_id,
@@ -430,7 +430,7 @@ def not_enough_stock(available: Decimal, location: StockLocation) -> ValidationE
 
 
 def not_enough_unexpired_stock(available: Decimal, expired: Decimal, location: StockLocation) -> ValidationError:
-    """Short because some lots are past their use-by date (D-296)."""
+    """Short because some lots are past their use-by date (D-299)."""
     return ValidationError(
         {
             "quantity": _(
@@ -642,7 +642,7 @@ def location_stock(
 ) -> list[dict[str, Any]]:
     """What one location holds per product (all batches together), by product name: `product_id`,
     `product__reference`, `product__name`, `quantity`. Products it does not hold are left out. With `sellable_on`,
-    only the lots not past their use-by date that day (what may still be sold, D-296)."""
+    only the lots not past their use-by date that day (what may still be sold, D-299)."""
     held: QuerySet[StockOnHand] = StockOnHand.objects.for_organization(organization).filter(
         location_id=location_id, quantity__gt=0
     )
@@ -1538,7 +1538,7 @@ def expiring_batches(organization: Organization, *, today: dt.date, within_days:
     ]
 
 
-# ---- Cold chain (D-300) ----
+# ---- Cold chain (D-303) ----
 
 
 def temperature_readings(
@@ -1605,7 +1605,7 @@ def cold_chain_overview(organization: Organization) -> list[ColdChainPlace]:
     return found
 
 
-# ---- Transformations (D-301) ----
+# ---- Transformations (D-304) ----
 
 
 def transformations_of(

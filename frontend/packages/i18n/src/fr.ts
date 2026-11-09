@@ -2263,7 +2263,7 @@ export const fr = {
       },
     },
     sales: {
-      // ---- A direct BL "à livrer" (D-302, bug 11) ----
+      // ---- A direct BL "à livrer" (D-305, bug 11) ----
       direct: {
         issue: "Valider (à livrer)",
         issued: "{{number}} validé, à livrer : le stock sortira à la livraison.",
@@ -2892,7 +2892,7 @@ export const fr = {
       payments: "Paiements",
       debts: "Dettes",
     },
-    // ---- Supplier credit notes (D-297) ----
+    // ---- Supplier credit notes (D-300) ----
     creditNotes: {
       title: "Avoirs fournisseurs",
       add: "Nouvel avoir fournisseur",
@@ -4257,7 +4257,7 @@ export const fr = {
       temperatures: "Températures",
       transformations: "Transformations",
     },
-    // ---- Transformations (D-301) ----
+    // ---- Transformations (D-304) ----
     transformations: {
       title: "Transformations",
       add: "Nouvelle transformation",
@@ -4294,7 +4294,7 @@ export const fr = {
         error: "La transformation n'a pas été enregistrée.",
       },
     },
-    // ---- Cold chain (D-300) ----
+    // ---- Cold chain (D-303) ----
     coldChain: {
       title: "Températures",
       intro:
@@ -6435,7 +6435,7 @@ export const fr = {
       retry: "Réessayer",
       giveBack: "Rendre l'invendu",
     },
-    // ---- The truck box's temperature (D-300) ----
+    // ---- The truck box's temperature (D-303) ----
     temperature: {
       title: "Température du camion",
       save: "Noter",

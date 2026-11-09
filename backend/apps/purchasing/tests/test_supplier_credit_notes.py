@@ -1,4 +1,4 @@
-"""Supplier credit notes (avoirs fournisseurs, D-297): returns leave the stock, weight gaps and price cuts lower what
+"""Supplier credit notes (avoirs fournisseurs, D-300): returns leave the stock, weight gaps and price cuts lower what
 we owe; the credit settles its invoice, then the other open ones, and the rest waits for the next invoice."""
 
 import datetime as dt

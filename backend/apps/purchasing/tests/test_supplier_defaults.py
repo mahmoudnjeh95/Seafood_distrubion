@@ -1,4 +1,4 @@
-"""A supplier's usual deal and the total typed from the supplier's paper (D-298)."""
+"""A supplier's usual deal and the total typed from the supplier's paper (D-301)."""
 
 import datetime as dt
 from decimal import Decimal

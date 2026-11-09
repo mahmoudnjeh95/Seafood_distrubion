@@ -89,7 +89,7 @@ class ReceiptLineFields(TypedDict, total=False):
     accepted_quantity: Number
     unit_cost: Number
     use_by: dt.date | None
-    # Where the fish comes from (D-299), copied onto the lot.
+    # Where the fish comes from (D-302), copied onto the lot.
     catch_area: str
     production_method: str
     origin: str
@@ -924,7 +924,7 @@ def _locked_receipts(
 
 
 def _checked_paper_total(value: Number | None, errors: dict[str, str]) -> Decimal | None:
-    """The total typed from the supplier's paper (D-298), or None when not typed."""
+    """The total typed from the supplier's paper (D-301), or None when not typed."""
     if value is None or value == "":
         return None
     try:
@@ -1026,7 +1026,7 @@ def _post(invoice: SupplierInvoice, actor: User | None) -> None:
         target=invoice,
         after=_invoice_snapshot(invoice),
     )
-    # A credit note the supplier gave before this invoice settles it first (D-297).
+    # A credit note the supplier gave before this invoice settles it first (D-300).
     _apply_credits(invoice, selectors.unapplied_credit_notes(invoice.organization, supplier_id=invoice.supplier_id))
 
 
@@ -3087,7 +3087,7 @@ def cancel_price_request(*, request: PriceRequest, actor: User | None) -> PriceR
     return locked
 
 
-# ---- Supplier credit notes (avoirs fournisseurs, D-297) ----
+# ---- Supplier credit notes (avoirs fournisseurs, D-300) ----
 
 
 def credit_line_error_key(index: int, field: str) -> str:
@@ -3252,7 +3252,7 @@ def create_credit_note(
     lines: Sequence[Mapping[str, Any]],
     supplier_reference: str = "",
 ) -> SupplierCreditNote:
-    """Save an avoir fournisseur (D-297): per receipt line, kilos sent back (they leave the stock as a supplier
+    """Save an avoir fournisseur (D-300): per receipt line, kilos sent back (they leave the stock as a supplier
     return, from the place named), kilos invoiced but never accepted, or a price cut per kg. VAT is given back at the
     receipt's rate when it was bought with VAT. It settles its invoice first, then the supplier's other open invoices;
     the rest waits for the next invoice. Saved once, never edited nor deleted."""

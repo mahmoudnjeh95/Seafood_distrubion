@@ -1,4 +1,4 @@
-"""A lot's origin and its recall sheet (D-299): who kept kilos of it, and where the rest is."""
+"""A lot's origin and its recall sheet (D-302): who kept kilos of it, and where the rest is."""
 
 import datetime as dt
 from decimal import Decimal

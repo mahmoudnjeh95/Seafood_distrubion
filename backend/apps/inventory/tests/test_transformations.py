@@ -1,4 +1,4 @@
-"""Transformations (D-301): kilos of a lot become a new lot of another product; the fee and the weight lost go into
+"""Transformations (D-304): kilos of a lot become a new lot of another product; the fee and the weight lost go into
 the new lot's cost, and each lot's result counts only its own kilos."""
 
 import datetime as dt

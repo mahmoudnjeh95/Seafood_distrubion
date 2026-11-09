@@ -1,4 +1,4 @@
-"""The lot that expires first leaves first, and expired lots are never sold nor loaded (D-296)."""
+"""The lot that expires first leaves first, and expired lots are never sold nor loaded (D-299)."""
 
 import datetime as dt
 from decimal import Decimal

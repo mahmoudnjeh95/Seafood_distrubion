@@ -3,7 +3,7 @@ import { formatDate, formatQuantity, useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, EmptyState, Icon, PageHeader, Table, Td, Th } from "@frutti/ui";
 import { Link, useParams } from "react-router";
 
-/** The recall sheet of one lot (D-299): its origin, who kept kilos of it with their phone, and where the rest is.
+/** The recall sheet of one lot (D-302): its origin, who kept kilos of it with their phone, and where the rest is.
  * Printed from the browser. */
 export function LotRecallPage() {
   const { t } = useTranslation();

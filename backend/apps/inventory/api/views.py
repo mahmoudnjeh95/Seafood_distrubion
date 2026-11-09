@@ -219,7 +219,7 @@ class BatchDetailView(OfficeView):
 class BatchOriginView(OfficeView):
     @extend_schema(operation_id="updateBatchOrigin", request=BatchOriginWriteSerializer, responses=BatchSerializer)
     def post(self, request: Request, batch_id: int) -> Response:
-        """Complete or correct where a lot comes from (D-299). Information only, audited. Owner or manager."""
+        """Complete or correct where a lot comes from (D-302). Information only, audited. Owner or manager."""
         try:
             batch = selectors.batch_of(self.organization, batch_id)
         except Batch.DoesNotExist:
@@ -478,7 +478,7 @@ class MyStockView(APIView):
             raise Http404
         now = timezone.now()
         rows = []
-        # Expired lots are not offered: they cannot be sold, only returned and thrown away (D-296).
+        # Expired lots are not offered: they cannot be sold, only returned and thrown away (D-299).
         today = timezone.localdate()
         for row in selectors.location_stock(membership.organization, location_id=truck.location_id, sellable_on=today):
             product = catalog.product_of(membership.organization, row["product_id"])
@@ -924,7 +924,7 @@ class MovementListView(OfficeView, ListAPIView[Any]):
         return super().get(request, *args, **kwargs)
 
 
-# ---- Cold chain (D-300) ----
+# ---- Cold chain (D-303) ----
 
 
 class TemperatureListView(OfficeView, ListAPIView[TemperatureReading]):
@@ -1006,7 +1006,7 @@ class MyTemperatureView(APIView):
         responses={201: TemperatureReadingSerializer},
     )
     def post(self, request: Request) -> Response:
-        """The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+        """The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
         written once. 404 without a truck."""
         membership = membership_of(request)
         assert membership is not None  # guaranteed by the permission class
@@ -1028,7 +1028,7 @@ class MyTemperatureView(APIView):
         return Response(TemperatureReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
 
 
-# ---- Transformations (D-301) ----
+# ---- Transformations (D-304) ----
 
 
 class TransformationListView(OfficeView, ListAPIView[Transformation]):

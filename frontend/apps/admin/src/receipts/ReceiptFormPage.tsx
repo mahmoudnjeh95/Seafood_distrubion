@@ -153,9 +153,9 @@ export function ReceiptFormPage() {
   const [supplierReference, setSupplierReference] = useState("");
   // Bought with VAT: its lots are then sold and invoiced with VAT (D-202).
   const [withVat, setWithVat] = useState(false);
-  // Where the delivery comes from (D-299), copied onto each of its lots; a lot can be corrected later on its page.
+  // Where the delivery comes from (D-302), copied onto each of its lots; a lot can be corrected later on its page.
   const [catchArea, setCatchArea] = useState("");
-  // The goods' temperature at arrival (D-300), optional.
+  // The goods' temperature at arrival (D-303), optional.
   const [arrivalTemperature, setArrivalTemperature] = useState("");
   const [method, setMethod] = useState<"" | "wild" | "farmed">("");
   const [origin, setOrigin] = useState("");
@@ -458,7 +458,7 @@ export function ReceiptFormPage() {
             supplier,
             (value) => {
               setSupplier(value);
-              // The supplier's usual deal proposes "Achat avec TVA" (D-298); it can still be changed here.
+              // The supplier's usual deal proposes "Achat avec TVA" (D-301); it can still be changed here.
               const chosen = (suppliers.data ?? []).find((one) => String(one.id) === value);
               if (chosen) setWithVat(chosen.buys_with_vat);
               // An order belongs to one supplier: another supplier means no order.

@@ -50,7 +50,7 @@ function proposed(line: CreditableLine, kind: Choice): string {
   return "";
 }
 
-/** A new avoir fournisseur (D-297): per receipt line of the supplier, a return, a weight gap or a price cut. */
+/** A new avoir fournisseur (D-300): per receipt line of the supplier, a return, a weight gap or a price cut. */
 export function SupplierCreditNoteFormPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

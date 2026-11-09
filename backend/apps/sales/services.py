@@ -1144,12 +1144,12 @@ def _by_delivery_uuid(organization: Organization, delivery_uuid: uuid.UUID | Non
 
 @transaction.atomic
 def issue_sale(*, sale: Sale, actor: User | None) -> Sale:
-    """Validate a direct BL "à livrer" (D-302, bug 11): it takes its BL number and becomes version 1, printed and
+    """Validate a direct BL "à livrer" (D-305, bug 11): it takes its BL number and becomes version 1, printed and
     taken to the client, but nothing leaves the stock yet. The kilos leave at the delivery (`deliver_sale`, as written
     or changed at the door), or never ("non livré", `cancel_delivery`). A counter sale is still confirmed at once.
 
     Refused for a BL of a truck load (validated at the load), a sale held for credit approval, or a line asking more
-    than its place holds now (not expired, D-296): the stock is checked again at the delivery."""
+    than its place holds now (not expired, D-299): the stock is checked again at the delivery."""
     sale = _locked_draft_sale(sale)
     if sale.transfer_id is not None or sale.delivery_status:
         raise ValidationError(_("Ce bon est déjà validé pour la livraison."))

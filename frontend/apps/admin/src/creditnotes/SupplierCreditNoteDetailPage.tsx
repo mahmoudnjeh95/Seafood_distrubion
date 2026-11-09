@@ -3,7 +3,7 @@ import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti
 import { Card, CardTitle, EmptyState, PageHeader, Pill, Table, Td, Th } from "@frutti/ui";
 import { Link, useParams } from "react-router";
 
-/** One avoir fournisseur (D-297): its lines, VAT, and the invoices it settled. Never edited. */
+/** One avoir fournisseur (D-300): its lines, VAT, and the invoices it settled. Never edited. */
 export function SupplierCreditNoteDetailPage() {
   const { t } = useTranslation();
   const { creditNoteId } = useParams();

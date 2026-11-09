@@ -217,7 +217,7 @@ paths:
   /api/v1/batches/{batch_id}/origin:
     post:
       operationId: updateBatchOrigin
-      description: Complete or correct where a lot comes from (D-299). Information
+      description: Complete or correct where a lot comes from (D-302). Information
         only, audited. Owner or manager.
       parameters:
       - in: path
@@ -6703,7 +6703,7 @@ paths:
     post:
       operationId: recordMyTruckTemperature
       description: |-
-        The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+        The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
         written once. 404 without a truck.
       tags:
       - my-truck
@@ -10083,7 +10083,7 @@ paths:
     post:
       operationId: issueSale
       description: |-
-        Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+        Validate a direct BL "à livrer" (D-305): its BL number now, the stock at the delivery. Refused for a load's
         BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
       parameters:
       - in: path
@@ -10675,7 +10675,7 @@ paths:
   /api/v1/supplier-credit-notes:
     get:
       operationId: listSupplierCreditNotes
-      description: Supplier credit notes (avoirs fournisseurs, D-297), newest first,
+      description: Supplier credit notes (avoirs fournisseurs, D-300), newest first,
         paginated.
       parameters:
       - in: query
@@ -14768,7 +14768,7 @@ components:
       - quantity
     BatchOriginWrite:
       type: object
-      description: 'Where a lot comes from (D-299): FAO zone or farm, wild or farmed,
+      description: 'Where a lot comes from (D-302): FAO zone or farm, wild or farmed,
         boat or port.'
       properties:
         catch_area:
@@ -25933,7 +25933,7 @@ components:
       - supplier
     OfficeDeliver:
       type: object
-      description: 'The office records how a BL "à livrer" was delivered (D-302):
+      description: 'The office records how a BL "à livrer" was delivered (D-305):
         only the lines that changed.'
       properties:
         lines:

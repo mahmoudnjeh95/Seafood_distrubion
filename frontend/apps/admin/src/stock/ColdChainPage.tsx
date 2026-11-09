@@ -170,7 +170,7 @@ function PlaceCard({ place, canWrite }: { place: ColdChainPlace; canWrite: boole
   );
 }
 
-/** Stock › Températures (D-300): the HACCP log of the cold rooms and trucks. */
+/** Stock › Températures (D-303): the HACCP log of the cold rooms and trucks. */
 export function ColdChainPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

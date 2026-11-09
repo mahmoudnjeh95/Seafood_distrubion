@@ -114,7 +114,7 @@ def _is_driver_area(path: str, method: str) -> bool:
     if path.startswith(("/api/v1/trucks", "/api/v1/truck-assignments")):
         return reading or path.startswith("/api/v1/truck-assignments")
     if path.startswith("/api/v1/sales"):
-        # Cancelling a sale, choosing whether a BL is invoiced (D-286) and recording a direct BL's delivery (D-302)
+        # Cancelling a sale, choosing whether a BL is invoiced (D-286) and recording a direct BL's delivery (D-305)
         # are the office's; the driver delivers through /my-deliveries.
         return reading or not path.endswith(("/cancel", "/billing", "/deliver", "/not-delivered"))
     return False

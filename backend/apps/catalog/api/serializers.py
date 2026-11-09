@@ -98,7 +98,7 @@ class ProductUpdateSerializer(serializers.Serializer[Any]):
     reference = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
     name = serializers.CharField(max_length=150)
     name_ar = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
-    # The species' Latin name, printed with the lot's origin (D-299).
+    # The species' Latin name, printed with the lot's origin (D-302).
     scientific_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
     category = OrganizationCategoryField()
     min_stock = serializers.DecimalField(

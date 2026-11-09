@@ -148,7 +148,7 @@ class ReceiptSerializer(serializers.ModelSerializer[GoodsReceipt]):
     accepted_total = serializers.SerializerMethodField()
     # The supplier invoice it is on (draft or posted), or null while not invoiced.
     invoice = serializers.SerializerMethodField()
-    # The arrival temperature is outside the storage range of one of its products (D-300).
+    # The arrival temperature is outside the storage range of one of its products (D-303).
     arrival_temperature_out_of_range = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     # Every change made after saving, oldest first (D-269); `revision` is the number of the last one.
@@ -247,7 +247,7 @@ class ReceiptLineWriteSerializer(serializers.Serializer[Any]):
     accepted_quantity = serializers.CharField(allow_blank=True)
     unit_cost = serializers.CharField(allow_blank=True)
     use_by = serializers.DateField(required=False, allow_null=True, default=None)
-    # Where the fish comes from (D-299): FAO zone or farm, wild or farmed, boat or port. Optional.
+    # Where the fish comes from (D-302): FAO zone or farm, wild or farmed, boat or port. Optional.
     catch_area = serializers.CharField(max_length=60, required=False, allow_blank=True, default="")
     production_method = serializers.ChoiceField(
         choices=ProductionMethod.choices, required=False, allow_blank=True, default=""
@@ -274,7 +274,7 @@ class ReceiptWriteSerializer(serializers.Serializer[Any]):
     supplier_reference = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     # Bought with VAT: what is sold from these lots must be invoiced with VAT (D-202).
     with_vat = serializers.BooleanField(required=False, default=False)
-    # The goods' temperature at arrival, in °C (D-300).
+    # The goods' temperature at arrival, in °C (D-303).
     arrival_temperature = serializers.DecimalField(
         max_digits=4,
         decimal_places=1,
@@ -580,7 +580,7 @@ class SupplierInvoiceUpdateSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, allow_null=True, default=None
     )
-    # The total printed on the supplier's paper, typed to check it against ours (D-298); null when not typed.
+    # The total printed on the supplier's paper, typed to check it against ours (D-301); null when not typed.
     paper_total = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, allow_null=True, default=None
     )
@@ -858,7 +858,7 @@ class SupplierBalanceSerializer(serializers.Serializer[Any]):
     balance = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     # What the balance write-offs gave up (D-252): a gain on this supplier, not paid.
     written_off = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
-    # The supplier's credit notes (D-297), and what of them waits for an invoice to settle.
+    # The supplier's credit notes (D-300), and what of them waits for an invoice to settle.
     credited = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     credit_unapplied = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
     outstanding = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)

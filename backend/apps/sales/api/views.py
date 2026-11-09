@@ -541,7 +541,7 @@ class SaleIssueView(SaleView):
 
     @extend_schema(operation_id="issueSale", request=None, responses=SaleDetailSerializer)
     def post(self, request: Request, sale_id: int) -> Response:
-        """Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+        """Validate a direct BL "à livrer" (D-305): its BL number now, the stock at the delivery. Refused for a load's
         BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`)."""
         services.issue_sale(sale=self.sale(sale_id), actor=self.membership.user)
         return self.answer(sale_id)

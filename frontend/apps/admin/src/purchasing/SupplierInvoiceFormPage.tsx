@@ -111,7 +111,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   const [notes, setNotes] = useState(invoice?.notes ?? "");
   // The supplier's droit de timbre (D-294): empty follows the default, typed is kept as typed.
   const [stamp, setStamp] = useState(() => (invoice?.fiscal_stamp_overridden ? invoice.fiscal_stamp : ""));
-  // The total printed on the supplier's paper (D-298), to check it against ours.
+  // The total printed on the supplier's paper (D-301), to check it against ours.
   const [paperTotal, setPaperTotal] = useState(invoice?.paper_total ?? "");
   const settings = useGetFinanceSettings();
   // `?reception=12` (from the "Documents" page) ticks that receipt on a new invoice.
@@ -126,7 +126,7 @@ function InvoiceForm({ invoice }: { invoice?: SupplierInvoice }) {
   // "Valider et en faire une autre": stay on the form with the same supplier for the next invoice (D-200).
   const again = useRef(false);
 
-  // The supplier's usual days to pay (D-298), else 30 days.
+  // The supplier's usual days to pay (D-301), else 30 days.
   const supplierDays = (suppliers.data ?? []).find((one) => String(one.id) === supplier)?.payment_terms_days;
   const shownDueDate = dueDate || addDays(invoiceDate, supplierDays ?? DEFAULT_PAYMENT_DAYS);
   const uninvoiced = useListReceipts(

@@ -44,7 +44,7 @@ class GoodsReceipt(OrganizationScopedModel, TimeStampedModel):
     supplier_reference = models.CharField(max_length=50, blank=True)
     # Bought with VAT: its lots are sold with VAT on the invoice (D-202).
     with_vat = models.BooleanField(default=False)
-    # The goods' temperature measured at arrival, in °C (D-300); empty when not measured.
+    # The goods' temperature measured at arrival, in °C (D-303); empty when not measured.
     arrival_temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     notes = models.TextField(blank=True)
     # The number of the last change made after saving (D-269): a change must name it, so two people never
@@ -364,7 +364,7 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp_overridden = models.BooleanField(default=False)
     # What is owed: without VAT + VAT + stamp, kept by the services; frozen once posted.
     total = MoneyField(default=Decimal("0.000"))
-    # The total printed on the supplier's paper, typed to check it (D-298); empty when not typed. A difference with
+    # The total printed on the supplier's paper, typed to check it (D-301); empty when not typed. A difference with
     # `total` is shown, never corrected by itself: the receipts are what we owe.
     paper_total = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     notes = models.TextField(blank=True)
@@ -638,7 +638,7 @@ class SupplierCreditKind(models.TextChoices):
 
 
 class SupplierCreditNote(OrganizationScopedModel, TimeStampedModel):
-    """An avoir fournisseur (D-297): what a supplier gives back on goods it charged us, line by line against its
+    """An avoir fournisseur (D-300): what a supplier gives back on goods it charged us, line by line against its
     receipts. It lowers what we owe; it is never edited nor deleted once saved (a mistake is corrected by the
     supplier's next invoice or another document).
 
@@ -710,7 +710,7 @@ class SupplierCreditNoteLine(OrganizationScopedModel):
 
 class SupplierCreditAllocation(OrganizationScopedModel, TimeStampedModel):
     """The part of a supplier credit note that settles one invoice. Written when the credit note is saved, or when a
-    later invoice is posted while some of it was left (D-297)."""
+    later invoice is posted while some of it was left (D-300)."""
 
     credit_note = models.ForeignKey(SupplierCreditNote, on_delete=models.PROTECT, related_name="allocations")
     invoice = models.ForeignKey(SupplierInvoice, on_delete=models.PROTECT, related_name="credit_allocations")

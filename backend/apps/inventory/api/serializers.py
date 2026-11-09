@@ -102,7 +102,7 @@ class BatchSerializer(serializers.ModelSerializer[Batch]):
 
 
 class BatchOriginWriteSerializer(serializers.Serializer[Any]):
-    """Where a lot comes from (D-299): FAO zone or farm, wild or farmed, boat or port."""
+    """Where a lot comes from (D-302): FAO zone or farm, wild or farmed, boat or port."""
 
     catch_area = serializers.CharField(max_length=60, allow_blank=True)
     production_method = serializers.ChoiceField(choices=ProductionMethod.choices, allow_blank=True)
@@ -763,7 +763,7 @@ class RoadReturnSerializer(serializers.Serializer[Any]):
     total_quantity = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
 
-# ---- Cold chain (D-300) ----
+# ---- Cold chain (D-303) ----
 
 
 class TemperatureReadingSerializer(serializers.ModelSerializer[TemperatureReading]):
@@ -821,7 +821,7 @@ class ColdChainPlaceSerializer(serializers.Serializer[Any]):
     alerts_7_days = serializers.IntegerField(read_only=True)
 
 
-# ---- Transformations (D-301) ----
+# ---- Transformations (D-304) ----
 
 
 class TransformationLotSerializer(serializers.Serializer[Any]):

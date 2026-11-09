@@ -1,4 +1,4 @@
-"""Supplier credit notes (avoirs fournisseurs, D-297): goods sent back, kilos invoiced not accepted, price cuts."""
+"""Supplier credit notes (avoirs fournisseurs, D-300): goods sent back, kilos invoiced not accepted, price cuts."""
 
 from typing import Any
 
@@ -176,7 +176,7 @@ class CreditNoteListView(PurchasingView, ListAPIView[SupplierCreditNote]):
 
     @extend_schema(operation_id="listSupplierCreditNotes", parameters=[SupplierCreditNoteFilterSerializer])
     def get(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """Supplier credit notes (avoirs fournisseurs, D-297), newest first, paginated."""
+        """Supplier credit notes (avoirs fournisseurs, D-300), newest first, paginated."""
         return super().get(request, *args, **kwargs)
 
     @extend_schema(

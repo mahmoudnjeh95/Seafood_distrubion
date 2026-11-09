@@ -33,11 +33,11 @@ class Supplier(OrganizationScopedModel, TimeStampedModel):
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
-    # The usual deal (D-298): days to pay an invoice (empty: the 30-day default), and whether its goods come with VAT.
+    # The usual deal (D-301): days to pay an invoice (empty: the 30-day default), and whether its goods come with VAT.
     # Both only propose a value on the receipt and invoice forms; each document keeps its own.
     payment_terms_days = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MaxValueValidator(365)])
     buys_with_vat = models.BooleanField(default=False)
-    # The supplier's health approval number ("agrément sanitaire"), printed with its lots' origin (D-299).
+    # The supplier's health approval number ("agrément sanitaire"), printed with its lots' origin (D-302).
     health_approval = models.CharField(max_length=50, blank=True)
     # Archived suppliers keep their history but cannot be bought from.
     is_active = models.BooleanField(default=True)

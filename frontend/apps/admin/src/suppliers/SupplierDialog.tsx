@@ -99,7 +99,7 @@ export function SupplierDialog({
       : { ...EMPTY, name: start?.name ?? "", phone: start?.phone ?? "" },
   );
   const [contacts, setContacts] = useState<ContactRow[]>(() => supplier?.contacts.map(contactRow) ?? []);
-  // The usual deal (D-298): days to pay (empty: 30) and goods bought with VAT.
+  // The usual deal (D-301): days to pay (empty: 30) and goods bought with VAT.
   const [termsDays, setTermsDays] = useState(() =>
     supplier?.payment_terms_days != null ? String(supplier.payment_terms_days) : "",
   );

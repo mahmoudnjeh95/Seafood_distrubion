@@ -46,7 +46,7 @@ from .models import (
 from .models import LocationKind as LocationKind  # re-exported for apps that create locations
 from .models import LossReason as LossReason  # re-exported for apps that record losses
 from .models import MovementKind as MovementKind  # re-exported for apps that post movements
-from .models import ProductionMethod as ProductionMethod  # re-exported for the receipt lines (D-299)
+from .models import ProductionMethod as ProductionMethod  # re-exported for the receipt lines (D-302)
 
 if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
@@ -413,10 +413,10 @@ def post_fifo_movements(
     skip_expired: bool | None = None,
 ) -> list[StockMovement]:
     """Take `quantity` kg of a product out of `from_location`, first to expire first then oldest receipt
-    (`selectors.PICK_ORDER`, D-296), one movement per batch.
+    (`selectors.PICK_ORDER`, D-299), one movement per batch.
 
     With `skip_expired` (the default for a sale; a transfer asks it for a truck load), a lot past its use-by date
-    on the movement's day is never taken, and picking one by hand is refused (D-296): expired kilos only leave
+    on the movement's day is never taken, and picking one by hand is refused (D-299): expired kilos only leave
     as a loss.
 
     Used by transfers, sales and losses: nobody picks batches by hand (D-009) — except a sale line may ask
@@ -1063,7 +1063,7 @@ def _post_line_from(
             source=line,
             occurred_at=occurred_at,
             picks=picks,
-            # Expired kilos never go onto a truck; they may still come back from one or move between rooms (D-296).
+            # Expired kilos never go onto a truck; they may still come back from one or move between rooms (D-299).
             skip_expired=transfer.kind == TransferKind.LOAD,
         )
 
@@ -1667,7 +1667,7 @@ def correct_batch(
 def update_lot_origin(
     *, batch: Batch, actor: User | None, catch_area: str, production_method: str, origin: str
 ) -> Batch:
-    """Complete or correct where a lot comes from (D-299): information only, never valued, so it may change at any
+    """Complete or correct where a lot comes from (D-302): information only, never valued, so it may change at any
     time; every change is audited."""
     if production_method and production_method not in ProductionMethod.values:
         raise ValidationError({"production_method": _("Choisissez pêché ou élevé.")})
@@ -1688,7 +1688,7 @@ def update_lot_origin(
     return batch
 
 
-# ---- Cold chain (D-300) ----
+# ---- Cold chain (D-303) ----
 
 MIN_CELSIUS = Decimal("-60.0")
 MAX_CELSIUS = Decimal("60.0")
@@ -1717,7 +1717,7 @@ def outside_range(celsius: Decimal, low: Decimal | None, high: Decimal | None) -
 def set_temperature_range(
     *, location: StockLocation, actor: User | None, temp_min: Any, temp_max: Any
 ) -> StockLocation:
-    """The temperature a cold room or a truck must keep (D-300); empty ends are open."""
+    """The temperature a cold room or a truck must keep (D-303); empty ends are open."""
     errors: dict[str, str] = {}
     low = _checked_celsius(temp_min, "temp_min", errors)
     high = _checked_celsius(temp_max, "temp_max", errors)
@@ -1750,7 +1750,7 @@ def record_temperature(
     note: str = "",
     client_uuid: uuid.UUID | None = None,
 ) -> TemperatureReading:
-    """Write one temperature read in a cold room or a truck (D-300). Outside the location's range it is flagged and
+    """Write one temperature read in a cold room or a truck (D-303). Outside the location's range it is flagged and
     the office is told (notification `temperature_alert`). A retried `client_uuid` returns the first reading."""
     if client_uuid is not None:
         found = TemperatureReading.objects.filter(organization=location.organization, client_uuid=client_uuid).first()
@@ -1789,7 +1789,7 @@ def record_temperature(
     return reading
 
 
-# ---- Transformations (D-301) ----
+# ---- Transformations (D-304) ----
 
 
 @transaction.atomic
@@ -1813,7 +1813,7 @@ def create_transformation(
     The new lot keeps the source's supplier, receipt day, VAT and origin; its cost per kg is (source kg × source cost
     + `fee`) / kg obtained, rounded to the millime, so the weight lost is carried by it. Refused (ValidationError per
     field): more kg out than held, more kg obtained than taken, an expired source lot, a negative fee, or a lot shared
-    with a partner (provisional, D-301)."""
+    with a partner (provisional, D-304)."""
     from apps.partnerships import selectors as partnerships  # partnerships reads inventory: imported here, not above
 
     errors: dict[str, str] = {}

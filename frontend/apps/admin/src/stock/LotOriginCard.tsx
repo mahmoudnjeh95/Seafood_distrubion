@@ -19,7 +19,7 @@ import { Link } from "react-router";
 
 type Method = BatchOriginWrite["production_method"];
 
-/** Where a lot comes from (D-299): Latin name, FAO zone or farm, wild or farmed, boat or port, health approval;
+/** Where a lot comes from (D-302): Latin name, FAO zone or farm, wild or farmed, boat or port, health approval;
  * completed later by the office, and the lot's recall sheet. */
 export function LotOriginCard({ batch, canEdit }: { batch: Batch; canEdit: boolean }) {
   const { t } = useTranslation();

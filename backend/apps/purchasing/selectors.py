@@ -252,7 +252,7 @@ def _sum_of_allocations(**match: Any) -> Coalesce:
 
 
 def _sum_of_credits(**match: Any) -> Coalesce:
-    """What supplier credit notes settled on the invoices matching `match` (an OuterRef), as a subquery (D-297)."""
+    """What supplier credit notes settled on the invoices matching `match` (an OuterRef), as a subquery (D-300)."""
     group = next(iter(match))
     allocations = (
         SupplierCreditAllocation.objects.filter(**match)
@@ -513,7 +513,7 @@ class SupplierBalance:
     paid: Decimal  # every payment, allocated or not
     balance: Decimal
     written_off: Decimal  # what the balance write-offs gave up (D-252): a gain, not paid
-    credited: Decimal  # the supplier's credit notes (D-297)
+    credited: Decimal  # the supplier's credit notes (D-300)
     credit_unapplied: Decimal  # of those, still waiting for an invoice to settle
     outstanding: Decimal  # still to pay on posted invoices
     unallocated: Decimal  # paid but not allocated to an invoice yet (advances)
@@ -1289,7 +1289,7 @@ def price_request_of(organization: Organization, request_id: int) -> PriceReques
     return price_requests_of(organization).get(pk=request_id)
 
 
-# ---- Supplier credit notes (avoirs fournisseurs, D-297) ----
+# ---- Supplier credit notes (avoirs fournisseurs, D-300) ----
 
 
 def credit_notes_of(
@@ -1352,7 +1352,7 @@ def credited_by_receipt_line(line_ids: Iterable[int]) -> dict[int, dict[str, Dec
 @dataclass(frozen=True)
 class CreditableLine:
     """One receipt line of a supplier that a credit note may still take: its lot, its weights and costs and what
-    is left to credit (D-297)."""
+    is left to credit (D-300)."""
 
     receipt_line_id: int
     receipt_id: int
@@ -1424,7 +1424,7 @@ def creditable_lines(
 
 @dataclass(frozen=True)
 class WeightGap:
-    """Per supplier, the kilos invoiced but never accepted that no credit note claimed yet (D-297)."""
+    """Per supplier, the kilos invoiced but never accepted that no credit note claimed yet (D-300)."""
 
     supplier_id: int
     supplier_name: str
@@ -1460,7 +1460,7 @@ def weight_gaps(organization: Organization) -> list[WeightGap]:
 
 
 def price_credits_of_batch(organization: Organization, *, batch_id: int) -> QuerySet[SupplierCreditNoteLine]:
-    """The price cuts a supplier gave on one lot (D-297): a gain on the lot's result, oldest first."""
+    """The price cuts a supplier gave on one lot (D-300): a gain on the lot's result, oldest first."""
     return (
         SupplierCreditNoteLine.objects.for_organization(organization)
         .filter(batch_id=batch_id, kind=SupplierCreditKind.PRICE)

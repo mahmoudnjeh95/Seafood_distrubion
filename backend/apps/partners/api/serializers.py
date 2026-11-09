@@ -61,13 +61,13 @@ class SupplierWriteSerializer(serializers.Serializer[Any]):
     address = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
     city = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="", max_length=2000)
-    # Days to pay an invoice by default (D-298); empty: 30 days.
+    # Days to pay an invoice by default (D-301); empty: 30 days.
     payment_terms_days = serializers.IntegerField(
         required=False, allow_null=True, default=None, min_value=0, max_value=365
     )
-    # Its goods come with VAT: the receipt form ticks "Achat avec TVA" (D-298).
+    # Its goods come with VAT: the receipt form ticks "Achat avec TVA" (D-301).
     buys_with_vat = serializers.BooleanField(required=False, default=False)
-    # The supplier's health approval number ("agrément sanitaire", D-299).
+    # The supplier's health approval number ("agrément sanitaire", D-302).
     health_approval = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     # The whole list: on a change it replaces the contacts; left out, they are kept.
     contacts = SupplierContactSerializer(many=True, required=False)

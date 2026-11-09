@@ -1251,7 +1251,7 @@ export const getUpdateBatchOriginUrl = (batchId: number,) => {
 }
 
 /**
- * Complete or correct where a lot comes from (D-299). Information only, audited. Owner or manager.
+ * Complete or correct where a lot comes from (D-302). Information only, audited. Owner or manager.
  */
 export const updateBatchOrigin = async (batchId: number,
     batchOriginWrite: BatchOriginWrite, options?: Parameters<typeof apiFetch>[1]): Promise<Batch> => {
@@ -21672,7 +21672,7 @@ export const getRecordMyTruckTemperatureUrl = () => {
 }
 
 /**
- * The driver writes the temperature of their truck's box (D-300). Retried with the same `client_uuid`, it is
+ * The driver writes the temperature of their truck's box (D-303). Retried with the same `client_uuid`, it is
  * written once. 404 without a truck.
  */
 export const recordMyTruckTemperature = async (myTemperatureWrite: MyTemperatureWrite, options?: Parameters<typeof apiFetch>[1]): Promise<TemperatureReading> => {
@@ -32067,7 +32067,7 @@ export const getIssueSaleUrl = (saleId: number,) => {
 }
 
 /**
- * Validate a direct BL "à livrer" (D-302): its BL number now, the stock at the delivery. Refused for a load's
+ * Validate a direct BL "à livrer" (D-305): its BL number now, the stock at the delivery. Refused for a load's
  * BL, a sale held for credit approval, or a line above what the place holds (`lines.<index>.quantity`).
  */
 export const issueSale = async (saleId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
@@ -33747,7 +33747,7 @@ export const getListSupplierCreditNotesUrl = (params?: ListSupplierCreditNotesPa
 }
 
 /**
- * Supplier credit notes (avoirs fournisseurs, D-297), newest first, paginated.
+ * Supplier credit notes (avoirs fournisseurs, D-300), newest first, paginated.
  */
 export const listSupplierCreditNotes = async (params?: ListSupplierCreditNotesParams, options?: Parameters<typeof apiFetch>[1]): Promise<PaginatedSupplierCreditNoteList> => {
 

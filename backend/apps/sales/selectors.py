@@ -1312,7 +1312,7 @@ def refunds_of(
     return refunds
 
 
-# ---- Lot recall (D-299) ----
+# ---- Lot recall (D-302) ----
 
 
 @dataclass(frozen=True)

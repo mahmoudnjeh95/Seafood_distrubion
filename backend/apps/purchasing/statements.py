@@ -66,7 +66,7 @@ class StatementPayment:
 
 @dataclass(frozen=True)
 class StatementEntry:
-    kind: str  # "invoice", "payment", "rejected", "written_off" (D-252), "credit_note" (D-297)
+    kind: str  # "invoice", "payment", "rejected", "written_off" (D-252), "credit_note" (D-300)
     day: dt.date
     number: str
     reference: str
@@ -136,7 +136,7 @@ def supplier_statement(
         supplier_id=supplier_id, written_on__lte=date_to
     )
     moves += [(row.written_on, 3, row.pk, "written_off", "", row.reason, -row.amount) for row in write_offs]
-    # What the supplier's credit notes gave back (D-297).
+    # What the supplier's credit notes gave back (D-300).
     credits = SupplierCreditNote.objects.for_organization(organization).filter(
         supplier_id=supplier_id, credited_on__lte=date_to
     )

@@ -73,7 +73,7 @@ class Product(OrganizationScopedModel, TimeStampedModel):
     reference = models.CharField(max_length=30)
     name = models.CharField(max_length=150)
     name_ar = models.CharField(max_length=150, blank=True)
-    # The species' Latin name ("Dicentrarchus labrax"), printed with the lot's origin (D-299).
+    # The species' Latin name ("Dicentrarchus labrax"), printed with the lot's origin (D-302).
     scientific_name = models.CharField(max_length=150, blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     base_unit = models.ForeignKey(Unit, on_delete=models.PROTECT, related_name="+")

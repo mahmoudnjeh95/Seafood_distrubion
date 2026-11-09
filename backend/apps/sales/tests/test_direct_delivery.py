@@ -1,4 +1,4 @@
-"""A direct BL "à livrer" (D-302, bug 11): validated with its number, the stock leaves only at the delivery."""
+"""A direct BL "à livrer" (D-305, bug 11): validated with its number, the stock leaves only at the delivery."""
 
 import datetime as dt
 from decimal import Decimal

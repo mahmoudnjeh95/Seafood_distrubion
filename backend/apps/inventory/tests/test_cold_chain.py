@@ -1,4 +1,4 @@
-"""Cold-chain readings (D-300): a range per place, readings outside it flagged and told to the office."""
+"""Cold-chain readings (D-303): a range per place, readings outside it flagged and told to the office."""
 
 from decimal import Decimal
 

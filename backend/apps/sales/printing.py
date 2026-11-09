@@ -286,7 +286,7 @@ def _removed_at_delivery(sale: Sale) -> list[dict[str, Any]]:
 
 
 def lot_origin_text(batch: Any) -> str:
-    """Where a lot comes from, as printed under its line (D-299): Latin name, FAO zone, wild or farmed, boat or port,
+    """Where a lot comes from, as printed under its line (D-302): Latin name, FAO zone, wild or farmed, boat or port,
     health approval. Empty when nothing of it is known."""
     parts = [
         batch.product.scientific_name,
@@ -327,7 +327,7 @@ def delivery_note_printable(organization: Organization, sale_id: int) -> documen
     lines = list(sale.lines.all())
     origins = _line_origins(lines)
     for line in lines:
-        # Read by the template under the product's name (D-299).
+        # Read by the template under the product's name (D-302).
         line.origin_text = origins.get(line.pk, "")  # type: ignore[attr-defined]
     sold_on = timezone.localtime(sale.sold_at).date()
     context: dict[str, Any] = {

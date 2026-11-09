@@ -7,7 +7,7 @@
 import type { BatchOriginWriteProductionMethod } from './batchOriginWriteProductionMethod';
 
 /**
- * Where a lot comes from (D-299): FAO zone or farm, wild or farmed, boat or port.
+ * Where a lot comes from (D-302): FAO zone or farm, wild or farmed, boat or port.
  */
 export interface BatchOriginWrite {
   /** @maxLength 60 */

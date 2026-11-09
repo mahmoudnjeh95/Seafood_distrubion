@@ -1,4 +1,4 @@
-"""Lot recall (D-299): who received a lot's kilos, and where the rest still is."""
+"""Lot recall (D-302): who received a lot's kilos, and where the rest still is."""
 
 from typing import Any
 

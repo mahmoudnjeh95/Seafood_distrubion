@@ -29,7 +29,7 @@ RECEIPT = "receipt"
 # A correction of what a goods receipt received (D-270): kg received, never written off.
 RECEIPT_CORRECTION = "receipt_correction"
 SUPPLIER_RETURN = "supplier_return"
-# Kilos turned into another lot (D-301): out of this lot's cost, into the new lot's.
+# Kilos turned into another lot (D-304): out of this lot's cost, into the new lot's.
 TRANSFORMATION_OUT = "transformation_out"
 TRANSFORMATION_IN = "transformation_in"
 
@@ -78,7 +78,7 @@ def _stock(organization: Organization, batch_id: int) -> _Stock:
         elif movement.kind == RECEIPT_CORRECTION and (leaves or enters):
             received += -movement.quantity if leaves else movement.quantity
         elif movement.kind in (SUPPLIER_RETURN, TRANSFORMATION_OUT) and leaves:
-            # Sent back to the supplier, or turned into another lot (D-301): no longer this lot's cost.
+            # Sent back to the supplier, or turned into another lot (D-304): no longer this lot's cost.
             returned += movement.quantity
         elif movement.kind in WRITE_OFF_KINDS and (leaves or enters):
             rows.append(
@@ -174,7 +174,7 @@ def _write_off_rows(organization: Organization, batch_id: int) -> tuple[engine.C
         )
         for share in purchasing.write_off_shares_of_batch(organization, batch_id=batch_id)
     ]
-    # A price cut the supplier gave on the lot's kilos (avoir fournisseur, D-297): the lot cost less. Returned kilos
+    # A price cut the supplier gave on the lot's kilos (avoir fournisseur, D-300): the lot cost less. Returned kilos
     # are already out of its purchase cost (kg received − returned), and a weight gap was never in it.
     rows += [
         engine.CostRow(

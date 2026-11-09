@@ -37,7 +37,7 @@ function newCost(taken: string | null, cost: string | undefined, fee: string | n
   return Number.isFinite(value) ? value.toFixed(3) : null;
 }
 
-/** A new transformation (D-301): kilos of one lot cleaned, filleted or downgraded into a new lot. */
+/** A new transformation (D-304): kilos of one lot cleaned, filleted or downgraded into a new lot. */
 export function TransformationFormPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();

@@ -8,7 +8,7 @@ import { Link, useNavigate, useOutletContext } from "react-router";
 import { StockTabs } from "../lib/StockTabs";
 import { canRecordReceipts } from "../receipts/shared";
 
-/** Stock › Transformations (D-301): cleaning, filleting, downgrading; each made a new lot. */
+/** Stock › Transformations (D-304): cleaning, filleting, downgrading; each made a new lot. */
 export function TransformationsPage() {
   const { t } = useTranslation();
   const session = useOutletContext<Session>();
