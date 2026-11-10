@@ -75,7 +75,7 @@ _Coarse plan: detail each task when the phase starts._
 - [x] Clôture mensuelle: each partner's share of the month's shared costs (rent, electricity, fuel,
       salaries), and the existing figures made clickable to where they come from. _Owner request, D-122._
 
-### P6-T08 · One purchase is one lot; partner on the products ticked · L → split (added 2026-11-10, D-310, Q31)
+### P6-T08 · One purchase is one lot; partner on the products ticked · L → split (added 2026-11-10, D-313, Q31)
 Owner: one achat is one lot, its products share the lot number; a partner may share only one or two of them.
 - [x] **T08a · Lot above the batch.** Model `inventory.Lot` (organization, number, supplier, received_on, source);
       `Batch.lot` FK; numbering `L-0042-1`; the receipt and the port purchase create one lot and one line per product;

@@ -179,7 +179,7 @@ def create_lot(
     received_on: dt.date,
     receipt_reference: str = "",
 ) -> Lot:
-    """A new lot for one purchase (D-310), with the next number; its products are added with `create_batch(lot=...)`."""
+    """A new lot for one purchase (D-313), with the next number; its products are added with `create_batch(lot=...)`."""
     lot = Lot.objects.create(
         organization=organization,
         number=numbering.next_number(organization, "batch"),
@@ -216,7 +216,7 @@ def create_batch(
 ) -> Batch:
     """A new batch, the line of a lot. Called by the goods receipt (P1-T07) and the demo data.
 
-    With `lot` (a purchase of several products, D-310), the batch is its next line, numbered "L-0042-2", of the
+    With `lot` (a purchase of several products, D-313), the batch is its next line, numbered "L-0042-2", of the
     lot's supplier and date. Without, the batch is alone in a new lot and carries the lot's number ("L-0042").
 
     Refused (ValidationError per field): a product or supplier of another organization or archived, a

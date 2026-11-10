@@ -81,7 +81,7 @@ class BatchSupplierSerializer(serializers.Serializer[Any]):
 class BatchSerializer(serializers.ModelSerializer[Batch]):
     product = BatchProductSerializer(read_only=True)
     supplier = BatchSupplierSerializer(read_only=True)
-    # The purchase this product came in (D-310): "L-0042", and the product's place in it.
+    # The purchase this product came in (D-313): "L-0042", and the product's place in it.
     lot_number = serializers.CharField(source="lot.number", read_only=True)
 
     class Meta:
