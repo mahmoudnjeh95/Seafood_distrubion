@@ -4,7 +4,7 @@ import pytest
 
 from apps.assistant import agent, tools
 from apps.assistant.models import AssistantMessage, Direction
-from apps.assistant.prompt import SYSTEM_PROMPT
+from apps.assistant.prompt import SPOKEN_LINE, SYSTEM_PROMPT
 from apps.assistant.tests.factories import WhatsAppLinkFactory
 from apps.assistant.tests.fakes import FakeClaude, response, text_block, tool_call
 from apps.core.models import Role
@@ -78,12 +78,27 @@ def test_refusal_gives_the_apology(owner):
 def test_history_alternates_and_starts_with_the_user(owner):
     link = WhatsAppLinkFactory.create(membership=owner)
     past = [
-        AssistantMessage.objects.create(organization=link.organization, link=link, direction=Direction.OUT, text="a"),
-        AssistantMessage.objects.create(organization=link.organization, link=link, direction=Direction.IN, text="b"),
-        AssistantMessage.objects.create(organization=link.organization, link=link, direction=Direction.IN, text="c"),
+        AssistantMessage.objects.create(
+            organization=link.organization, membership=link.membership, link=link, direction=Direction.OUT, text="a"
+        ),
+        AssistantMessage.objects.create(
+            organization=link.organization, membership=link.membership, link=link, direction=Direction.IN, text="b"
+        ),
+        AssistantMessage.objects.create(
+            organization=link.organization, membership=link.membership, link=link, direction=Direction.IN, text="c"
+        ),
     ]
     claude = FakeClaude(response(text_block("ok")))
     agent.reply(membership=owner, history=past, text="d", client=claude)
     turns = claude.requests[0]["messages"]
     assert [turn["role"] for turn in turns] == ["user", "assistant", "user"]
     assert turns[2]["content"] == "b\nc\nd"
+
+
+def test_a_dictated_question_asks_for_an_answer_to_read_aloud(owner):
+    claude = FakeClaude(response(text_block("ok")), response(text_block("ok")))
+    agent.reply(membership=owner, history=[], text="chnowa 3andi?", spoken=True, client=claude)
+    agent.reply(membership=owner, history=[], text="chnowa 3andi?", client=claude)
+    spoken, typed = (request["messages"][-1]["content"] for request in claude.requests)
+    assert spoken.endswith(SPOKEN_LINE)
+    assert "[Vocal]" not in typed

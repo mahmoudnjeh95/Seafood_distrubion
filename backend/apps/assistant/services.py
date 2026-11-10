@@ -8,7 +8,7 @@ from django.db import IntegrityError, transaction
 from apps.core import audit
 from apps.core.models import Membership, User
 
-from .models import AssistantMessage, Direction, MessageKind, WhatsAppLink
+from .models import AssistantMessage, Channel, Direction, MessageKind, WhatsAppLink
 from .selectors import link_for_phone
 
 TUNISIA_PREFIX = "216"
@@ -81,6 +81,7 @@ def record_incoming(*, phone: str, wa_message_id: str, kind: str, text: str) -> 
         with transaction.atomic():
             return AssistantMessage.objects.create(
                 organization=link.organization,
+                membership=link.membership,
                 link=link,
                 direction=Direction.IN,
                 wa_message_id=wa_message_id or None,
@@ -100,21 +101,38 @@ def is_unknown_number(phone: str) -> bool:
 
 
 @transaction.atomic
+def record_web_incoming(*, membership: Membership, text: str, spoken: bool = False) -> AssistantMessage:
+    """Store a question typed or dictated on the "Assistant IA" screen (D-310)."""
+    return AssistantMessage.objects.create(
+        organization=membership.organization,
+        membership=membership,
+        channel=Channel.WEB,
+        direction=Direction.IN,
+        text=text.strip(),
+        spoken=spoken,
+    )
+
+
+@transaction.atomic
 def record_outgoing(
     *,
-    link: WhatsAppLink,
+    incoming: AssistantMessage,
     text: str,
     wa_message_id: str | None = None,
     input_tokens: int = 0,
     output_tokens: int = 0,
     cache_read_tokens: int = 0,
 ) -> AssistantMessage:
+    """Store the answer to `incoming`, in the same conversation."""
     return AssistantMessage.objects.create(
-        organization=link.organization,
-        link=link,
+        organization=incoming.organization,
+        membership=incoming.membership,
+        channel=incoming.channel,
+        link=incoming.link,
         direction=Direction.OUT,
         wa_message_id=wa_message_id,
         text=text,
+        spoken=incoming.spoken,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         cache_read_tokens=cache_read_tokens,

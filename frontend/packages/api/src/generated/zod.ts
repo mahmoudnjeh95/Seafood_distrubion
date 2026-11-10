@@ -20,6 +20,56 @@ export const ListAccessSectionsResponse = zod.array(ListAccessSectionsResponseIt
 
 
 /**
+ * The person's conversation with the assistant on the screen: the last 20 messages of the last 24 hours,
+ * oldest first. A question still waiting for its answer is the last message.
+ */
+export const GetAssistantChatResponse = zod.object({
+  "enabled": zod.boolean(),
+  "server_voice": zod.boolean(),
+  "messages": zod.array(zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['in', 'out']).describe('* `in` - Reçu\n* `out` - Envoyé'),
+  "text": zod.string(),
+  "spoken": zod.boolean(),
+  "created_at": zod.iso.datetime({"offset":true})
+}))
+}).describe('The "Assistant IA" screen: whether the assistant is on, and the conversation of the last 24 hours.')
+
+
+/**
+ * Ask the assistant a question. The answer comes a few seconds later in the conversation
+ * (`getAssistantChat`).
+ */
+export const askAssistantBodyTextMax = 2000;
+
+export const askAssistantBodySpokenDefault = false;
+
+export const AskAssistantBody = zod.object({
+  "text": zod.string().max(askAssistantBodyTextMax),
+  "spoken": zod.boolean().default(askAssistantBodySpokenDefault)
+})
+
+export const AskAssistantResponse = zod.object({
+  "id": zod.int(),
+  "direction": zod.enum(['in', 'out']).describe('* `in` - Reçu\n* `out` - Envoyé'),
+  "text": zod.string(),
+  "spoken": zod.boolean(),
+  "created_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * One answer of the person's own conversation, read aloud (MP3): a Tunisian voice for an answer in Arabic
+ * letters, a French one otherwise. 404 when the server has no voice (the screen then uses the browser's).
+ */
+export const GetAssistantSpeechParams = zod.object({
+  "message_id": zod.int()
+})
+
+export const GetAssistantSpeechResponse = zod.unknown()
+
+
+/**
  * The files attached to one document (`kind`, `object_id`), oldest first.
  */
 

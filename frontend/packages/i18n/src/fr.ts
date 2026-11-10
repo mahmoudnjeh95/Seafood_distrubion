@@ -683,8 +683,10 @@ export const fr = {
       finance: "Finances",
       admin: "Administration",
       site: "Site web",
+      assistant: "Assistant IA",
     },
     nav: {
+      assistant: "Assistant IA",
       dashboard: "Tableau de bord",
       documents: "Documents",
       settings: "Paramètres",
@@ -711,6 +713,37 @@ export const fr = {
       webRequests: "Demandes du site",
       siteProducts: "Produits du site",
       siteSettings: "Paramètres du site",
+    },
+    // The assistant inside the application, typed or dictated (D-310)
+    assistant: {
+      title: "Assistant IA",
+      welcome: "Aslema {{name}}",
+      welcomeBody:
+        "Posez votre question en tunisien, en arabe ou en français. Écrivez-la, ou touchez le micro et parlez : l'assistant répond avec les chiffres de l'application.",
+      placeholder: "Écrivez votre question…",
+      speakNow: "Parlez…",
+      send: "Envoyer",
+      micStart: "Dicter la question",
+      micStop: "Arrêter et envoyer",
+      micUnsupported:
+        "Ce navigateur ne permet pas la dictée. Ouvrez l'application dans Chrome ou Edge pour parler à l'assistant.",
+      listening: "J'écoute. Parlez : la question part quand vous vous arrêtez.",
+      thinking: "L'assistant prépare sa réponse",
+      listen: "Écouter",
+      stop: "Arrêter",
+      readAloudOn: "Réponses à voix haute",
+      readAloudOff: "Réponses écrites",
+      dictationLanguage: "Langue de la dictée",
+      languages: { "ar-TN": "تونسي", "fr-FR": "Français" },
+      disabled: "L'assistant est désactivé sur ce serveur.",
+      notSent: "La question n'a pas été envoyée. Réessayez.",
+      loadError: "La conversation n'a pas pu être chargée",
+      noVoice: "Ce navigateur n'a pas de voix pour lire cette réponse. Microsoft Edge a une voix tunisienne.",
+      dictation: {
+        denied: "Le micro est bloqué. Autorisez-le dans le navigateur (icône à gauche de l'adresse), puis réessayez.",
+        silent: "Je n'ai rien entendu. Touchez le micro et parlez.",
+        failed: "La dictée n'a pas fonctionné. Réessayez, ou écrivez la question.",
+      },
     },
     // Quote requests and orders sent from the public site (D-186)
     webRequests: {

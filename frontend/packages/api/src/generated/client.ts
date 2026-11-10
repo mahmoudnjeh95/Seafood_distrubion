@@ -51,6 +51,9 @@ import type {
   CashLimit,
   Category,
   ChangePassword,
+  Chat,
+  ChatMessage,
+  ChatQuestion,
   CloseLot,
   ColdChainPlace,
   ColdRoomEstimateWrite,
@@ -626,6 +629,290 @@ export function useListAccessSections<TData = Awaited<ReturnType<typeof listAcce
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListAccessSectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAssistantChatUrl = () => {
+
+
+
+
+  return `/api/v1/assistant/chat`
+}
+
+/**
+ * The person's conversation with the assistant on the screen: the last 20 messages of the last 24 hours,
+ * oldest first. A question still waiting for its answer is the last message.
+ */
+export const getAssistantChat = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Chat> => {
+
+  return apiFetch<Chat>(getGetAssistantChatUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssistantChatQueryKey = () => {
+    return [
+    `/api/v1/assistant/chat`
+    ] as const;
+    }
+
+
+export const getGetAssistantChatQueryOptions = <TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssistantChatQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssistantChat>>> = ({ signal }) => getAssistantChat({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAssistantChatQueryResult = NonNullable<Awaited<ReturnType<typeof getAssistantChat>>>
+export type GetAssistantChatQueryError = unknown
+
+
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantChat>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantChat>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantChat>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantChat>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAssistantChatQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskAssistantUrl = () => {
+
+
+
+
+  return `/api/v1/assistant/chat/messages`
+}
+
+/**
+ * Ask the assistant a question. The answer comes a few seconds later in the conversation
+ * (`getAssistantChat`).
+ */
+export const askAssistant = async (chatQuestion: ChatQuestion, options?: Parameters<typeof apiFetch>[1]): Promise<ChatMessage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ChatMessage>(getAskAssistantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(chatQuestion)
+  }
+);}
+
+
+
+
+
+export const getAskAssistantMutationKey = () => ['askAssistant'] as const;
+
+export const getAskAssistantMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askAssistant>>, TError,AskAssistantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof askAssistant>>, TError,AskAssistantMutationVariables, TContext> => {
+
+const mutationKey = getAskAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askAssistant>>, AskAssistantMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askAssistant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof askAssistant>>>
+    export type AskAssistantMutationBody = ChatQuestion
+    export type AskAssistantMutationError = unknown
+    export type AskAssistantMutationVariables = {data: ChatQuestion}
+
+    export const useAskAssistant = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askAssistant>>, TError,AskAssistantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askAssistant>>,
+        TError,
+        AskAssistantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskAssistantMutationOptions(options), queryClient);
+    }
+
+export const getGetAssistantSpeechUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/v1/assistant/chat/messages/${messageId}/speech`
+}
+
+/**
+ * One answer of the person's own conversation, read aloud (MP3): a Tunisian voice for an answer in Arabic
+ * letters, a French one otherwise. 404 when the server has no voice (the screen then uses the browser's).
+ */
+export const getAssistantSpeech = async (messageId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetAssistantSpeechUrl(messageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssistantSpeechQueryKey = (messageId: number,) => {
+    return [
+    `/api/v1/assistant/chat/messages/${messageId}/speech`
+    ] as const;
+    }
+
+
+export const getGetAssistantSpeechQueryOptions = <TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssistantSpeechQueryKey(messageId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssistantSpeech>>> = ({ signal }) => getAssistantSpeech(messageId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: messageId !== null && messageId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAssistantSpeechQueryResult = NonNullable<Awaited<ReturnType<typeof getAssistantSpeech>>>
+export type GetAssistantSpeechQueryError = void
+
+
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantSpeech>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantSpeech>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantSpeech>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantSpeech>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAssistantSpeechQueryOptions(messageId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

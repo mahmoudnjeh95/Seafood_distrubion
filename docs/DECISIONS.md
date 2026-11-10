@@ -4240,3 +4240,24 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
   them; the company name comes from the organization).
 
+**D-310 · "Assistant IA": the assistant inside the admin app, typed or spoken (Phase 12, P12-T06)** · accepted (owner 2026-11-10) · 2026-11-10
+- Why: Meta locked the unverified test account (error 131031, "Business Account locked") and the owner has no
+  company papers yet, so WhatsApp delivers no answer. Owner: "add assistance ia section in the side barre", "voice
+  with tunisia accent … first prio". The screen needs nothing from Meta; WhatsApp stays plugged in.
+- One assistant, two channels. `AssistantMessage` gets `membership`, `channel` (`whatsapp` / `web`) and `spoken`;
+  `link` is empty on a screen message (migrations `assistant 0002` to `0004`). The same Celery task answers both; a
+  screen question only stores its answer, and the screen reads the conversation again every 1,2 s until it is there
+  (no long request, no websocket). Each channel keeps its own conversation memory.
+- API: `GET assistant/chat`, `POST assistant/chat/messages`, `GET assistant/chat/messages/<id>/speech`. The owner
+  only, as on WhatsApp, until the section `assistant` of the roles matrix (P12-T05).
+- Voice in: the browser's own dictation (Web Speech API, `ar-TN` or `fr-FR`, Chrome and Edge). The audio goes from
+  the browser to its maker (Google, Microsoft), never through our server. Provisional: P12-T03 still chooses the
+  speech-to-text provider on real Tunisian voice notes, and WhatsApp voice notes need it on the server anyway.
+- Voice out: Azure AI Speech when `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` are set: `ar-TN-ReemNeural` for an
+  answer in Arabic letters, `fr-FR-DeniseNeural` otherwise (`ASSISTANT_VOICE_AR`, `ASSISTANT_VOICE_FR`). Azure is the
+  provider with Tunisian voices. Without the key the screen uses the browser's voice (Edge has Tunisian ones, Chrome
+  has none). The design's "no voice replies" still holds on WhatsApp.
+- A dictated question, or one asked with "Réponses à voix haute" on, tells Claude the answer is read aloud: short
+  sentences, Tunisian in Arabic letters (a voice cannot read "3andek"), no lists.
+- Personal data: an answer read by the server goes to Azure (Microsoft), as its text goes to Anthropic: one more
+  recipient for the INPDP question of Phase 12.

@@ -72,6 +72,11 @@ services:
       WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
       WHATSAPP_GRAPH_VERSION: ${WHATSAPP_GRAPH_VERSION:-v23.0}
+      # Voice of the Assistant IA screen (D-310): optional, the browser's voice without it.
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      ASSISTANT_VOICE_AR: ${ASSISTANT_VOICE_AR:-ar-TN-ReemNeural}
+      ASSISTANT_VOICE_FR: ${ASSISTANT_VOICE_FR:-fr-FR-DeniseNeural}
     volumes: [media:/app/media] # product photos and PDFs, served by the API to members only
     depends_on:
       db: { condition: service_healthy }

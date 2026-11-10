@@ -44,3 +44,4 @@ Status column: **now** = works today; **T02…T05** = the Phase 12 task that bri
 | C6 | "Ab3athli el fatoura" → the PDF in the chat; a receipt photo with an expense. | T04 |
 | C7 | What the role cannot see or do: "ma3andekch l7a9", as in the app. A number not registered, a user or company switched off: a refusal, nothing else. | now |
 | C8 | A person working for two client companies with one phone: the bot asks which company. | T05 |
+| C9 | Without WhatsApp: the menu **Assistant IA** of the application. Write, or touch the micro and speak (تونسي or Français); "Écouter" reads an answer aloud. | now, owner only (D-310) |

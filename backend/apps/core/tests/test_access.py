@@ -68,6 +68,8 @@ _OUTSIDE = (
     "imports",
     "documents/",
     "whatsapp/",
+    # The owner alone until the section "assistant" (P12-T05).
+    "assistant/",
 )
 
 
