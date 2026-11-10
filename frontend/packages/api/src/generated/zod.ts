@@ -368,7 +368,7 @@ export const GetBatchSalesResponse = zod.object({
 
 
 /**
- * The period lock (D-317, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
  * the owner moves it, and opening a locked period again needs a reason.
  */
 export const getBooksLockResponseReasonDefault = ``;
@@ -383,7 +383,7 @@ export const GetBooksLockResponse = zod.object({
 
 
 /**
- * The period lock (D-317, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
  * the owner moves it, and opening a locked period again needs a reason.
  */
 export const setBooksLockBodyReasonDefault = ``;

@@ -613,7 +613,7 @@ def set_number_prefixes(
     return numbering.prefixes_of(organization)
 
 
-# ---- Period lock (D-317, P11-T16) ----
+# ---- Period lock (D-315, P11-T16) ----
 
 
 @transaction.atomic

@@ -1,4 +1,4 @@
-"""The period lock (D-317, P11-T16): a month declared to the tax office takes no new dated entry.
+"""The period lock (D-315, P11-T16): a month declared to the tax office takes no new dated entry.
 
 Every service that writes a dated record calls `ensure_open` with the record's date before writing. The lock is read
 from the database each time, so an organization object loaded before the lock moved never lets a write through.

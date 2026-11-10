@@ -614,13 +614,13 @@ class MemberPasswordResetView(APIView):
 
 
 class BooksLockSerializer(serializers.Serializer[Any]):
-    # The last locked day, included; null: nothing is locked (D-317).
+    # The last locked day, included; null: nothing is locked (D-315).
     until = serializers.DateField(allow_null=True)
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
 
 
 class BooksLockView(APIView):
-    """The period lock (D-317, Paramètres): a declared month takes no new dated entry. The office reads it; only
+    """The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
     the owner moves it, and opening a locked period again needs a reason."""
 
     permission_classes = (ReadOfficeWriteOwner,)

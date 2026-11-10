@@ -32,7 +32,7 @@ class Organization(TimeStampedModel):
     logo = models.ImageField(upload_to=organization_logo_path, blank=True)
     # Set when the client's real data is entered (prepare_client_start, D-146). The demo seed then adds nothing.
     real_data_since = models.DateTimeField(null=True, blank=True)
-    # The books are locked up to this day, included (D-317): a month declared to the tax office takes no new dated
+    # The books are locked up to this day, included (D-315): a month declared to the tax office takes no new dated
     # entry; a correction is dated in the open month. Empty: nothing is locked.
     books_locked_until = models.DateField(null=True, blank=True)
 

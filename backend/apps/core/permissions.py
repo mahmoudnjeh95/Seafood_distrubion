@@ -118,7 +118,7 @@ class ReadOwnerOrAccountantWriteOwner(HasRole):
 
 
 class ReadOfficeWriteOwner(HasRole):
-    """Office data only the owner changes (the period lock, D-317): owners, managers and the accountant read."""
+    """Office data only the owner changes (the period lock, D-315): owners, managers and the accountant read."""
 
     roles = frozenset({Role.OWNER, Role.MANAGER, Role.ACCOUNTANT})
     owner_writes = True
