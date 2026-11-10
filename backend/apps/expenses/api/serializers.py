@@ -118,8 +118,8 @@ class ExpenseSerializer(serializers.ModelSerializer[Expense]):
     def get_cash_over_limit(self, expense: Expense) -> bool:
         if expense.payment_method != ExpensePaymentMethod.CASH:
             return False
-        # One reading of the limit per organization and day for a whole list.
-        limits: dict[tuple[int, Any], Any] = self.context.setdefault("_cash_limits", {})
+        # One reading of the limit per organization and day for a whole list (a list reuses this serializer).
+        limits: dict[tuple[int, Any], Any] = self.__dict__.setdefault("_cash_limits", {})
         key = (expense.organization_id, expense.spent_on)
         if key not in limits:
             limits[key] = sales_selectors.cash_limit_on(expense.organization, expense.spent_on)
