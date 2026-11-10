@@ -4240,3 +4240,28 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
   them; the company name comes from the organization).
 
+**D-310 · One purchase is one lot; a partner shares only the products ticked on it (owner 2026-11-10, Q31)** · accepted · 2026-11-10
+Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per batch") for the owner's own words:
+"1 achat is one lot even if it contains multiple products; those products are related to the same lot id".
+- **Model:** a new parent `Lot` (number `L-0001`…, supplier, date, its goods receipt or port purchase) above today's
+  `Batch`, which becomes a *lot line* (one product, one cost per kg, numbered `L-0042-1`, `L-0042-2`…). The stock
+  ledger, FIFO / FEFO (D-299), sales, losses, transfers and the driver app keep working on `Batch` unchanged: every
+  kilo still knows its product, cost and supplier. Screens, BL and labels show "L-0042 · Crevette".
+- **Partnership on the lot, per product ticked:** one partner, one capital, one profit % and one loss % per lot; each
+  line is ticked "partagé" or not. Products not ticked are the owner's alone and never enter the partner's numbers.
+- **Q31 answers (owner 2026-11-10):**
+  1. **Netted:** the partner's share is their rate on the *sum* of the results of the ticked products (shrimp +2 400,
+     squid −500 → 1 900 at 50 % = 950). The profit rate applies if the sum is a profit, the loss rate if it is a loss.
+  2. **Closed when the shared products are done:** the shared part closes and is settled as soon as every ticked
+     line meets the closing rules (sold out or written off, costs in, customers paid, Q19); the owner's lines close
+     later on their own.
+  3. **Capital covers the shared products only:** the partner's capital is a part of the purchase value of the ticked
+     lines, returned ± their share at the settlement (Q3, Q22 unchanged otherwise).
+  4. **Costs by kilos:** a cost typed on the lot (transport of the purchase, labour) is split over its lines by kg
+     received; the truck, cold-room and general costs keep D-041 (by kg loaded or held), now per line. Each line's
+     result is computed by the existing engine, unchanged.
+- **Migration:** each goods receipt (and port purchase) becomes one lot, its batches its lines in receipt order; a
+  batch made otherwise (transformation, import, adjustment) becomes a one-line lot. An existing partnership becomes the
+  lot's with only its batch ticked. Old lot numbers printed on past documents stay readable as the line's former number.
+- **Open (ask before P6-T08c):** a receipt already saved with two *different* partners on two lines (today allowed):
+  split into two lots at migration, or refuse? A transformation of a shared line (Q30, still provisional "refused").

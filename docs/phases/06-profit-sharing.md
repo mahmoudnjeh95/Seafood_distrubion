@@ -74,3 +74,24 @@ _Coarse plan: detail each task when the phase starts._
 - [x] "Clôture mensuelle" for the accountant. _`/cloture` (D-074)._
 - [x] Clôture mensuelle: each partner's share of the month's shared costs (rent, electricity, fuel,
       salaries), and the existing figures made clickable to where they come from. _Owner request, D-122._
+
+### P6-T08 · One purchase is one lot; partner on the products ticked · L → split (added 2026-11-10, D-310, Q31)
+Owner: one achat is one lot, its products share the lot number; a partner may share only one or two of them.
+- [ ] **T08a · Lot above the batch.** Model `inventory.Lot` (organization, number, supplier, received_on, source);
+      `Batch.lot` FK; numbering `L-0042-1`; the receipt and the port purchase create one lot and one line per product;
+      data migration (each receipt → one lot, other batches → one-line lots, old number kept). API + `make gen-api`.
+- [ ] **T08b · Show the lot.** Lot page (lines, stock, sales per product); "L-0042 · Crevette" on stock, BL, labels,
+      lot pickers and the driver's phone; search by lot number finds every line.
+- [ ] **T08c · Partnership on the lot.** `LotPartnership` points to the lot, with the ticked lines; capital checked
+      against the purchase value of the ticked lines only; receipt form: one partner section per lot and a
+      "partagé" tick per line; migration of existing partnerships (their one batch ticked). Ask the two open points
+      of D-310 first.
+- [ ] **T08d · Shared result and closing.** The shared part's result = sum of the ticked lines' results (engine
+      unchanged per line); profit or loss rate on the sum; closing checks on the ticked lines only; the owner's
+      lines close alone; one settlement and one capital return per lot; lot costs typed on the lot split by kg.
+- [ ] **T08e · Statement and reports.** Partner statement PDF: one block per lot, a line per shared product, the
+      netted total; reports per partner (P7) and month closing read the lot.
+- [ ] **Golden test:** the owner's example (shrimp +2 400, squid −500 shared at 50 %, sardine +300 not shared) gives
+      950 to the partner and leaves the sardine's 300 to the owner.
+- [ ] Check on staging: a receipt of three products, partner on two; sell the two out; the shared part closes and is
+      settled while the third is still in stock.
