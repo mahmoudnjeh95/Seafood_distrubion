@@ -97,6 +97,10 @@ export function SupplierDetailPage() {
             <Detail label={t("admin.suppliers.form.taxId")} numeric>
               {data.tax_id || empty}
             </Detail>
+            <Detail label={t("admin.suppliers.form.taxRegime")}>
+              {t(`admin.suppliers.taxRegimes.${data.tax_regime}`)}
+              {!data.subject_to_withholding && ` · ${t("admin.suppliers.detail.noWithholding")}`}
+            </Detail>
             <Detail label={t("admin.suppliers.form.phone")} numeric>
               {data.phone ? <a href={`tel:${data.phone.replace(/\s/g, "")}`}>{data.phone}</a> : empty}
             </Detail>

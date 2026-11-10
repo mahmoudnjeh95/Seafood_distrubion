@@ -50,8 +50,9 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   invoice number on expenses; supplier invoices already carry VAT (D-294).
 - [ ] **P11-T09 Public buyers (F7)** · S · after T06. Customer type "public": VAT withholding on top of the
   withholding on the amount.
-- [ ] **P11-T10 Supplier tax status (R2)** · S · after T06. Réel / forfaitaire / no tax ID; warning on a port
-  purchase paid without an invoice.
+- [x] **P11-T10 Supplier tax status (R2)** · S. Régime réel / forfaitaire / sans matricule on the supplier (forced
+  to "sans matricule" without a tax ID), and "Retenue à la source sur nos paiements" (on by default), used by T02
+  (D-312). _Done 2026-11-10._
 - [x] **P11-T11 Cash limit on payments out (E1)** · S. Supplier payments already confirm a cash line at or above the
   limit (D-273); a port purchase records it at validation. A cash expense at or above the limit is kept but flagged
   "Espèces ≥ plafond" (likely not deductible), warned in the form (D-311). _Done 2026-11-10; the exact 2026 rule stays

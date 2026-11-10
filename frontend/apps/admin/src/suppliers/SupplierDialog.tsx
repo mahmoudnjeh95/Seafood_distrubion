@@ -104,6 +104,9 @@ export function SupplierDialog({
     supplier?.payment_terms_days != null ? String(supplier.payment_terms_days) : "",
   );
   const [buysWithVat, setBuysWithVat] = useState(supplier?.buys_with_vat ?? false);
+  // D-312: the regime is "Sans matricule" whenever the tax ID is empty; the server keeps that rule.
+  const [taxRegime, setTaxRegime] = useState<string>(supplier?.tax_regime === "flat" ? "flat" : "real");
+  const [withholding, setWithholding] = useState(supplier?.subject_to_withholding ?? true);
   const [errors, setErrors] = useState<Errors>({});
 
   const set = (field: TextField) => (value: string) => setValues((current) => ({ ...current, [field]: value }));
@@ -149,6 +152,8 @@ export function SupplierDialog({
       health_approval: trimmed("health_approval"),
       payment_terms_days: days,
       buys_with_vat: buysWithVat,
+      tax_regime: trimmed("tax_id") ? (taxRegime as "real" | "flat") : "none",
+      subject_to_withholding: withholding,
       contacts: filled.map(({ name, role, phone, email }) => ({
         name: name.trim(),
         role: role.trim(),
@@ -229,6 +234,36 @@ export function SupplierDialog({
           />
           {t("admin.suppliers.form.buysWithVat")}
         </label>
+        <fieldset className="col-span-full flex flex-wrap items-center gap-4 text-[0.9rem]">
+          <legend className="mb-1 text-[0.78rem] font-semibold text-ink-2">
+            {t("admin.suppliers.form.taxRegime")}
+          </legend>
+          {values.tax_id.trim() ? (
+            (["real", "flat"] as const).map((value) => (
+              <label key={value} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={`${formId}-tax-regime`}
+                  checked={taxRegime === value}
+                  onChange={() => setTaxRegime(value)}
+                  className="size-4 accent-coral"
+                />
+                {t(`admin.suppliers.taxRegimes.${value}`)}
+              </label>
+            ))
+          ) : (
+            <span className="text-ink-2">{t("admin.suppliers.form.noTaxIdRegime")}</span>
+          )}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={withholding}
+              onChange={(event) => setWithholding(event.target.checked)}
+              className="size-4 accent-coral"
+            />
+            {t("admin.suppliers.form.subjectToWithholding")}
+          </label>
+        </fieldset>
         <Field
           label={t("admin.suppliers.form.notes")}
           htmlFor={`${formId}-notes`}

@@ -11,6 +11,7 @@ from apps.partners.models import (
     IdentificationType,
     Supplier,
     SupplierContact,
+    SupplierTaxRegime,
 )
 
 
@@ -43,6 +44,8 @@ class SupplierSerializer(serializers.ModelSerializer[Supplier]):
             "payment_terms_days",
             "buys_with_vat",
             "health_approval",
+            "tax_regime",
+            "subject_to_withholding",
             "contacts",
             "is_active",
             "updated_at",
@@ -69,6 +72,12 @@ class SupplierWriteSerializer(serializers.Serializer[Any]):
     buys_with_vat = serializers.BooleanField(required=False, default=False)
     # The supplier's health approval number ("agrément sanitaire", D-302).
     health_approval = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    # Tax regime (D-312): empty takes "real" with a tax ID, "none" without.
+    tax_regime = serializers.ChoiceField(
+        choices=[("", ""), *SupplierTaxRegime.choices], required=False, allow_blank=True, default=""
+    )
+    # The company withholds tax when paying this supplier (P11-T02).
+    subject_to_withholding = serializers.BooleanField(required=False, default=True)
     # The whole list: on a change it replaces the contacts; left out, they are kept.
     contacts = SupplierContactSerializer(many=True, required=False)
 

@@ -4,6 +4,7 @@
  * Frutti Del Mare ERP API
  * OpenAPI spec version: 1.0.0
  */
+import type { PatchedSupplierWriteTaxRegime } from './patchedSupplierWriteTaxRegime';
 import type { SupplierContact } from './supplierContact';
 
 export interface PatchedSupplierWrite {
@@ -31,5 +32,7 @@ export interface PatchedSupplierWrite {
   buys_with_vat?: boolean;
   /** @maxLength 50 */
   health_approval?: string;
+  tax_regime?: typeof PatchedSupplierWriteTaxRegime[keyof typeof PatchedSupplierWriteTaxRegime];
+  subject_to_withholding?: boolean;
   contacts?: SupplierContact[];
 }

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { SupplierContact } from './supplierContact';
+import type { SupplierWriteTaxRegime } from './supplierWriteTaxRegime';
 
 export interface SupplierWrite {
   /** @maxLength 30 */
@@ -31,5 +32,7 @@ export interface SupplierWrite {
   buys_with_vat?: boolean;
   /** @maxLength 50 */
   health_approval?: string;
+  tax_regime?: typeof SupplierWriteTaxRegime[keyof typeof SupplierWriteTaxRegime];
+  subject_to_withholding?: boolean;
   contacts?: SupplierContact[];
 }
