@@ -1,4 +1,4 @@
-"""A declared month takes no new expense and no money movement (D-310, P11-T16)."""
+"""A declared month takes no new expense and no money movement (D-315, P11-T16)."""
 
 import datetime as dt
 from decimal import Decimal

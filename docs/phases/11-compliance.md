@@ -54,7 +54,7 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   purchase paid without an invoice.
 - [x] **P11-T11 Cash limit on payments out (E1)** · S. Supplier payments already confirm a cash line at or above the
   limit (D-273); a port purchase records it at validation. A cash expense at or above the limit is kept but flagged
-  "Espèces ≥ plafond" (likely not deductible), warned in the form (D-311). _Done 2026-11-10; the exact 2026 rule stays
+  "Espèces ≥ plafond" (likely not deductible), warned in the form (D-316). _Done 2026-11-10; the exact 2026 rule stays
   for the accountant (P11-T06)._
 - [ ] **P11-T12 Payroll (P1, P2, P3, P4, B8)** · L · after T06. IRPP scale, professional expenses and family
   deductions, CSS, payslip PDF, hire and leave dates with prorata, quarterly CNSS return export, TFP and FOPROLOS.
@@ -71,7 +71,7 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   irrecoverable debt; the latter reads "Justificatif manquant" until a file is attached (D-298). _Done 2026-11-09._
 - [x] **P11-T16 Period lock (E3)** · M. The owner locks the books up to a past day (Paramètres › Période
   verrouillée); money movements and typed dates of expenses, day labour, receipts, supplier invoices, payments and
-  credit notes in the locked period are refused; reopening needs a reason (D-310). _Done 2026-11-10._
+  credit notes in the locked period are refused; reopening needs a reason (D-315). _Done 2026-11-10._
 - [ ] **P11-T17 Accounting export (E4)** · M · plan of accounts from the **Accountant**. Journal entries (CSV / Excel).
 - [x] **P11-T18 Lot traceability (M1)** · Built by P1-T23 (D-302): catch area, production method, origin, supplier
   health approval, scientific name, and the recall sheet of a lot. _Checked 2026-11-10._
