@@ -5,6 +5,10 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
 
 ## Where we are
 
+- **D-321 (owner 2026-11-10): deploy and CI through `SmartToolsAgro/SmartFeesh`** while the personal repo's Actions
+  stop every job in seconds (minutes or billing). Branch → SmartFeesh PR for CI → merge here → push `main` to
+  SmartFeesh to deploy (runbook "Deploy"). This cloud session cannot reach SmartFeesh; a desktop session pushes.
+
 - **D-320 / P6-T08 (owner 2026-11-10): one purchase is one lot with several products; a partner shares only the
   products ticked.** Answers Q31: results of the shared products netted, the shared part closes when they are done,
   capital on the shared products only, costs by kilos; several partners per lot and per product; a shared product may
