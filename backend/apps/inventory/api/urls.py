@@ -18,6 +18,7 @@ urlpatterns = [
     ),
     path("my-truck/temperature", views.MyTemperatureView.as_view(), name="my-truck-temperature"),
     path("batches/<int:batch_id>", views.BatchDetailView.as_view(), name="batch-detail"),
+    path("lots/<int:lot_id>", views.LotDetailView.as_view(), name="lot-detail"),
     path("batches/<int:batch_id>/origin", views.BatchOriginView.as_view(), name="batch-origin"),
     # P1-T09 · transfers
     path("locations/<int:location_id>/stock", views.LocationStockView.as_view(), name="location-stock"),

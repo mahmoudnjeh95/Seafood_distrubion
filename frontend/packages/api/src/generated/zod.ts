@@ -155,6 +155,7 @@ export const ListBatchesQueryParams = zod.object({
   "supplier": zod.int().min(1).optional()
 })
 
+export const listBatchesResponseResultsItemLineNumberDefault = 1;
 export const listBatchesResponseResultsItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -165,8 +166,9 @@ export const ListBatchesResponse = zod.object({
   "results": zod.array(zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "lot": zod.int(),
   "lot_number": zod.string(),
-  "line_number": zod.int(),
+  "line_number": zod.int().default(listBatchesResponseResultsItemLineNumberDefault),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -196,14 +198,16 @@ export const GetBatchParams = zod.object({
   "batch_id": zod.int()
 })
 
+export const getBatchResponseLineNumberDefault = 1;
 export const getBatchResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const GetBatchResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "lot": zod.int(),
   "lot_number": zod.string(),
-  "line_number": zod.int(),
+  "line_number": zod.int().default(getBatchResponseLineNumberDefault),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -247,14 +251,16 @@ export const UpdateBatchOriginBody = zod.object({
   "origin": zod.string().max(updateBatchOriginBodyOriginMax)
 }).describe('Where a lot comes from (D-302): FAO zone or farm, wild or farmed, boat or port.')
 
+export const updateBatchOriginResponseLineNumberDefault = 1;
 export const updateBatchOriginResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
 export const UpdateBatchOriginResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "lot": zod.int(),
   "lot_number": zod.string(),
-  "line_number": zod.int(),
+  "line_number": zod.int().default(updateBatchOriginResponseLineNumberDefault),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -10447,6 +10453,56 @@ export const GetLotSettlementResponse = zod.object({
   "lots": zod.int()
 }).describe('The three balances of a partner, kept apart: never added together (D-031, D-040).'),zod.null()])
 })
+
+
+/**
+ * One purchase and its products, each with its kilos received, sold, lost and still held (D-313).
+ */
+export const GetLotParams = zod.object({
+  "lot_id": zod.int()
+})
+
+export const getLotResponseLinesItemUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResponseLinesItemReceivedRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResponseLinesItemSoldRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResponseLinesItemLostRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResponseLinesItemOnHandRegExp = new RegExp('^-?\\d{0,9}(?:\\.\\d{0,3})?$');
+export const getLotResponseLinesItemPurchaseValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getLotResponsePurchaseValueRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+
+
+export const GetLotResponse = zod.object({
+  "id": zod.int(),
+  "number": zod.string(),
+  "supplier": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "health_approval": zod.string()
+}),
+  "received_on": zod.iso.date(),
+  "receipt_reference": zod.string(),
+  "lines": zod.array(zod.object({
+  "batch_id": zod.int(),
+  "number": zod.string(),
+  "line_number": zod.int(),
+  "product": zod.object({
+  "id": zod.int(),
+  "reference": zod.string(),
+  "name": zod.string(),
+  "scientific_name": zod.string(),
+  "is_active": zod.boolean()
+}),
+  "unit_cost": zod.stringFormat('decimal', getLotResponseLinesItemUnitCostRegExp),
+  "use_by": zod.iso.date().nullable(),
+  "received": zod.stringFormat('decimal', getLotResponseLinesItemReceivedRegExp),
+  "sold": zod.stringFormat('decimal', getLotResponseLinesItemSoldRegExp),
+  "lost": zod.stringFormat('decimal', getLotResponseLinesItemLostRegExp),
+  "on_hand": zod.stringFormat('decimal', getLotResponseLinesItemOnHandRegExp),
+  "purchase_value": zod.stringFormat('decimal', getLotResponseLinesItemPurchaseValueRegExp)
+}).describe('One product of a lot with its kilos (D-313).')),
+  "purchase_value": zod.stringFormat('decimal', getLotResponsePurchaseValueRegExp)
+}).describe('One purchase: its supplier, its day, and its products (D-313).')
 
 
 /**

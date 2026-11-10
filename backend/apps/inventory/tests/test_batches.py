@@ -14,10 +14,10 @@ from apps.catalog.tests.factories import ProductFactory
 from apps.core.models import AuditLog, NumberSeries, Role
 from apps.core.tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.inventory import selectors, services
-from apps.inventory.models import Batch
+from apps.inventory.models import Batch, MovementKind
 from apps.partners.tests.factories import SupplierFactory
 
-from .factories import BatchFactory
+from .factories import BatchFactory, StockLocationFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -314,3 +314,51 @@ def test_one_purchase_is_one_lot_with_a_line_per_product() -> None:
             unit_cost="20.000",
         )
     assert "lot" in refused.value.message_dict
+
+
+def test_a_lot_page_lists_its_products_with_their_kilos():
+    """D-313: one purchase, its products as lines, each with the kilos received, sold, lost and still held."""
+    client, owner = client_for(Role.ACCOUNTANT)
+    organization = owner.organization
+    actor = UserFactory.create()
+    supplier = SupplierFactory.create(organization=organization)
+    room = StockLocationFactory.create(organization=organization)
+    lot = services.create_lot(
+        organization=organization, actor=actor, supplier=supplier, received_on=timezone.localdate()
+    )
+    shrimp, squid = (
+        services.create_batch(
+            organization=organization,
+            actor=actor,
+            lot=lot,
+            product=ProductFactory.create(organization=organization),
+            supplier=supplier,
+            received_on=lot.received_on,
+            unit_cost=cost,
+        )
+        for cost in ("30.000", "12.000")
+    )
+
+    def move(kind, batch, quantity, **places):
+        services.post_movement(
+            organization=organization, actor=actor, kind=kind, batch=batch, quantity=quantity, **places
+        )
+
+    move(MovementKind.RECEIPT, shrimp, "100.000", to_location=room)
+    move(MovementKind.RECEIPT, squid, "40.000", to_location=room)
+    move(MovementKind.SALE, shrimp, "60.000", from_location=room)
+    move(MovementKind.CUSTOMER_RETURN, shrimp, "5.000", to_location=room)
+    move(MovementKind.LOSS, shrimp, "2.000", from_location=room, reason="Abîmé")
+
+    body = client.get(reverse("lot-detail", args=[lot.pk])).json()
+
+    assert (body["number"], body["supplier"]["id"], body["purchase_value"]) == (lot.number, supplier.pk, "3480.000")
+    assert [
+        (line["number"], line["received"], line["sold"], line["lost"], line["on_hand"]) for line in body["lines"]
+    ] == [
+        (f"{lot.number}-1", "100.000", "55.000", "2.000", "43.000"),
+        (f"{lot.number}-2", "40.000", "0.000", "0.000", "40.000"),
+    ]
+    assert client.get(reverse("batch-detail", args=[shrimp.pk])).json()["lot"] == lot.pk
+    other = BatchFactory.create()
+    assert client.get(reverse("lot-detail", args=[other.lot_id])).status_code == 404

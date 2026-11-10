@@ -84,6 +84,10 @@ Owner: one achat is one lot, its products share the lot number; a partner may sh
       `lot_number` and `line_number`. A transformation's output is still a lot of its own until T08d._
 - [ ] **T08b · Show the lot.** Lot page (lines, stock, sales per product); "L-0042 · Crevette" on stock, BL, labels,
       lot pickers and the driver's phone; search by lot number finds every line.
+      _Done 2026-11-11 (branch `lot-page`): `GET /lots/<id>` (`selectors.lot_detail`), page `/stock/lot-complet/:lotId`
+      with kg received, sold, lost and in stock per product, link "Lot (achat)" on a product's page, lot search by the
+      lot's number. BL, labels, pickers and the phone already print the line number `L-0042-1` beside the product.
+      Left: the lot link from the receipt page and the stock list._
 - [ ] **T08c · Partnerships on the lot.** `LotPartnership` points to the lot, several per lot, each with its ticked
       lines; one line may be in several partnerships (capital together ≤ the line's purchase value, profit rates
       together ≤ 100 %); receipt form: a "Partenaires" section per lot and per line who shares it; migration of
