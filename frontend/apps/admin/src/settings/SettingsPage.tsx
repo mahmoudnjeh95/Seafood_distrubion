@@ -6,6 +6,7 @@ import { Button, Card, CardTitle, Icon, PageHeader, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Link, useOutletContext } from "react-router";
+import { BooksLockCard } from "./BooksLockCard";
 import { ListDisplayCard } from "./ListDisplayCard";
 
 function LogoCard({ session }: { session: Session }) {
@@ -191,6 +192,7 @@ export function SettingsPage() {
         {session.role === "owner" && <RolesCard />}
         <BanksCard />
         <NumberingCard />
+        <BooksLockCard canWrite={session.role === "owner"} />
         <LinkCard
           title={t("admin.vatRates.title")}
           hint={t("admin.vatRates.settingsHint")}

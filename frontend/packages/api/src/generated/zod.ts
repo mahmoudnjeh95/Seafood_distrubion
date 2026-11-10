@@ -368,6 +368,46 @@ export const GetBatchSalesResponse = zod.object({
 
 
 /**
+ * The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * the owner moves it, and opening a locked period again needs a reason.
+ */
+export const getBooksLockResponseReasonDefault = ``;
+export const getBooksLockResponseReasonMax = 255;
+
+
+
+export const GetBooksLockResponse = zod.object({
+  "until": zod.iso.date().nullable(),
+  "reason": zod.string().max(getBooksLockResponseReasonMax).default(getBooksLockResponseReasonDefault)
+})
+
+
+/**
+ * The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * the owner moves it, and opening a locked period again needs a reason.
+ */
+export const setBooksLockBodyReasonDefault = ``;
+export const setBooksLockBodyReasonMax = 255;
+
+
+
+export const SetBooksLockBody = zod.object({
+  "until": zod.iso.date().nullable(),
+  "reason": zod.string().max(setBooksLockBodyReasonMax).default(setBooksLockBodyReasonDefault)
+})
+
+export const setBooksLockResponseReasonDefault = ``;
+export const setBooksLockResponseReasonMax = 255;
+
+
+
+export const SetBooksLockResponse = zod.object({
+  "until": zod.iso.date().nullable(),
+  "reason": zod.string().max(setBooksLockResponseReasonMax).default(setBooksLockResponseReasonDefault)
+})
+
+
+/**
  * Boxes bought (they come into a cold room or a truck) or lost or broken (they leave it, with the
  * reason). Owners and managers; a mistake is corrected by a new adjustment.
  */

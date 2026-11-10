@@ -13,7 +13,7 @@ from django.db.models import Max, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from apps.core import audit, numbering
+from apps.core import audit, numbering, periods
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount, money
 
@@ -737,6 +737,8 @@ def post_movement(
     value = money(amount)
     if value == 0:
         return None
+    # Money dated in a declared period is refused (D-310); a backfill of existing records passes (writing_history).
+    periods.ensure_open(organization, day)
     if source:
         existing = TreasuryMovement.objects.filter(
             organization=organization, source=source, source_id=source_id, role=role

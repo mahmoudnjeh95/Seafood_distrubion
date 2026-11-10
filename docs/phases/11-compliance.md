@@ -62,15 +62,19 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
 
 - [ ] **P11-T13 Déclarations du mois (F6)** · M · after T07, T08, T02. Collected and deductible VAT, carried credit,
   stamps, withholdings made, TCL, TFP, FOPROLOS; export.
-- [ ] **P11-T14 Withholding certificates received (R3)** · S. Typed against the customer payment; yearly total.
+- [x] **P11-T14 Withholding certificates received (R3)** · S. Already built in P2-T06: a certificate per invoice
+  (file, void), and the withholding summary (`withholding-summary`) by period, month and customer: a year filter gives
+  the yearly total. _Checked 2026-11-10._
 - [x] **P11-T15 Write-off evidence (E2)** · S. A customer write-off says its motif: a settlement gap or an
   irrecoverable debt; the latter reads "Justificatif manquant" until a file is attached (D-298). _Done 2026-11-09._
-- [ ] **P11-T16 Period lock (E3)** · M. A declared month is locked; a correction is dated in the open month.
+- [x] **P11-T16 Period lock (E3)** · M. The owner locks the books up to a past day (Paramètres › Période
+  verrouillée); money movements and typed dates of expenses, day labour, receipts, supplier invoices, payments and
+  credit notes in the locked period are refused; reopening needs a reason (D-310). _Done 2026-11-10._
 - [ ] **P11-T17 Accounting export (E4)** · M · plan of accounts from the **Accountant**. Journal entries (CSV / Excel).
-- [ ] **P11-T18 Lot traceability (M1)** · M. Origin (catch / farm), catch zone and date, supplier sanitary approval
-  number on the receipt; a lot's traceability sheet (from whom, to which customers).
-- [ ] **P11-T19 Cold chain readings (M2)** · M · **Owner** decides (D-295 answer 4 said no temperatures for the frigo
-  service). Daily cold room and truck temperatures, alert out of range.
+- [x] **P11-T18 Lot traceability (M1)** · Built by P1-T23 (D-302): catch area, production method, origin, supplier
+  health approval, scientific name, and the recall sheet of a lot. _Checked 2026-11-10._
+- [x] **P11-T19 Cold chain readings (M2)** · Built by P1-T24 (D-303): a range per cold room and truck, readings by the
+  office and the driver, alert out of range, arrival temperature on the receipt. _Checked 2026-11-10._
 - [ ] **P11-T20 Closed seasons (M3) and port purchase circuits (M4)** · S · **Lawyer / DGPA** for the rules first.
 - [ ] **P11-T21 New organization onboarding (L4)** · L. Sign-up of a company, fiscal setup wizard with neutral
   defaults, subscription, tests that one organization never reads another's data.

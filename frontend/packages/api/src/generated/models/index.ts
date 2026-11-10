@@ -42,6 +42,7 @@ export * from './batchSales';
 export * from './batchSupplier';
 export * from './billingEnum';
 export * from './blankEnum';
+export * from './booksLock';
 export * from './boxAdjustmentWrite';
 export * from './boxAdjustmentWriteKindEnum';
 export * from './boxBalance';

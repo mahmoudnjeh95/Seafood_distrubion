@@ -16,6 +16,7 @@ urlpatterns = [
     path("users/<int:user_id>/avatar", views.UserAvatarView.as_view(), name="user-avatar"),
     path("organizations/<int:organization_id>/logo", views.OrganizationLogoView.as_view(), name="organization-logo"),
     path("numbering", views.NumberingView.as_view(), name="numbering"),
+    path("books-lock", views.BooksLockView.as_view(), name="books-lock"),
     path("members", views.MemberListView.as_view(), name="member-list"),
     path("members/<int:member_id>", views.MemberDetailView.as_view(), name="member-detail"),
     path("members/<int:member_id>/role", views.MemberRoleView.as_view(), name="member-role"),

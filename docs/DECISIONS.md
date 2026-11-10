@@ -4240,3 +4240,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
   them; the company name comes from the organization).
 
+
+**D-310 · Period lock: the books locked up to a past day (P11-T16, review E3)** · accepted · 2026-11-10
+- `Organization.books_locked_until` (migration `core 0009`): the last locked day, included. Set on Paramètres › Période verrouillée (`/books-lock`): the office reads it, only the owner moves it (section `settings`, owner writes). Only a past day locks; moving the date back or removing it reopens a declared period and needs a reason; both are audited.
+- `core.periods.ensure_open(organization, day, field=...)` refuses a record dated on or before that day. It is called by `treasury.post_movement` (every payment, expense, salary, partner and driver-day money) and by the services that take a typed date: goods receipts (`create_receipt`, `receive_goods`), supplier invoices (create, update), supplier payments, supplier credit notes, expenses (also general costs) and day labour. Documents dated today (invoices, credit notes, BL) are never in a locked period, since today cannot be locked.
+- A backfill of records already in the books (`backfill_treasury`) runs inside `periods.writing_history()` and passes. Stock movements are not locked (they carry no tax amount; their value reaches the books through the documents).

@@ -222,6 +222,7 @@ ROUTES: tuple[tuple[str, str, bool], ...] = (
     ("web-requests", "website", False),
     # Settings (users, roles and the import stay the owner's: they are in no section)
     ("numbering", "settings", False),
+    ("books-lock", "settings", False),
     ("organizations", "settings", True),
 )
 

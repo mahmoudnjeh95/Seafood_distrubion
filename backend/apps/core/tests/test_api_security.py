@@ -152,6 +152,8 @@ OWNER_ONLY_WRITES = (
     "/api/v1/recurring-costs",
     "/api/v1/finance-settings",
     "/api/v1/stock-settings",
+    # The period lock (D-310).
+    "/api/v1/books-lock",
 )
 # Clearing a customer's or a supplier's balance to zero (D-252): the owner alone; a manager gets 403.
 OWNER_ONLY_CLEARING = (
