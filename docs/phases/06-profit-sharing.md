@@ -82,16 +82,18 @@ Owner: one achat is one lot, its products share the lot number; a partner may sh
       data migration (each receipt → one lot, other batches → one-line lots, old number kept). API + `make gen-api`.
 - [ ] **T08b · Show the lot.** Lot page (lines, stock, sales per product); "L-0042 · Crevette" on stock, BL, labels,
       lot pickers and the driver's phone; search by lot number finds every line.
-- [ ] **T08c · Partnership on the lot.** `LotPartnership` points to the lot, with the ticked lines; capital checked
-      against the purchase value of the ticked lines only; receipt form: one partner section per lot and a
-      "partagé" tick per line; migration of existing partnerships (their one batch ticked). Ask the two open points
-      of D-310 first.
-- [ ] **T08d · Shared result and closing.** The shared part's result = sum of the ticked lines' results (engine
-      unchanged per line); profit or loss rate on the sum; closing checks on the ticked lines only; the owner's
+- [ ] **T08c · Partnerships on the lot.** `LotPartnership` points to the lot, several per lot, each with its ticked
+      lines; one line may be in several partnerships (capital together ≤ the line's purchase value, profit rates
+      together ≤ 100 %); receipt form: a "Partenaires" section per lot and per line who shares it; migration of
+      existing partnerships (their one batch ticked, two partners on one receipt stay one lot).
+- [ ] **T08d · Shared result and closing.** Each partnership's result = sum of its ticked lines' results (engine
+      unchanged per line); profit or loss rate on the sum; a transformed shared line's output stays in its
+      partnerships (Q30); closing checks on the ticked lines only; the owner's
       lines close alone; one settlement and one capital return per lot; lot costs typed on the lot split by kg.
 - [ ] **T08e · Statement and reports.** Partner statement PDF: one block per lot, a line per shared product, the
       netted total; reports per partner (P7) and month closing read the lot.
 - [ ] **Golden test:** the owner's example (shrimp +2 400, squid −500 shared at 50 %, sardine +300 not shared) gives
-      950 to the partner and leaves the sardine's 300 to the owner.
+      950 to the partner and leaves the sardine's 300 to the owner. A second case: shrimp +1 000 shared by Ali 40 %
+      and Salah 30 % gives 400 and 300, the owner 300.
 - [ ] Check on staging: a receipt of three products, partner on two; sell the two out; the shared part closes and is
       settled while the third is still in stock.

@@ -7,8 +7,8 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
 
 - **D-310 / P6-T08 (owner 2026-11-10): one purchase is one lot with several products; a partner shares only the
   products ticked.** Answers Q31: results of the shared products netted, the shared part closes when they are done,
-  capital on the shared products only, costs by kilos. Plan only (docs), no code yet. Next: ask the owner the two open
-  points of D-310 (old receipt with two partners; transforming a shared line), then T08a (Lot model + migration).
+  capital on the shared products only, costs by kilos; several partners per lot and per product; a shared product may
+  be transformed and stays shared (Q30 answered). Plan only (docs), no code yet. Next: T08a (Lot model + migration).
 
 - **D-308 (owner 2026-11-09): the staging images are built on the CI runner and loaded on the server**, never built
   there (a build on the shared VPS took it down). Branch `deploy-build-off-server`. Check on the first deploy after the

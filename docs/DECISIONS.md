@@ -4247,13 +4247,17 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
   `Batch`, which becomes a *lot line* (one product, one cost per kg, numbered `L-0042-1`, `L-0042-2`…). The stock
   ledger, FIFO / FEFO (D-299), sales, losses, transfers and the driver app keep working on `Batch` unchanged: every
   kilo still knows its product, cost and supplier. Screens, BL and labels show "L-0042 · Crevette".
-- **Partnership on the lot, per product ticked:** one partner, one capital, one profit % and one loss % per lot; each
-  line is ticked "partagé" or not. Products not ticked are the owner's alone and never enter the partner's numbers.
+- **Partnerships on the lot, per product ticked (owner 2026-11-10):** a lot may have **several partners**; each
+  partnership has its own capital, profit % and loss %, and its own ticked lines. **One product may be shared with
+  several partners** (shrimp: Ali 40 %, Salah 30 %, the owner the rest): on a line, the partners' capital together
+  stays within its purchase value and their profit rates together within 100 %. Products no partner ticks are the
+  owner's alone and never enter a partner's numbers.
 - **Q31 answers (owner 2026-11-10):**
   1. **Netted:** the partner's share is their rate on the *sum* of the results of the ticked products (shrimp +2 400,
      squid −500 → 1 900 at 50 % = 950). The profit rate applies if the sum is a profit, the loss rate if it is a loss.
-  2. **Closed when the shared products are done:** the shared part closes and is settled as soon as every ticked
-     line meets the closing rules (sold out or written off, costs in, customers paid, Q19); the owner's lines close
+     With several partners, each partnership nets only its own ticked lines.
+  2. **Closed when the shared products are done:** each partnership closes and is settled as soon as every line it
+     ticks meets the closing rules (sold out or written off, costs in, customers paid, Q19); the owner's lines close
      later on their own.
   3. **Capital covers the shared products only:** the partner's capital is a part of the purchase value of the ticked
      lines, returned ± their share at the settlement (Q3, Q22 unchanged otherwise).
@@ -4263,5 +4267,7 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - **Migration:** each goods receipt (and port purchase) becomes one lot, its batches its lines in receipt order; a
   batch made otherwise (transformation, import, adjustment) becomes a one-line lot. An existing partnership becomes the
   lot's with only its batch ticked. Old lot numbers printed on past documents stay readable as the line's former number.
-- **Open (ask before P6-T08c):** a receipt already saved with two *different* partners on two lines (today allowed):
-  split into two lots at migration, or refuse? A transformation of a shared line (Q30, still provisional "refused").
+- **Migration of old receipts with two partners:** they stay one lot with two partnerships (several partners allowed).
+- **Transformation of a shared line (answers Q30, changes D-304's provisional refusal):** allowed. The output is a new
+  line of the same lot, ticked in the same partnerships with the same rates; the fee is a cost of that line. The
+  source line's cost moves to it as today (D-304).
