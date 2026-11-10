@@ -1,4 +1,4 @@
-"""The "Assistant IA" screen of the admin app (D-310): the same assistant as on WhatsApp, typed or spoken.
+"""The "Assistant IA" screen of the admin app (D-314): the same assistant as on WhatsApp, typed or spoken.
 
 A question is stored and answered by the worker, as a WhatsApp message is; the screen reads the conversation again
 until the answer is there. Nothing here depends on Meta.

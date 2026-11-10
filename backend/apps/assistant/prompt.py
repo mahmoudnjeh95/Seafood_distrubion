@@ -31,7 +31,7 @@ Ce que tu peux faire
 """
 
 
-# A dictated question on the screen (D-310): the answer is read aloud by a Tunisian voice, which reads Arabic
+# A dictated question on the screen (D-314): the answer is read aloud by a Tunisian voice, which reads Arabic
 # letters, not "3andek".
 SPOKEN_LINE = (
     "[Vocal] Cette question a été dictée et ta réponse sera lue à voix haute. Réponds en phrases courtes et "

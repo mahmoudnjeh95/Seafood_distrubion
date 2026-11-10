@@ -35,7 +35,7 @@ REFUSAL_EVERY = 24 * 3600
 def handle_message(message_id: int) -> None:
     """Answer one received message. Messages of one conversation are answered one after the other.
 
-    A WhatsApp message is answered on WhatsApp. One of the "Assistant IA" screen (D-310) has no phone: its answer
+    A WhatsApp message is answered on WhatsApp. One of the "Assistant IA" screen (D-314) has no phone: its answer
     is only stored, and the screen reads it from the message log."""
     incoming = AssistantMessage.objects.select_related("link", "membership__user", "organization").get(pk=message_id)
     membership = incoming.membership

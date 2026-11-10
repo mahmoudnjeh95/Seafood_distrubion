@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-10 ("Assistant IA" screen with voice, D-310, P12-T06; one bot number, D-309; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; next free decision D-311)_
+_Last updated: 2026-11-10 ("Assistant IA" screen with voice, D-314, P12-T06; one bot number, D-309; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; next free decision D-311)_
 
 ## Where we are
 
-- **P12-T06 "Assistant IA" (D-310, owner 2026-11-10, branch `assistant-web-voice`, migrations `assistant 0002` to
+- **P12-T06 "Assistant IA" (D-314, owner 2026-11-10, branch `assistant-web-voice`, migrations `assistant 0002` to
   `0004`):** the WhatsApp assistant as a screen of the admin app (sidebar "Assistant IA", owner only): typed or
   dictated in the browser (تونسي / Français), answers read aloud. Built because Meta locked the unverified test
   account (131031): staging is fully wired (keys in `.env`, webhook, test number +1 555-144-3331), messages arrive

@@ -4240,7 +4240,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
   them; the company name comes from the organization).
 
-**D-310 · "Assistant IA": the assistant inside the admin app, typed or spoken (Phase 12, P12-T06)** · accepted (owner 2026-11-10) · 2026-11-10
+**D-314 · "Assistant IA": the assistant inside the admin app, typed or spoken (Phase 12, P12-T06)** · accepted (owner 2026-11-10) · 2026-11-10
 - Why: Meta locked the unverified test account (error 131031, "Business Account locked") and the owner has no
   company papers yet, so WhatsApp delivers no answer. Owner: "add assistance ia section in the side barre", "voice
   with tunisia accent … first prio". The screen needs nothing from Meta; WhatsApp stays plugged in.

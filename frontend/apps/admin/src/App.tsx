@@ -139,7 +139,7 @@ function useNav(): AdminNavGroup[] {
       ],
     },
     {
-      // The WhatsApp assistant inside the application, typed or spoken (D-310).
+      // The WhatsApp assistant inside the application, typed or spoken (D-314).
       label: t("admin.groups.assistant"),
       items: [{ to: "/assistant", label: t("admin.nav.assistant"), icon: "spark" }],
     },
@@ -278,7 +278,7 @@ const PATH_SECTIONS: [string, Section][] = (
 ).sort((a, b) => b[0].length - a[0].length);
 
 // Screens only the owner reaches, whatever the matrix says: the import, the users and roles (D-123, D-306), and
-// the assistant until its own section exists (D-310, P12-T05).
+// the assistant until its own section exists (D-314, P12-T05).
 const OWNER_PATHS = ["/import", "/parametres/utilisateurs", "/parametres/roles", "/assistant"];
 
 function underPath(pathname: string, prefix: string): boolean {

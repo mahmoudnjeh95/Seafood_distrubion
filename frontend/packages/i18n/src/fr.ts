@@ -714,7 +714,7 @@ export const fr = {
       siteProducts: "Produits du site",
       siteSettings: "Paramètres du site",
     },
-    // The assistant inside the application, typed or dictated (D-310)
+    // The assistant inside the application, typed or dictated (D-314)
     assistant: {
       title: "Assistant IA",
       welcome: "Aslema {{name}}",

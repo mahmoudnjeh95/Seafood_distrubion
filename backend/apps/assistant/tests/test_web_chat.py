@@ -1,4 +1,4 @@
-"""The "Assistant IA" screen (D-310): the same assistant as on WhatsApp, without a phone."""
+"""The "Assistant IA" screen (D-314): the same assistant as on WhatsApp, without a phone."""
 
 import httpx
 import pytest

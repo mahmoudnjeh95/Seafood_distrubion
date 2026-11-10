@@ -35,7 +35,7 @@ def conversation_of(message: AssistantMessage) -> QuerySet[AssistantMessage]:
 
 
 def web_conversation(membership: Membership) -> QuerySet[AssistantMessage]:
-    """What one person and the assistant said on the "Assistant IA" screen (D-310)."""
+    """What one person and the assistant said on the "Assistant IA" screen (D-314)."""
     return AssistantMessage.objects.filter(membership=membership, channel=Channel.WEB)
 
 

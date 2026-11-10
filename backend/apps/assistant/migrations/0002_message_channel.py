@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    """The messages of the "Assistant IA" screen (D-310): a message belongs to a membership and a channel; only a
+    """The messages of the "Assistant IA" screen (D-314): a message belongs to a membership and a channel; only a
     WhatsApp one has a phone link."""
 
     dependencies = [

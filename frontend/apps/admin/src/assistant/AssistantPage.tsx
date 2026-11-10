@@ -148,7 +148,7 @@ function Welcome({ name, onPick, disabled }: { name: string; onPick: (text: stri
 }
 
 /**
- * "Assistant IA" (D-310): the WhatsApp assistant inside the application, typed or dictated in Tunisian, Arabic or
+ * "Assistant IA" (D-314): the WhatsApp assistant inside the application, typed or dictated in Tunisian, Arabic or
  * French, with its answers read aloud. The worker answers; the screen reads the conversation until the answer is in.
  */
 export function AssistantPage() {

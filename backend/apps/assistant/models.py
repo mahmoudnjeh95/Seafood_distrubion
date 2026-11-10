@@ -33,7 +33,7 @@ class MessageKind(models.TextChoices):
 
 class Channel(models.TextChoices):
     WHATSAPP = "whatsapp", _("WhatsApp")
-    # The "Assistant IA" screen of the admin app (D-310): the same assistant, typed or spoken in the browser.
+    # The "Assistant IA" screen of the admin app (D-314): the same assistant, typed or spoken in the browser.
     WEB = "web", _("Application")
 
 

@@ -1,4 +1,4 @@
-"""The assistant's voice on the "Assistant IA" screen (D-310): an answer read aloud by Azure AI Speech.
+"""The assistant's voice on the "Assistant IA" screen (D-314): an answer read aloud by Azure AI Speech.
 
 Azure has Tunisian voices (`ar-TN-ReemNeural`, `ar-TN-HediNeural`); a browser other than Edge has none. Without
 the Azure key the screen falls back to the browser's own voice.

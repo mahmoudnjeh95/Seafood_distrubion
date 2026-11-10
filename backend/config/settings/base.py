@@ -182,7 +182,7 @@ WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
 WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
 WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
 WHATSAPP_GRAPH_VERSION = env("WHATSAPP_GRAPH_VERSION", default="v23.0")
-# The voice of the "Assistant IA" screen (D-310): Azure AI Speech reads an answer with a Tunisian voice.
+# The voice of the "Assistant IA" screen (D-314): Azure AI Speech reads an answer with a Tunisian voice.
 # Without the key the screen uses the browser's own voice.
 AZURE_SPEECH_KEY = env("AZURE_SPEECH_KEY", default="")
 AZURE_SPEECH_REGION = env("AZURE_SPEECH_REGION", default="")

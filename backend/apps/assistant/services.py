@@ -102,7 +102,7 @@ def is_unknown_number(phone: str) -> bool:
 
 @transaction.atomic
 def record_web_incoming(*, membership: Membership, text: str, spoken: bool = False) -> AssistantMessage:
-    """Store a question typed or dictated on the "Assistant IA" screen (D-310)."""
+    """Store a question typed or dictated on the "Assistant IA" screen (D-314)."""
     return AssistantMessage.objects.create(
         organization=membership.organization,
         membership=membership,
