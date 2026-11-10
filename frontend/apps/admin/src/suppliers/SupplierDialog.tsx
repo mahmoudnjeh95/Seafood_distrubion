@@ -104,7 +104,7 @@ export function SupplierDialog({
     supplier?.payment_terms_days != null ? String(supplier.payment_terms_days) : "",
   );
   const [buysWithVat, setBuysWithVat] = useState(supplier?.buys_with_vat ?? false);
-  // D-312: the regime is "Sans matricule" whenever the tax ID is empty; the server keeps that rule.
+  // D-319: the regime is "Sans matricule" whenever the tax ID is empty; the server keeps that rule.
   const [taxRegime, setTaxRegime] = useState<string>(supplier?.tax_regime === "flat" ? "flat" : "real");
   const [withholding, setWithholding] = useState(supplier?.subject_to_withholding ?? true);
   const [errors, setErrors] = useState<Errors>({});

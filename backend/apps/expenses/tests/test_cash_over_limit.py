@@ -1,4 +1,4 @@
-"""A cash expense at or above the legal cash limit is kept but flagged (D-311, P11-T11)."""
+"""A cash expense at or above the legal cash limit is kept but flagged (D-318, P11-T11)."""
 
 import pytest
 from django.utils import timezone

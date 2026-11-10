@@ -86,11 +86,11 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
 
 0. **Phase 11 Conformité (D-296, owner 2026-11-10 "build all 19 tasks"):** `docs/phases/11-compliance.md`. Merged:
    T01 invoice legal mentions (#334), T15 write-off evidence (#335). T14, T18, T19 were already built (P2-T06,
-   P1-T23, P1-T24). **T16 period lock (D-310, branch `p11-period-lock`, migration `core 0009`):** Paramètres ›
+   P1-T23, P1-T24). **T16 period lock (D-317, branch `p11-period-lock`, migration `core 0009`):** Paramètres ›
    Période verrouillée; money and typed dates in the locked period are refused. Check on staging: lock up to the end
-   of last month, then an expense dated last month is refused and one dated today goes through. **T11 (D-311, branch `p11-cash-out`):** a cash
+   of last month, then an expense dated last month is refused and one dated today goes through. **T11 (D-318, branch `p11-cash-out`):** a cash
    expense at or above the cash limit is flagged "Espèces ≥ plafond"; check: a 6 000 DT cash expense shows the warning
-   and the pill. **T10 (D-312, branch `p11-supplier-tax`, migration
+   and the pill. **T10 (D-319, branch `p11-supplier-tax`, migration
    `partners 0009`):** supplier tax regime and withholding flag; check: a supplier without tax ID reads "Sans
    matricule fiscal". Next, in order: T09, T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in
    per-company settings, marked "à confirmer"); T06 is the accountant's session (questionnaire to prepare).

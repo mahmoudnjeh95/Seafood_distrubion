@@ -63,7 +63,7 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
   const [category, setCategory] = useState(expense ? String(expense.category.id) : "");
   const [amount, setAmount] = useState(expense ? expense.amount.replace(".", ",") : "");
   const [method, setMethod] = useState<PaymentMethodEnum>(expense?.payment_method ?? "cash");
-  // The legal cash limit (D-311): a cash expense at or above it is kept but warned as likely not deductible.
+  // The legal cash limit (D-318): a cash expense at or above it is kept but warned as likely not deductible.
   const cashLimit = useGetFinanceSettings().data?.in_force.cash_limit;
   const typedAmount = parseDecimalInput(amount.trim(), 3);
   const cashOverLimit =

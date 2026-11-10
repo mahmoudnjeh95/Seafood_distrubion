@@ -1,4 +1,4 @@
-"""The period lock (D-310, P11-T16): a declared month takes no new dated entry; only the owner moves it."""
+"""The period lock (D-317, P11-T16): a declared month takes no new dated entry; only the owner moves it."""
 
 import datetime as dt
 

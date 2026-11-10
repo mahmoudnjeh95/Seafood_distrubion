@@ -19,7 +19,7 @@ def unique_emails(*addresses: str) -> list[str]:
 
 
 class SupplierTaxRegime(models.TextChoices):
-    """How the supplier is taxed (D-312, review R2): it decides whether its invoice gives deductible VAT and how much
+    """How the supplier is taxed (D-319, review R2): it decides whether its invoice gives deductible VAT and how much
     the company withholds when paying it (P11-T02). A supplier without a tax ID is always "Sans matricule"."""
 
     REAL = "real", _("Régime réel")
@@ -49,7 +49,7 @@ class Supplier(OrganizationScopedModel, TimeStampedModel):
     buys_with_vat = models.BooleanField(default=False)
     # The supplier's health approval number ("agrément sanitaire"), printed with its lots' origin (D-302).
     health_approval = models.CharField(max_length=50, blank=True)
-    # Its tax regime (D-312), and whether the company withholds tax when paying it (P11-T02; a supplier exempt by
+    # Its tax regime (D-319), and whether the company withholds tax when paying it (P11-T02; a supplier exempt by
     # a certificate is unticked).
     tax_regime = models.CharField(max_length=10, choices=SupplierTaxRegime.choices, default=SupplierTaxRegime.REAL)
     subject_to_withholding = models.BooleanField(default=True)

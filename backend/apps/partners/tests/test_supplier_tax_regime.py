@@ -1,4 +1,4 @@
-"""A supplier's tax regime and withholding flag (D-312, P11-T10)."""
+"""A supplier's tax regime and withholding flag (D-319, P11-T10)."""
 
 import pytest
 from django.core.exceptions import ValidationError

@@ -737,7 +737,7 @@ def post_movement(
     value = money(amount)
     if value == 0:
         return None
-    # Money dated in a declared period is refused (D-310); a backfill of existing records passes (writing_history).
+    # Money dated in a declared period is refused (D-317); a backfill of existing records passes (writing_history).
     periods.ensure_open(organization, day)
     if source:
         existing = TreasuryMovement.objects.filter(

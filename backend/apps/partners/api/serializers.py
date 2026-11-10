@@ -72,7 +72,7 @@ class SupplierWriteSerializer(serializers.Serializer[Any]):
     buys_with_vat = serializers.BooleanField(required=False, default=False)
     # The supplier's health approval number ("agrément sanitaire", D-302).
     health_approval = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
-    # Tax regime (D-312): empty takes "real" with a tax ID, "none" without.
+    # Tax regime (D-319): empty takes "real" with a tax ID, "none" without.
     tax_regime = serializers.ChoiceField(
         choices=[("", ""), *SupplierTaxRegime.choices], required=False, allow_blank=True, default=""
     )

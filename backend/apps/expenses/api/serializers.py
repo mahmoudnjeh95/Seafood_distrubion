@@ -84,7 +84,7 @@ class ExpenseSerializer(serializers.ModelSerializer[Expense]):
     # A day labourer's day (P5-T03): changed from the calendar, not from the expense form.
     day_labour_id = serializers.SerializerMethodField()
     labourer_name = serializers.SerializerMethodField()
-    # Paid in cash at or above the legal cash limit of its day (D-311): kept, but likely not deductible.
+    # Paid in cash at or above the legal cash limit of its day (D-318): kept, but likely not deductible.
     cash_over_limit = serializers.SerializerMethodField()
 
     class Meta:

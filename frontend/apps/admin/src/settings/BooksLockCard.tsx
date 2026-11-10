@@ -15,7 +15,7 @@ function lastMonthEnd(): string {
   return `${end.getFullYear()}-${month}-${day}`;
 }
 
-/** The period lock (D-310): once a month is declared to the tax office, no new entry is dated in it. The office
+/** The period lock (D-317): once a month is declared to the tax office, no new entry is dated in it. The office
  * reads it; only the owner moves it, and opening a declared period again needs a reason. */
 export function BooksLockCard({ canWrite }: { canWrite: boolean }) {
   const { t } = useTranslation();
