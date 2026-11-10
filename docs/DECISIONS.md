@@ -4275,3 +4275,13 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - **Transformation of a shared line (answers Q30, changes D-304's provisional refusal):** allowed. The output is a new
   line of the same lot, ticked in the same partnerships with the same rates; the fee is a cost of that line. The
   source line's cost moves to it as today (D-304).
+
+**D-321 · Deploy through SmartFeesh while the personal repo's Actions do not run (owner, 2026-11-10)** · accepted · 2026-11-10
+- Since 2026-11-09 every Actions job of `mahmoudnjeh95/Seafood_distrubion` stops in 2 to 4 s before any step (PRs,
+  `main`, the scheduled Uptime): the account's Actions minutes or spending limit. Owner: "Use smartfeesh for deploy".
+- Until the personal repo runs jobs again: the PR stays on the personal repo; its branch is pushed to
+  `SmartToolsAgro/SmartFeesh` and a PR opened there against its `main`, so CI runs there (D-297: only PRs and `main`
+  run CI). Merge on the personal repo once the SmartFeesh PR is green, then fast-forward SmartFeesh `main`
+  (`git push org origin/main:refs/heads/main`), which tests and deploys staging. This is the owner's standing ask for
+  D-209's "only when the owner asks"; one deploy at a time (D-308), never re-run an old SmartFeesh deploy job.
+- Close the SmartFeesh PR after the merge. Back to D-209 as soon as the personal repo runs jobs again.
