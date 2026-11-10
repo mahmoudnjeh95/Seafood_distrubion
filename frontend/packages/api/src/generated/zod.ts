@@ -5806,7 +5806,8 @@ export const ListExpensesResponse = zod.object({
   "decided_at": zod.iso.datetime({"offset":true}).nullable(),
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
-  "labourer_name": zod.string()
+  "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean()
 }))
 })
 
@@ -5881,6 +5882,7 @@ export const CreateExpenseResponse = zod.object({
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
   "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean(),
   "shares": zod.array(zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
@@ -5939,6 +5941,7 @@ export const GetExpenseResponse = zod.object({
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
   "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean(),
   "shares": zod.array(zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
@@ -6023,6 +6026,7 @@ export const UpdateExpenseResponse = zod.object({
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
   "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean(),
   "shares": zod.array(zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
@@ -6091,6 +6095,7 @@ export const ApproveExpenseResponse = zod.object({
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
   "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean(),
   "shares": zod.array(zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
@@ -6154,6 +6159,7 @@ export const AddExpenseReceiptResponse = zod.object({
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
   "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean(),
   "shares": zod.array(zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),
@@ -6220,6 +6226,7 @@ export const RejectExpenseResponse = zod.object({
   "rejection_reason": zod.string(),
   "day_labour_id": zod.int().nullable(),
   "labourer_name": zod.string(),
+  "cash_over_limit": zod.boolean(),
   "shares": zod.array(zod.object({
   "batch_id": zod.int(),
   "batch_number": zod.string(),

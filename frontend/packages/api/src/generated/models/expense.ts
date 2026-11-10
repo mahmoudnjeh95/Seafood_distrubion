@@ -36,4 +36,5 @@ export interface Expense {
   /** @nullable */
   readonly day_labour_id: number | null;
   readonly labourer_name: string;
+  readonly cash_over_limit: boolean;
 }

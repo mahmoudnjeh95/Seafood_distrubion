@@ -5209,6 +5209,11 @@ export const fr = {
       general: "Frais généraux",
     },
     expenses: {
+      cashOverLimit:
+        "Paiement en espèces au-delà du plafond légal ({{limit}}) : la dépense est enregistrée, mais elle risque de ne pas être déductible. Préférez un chèque ou un virement.",
+      cashOverLimitPill: "Espèces ≥ plafond",
+      cashOverLimitHint:
+        "Payée en espèces au-delà du plafond légal : probablement non déductible (à voir avec l'expert-comptable).",
       title: "Dépenses",
       add: "Nouvelle dépense",
       back: "Toutes les dépenses",

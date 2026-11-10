@@ -52,8 +52,10 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   withholding on the amount.
 - [ ] **P11-T10 Supplier tax status (R2)** · S · after T06. Réel / forfaitaire / no tax ID; warning on a port
   purchase paid without an invoice.
-- [ ] **P11-T11 Cash limit on payments out (E1)** · S · after T06. The cash confirmation of D-273 on supplier payments,
-  port purchases and expenses.
+- [x] **P11-T11 Cash limit on payments out (E1)** · S. Supplier payments already confirm a cash line at or above the
+  limit (D-273); a port purchase records it at validation. A cash expense at or above the limit is kept but flagged
+  "Espèces ≥ plafond" (likely not deductible), warned in the form (D-311). _Done 2026-11-10; the exact 2026 rule stays
+  for the accountant (P11-T06)._
 - [ ] **P11-T12 Payroll (P1, P2, P3, P4, B8)** · L · after T06. IRPP scale, professional expenses and family
   deductions, CSS, payslip PDF, hire and leave dates with prorata, quarterly CNSS return export, TFP and FOPROLOS.
   Until then the module is sold as "suivi des salaires".

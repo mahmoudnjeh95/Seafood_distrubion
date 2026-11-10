@@ -1,7 +1,7 @@
 # Project status
 
 _Last updated: 2026-11-09 (roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
-_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-311; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
+_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-312; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
 
 ## Where we are
 
@@ -88,8 +88,9 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
    T01 invoice legal mentions (#334), T15 write-off evidence (#335). T14, T18, T19 were already built (P2-T06,
    P1-T23, P1-T24). **T16 period lock (D-310, branch `p11-period-lock`, migration `core 0009`):** Paramètres ›
    Période verrouillée; money and typed dates in the locked period are refused. Check on staging: lock up to the end
-   of last month, then an expense dated last month is refused and one dated today goes through. Next, in order: T11
-   cash limit on expenses, T10, T09, T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in
+   of last month, then an expense dated last month is refused and one dated today goes through. **T11 (D-311, branch `p11-cash-out`):** a cash
+   expense at or above the cash limit is flagged "Espèces ≥ plafond"; check: a 6 000 DT cash expense shows the warning
+   and the pill. Next, in order: T10, T09, T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in
    per-company settings, marked "à confirmer"); T06 is the accountant's session (questionnaire to prepare).
 0. P10-T02 to T05 (D-295): PR #333, merge once CI is green, then the staging checks above. Owner: confirm the
    suggested intervals against each truck's manual, and the paper list with the accountant or the ATTT.

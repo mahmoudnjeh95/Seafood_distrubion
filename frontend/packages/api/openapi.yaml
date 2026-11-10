@@ -20358,9 +20358,13 @@ components:
         labourer_name:
           type: string
           readOnly: true
+        cash_over_limit:
+          type: boolean
+          readOnly: true
       required:
       - amount
       - batch
+      - cash_over_limit
       - category
       - created_at
       - day_labour_id
@@ -20512,6 +20516,9 @@ components:
         labourer_name:
           type: string
           readOnly: true
+        cash_over_limit:
+          type: boolean
+          readOnly: true
         shares:
           type: array
           items:
@@ -20520,6 +20527,7 @@ components:
       required:
       - amount
       - batch
+      - cash_over_limit
       - category
       - created_at
       - day_labour_id

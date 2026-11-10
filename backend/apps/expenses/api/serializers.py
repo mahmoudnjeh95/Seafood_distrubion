@@ -15,6 +15,7 @@ from apps.expenses.models import (
     LotCostKind,
     WorkType,
 )
+from apps.sales import selectors as sales_selectors
 
 
 def person_name(user: Any) -> str:
@@ -83,6 +84,8 @@ class ExpenseSerializer(serializers.ModelSerializer[Expense]):
     # A day labourer's day (P5-T03): changed from the calendar, not from the expense form.
     day_labour_id = serializers.SerializerMethodField()
     labourer_name = serializers.SerializerMethodField()
+    # Paid in cash at or above the legal cash limit of its day (D-311): kept, but likely not deductible.
+    cash_over_limit = serializers.SerializerMethodField()
 
     class Meta:
         model = Expense
@@ -108,8 +111,19 @@ class ExpenseSerializer(serializers.ModelSerializer[Expense]):
             "rejection_reason",
             "day_labour_id",
             "labourer_name",
+            "cash_over_limit",
         )
         read_only_fields: tuple[str, ...] = fields
+
+    def get_cash_over_limit(self, expense: Expense) -> bool:
+        if expense.payment_method != ExpensePaymentMethod.CASH:
+            return False
+        # One reading of the limit per organization and day for a whole list.
+        limits: dict[tuple[int, Any], Any] = self.context.setdefault("_cash_limits", {})
+        key = (expense.organization_id, expense.spent_on)
+        if key not in limits:
+            limits[key] = sales_selectors.cash_limit_on(expense.organization, expense.spent_on)
+        return bool(expense.amount >= limits[key])
 
     def get_day_labour_id(self, expense: Expense) -> int | None:
         entry = getattr(expense, "day_labour", None)
