@@ -53,6 +53,7 @@ import { BanksPage } from "./settings/BanksPage";
 import { NumberingPage } from "./settings/NumberingPage";
 import { RolesPage } from "./settings/RolesPage";
 import { CustomerTypesPage } from "./settings/CustomerTypesPage";
+import { EInvoicingPage } from "./settings/EInvoicingPage";
 import { VatRatesPage } from "./settings/VatRatesPage";
 import { OpeningBalancesPage } from "./treasury/OpeningBalancesPage";
 import { RefundsPage } from "./treasury/RefundsPage";
@@ -371,6 +372,7 @@ function AppRoutes() {
         <Route path="/parametres/numerotation" element={<NumberingPage />} />
         <Route path="/parametres/types-clients" element={<CustomerTypesPage />} />
         <Route path="/parametres/tva" element={<VatRatesPage />} />
+        <Route path="/parametres/facturation-electronique" element={<EInvoicingPage />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}

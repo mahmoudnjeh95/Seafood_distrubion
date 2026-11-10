@@ -18,6 +18,7 @@ from apps.sales.models import (
     CustomerRefundPayment,
     DeliveryStatus,
     EInvoiceStatus,
+    EInvoicingSettings,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -734,6 +735,53 @@ class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
     phone = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
     tax_id = serializers.CharField(required=False, allow_blank=True, default="", max_length=30)
     trade_register = serializers.CharField(required=False, allow_blank=True, default="", max_length=50)
+
+
+# ---- E-invoicing settings (P11-T05a, D-310) ----
+
+
+class EInvoiceCheckSerializer(serializers.Serializer[Any]):
+    """One thing TTN needs before e-invoices can be sent (`selectors.einvoicing_checks`)."""
+
+    key = serializers.CharField(read_only=True)
+    text = serializers.CharField(read_only=True)
+    ok = serializers.BooleanField(read_only=True)
+
+
+class EInvoicingSettingsSerializer(serializers.ModelSerializer[EInvoicingSettings]):
+    class Meta:
+        model = EInvoicingSettings
+        fields: tuple[str, ...] = (
+            "enabled",
+            "environment",
+            "api_base_url",
+            "auth_mode",
+            "client_id",
+            "certificate_holder",
+            "certificate_expires_on",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+
+class EInvoicingSettingsOverviewSerializer(serializers.Serializer[Any]):
+    """The settings, what is still missing before they can be switched on, and whether the user may change them."""
+
+    settings = EInvoicingSettingsSerializer(read_only=True)
+    checks = EInvoiceCheckSerializer(many=True, read_only=True)
+    ready = serializers.BooleanField(read_only=True)
+    certificate_expiring = serializers.BooleanField(read_only=True)
+    may_edit = serializers.BooleanField(read_only=True)
+
+
+class EInvoicingSettingsWriteSerializer(serializers.Serializer[Any]):
+    # Only the fields sent change. The service checks the values and the readiness.
+    enabled = serializers.BooleanField(required=False)
+    environment = serializers.CharField(required=False, allow_blank=True)
+    api_base_url = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    auth_mode = serializers.CharField(required=False, allow_blank=True)
+    client_id = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    certificate_holder = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    certificate_expires_on = serializers.DateField(required=False, allow_null=True)
 
 
 # ---- Invoices and credit notes (P2-T05, D-057) ----

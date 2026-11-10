@@ -51,6 +51,9 @@ from .models import (
     CustomerWriteOffAllocation,
     CustomerWriteOffLotShare,
     DeliveryStatus,
+    EInvoiceAuthMode,
+    EInvoiceEnvironment,
+    EInvoicingSettings,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -2154,6 +2157,93 @@ def save_finance_settings(
         after=_settings_snapshot(version),
     )
     return version
+
+
+# ---- E-invoicing settings (P11-T05a, D-310) ----
+
+
+class EInvoicingSettingsFields(TypedDict, total=False):
+    enabled: bool
+    environment: str
+    # https only, the address TTN gave at enrolment.
+    api_base_url: str
+    auth_mode: str
+    # Public identifier of the API account; the secret stays in the server's environment.
+    client_id: str
+    certificate_holder: str
+    certificate_expires_on: dt.date | None
+
+
+_EINVOICE_TEXT_LENGTHS = {"api_base_url": 200, "client_id": 100, "certificate_holder": 200}
+
+
+def _einvoicing_snapshot(row: EInvoicingSettings) -> dict[str, Any]:
+    return {
+        "enabled": row.enabled,
+        "environment": row.environment,
+        "api_base_url": row.api_base_url,
+        "auth_mode": row.auth_mode,
+        "client_id": row.client_id,
+        "certificate_holder": row.certificate_holder,
+        "certificate_expires_on": row.certificate_expires_on.isoformat() if row.certificate_expires_on else None,
+    }
+
+
+@transaction.atomic
+def save_einvoicing_settings(
+    *, organization: Organization, actor: User | None, **fields: Unpack[EInvoicingSettingsFields]
+) -> EInvoicingSettings:
+    """The TTN settings of the organization (P11-T05a, D-310). Only the fields given change. Turning `enabled` on
+    needs every check of `selectors.einvoicing_checks` to pass; the missing ones are named. Switching off is always
+    allowed. Audited with the values before and after."""
+    today = timezone.localdate()
+    row = EInvoicingSettings.objects.for_organization(organization).select_for_update().first()
+    if row is None:
+        row = EInvoicingSettings(organization=organization)
+    before = _einvoicing_snapshot(row)
+    errors: dict[str, str] = {}
+    environment = str(fields.get("environment", row.environment))
+    if environment not in EInvoiceEnvironment.values:
+        errors["environment"] = _("Choisissez le test ou la production.")
+    auth_mode = str(fields.get("auth_mode", row.auth_mode) or "")
+    if auth_mode not in EInvoiceAuthMode.values:
+        errors["auth_mode"] = _("Choisissez un mode d'authentification proposé.")
+    texts: dict[str, str] = {}
+    for name, limit in _EINVOICE_TEXT_LENGTHS.items():
+        text = str(fields.get(name, getattr(row, name)) or "").strip()
+        if len(text) > limit:
+            errors[name] = _("Au plus %(count)d caractères.") % {"count": limit}
+        texts[name] = text
+    if texts["api_base_url"] and not texts["api_base_url"].startswith("https://"):
+        errors["api_base_url"] = _("L'adresse doit commencer par https://.")
+    if errors:
+        raise ValidationError(errors)
+    row.environment = environment
+    row.auth_mode = auth_mode
+    for name, text in texts.items():
+        setattr(row, name, text)
+    row.certificate_expires_on = fields.get("certificate_expires_on", row.certificate_expires_on)
+    row.enabled = bool(fields.get("enabled", row.enabled))
+    if row.enabled:
+        finance = selectors.finance_settings_on(organization, today)
+        missing = [check.label for check in selectors.einvoicing_checks(row, finance, today) if not check.ok]
+        if missing:
+            raise ValidationError(
+                {
+                    "enabled": _("Pour activer la facturation électronique, complétez : %(items)s.")
+                    % {"items": " ; ".join(missing)}
+                }
+            )
+    row.save()
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="einvoicing_settings.saved",
+        target=row,
+        before=before,
+        after=_einvoicing_snapshot(row),
+    )
+    return row
 
 
 # ---- Invoices and credit notes (P2-T05, D-057) ----

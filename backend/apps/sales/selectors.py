@@ -25,6 +25,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.core.documents import DocumentFilters, DocumentRow, DocumentType, PartyDocuments, Tone, document_key
 from apps.core.models import Organization
@@ -39,6 +40,8 @@ from .models import (
     CustomerRefundPayment,
     CustomerWriteOffLotShare,
     DeliveryStatus,
+    EInvoiceAuthMode,
+    EInvoicingSettings,
     FinanceSettings,
     Invoice,
     InvoiceLine,
@@ -456,6 +459,70 @@ def finance_settings_history(organization: Organization) -> QuerySet[FinanceSett
         .select_related("created_by")
         .order_by("-valid_from", "-id")
     )
+
+
+EINVOICE_EXPIRY_WARNING_DAYS = 30
+
+
+def einvoicing_settings_of(organization: Organization) -> EInvoicingSettings:
+    """The e-invoicing settings of the organization; an unsaved row with the defaults until first saved (P11-T05a)."""
+    row = EInvoicingSettings.objects.for_organization(organization).first()
+    return row if row is not None else EInvoicingSettings(organization=organization)
+
+
+@dataclass(frozen=True)
+class EInvoiceCheck:
+    key: str
+    label: str
+    ok: bool
+
+
+def einvoicing_checks(
+    settings_row: EInvoicingSettings, finance: FinanceSettings | None, today: dt.date
+) -> list[EInvoiceCheck]:
+    """What TTN needs before e-invoices can be sent (D-310). Pure: the screen and the service read the same rules.
+    The seller's tax ID and address come from the finance settings in force (D-296)."""
+    url = settings_row.api_base_url.strip()
+    auth = settings_row.auth_mode
+    expires = settings_row.certificate_expires_on
+    checks = [
+        EInvoiceCheck(
+            "seller_tax_id",
+            str(_("Matricule fiscal de la société (Paramètres financiers)")),
+            finance is not None and bool(finance.tax_id.strip()),
+        ),
+        EInvoiceCheck(
+            "seller_address",
+            str(_("Adresse de la société (Paramètres financiers)")),
+            finance is not None and bool(finance.address.strip()),
+        ),
+        EInvoiceCheck(
+            "api_base_url",
+            str(_("Adresse de l'API TTN, en https")),
+            url.startswith("https://") and len(url) > len("https://"),
+        ),
+        EInvoiceCheck(
+            "auth_mode",
+            str(_("Mode d'authentification, selon la documentation TTN")),
+            auth in (EInvoiceAuthMode.CERTIFICATE, EInvoiceAuthMode.CLIENT_SECRET),
+        ),
+    ]
+    if auth == EInvoiceAuthMode.CLIENT_SECRET:
+        checks.append(EInvoiceCheck("client_id", str(_("Identifiant d'API")), bool(settings_row.client_id.strip())))
+    checks.append(
+        EInvoiceCheck(
+            "certificate",
+            str(_("Certificat de signature : titulaire, et date d'expiration pas dépassée")),
+            bool(settings_row.certificate_holder.strip()) and expires is not None and expires >= today,
+        )
+    )
+    return checks
+
+
+def certificate_expiring_soon(settings_row: EInvoicingSettings, today: dt.date) -> bool:
+    """The signing certificate ends within the warning window (it still works until its day)."""
+    expires = settings_row.certificate_expires_on
+    return expires is not None and today <= expires <= today + dt.timedelta(days=EINVOICE_EXPIRY_WARNING_DAYS)
 
 
 def finance_settings_on(organization: Organization, day: dt.date | None = None) -> FinanceSettings | None:

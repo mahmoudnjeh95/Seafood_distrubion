@@ -1,5 +1,6 @@
 # Project status
 
+_Last updated: 2026-11-11 (P11-T05a e-invoicing settings, D-310; next free decision D-311)_
 _Last updated: 2026-11-09 (roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
 _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-310; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
 
@@ -84,6 +85,14 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
 
 ## Next step
 
+0. **P11-T05a e-invoicing settings (D-310, owner 2026-11-11, branch `claude/fervent-bell-einvoice-settings`, migration `sales 0037`):**
+   Paramètres › Facturation électronique holds the TTN account (environment, https address, auth mode, client identifier,
+   certificate holder and expiry). Switching on is refused until the seller's tax ID and address, the address, the auth
+   mode and a valid certificate are set. **Nothing is sent to TTN yet.** Check on staging: open the card on Paramètres,
+   tick "activée" with the fields empty (refused, missing ones named), fill them, switch on, switch off.
+   **Owner to provide** (Q18): TTN enrolment status, sandbox access, the TEIF specification and XSD, the TunTrust
+   certificate (its password only in the server's `.env`, never in chat). Then T05b (XML and XSD check), T05c, T05d.
+   Owner rule (D-310): every parameter of the app goes in a Paramètres section.
 0. **Phase 11 Conformité (D-296, owner 2026-11-08 "need all of them"):** every point of
    `docs/guides/market-readiness-review-2026-11-08.md` is a task of `docs/phases/11-compliance.md`. P11-T01 merged
    (#334): no invoice issued without the seller's address and matricule fiscal; a customer without tax ID or address

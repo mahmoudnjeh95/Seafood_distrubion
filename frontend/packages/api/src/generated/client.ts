@@ -104,6 +104,7 @@ import type {
   DepositWrite,
   DocumentList,
   DriverDay,
+  EInvoicingSettingsOverview,
   EffetReject,
   ElectricityBill,
   ElectricityBillWrite,
@@ -346,6 +347,7 @@ import type {
   PatchedCategory,
   PatchedCustomerTypeWrite,
   PatchedCustomerWrite,
+  PatchedEInvoicingSettingsWrite,
   PatchedEmployeeWrite,
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
@@ -7973,6 +7975,191 @@ export function useGetDocumentPdf<TData = Awaited<ReturnType<typeof getDocumentP
 
 
 
+
+export const getGetEInvoicingSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/einvoicing-settings`
+}
+
+/**
+ * The TTN / El Fatoora settings (Paramètres › Facturation électronique) and what is still missing before
+ * they can be switched on. Office roles read.
+ */
+export const getEInvoicingSettings = async ( options?: Parameters<typeof apiFetch>[1]): Promise<EInvoicingSettingsOverview> => {
+
+  return apiFetch<EInvoicingSettingsOverview>(getGetEInvoicingSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEInvoicingSettingsQueryKey = () => {
+    return [
+    `/api/v1/einvoicing-settings`
+    ] as const;
+    }
+
+
+export const getGetEInvoicingSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEInvoicingSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEInvoicingSettings>>> = ({ signal }) => getEInvoicingSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEInvoicingSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getEInvoicingSettings>>>
+export type GetEInvoicingSettingsQueryError = unknown
+
+
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEInvoicingSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getEInvoicingSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEInvoicingSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getEInvoicingSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEInvoicingSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEInvoicingSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/einvoicing-settings`
+}
+
+/**
+ * Change the TTN settings. The owner (or a person the owner gave the settings section in full). Switching
+ * them on is refused until every check passes; the missing ones are named.
+ */
+export const updateEInvoicingSettings = async (patchedEInvoicingSettingsWrite?: PatchedEInvoicingSettingsWrite, options?: Parameters<typeof apiFetch>[1]): Promise<EInvoicingSettingsOverview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<EInvoicingSettingsOverview>(getUpdateEInvoicingSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedEInvoicingSettingsWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateEInvoicingSettingsMutationKey = () => ['updateEInvoicingSettings'] as const;
+
+export const getUpdateEInvoicingSettingsMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEInvoicingSettings>>, TError,UpdateEInvoicingSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEInvoicingSettings>>, TError,UpdateEInvoicingSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateEInvoicingSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEInvoicingSettings>>, UpdateEInvoicingSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateEInvoicingSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEInvoicingSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateEInvoicingSettings>>>
+    export type UpdateEInvoicingSettingsMutationBody = PatchedEInvoicingSettingsWrite | undefined
+    export type UpdateEInvoicingSettingsMutationError = void
+    export type UpdateEInvoicingSettingsMutationVariables = {data?: PatchedEInvoicingSettingsWrite}
+
+    export const useUpdateEInvoicingSettings = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEInvoicingSettings>>, TError,UpdateEInvoicingSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateEInvoicingSettings>>,
+        TError,
+        UpdateEInvoicingSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateEInvoicingSettingsMutationOptions(options), queryClient);
+    }
 
 export const getListElectricityBillsUrl = () => {
 

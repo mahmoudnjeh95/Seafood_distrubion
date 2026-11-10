@@ -5200,6 +5200,74 @@ export const GetDocumentPdfResponse = zod.unknown()
 
 
 /**
+ * The TTN / El Fatoora settings (Paramètres › Facturation électronique) and what is still missing before
+ * they can be switched on. Office roles read.
+ */
+export const GetEInvoicingSettingsResponse = zod.object({
+  "settings": zod.object({
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'production']).describe('* `sandbox` - Test (bac à sable)\n* `production` - Production'),
+  "api_base_url": zod.string(),
+  "auth_mode": zod.union([zod.enum(['certificate', 'client_secret']).describe('* `` - À confirmer avec TTN\n* `certificate` - Certificat client\n* `client_secret` - Identifiant et clé d\'API'),zod.enum([''])]),
+  "client_id": zod.string(),
+  "certificate_holder": zod.string(),
+  "certificate_expires_on": zod.iso.date().nullable()
+}),
+  "checks": zod.array(zod.object({
+  "key": zod.string(),
+  "text": zod.string(),
+  "ok": zod.boolean()
+}).describe('One thing TTN needs before e-invoices can be sent (`selectors.einvoicing_checks`).')),
+  "ready": zod.boolean(),
+  "certificate_expiring": zod.boolean(),
+  "may_edit": zod.boolean()
+}).describe('The settings, what is still missing before they can be switched on, and whether the user may change them.')
+
+
+/**
+ * Change the TTN settings. The owner (or a person the owner gave the settings section in full). Switching
+ * them on is refused until every check passes; the missing ones are named.
+ */
+export const updateEInvoicingSettingsBodyApiBaseUrlMax = 200;
+
+export const updateEInvoicingSettingsBodyClientIdMax = 100;
+
+export const updateEInvoicingSettingsBodyCertificateHolderMax = 200;
+
+
+
+export const UpdateEInvoicingSettingsBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "environment": zod.string().optional(),
+  "api_base_url": zod.string().max(updateEInvoicingSettingsBodyApiBaseUrlMax).optional(),
+  "auth_mode": zod.string().optional(),
+  "client_id": zod.string().max(updateEInvoicingSettingsBodyClientIdMax).optional(),
+  "certificate_holder": zod.string().max(updateEInvoicingSettingsBodyCertificateHolderMax).optional(),
+  "certificate_expires_on": zod.iso.date().nullish()
+})
+
+export const UpdateEInvoicingSettingsResponse = zod.object({
+  "settings": zod.object({
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'production']).describe('* `sandbox` - Test (bac à sable)\n* `production` - Production'),
+  "api_base_url": zod.string(),
+  "auth_mode": zod.union([zod.enum(['certificate', 'client_secret']).describe('* `` - À confirmer avec TTN\n* `certificate` - Certificat client\n* `client_secret` - Identifiant et clé d\'API'),zod.enum([''])]),
+  "client_id": zod.string(),
+  "certificate_holder": zod.string(),
+  "certificate_expires_on": zod.iso.date().nullable()
+}),
+  "checks": zod.array(zod.object({
+  "key": zod.string(),
+  "text": zod.string(),
+  "ok": zod.boolean()
+}).describe('One thing TTN needs before e-invoices can be sent (`selectors.einvoicing_checks`).')),
+  "ready": zod.boolean(),
+  "certificate_expiring": zod.boolean(),
+  "may_edit": zod.boolean()
+}).describe('The settings, what is still missing before they can be switched on, and whether the user may change them.')
+
+
+/**
  * Electricity bills, newest month first.
  */
 export const listElectricityBillsResponseAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');

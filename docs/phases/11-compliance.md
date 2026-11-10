@@ -14,6 +14,7 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
 - Every new tax computation follows the existing pattern: pure functions, a settings version in force on the day,
   values copied onto the document when it is issued (D-057, D-018).
 - Declarations are **prepared** (screens and exports to copy into the DGI / CNSS portals), not filed by the app.
+- A value a company may need to change is a setting in a Paramètres section, never a constant in code (owner, D-310).
 
 ## Tasks
 
@@ -36,7 +37,12 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   signature block for both.
 - [ ] **P11-T05 TTN / El Fatoora (F1)** · L · **Owner** first: TTN enrolment, signing certificate (TunTrust), the
   TEIF specification (Q18, D-016). Code: TEIF XML of an invoice and a credit note, signature, sending and status,
-  TTN reference and QR code on the PDF. Split once the specification is in hand.
+  TTN reference and QR code on the PDF. Split:
+  - [x] **T05a settings and readiness (D-310, 2026-11-11):** Paramètres › Facturation électronique; switching on is
+    refused until the seller's identity, the https address, the auth mode and a valid certificate are set. Nothing is sent.
+  - [ ] **T05b TEIF XML** of an invoice and a credit note, checked against the TTN XSD. Waits for the specification.
+  - [ ] **T05c signature, sending and status** in the sandbox first (auth and endpoints from TTN's documentation).
+  - [ ] **T05d TTN reference and QR code on the PDF**, and the status per invoice.
 
 ### Wave 2: one session with the accountant, then code
 

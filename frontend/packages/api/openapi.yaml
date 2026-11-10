@@ -2542,6 +2542,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/PdfState'
           description: ''
+  /api/v1/einvoicing-settings:
+    get:
+      operationId: getEInvoicingSettings
+      description: |-
+        The TTN / El Fatoora settings (Paramètres › Facturation électronique) and what is still missing before
+        they can be switched on. Office roles read.
+      tags:
+      - einvoicing-settings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EInvoicingSettingsOverview'
+          description: ''
+    patch:
+      operationId: updateEInvoicingSettings
+      description: |-
+        Change the TTN settings. The owner (or a person the owner gave the settings section in full). Switching
+        them on is refused until every check passes; the missing ones are named.
+      tags:
+      - einvoicing-settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEInvoicingSettingsWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEInvoicingSettingsWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEInvoicingSettingsWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EInvoicingSettingsOverview'
+          description: ''
+        '400':
+          description: Refused
   /api/v1/electricity-bills:
     get:
       operationId: listElectricityBills
@@ -14676,6 +14722,15 @@ components:
       - file
       - kind
       - object_id
+    AuthModeEnum:
+      enum:
+      - certificate
+      - client_secret
+      type: string
+      description: |-
+        * `` - À confirmer avec TTN
+        * `certificate` - Certificat client
+        * `client_secret` - Identifiant et clé d'API
     AwaitingInvoice:
       type: object
       description: An issued invoice that planned a withholding and has no certificate
@@ -19902,11 +19957,94 @@ components:
       - id
       - name
       - username
+    EInvoiceCheck:
+      type: object
+      description: One thing TTN needs before e-invoices can be sent (`selectors.einvoicing_checks`).
+      properties:
+        key:
+          type: string
+          readOnly: true
+        text:
+          type: string
+          readOnly: true
+        ok:
+          type: boolean
+          readOnly: true
+      required:
+      - key
+      - ok
+      - text
     EInvoiceStatusEnum:
       enum:
       - not_sent
       type: string
       description: '* `not_sent` - Non transmise'
+    EInvoicingSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          readOnly: true
+        environment:
+          allOf:
+          - $ref: '#/components/schemas/EnvironmentEnum'
+          readOnly: true
+        api_base_url:
+          type: string
+          readOnly: true
+        auth_mode:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/AuthModeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        client_id:
+          type: string
+          readOnly: true
+        certificate_holder:
+          type: string
+          readOnly: true
+        certificate_expires_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - api_base_url
+      - auth_mode
+      - certificate_expires_on
+      - certificate_holder
+      - client_id
+      - enabled
+      - environment
+    EInvoicingSettingsOverview:
+      type: object
+      description: The settings, what is still missing before they can be switched
+        on, and whether the user may change them.
+      properties:
+        settings:
+          allOf:
+          - $ref: '#/components/schemas/EInvoicingSettings'
+          readOnly: true
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/EInvoiceCheck'
+          readOnly: true
+        ready:
+          type: boolean
+          readOnly: true
+        certificate_expiring:
+          type: boolean
+          readOnly: true
+        may_edit:
+          type: boolean
+          readOnly: true
+      required:
+      - certificate_expiring
+      - checks
+      - may_edit
+      - ready
+      - settings
     EffetEvent:
       type: object
       description: 'One step in the life of an effet: issued, debited, rejected, cancelled...'
@@ -20219,6 +20357,14 @@ components:
           maxLength: 2000
       required:
       - name
+    EnvironmentEnum:
+      enum:
+      - sandbox
+      - production
+      type: string
+      description: |-
+        * `sandbox` - Test (bac à sable)
+        * `production` - Production
     Expense:
       type: object
       properties:
@@ -27928,6 +28074,28 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CustomerContact'
+    PatchedEInvoicingSettingsWrite:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        environment:
+          type: string
+        api_base_url:
+          type: string
+          maxLength: 200
+        auth_mode:
+          type: string
+        client_id:
+          type: string
+          maxLength: 100
+        certificate_holder:
+          type: string
+          maxLength: 200
+        certificate_expires_on:
+          type: string
+          format: date
+          nullable: true
     PatchedEmployeeWrite:
       type: object
       properties:
