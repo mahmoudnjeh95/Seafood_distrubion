@@ -39,7 +39,7 @@ class BatchFactory(DjangoModelFactory[Batch]):
     supplier = factory.SubFactory(SupplierFactory, organization=factory.SelfAttribute("..organization"))
     received_on = factory.LazyFunction(timezone.localdate)
     unit_cost = Decimal("20.000")
-    # Alone in its own lot, with the line's own number (D-313).
+    # Alone in its own lot, with the line's own number (D-320).
     lot = factory.SubFactory(
         LotFactory,
         organization=factory.SelfAttribute("..organization"),

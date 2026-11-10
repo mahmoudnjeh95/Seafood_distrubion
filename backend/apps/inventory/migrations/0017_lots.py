@@ -7,7 +7,7 @@ from django.db import migrations, models
 def one_lot_per_purchase(apps, schema_editor):
     """Each goods receipt (port purchases make one too) becomes one lot, its batches the lines in receipt order; any
     other batch becomes a lot of its own. A lot takes its first line's number, so every number printed so far still
-    finds its lot, and the lines keep theirs (D-313)."""
+    finds its lot, and the lines keep theirs (D-320)."""
     Batch = apps.get_model("inventory", "Batch")
     Lot = apps.get_model("inventory", "Lot")
     ReceiptLine = apps.get_model("purchasing", "GoodsReceiptLine")

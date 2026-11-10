@@ -276,7 +276,7 @@ def test_batches_are_not_created_or_changed_through_the_api():
 
 @pytest.mark.django_db
 def test_one_purchase_is_one_lot_with_a_line_per_product() -> None:
-    """D-313: the products of one purchase share the lot's number; a batch made alone is its own lot."""
+    """D-320: the products of one purchase share the lot's number; a batch made alone is its own lot."""
     organization = OrganizationFactory.create()
     actor = UserFactory.create()
     supplier = SupplierFactory.create(organization=organization)

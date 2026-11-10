@@ -63,7 +63,7 @@ class ProductionMethod(models.TextChoices):
 
 
 class Lot(OrganizationScopedModel, TimeStampedModel):
-    """One purchase, one lot (D-313): what one supplier delivered on one day, all its products together.
+    """One purchase, one lot (D-320): what one supplier delivered on one day, all its products together.
 
     Each product of the purchase is a line of the lot (`Batch`), with its own cost per kg; the stock ledger, FIFO and
     the lot results work on the lines. A goods receipt (and so a port purchase) makes one lot with one line per
@@ -98,9 +98,9 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
     """
 
     # "L-0042-1", "L-0042-2"... for the products of a purchase; the lot's own number when the line is alone in its
-    # lot (D-313). Lines made before D-313 keep the number they were printed with. Given by `create_batch`.
+    # lot (D-320). Lines made before D-320 keep the number they were printed with. Given by `create_batch`.
     number = models.CharField(max_length=20)
-    # The purchase this product came in (D-313), and its place in it (1, 2, 3...).
+    # The purchase this product came in (D-320), and its place in it (1, 2, 3...).
     lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="lines")
     line_number = models.PositiveSmallIntegerField(default=1)
     # By name, not by import: an app only uses another app's services and selectors (ARCHITECTURE §3).

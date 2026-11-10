@@ -259,7 +259,7 @@ def create_receipt(
         else timezone.make_aware(dt.datetime.combine(received_on, dt.time(12, 0)))
     )
     saved: list[GoodsReceiptLine] = []
-    # One purchase, one lot: every product of the receipt is a line of it (D-313).
+    # One purchase, one lot: every product of the receipt is a line of it (D-320).
     lot = inventory.create_lot(
         organization=organization,
         actor=actor,

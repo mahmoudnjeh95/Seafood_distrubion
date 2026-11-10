@@ -4240,7 +4240,7 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
   them; the company name comes from the organization).
 
-**D-313 · One purchase is one lot; a partner shares only the products ticked on it (owner 2026-11-10, Q31)** · accepted · 2026-11-10
+**D-320 · One purchase is one lot; a partner shares only the products ticked on it (owner 2026-11-10, Q31)** · accepted · 2026-11-10
 Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per batch") for the owner's own words:
 "1 achat is one lot even if it contains multiple products; those products are related to the same lot id".
 - **Model:** a new parent `Lot` (number `L-0001`…, supplier, date, its goods receipt or port purchase) above today's
