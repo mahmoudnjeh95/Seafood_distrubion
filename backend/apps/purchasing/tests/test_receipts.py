@@ -282,7 +282,7 @@ def test_the_owner_records_a_receipt_and_reads_it_back():
         "1215.000",
     )
     (row,) = body["lines"]
-    assert (row["accepted_quantity"], row["unit_cost"], row["batch"]["number"]) == ("60.000", "20.250", "L-0001")
+    assert (row["accepted_quantity"], row["unit_cost"], row["batch"]["number"]) == ("60.000", "20.250", "L-0001-1")
     assert row["product"]["id"] == product.pk
     assert body["created_by"]
     assert client.get(reverse("receipt-detail", args=[body["id"]])).json() == body
@@ -349,7 +349,7 @@ def test_the_differences_report_and_the_last_costs():
             "product_id": product.pk,
             "unit_cost": "20.250",
             "received_on": timezone.localdate().isoformat(),
-            "batch_number": "L-0002",
+            "batch_number": "L-0001-2",
         }
     ]
     assert client.get(reverse("receipt-last-costs")).status_code == 400

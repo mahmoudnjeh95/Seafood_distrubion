@@ -77,9 +77,11 @@ _Coarse plan: detail each task when the phase starts._
 
 ### P6-T08 · One purchase is one lot; partner on the products ticked · L → split (added 2026-11-10, D-310, Q31)
 Owner: one achat is one lot, its products share the lot number; a partner may share only one or two of them.
-- [ ] **T08a · Lot above the batch.** Model `inventory.Lot` (organization, number, supplier, received_on, source);
+- [x] **T08a · Lot above the batch.** Model `inventory.Lot` (organization, number, supplier, received_on, source);
       `Batch.lot` FK; numbering `L-0042-1`; the receipt and the port purchase create one lot and one line per product;
       data migration (each receipt → one lot, other batches → one-line lots, old number kept). API + `make gen-api`.
+      _Done 2026-11-10 (migration `inventory 0017`): `create_lot`, `create_batch(lot=...)`; the batch API gives
+      `lot_number` and `line_number`. A transformation's output is still a lot of its own until T08d._
 - [ ] **T08b · Show the lot.** Lot page (lines, stock, sales per product); "L-0042 · Crevette" on stock, BL, labels,
       lot pickers and the driver's phone; search by lot number finds every line.
 - [ ] **T08c · Partnerships on the lot.** `LotPartnership` points to the lot, several per lot, each with its ticked

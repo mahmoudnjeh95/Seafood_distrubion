@@ -4267,6 +4267,10 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - **Migration:** each goods receipt (and port purchase) becomes one lot, its batches its lines in receipt order; a
   batch made otherwise (transformation, import, adjustment) becomes a one-line lot. An existing partnership becomes the
   lot's with only its batch ticked. Old lot numbers printed on past documents stay readable as the line's former number.
+- **Numbers (T08a):** the lot takes the "batch" counter of the numbering settings ("L-0042"); a receipt's lines are
+  "L-0042-1", "L-0042-2"…, even a receipt of one product; a batch made alone (opening stock, demo, transformation
+  until T08d) carries its lot's number without a suffix. The migration gives each old lot its first line's number,
+  and the counter is already past every old number, so no new lot can take one.
 - **Migration of old receipts with two partners:** they stay one lot with two partnerships (several partners allowed).
 - **Transformation of a shared line (answers Q30, changes D-304's provisional refusal):** allowed. The output is a new
   line of the same lot, ticked in the same partnerships with the same rates; the fee is a cost of that line. The

@@ -62,8 +62,33 @@ class ProductionMethod(models.TextChoices):
     FARMED = "farmed", _("Élevé (aquaculture)")
 
 
+class Lot(OrganizationScopedModel, TimeStampedModel):
+    """One purchase, one lot (D-310): what one supplier delivered on one day, all its products together.
+
+    Each product of the purchase is a line of the lot (`Batch`), with its own cost per kg; the stock ledger, FIFO and
+    the lot results work on the lines. A goods receipt (and so a port purchase) makes one lot with one line per
+    product, numbered "L-0042-1", "L-0042-2"... Any other batch (opening stock, demo data, a transformation's output)
+    is alone in its own lot, and its line carries the lot's number. Never edited once created.
+    """
+
+    # "L-0001", "L-0002"... from the "batch" counter of the numbering settings, never typed.
+    number = models.CharField(max_length=20)
+    supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="lots")
+    received_on = models.DateField()
+    receipt_reference = models.CharField(max_length=50, blank=True)
+
+    class Meta:
+        ordering = ["-received_on", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "number"], name="lot_number_unique_per_organization"),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
 class Batch(OrganizationScopedModel, TimeStampedModel):
-    """A lot: one product delivered by one supplier on one day, at one cost per kg.
+    """A lot line: one product delivered by one supplier on one day, at one cost per kg.
 
     Kilos of different batches never mix, so every kilo sold knows its supplier and its cost (D-009, Q4,
     Q7). How much of a batch is where comes from the stock ledger (P1-T06), and goods receipts create the
@@ -72,8 +97,12 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
     reference follow the receipt, and its price and VAT only while nothing valued has left the lot.
     """
 
-    # "L-0001", "L-0002"... given by `services.create_batch`, never typed.
+    # "L-0042-1", "L-0042-2"... for the products of a purchase; the lot's own number when the line is alone in its
+    # lot (D-310). Lines made before D-310 keep the number they were printed with. Given by `create_batch`.
     number = models.CharField(max_length=20)
+    # The purchase this product came in (D-310), and its place in it (1, 2, 3...).
+    lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="lines")
+    line_number = models.PositiveSmallIntegerField(default=1)
     # By name, not by import: an app only uses another app's services and selectors (ARCHITECTURE §3).
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="batches")
     supplier = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="batches")
@@ -95,6 +124,7 @@ class Batch(OrganizationScopedModel, TimeStampedModel):
         ordering = list(FIFO_ORDER)
         constraints = [
             models.UniqueConstraint(fields=["organization", "number"], name="batch_number_unique_per_organization"),
+            models.UniqueConstraint(fields=["lot", "line_number"], name="one_batch_per_lot_line_number"),
             models.CheckConstraint(condition=models.Q(unit_cost__gte=0), name="batch_unit_cost_not_negative"),
         ]
         indexes = [models.Index(fields=["organization", "product", "received_on"], name="batch_fifo_idx")]

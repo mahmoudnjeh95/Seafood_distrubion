@@ -272,3 +272,45 @@ def test_batches_are_not_created_or_changed_through_the_api():
 
     assert client.post(reverse("batch-list"), {}).status_code == 405
     assert client.patch(reverse("batch-detail", args=[batch.pk]), {}, format="json").status_code == 405
+
+
+@pytest.mark.django_db
+def test_one_purchase_is_one_lot_with_a_line_per_product() -> None:
+    """D-310: the products of one purchase share the lot's number; a batch made alone is its own lot."""
+    organization = OrganizationFactory.create()
+    actor = UserFactory.create()
+    supplier = SupplierFactory.create(organization=organization)
+    lot = services.create_lot(
+        organization=organization, actor=actor, supplier=supplier, received_on=timezone.localdate()
+    )
+    lines = [
+        services.create_batch(
+            organization=organization,
+            actor=actor,
+            lot=lot,
+            product=ProductFactory.create(organization=organization),
+            supplier=supplier,
+            received_on=timezone.localdate(),
+            unit_cost="20.000",
+        )
+        for _ in range(2)
+    ]
+    assert [(line.number, line.line_number, line.lot_id) for line in lines] == [
+        ("L-0001-1", 1, lot.pk),
+        ("L-0001-2", 2, lot.pk),
+    ]
+    alone = new_batch(organization, actor)
+    assert (alone.number, alone.lot.number, alone.line_number) == ("L-0002", "L-0002", 1)
+
+    other = SupplierFactory.create(organization=organization)
+    with pytest.raises(ValidationError) as refused:
+        services.create_batch(
+            organization=organization,
+            actor=actor,
+            lot=lot,
+            product=ProductFactory.create(organization=organization),
+            supplier=other,
+            received_on=timezone.localdate(),
+            unit_cost="20.000",
+        )
+    assert "lot" in refused.value.message_dict

@@ -11,6 +11,8 @@ import type { ProductionMethodEnum } from './productionMethodEnum';
 export interface Batch {
   readonly id: number;
   readonly number: string;
+  readonly lot_number: string;
+  readonly line_number: number;
   readonly product: BatchProduct;
   readonly supplier: BatchSupplier;
   readonly receipt_reference: string;

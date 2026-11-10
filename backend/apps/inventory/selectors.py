@@ -81,7 +81,7 @@ def batches_of(
     """
     batches = (
         Batch.objects.for_organization(organization)
-        .select_related("product", "supplier")
+        .select_related("product", "supplier", "lot")
         .order_by("-received_on", "-id")
     )
     if product_id is not None:

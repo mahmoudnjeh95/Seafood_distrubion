@@ -26,6 +26,7 @@ from .models import (
     Batch,
     CountStatus,
     LossStatus,
+    Lot,
     StockCount,
     StockCountLine,
     StockLocation,
@@ -159,6 +160,7 @@ def set_location_active(*, location: StockLocation, actor: User | None, is_activ
 def _batch_snapshot(batch: Batch) -> dict[str, Any]:
     return {
         "number": batch.number,
+        "lot": batch.lot.number,
         "product": batch.product.reference,
         "supplier": batch.supplier.reference,
         "receipt_reference": batch.receipt_reference,
@@ -166,6 +168,33 @@ def _batch_snapshot(batch: Batch) -> dict[str, Any]:
         "unit_cost": str(batch.unit_cost),
         "use_by": batch.use_by.isoformat() if batch.use_by else None,
     }
+
+
+@transaction.atomic
+def create_lot(
+    *,
+    organization: Organization,
+    actor: User | None,
+    supplier: "Supplier",
+    received_on: dt.date,
+    receipt_reference: str = "",
+) -> Lot:
+    """A new lot for one purchase (D-310), with the next number; its products are added with `create_batch(lot=...)`."""
+    lot = Lot.objects.create(
+        organization=organization,
+        number=numbering.next_number(organization, "batch"),
+        supplier=supplier,
+        received_on=received_on,
+        receipt_reference=receipt_reference.strip(),
+    )
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="lot.created",
+        target=lot,
+        after={"number": lot.number, "supplier": supplier.reference, "received_on": received_on.isoformat()},
+    )
+    return lot
 
 
 @transaction.atomic
@@ -183,8 +212,12 @@ def create_batch(
     catch_area: str = "",
     production_method: str = "",
     origin: str = "",
+    lot: Lot | None = None,
 ) -> Batch:
-    """A new batch with the next number. Called by the goods receipt (P1-T07) and the demo data.
+    """A new batch, the line of a lot. Called by the goods receipt (P1-T07) and the demo data.
+
+    With `lot` (a purchase of several products, D-310), the batch is its next line, numbered "L-0042-2", of the
+    lot's supplier and date. Without, the batch is alone in a new lot and carries the lot's number ("L-0042").
 
     Refused (ValidationError per field): a product or supplier of another organization or archived, a
     receipt date in the future, a cost that is negative or finer than a millime, a use-by date before
@@ -210,12 +243,31 @@ def create_batch(
         cost = checked_amount(unit_cost)
     except ValueError as error:
         errors["unit_cost"] = str(error)
+    if lot is not None and (
+        lot.organization_id != organization.pk or lot.supplier_id != supplier.pk or lot.received_on != received_on
+    ):
+        errors["lot"] = _("Ce lot est d'un autre fournisseur ou d'une autre date.")
     if errors or cost is None:
         raise ValidationError(errors)
 
+    if lot is None:
+        lot = create_lot(
+            organization=organization,
+            actor=actor,
+            supplier=supplier,
+            received_on=received_on,
+            receipt_reference=receipt_reference,
+        )
+        line_number, number = 1, lot.number
+    else:
+        lot = Lot.objects.select_for_update().get(pk=lot.pk)
+        line_number = (lot.lines.aggregate(last=models.Max("line_number"))["last"] or 0) + 1
+        number = f"{lot.number}-{line_number}"
     batch = Batch.objects.create(
         organization=organization,
-        number=numbering.next_number(organization, "batch"),
+        number=number,
+        lot=lot,
+        line_number=line_number,
         product=product,
         supplier=supplier,
         receipt_reference=receipt_reference.strip(),

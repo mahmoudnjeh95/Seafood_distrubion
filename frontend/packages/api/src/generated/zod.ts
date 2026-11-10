@@ -165,6 +165,8 @@ export const ListBatchesResponse = zod.object({
   "results": zod.array(zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "lot_number": zod.string(),
+  "line_number": zod.int(),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -200,6 +202,8 @@ export const getBatchResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{
 export const GetBatchResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "lot_number": zod.string(),
+  "line_number": zod.int(),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -249,6 +253,8 @@ export const updateBatchOriginResponseUnitCostRegExp = new RegExp('^-?\\d{0,11}(
 export const UpdateBatchOriginResponse = zod.object({
   "id": zod.int(),
   "number": zod.string(),
+  "lot_number": zod.string(),
+  "line_number": zod.int(),
   "product": zod.object({
   "id": zod.int(),
   "reference": zod.string(),

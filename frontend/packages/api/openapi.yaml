@@ -14836,6 +14836,12 @@ components:
         number:
           type: string
           readOnly: true
+        lot_number:
+          type: string
+          readOnly: true
+        line_number:
+          type: integer
+          readOnly: true
         product:
           allOf:
           - $ref: '#/components/schemas/BatchProduct'
@@ -14879,6 +14885,8 @@ components:
       - catch_area
       - created_at
       - id
+      - line_number
+      - lot_number
       - number
       - origin
       - product
