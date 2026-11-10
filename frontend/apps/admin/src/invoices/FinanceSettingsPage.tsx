@@ -38,6 +38,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
   const [vatRate, setVatRate] = useState(toInput(current.vat_rate));
   const [stamp, setStamp] = useState(toInput(current.fiscal_stamp));
   const [withholding, setWithholding] = useState(toInput(current.withholding_rate));
+  const [vatWithholding, setVatWithholding] = useState(toInput(current.vat_withholding_rate));
   const [cashLimit, setCashLimit] = useState(toInput(current.cash_limit));
   const [includeVat, setIncludeVat] = useState(current.prices_include_vat);
   const [creditPolicy, setCreditPolicy] = useState<CreditPolicyEnum>(current.credit_policy);
@@ -54,16 +55,19 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
       const found: Record<string, string> = {};
       const rate = parseDecimalInput(vatRate, 2);
       const rateWithholding = parseDecimalInput(withholding, 2);
+      const rateVatWithholding = parseDecimalInput(vatWithholding, 2);
       const stampValue = parseDecimalInput(stamp, 3);
       const limitValue = parseDecimalInput(cashLimit, 3);
       if (rate === null) found.vat_rate = t("admin.financeSettings.rateError");
       if (rateWithholding === null) found.withholding_rate = t("admin.financeSettings.rateError");
+      if (rateVatWithholding === null) found.vat_withholding_rate = t("admin.financeSettings.rateError");
       if (stampValue === null) found.fiscal_stamp = t("admin.financeSettings.moneyError");
       if (limitValue === null) found.cash_limit = t("admin.financeSettings.moneyError");
       if (
         Object.keys(found).length > 0 ||
         rate === null ||
         rateWithholding === null ||
+        rateVatWithholding === null ||
         stampValue === null ||
         limitValue === null
       ) {
@@ -76,6 +80,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
         fiscal_stamp: stampValue,
         prices_include_vat: includeVat,
         withholding_rate: rateWithholding,
+        vat_withholding_rate: rateVatWithholding,
         cash_limit: limitValue,
         credit_policy: creditPolicy,
         legal_name: legalName.trim(),
@@ -112,7 +117,9 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
           value={value}
           disabled={!mayEdit}
           inputMode={
-            ["vat_rate", "fiscal_stamp", "withholding_rate", "cash_limit"].includes(key) ? "decimal" : undefined
+            ["vat_rate", "fiscal_stamp", "withholding_rate", "vat_withholding_rate", "cash_limit"].includes(key)
+              ? "decimal"
+              : undefined
           }
           onChange={(event) => set(event.target.value)}
           aria-invalid={errors[key] ? true : undefined}
@@ -169,6 +176,13 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
             withholding,
             setWithholding,
             t("admin.financeSettings.withholdingHint"),
+          )}
+          {field(
+            "vat_withholding_rate",
+            t("admin.financeSettings.vatWithholdingRate"),
+            vatWithholding,
+            setVatWithholding,
+            t("admin.financeSettings.vatWithholdingHint"),
           )}
           <Field
             label={t("admin.payments.policy.label")}

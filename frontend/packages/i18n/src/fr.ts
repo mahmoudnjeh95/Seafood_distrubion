@@ -1738,6 +1738,7 @@ export const fr = {
       paymentTermsValue_other: "{{count}} jours",
       noCredit: "Pas de crédit",
       withholdingYes: "Oui, sur les factures de 1 000 DT et plus",
+      publicBuyer: "acheteur public (retient aussi sur la TVA)",
       withholdingNo: "Non",
       detail: {
         identity: "Fiche",
@@ -1773,6 +1774,8 @@ export const fr = {
         paymentTerms: "Délai de paiement (jours)",
         paymentTermsHint: "0 : à la livraison.",
         withholdingSubject: "Soumis à la retenue à la source",
+        publicBuyer: "Acheteur public (État, collectivité, établissement public)",
+        publicBuyerHint: "Il retient aussi une partie de la TVA sur ces factures (taux dans Paramètres financiers).",
         withholdingSubjectHint:
           "Le client retient la retenue sur ses factures de 1 000 DT et plus (sociétés, État). Décochez pour un particulier ou un forfaitaire.",
         contacts: "Contacts",
@@ -2073,6 +2076,7 @@ export const fr = {
         totalIncl: "Total TTC",
         total: "Total à payer",
         withholding: "Retenue à la source ({{rate}} %)",
+        vatWithholding: "Retenue sur TVA ({{rate}} %)",
         netToPay: "Net à payer",
         credited: "Avoirs",
         remaining: "Reste à payer",
@@ -2208,6 +2212,9 @@ export const fr = {
       pricesHint: "Coché : la TVA est extraite du prix. Décoché : elle s'ajoute au prix.",
       withholdingRate: "Retenue à la source (%)",
       withholdingHint: "Prélevée sur les factures dont le total TTC atteint 1 000,000 DT ; à 0 %, aucune.",
+      vatWithholdingRate: "Retenue sur la TVA des acheteurs publics (%)",
+      vatWithholdingHint:
+        "Part de la TVA gardée par un client « acheteur public » sur ses factures de 1 000 DT et plus. À confirmer avec l'expert-comptable.",
       seller: "Vendeur imprimé sur les factures",
       legalName: "Raison sociale",
       address: "Adresse",

@@ -16809,6 +16809,9 @@ components:
         withholding_subject:
           type: boolean
           readOnly: true
+        public_buyer:
+          type: boolean
+          readOnly: true
         contacts:
           type: array
           items:
@@ -16841,6 +16844,7 @@ components:
       - notes
       - payment_terms_days
       - phone
+      - public_buyer
       - reference
       - tax_id
       - updated_at
@@ -17684,6 +17688,9 @@ components:
         withholding_subject:
           type: boolean
           default: true
+        public_buyer:
+          type: boolean
+          default: false
         contacts:
           type: array
           items:
@@ -21400,6 +21407,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        vat_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
         cash_limit:
           type: string
           format: decimal
@@ -21446,6 +21458,7 @@ components:
       - trade_register
       - valid_from
       - vat_rate
+      - vat_withholding_rate
       - withholding_rate
     FinanceSettingsOverview:
       type: object
@@ -21482,6 +21495,8 @@ components:
         prices_include_vat:
           type: boolean
         withholding_rate:
+          type: string
+        vat_withholding_rate:
           type: string
         cash_limit:
           type: string
@@ -22323,6 +22338,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        vat_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        vat_withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         net_to_pay:
           type: string
           format: decimal
@@ -22413,6 +22438,8 @@ components:
       - total_excl_tax
       - total_incl_tax
       - vat_total
+      - vat_withholding_amount
+      - vat_withholding_rate
       - withholding_amount
       - withholding_applied
       - withholding_rate
@@ -22643,6 +22670,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        vat_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        vat_withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         net_to_pay:
           type: string
           format: decimal
@@ -22811,6 +22848,8 @@ components:
       - total_incl_tax
       - vat_lines
       - vat_total
+      - vat_withholding_amount
+      - vat_withholding_rate
       - withholding_amount
       - withholding_applied
       - withholding_rate
@@ -27990,6 +28029,9 @@ components:
         withholding_subject:
           type: boolean
           default: true
+        public_buyer:
+          type: boolean
+          default: false
         contacts:
           type: array
           items:

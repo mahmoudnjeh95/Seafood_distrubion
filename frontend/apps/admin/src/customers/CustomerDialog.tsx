@@ -122,6 +122,7 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
       : EMPTY,
   );
   const [withholds, setWithholds] = useState(customer?.withholding_subject ?? true);
+  const [publicBuyer, setPublicBuyer] = useState(customer?.public_buyer ?? false);
   const [contacts, setContacts] = useState<ContactRow[]>(() => customer?.contacts.map(contactRow) ?? []);
   const [errors, setErrors] = useState<Errors>({});
   const { types } = useCustomerTypes();
@@ -173,6 +174,8 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
       credit_limit: limit,
       payment_terms_days: Number(days),
       withholding_subject: withholds,
+      // Only a customer who withholds can be a public buyer (D-313).
+      public_buyer: withholds && publicBuyer,
       contacts: filled.map(({ name, role, phone, email }) => ({
         name: name.trim(),
         role: role.trim(),
@@ -299,6 +302,19 @@ export function CustomerDialog({ customer, onDone }: { customer?: Customer; onDo
           <span>
             {t("admin.customers.form.withholdingSubject")}
             <span className="block text-[0.8rem] text-ink-3">{t("admin.customers.form.withholdingSubjectHint")}</span>
+          </span>
+        </label>
+        <label className="col-span-full flex items-start gap-2.5 text-[0.9rem]">
+          <input
+            type="checkbox"
+            checked={withholds && publicBuyer}
+            disabled={walkIn || !withholds}
+            onChange={(event) => setPublicBuyer(event.target.checked)}
+            className="mt-0.5 size-4 accent-sea"
+          />
+          <span>
+            {t("admin.customers.form.publicBuyer")}
+            <span className="block text-[0.8rem] text-ink-3">{t("admin.customers.form.publicBuyerHint")}</span>
           </span>
         </label>
         <Field

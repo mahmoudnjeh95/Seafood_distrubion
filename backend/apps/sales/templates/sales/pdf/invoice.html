@@ -87,6 +87,9 @@
       <tr class="net"><th>Total TTC</th><td>{{ invoice.total_incl_tax|money }} TND</td></tr>
       {% if invoice.withholding_amount %}
       <tr><th>Retenue à la source ({{ invoice.withholding_rate|percent }})</th><td>− {{ invoice.withholding_amount|money }} TND</td></tr>
+      {% if invoice.vat_withholding_amount %}
+      <tr><th>Retenue sur TVA ({{ invoice.vat_withholding_rate|percent }})</th><td>− {{ invoice.vat_withholding_amount|money }} TND</td></tr>
+      {% endif %}
       <tr class="net"><th>Net à payer</th><td>{{ invoice.net_to_pay|money }} TND</td></tr>
       {% endif %}
     </table>

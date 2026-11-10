@@ -1,7 +1,7 @@
 # Project status
 
 _Last updated: 2026-11-09 (roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
-_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-313; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
+_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-314; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
 
 ## Where we are
 
@@ -92,7 +92,10 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
    expense at or above the cash limit is flagged "Espèces ≥ plafond"; check: a 6 000 DT cash expense shows the warning
    and the pill. **T10 (D-312, branch `p11-supplier-tax`, migration
    `partners 0009`):** supplier tax regime and withholding flag; check: a supplier without tax ID reads "Sans
-   matricule fiscal". Next, in order: T09, T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in
+   matricule fiscal". **T09 (D-313, branch `p11-public-buyers`, migrations `partners 0010`,
+   `sales 0037`):** a customer "Acheteur public" also keeps 25 % of the VAT; check: tick it, invoice 1 000 DT HT with
+   VAT, the invoice shows "Retenue sur TVA". **CI is not starting (GitHub billing): the Phase 11 PRs #343, #344, #346
+   and later are tested locally and wait for the owner to fix billing before merging.** Next, in order: T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in
    per-company settings, marked "à confirmer"); T06 is the accountant's session (questionnaire to prepare).
 0. P10-T02 to T05 (D-295): PR #333, merge once CI is green, then the staging checks above. Owner: confirm the
    suggested intervals against each truck's manual, and the paper list with the accountant or the ATTT.

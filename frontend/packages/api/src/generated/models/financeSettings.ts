@@ -19,6 +19,8 @@ export interface FinanceSettings {
   readonly prices_include_vat: boolean;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   readonly withholding_rate: string;
+  /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
+  readonly vat_withholding_rate: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly cash_limit: string;
   readonly credit_policy: CreditPolicyEnum;
