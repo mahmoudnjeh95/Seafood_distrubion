@@ -81,7 +81,7 @@ class BatchSupplierSerializer(serializers.Serializer[Any]):
 class BatchSerializer(serializers.ModelSerializer[Batch]):
     product = BatchProductSerializer(read_only=True)
     supplier = BatchSupplierSerializer(read_only=True)
-    # The purchase this product came in (D-313): "L-0042", and the product's place in it.
+    # The purchase this product came in (D-320): "L-0042", and the product's place in it.
     lot_number = serializers.CharField(source="lot.number", read_only=True)
 
     class Meta:
@@ -107,7 +107,7 @@ class BatchSerializer(serializers.ModelSerializer[Batch]):
 
 
 class LotLineSerializer(serializers.Serializer[Any]):
-    """One product of a lot with its kilos (D-313)."""
+    """One product of a lot with its kilos (D-320)."""
 
     batch_id = serializers.IntegerField(source="batch.pk", read_only=True)
     number = serializers.CharField(source="batch.number", read_only=True)
@@ -123,7 +123,7 @@ class LotLineSerializer(serializers.Serializer[Any]):
 
 
 class LotSerializer(serializers.Serializer[Any]):
-    """One purchase: its supplier, its day, and its products (D-313)."""
+    """One purchase: its supplier, its day, and its products (D-320)."""
 
     id = serializers.IntegerField(source="lot.pk", read_only=True)
     number = serializers.CharField(source="lot.number", read_only=True)

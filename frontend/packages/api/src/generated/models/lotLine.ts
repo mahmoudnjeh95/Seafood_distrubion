@@ -7,7 +7,7 @@
 import type { BatchProduct } from './batchProduct';
 
 /**
- * One product of a lot with its kilos (D-313).
+ * One product of a lot with its kilos (D-320).
  */
 export interface LotLine {
   readonly batch_id: number;

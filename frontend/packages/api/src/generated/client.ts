@@ -15066,7 +15066,7 @@ export const getGetLotUrl = (lotId: number,) => {
 }
 
 /**
- * One purchase and its products, each with its kilos received, sold, lost and still held (D-313).
+ * One purchase and its products, each with its kilos received, sold, lost and still held (D-320).
  */
 export const getLot = async (lotId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Lot> => {
 

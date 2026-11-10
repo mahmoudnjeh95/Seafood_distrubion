@@ -8,7 +8,7 @@ import type { BatchSupplier } from './batchSupplier';
 import type { LotLine } from './lotLine';
 
 /**
- * One purchase: its supplier, its day, and its products (D-313).
+ * One purchase: its supplier, its day, and its products (D-320).
  */
 export interface Lot {
   readonly id: number;

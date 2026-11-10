@@ -10456,7 +10456,7 @@ export const GetLotSettlementResponse = zod.object({
 
 
 /**
- * One purchase and its products, each with its kilos received, sold, lost and still held (D-313).
+ * One purchase and its products, each with its kilos received, sold, lost and still held (D-320).
  */
 export const GetLotParams = zod.object({
   "lot_id": zod.int()
@@ -10500,9 +10500,9 @@ export const GetLotResponse = zod.object({
   "lost": zod.stringFormat('decimal', getLotResponseLinesItemLostRegExp),
   "on_hand": zod.stringFormat('decimal', getLotResponseLinesItemOnHandRegExp),
   "purchase_value": zod.stringFormat('decimal', getLotResponseLinesItemPurchaseValueRegExp)
-}).describe('One product of a lot with its kilos (D-313).')),
+}).describe('One product of a lot with its kilos (D-320).')),
   "purchase_value": zod.stringFormat('decimal', getLotResponsePurchaseValueRegExp)
-}).describe('One purchase: its supplier, its day, and its products (D-313).')
+}).describe('One purchase: its supplier, its day, and its products (D-320).')
 
 
 /**

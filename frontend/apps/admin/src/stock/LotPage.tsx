@@ -3,7 +3,7 @@ import { formatDate, formatMoney, formatQuantity, useTranslation } from "@frutti
 import { Card, PageHeader, Table, Td, Th } from "@frutti/ui";
 import { Link, useParams } from "react-router";
 
-/** One purchase (D-313): its supplier and day, and each of its products with the kilos received, sold, lost and
+/** One purchase (D-320): its supplier and day, and each of its products with the kilos received, sold, lost and
  * still held. Each product opens its own page, where its sales, costs and result are. */
 export function LotPage() {
   const { t } = useTranslation();

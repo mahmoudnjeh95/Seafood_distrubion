@@ -4902,7 +4902,7 @@ export const fr = {
         lot: "Lot (achat)",
         lotLine: "{{number}} · produit {{line}}",
       },
-      // One purchase is one lot, its products are its lines (D-313)
+      // One purchase is one lot, its products are its lines (D-320)
       lot: {
         lines_one: "{{count}} produit dans ce lot",
         lines_other: "{{count}} produits dans ce lot",

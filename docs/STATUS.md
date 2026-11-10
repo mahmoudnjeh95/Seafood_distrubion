@@ -1,11 +1,11 @@
 # Project status
 
-_Last updated: 2026-11-10 (multi-product lot D-313, Q31, plan P6-T08; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
+_Last updated: 2026-11-10 (multi-product lot D-320, Q31, plan P6-T08; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
 _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-314; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
 
 ## Where we are
 
-- **D-313 / P6-T08 (owner 2026-11-10): one purchase is one lot with several products; a partner shares only the
+- **D-320 / P6-T08 (owner 2026-11-10): one purchase is one lot with several products; a partner shares only the
   products ticked.** Answers Q31: results of the shared products netted, the shared part closes when they are done,
   capital on the shared products only, costs by kilos; several partners per lot and per product; a shared product may
   be transformed and stays shared (Q30 answered). **T08a done** (branch `claude/affectionate-noether-ykot9l`,
@@ -20,7 +20,7 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
   recommended answer, don't ask.
   **Blocked 2026-11-11: GitHub Actions starts no job ("recent account payments have failed or your spending limit
   needs to be increased"), on every open PR (#343 to #348) and on the Uptime check. Owner: GitHub › Settings ›
-  Billing & plans. Until then nothing can go green or merge. Also: #347 and #348 both carry D-313, #343 and #345 both
+  Billing & plans. Until then nothing can go green or merge. Also: #347 and #348 both carry D-320, #343 and #345 both
   D-310; the second of each pair to merge takes the next free number.**
 
 - **D-308 (owner 2026-11-09): the staging images are built on the CI runner and loaded on the server**, never built

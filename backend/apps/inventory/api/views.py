@@ -222,7 +222,7 @@ class BatchDetailView(OfficeView):
 class LotDetailView(OfficeView):
     @extend_schema(operation_id="getLot", responses=LotSerializer)
     def get(self, request: Request, lot_id: int) -> Response:
-        """One purchase and its products, each with its kilos received, sold, lost and still held (D-313)."""
+        """One purchase and its products, each with its kilos received, sold, lost and still held (D-320)."""
         try:
             detail = selectors.lot_detail(self.organization, lot_id)
         except Lot.DoesNotExist:

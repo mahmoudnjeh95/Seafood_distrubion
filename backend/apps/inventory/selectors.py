@@ -77,7 +77,7 @@ def batches_of(
 ) -> QuerySet[Batch]:
     """Batches of one organization, newest first, with their product and supplier.
 
-    `search` matches the batch number, its lot's number (D-313), the supplier's receipt reference, and the product
+    `search` matches the batch number, its lot's number (D-320), the supplier's receipt reference, and the product
     or supplier name or reference.
     """
     batches = (
@@ -128,7 +128,7 @@ def batch_of(organization: Organization, batch_id: int) -> Batch:
 
 
 def lot_of(organization: Organization, lot_id: int) -> Lot:
-    """One lot (a purchase, D-313) with its supplier. Raises Lot.DoesNotExist outside the organization."""
+    """One lot (a purchase, D-320) with its supplier. Raises Lot.DoesNotExist outside the organization."""
     return Lot.objects.for_organization(organization).select_related("supplier").get(pk=lot_id)
 
 
@@ -153,7 +153,7 @@ class LotLine:
 
 
 def lot_lines(organization: Organization, *, lot_id: int) -> list[LotLine]:
-    """The products of one lot in line order, each with its kilos from the stock ledger (D-313). A transfer between
+    """The products of one lot in line order, each with its kilos from the stock ledger (D-320). A transfer between
     two places changes nothing here; every other movement adds to or takes from what the company holds."""
     batches = list(batches_of(organization).filter(lot_id=lot_id).order_by("line_number", "id"))
     zero = Decimal("0.000")
@@ -1700,7 +1700,7 @@ def transformations_of(
 
 @dataclass(frozen=True)
 class LotDetail:
-    """A lot and its products, for the lot page (D-313)."""
+    """A lot and its products, for the lot page (D-320)."""
 
     lot: Lot
     lines: list[LotLine]
