@@ -15,8 +15,8 @@ class WhatsAppLinkAdmin(admin.ModelAdmin[WhatsAppLink]):
 class AssistantMessageAdmin(admin.ModelAdmin[AssistantMessage]):
     """Read-only: the log of what the assistant received and answered."""
 
-    list_display = ("created_at", "link", "direction", "kind", "input_tokens", "output_tokens")
-    list_filter = ("direction", "kind")
+    list_display = ("created_at", "membership", "channel", "direction", "kind", "input_tokens", "output_tokens")
+    list_filter = ("channel", "direction", "kind")
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False

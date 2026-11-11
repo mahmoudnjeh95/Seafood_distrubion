@@ -24,6 +24,11 @@ export const ICON_NAMES = [
   "pin",
   "fuel",
   "bell",
+  "spark",
+  "mic",
+  "send",
+  "volume",
+  "stop",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 

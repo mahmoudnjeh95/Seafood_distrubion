@@ -22,6 +22,8 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
       replies pass 1 000 a month (Meta bills service messages beyond that since 2026-10-01).
 - [ ] When a company exists: Meta business verification (RNE extract, matricule fiscal, a document with the address).
 - [ ] Anthropic API key with a monthly spending limit.
+- [ ] For the Tunisian voice in every browser (D-314): an Azure AI Speech resource (portal.azure.com › Speech, free
+      tier F0: 500 000 characters a month), its key and region in the server `.env`.
 - [ ] Accountant or lawyer: does sending customer names and amounts to Anthropic (abroad) need an INPDP declaration
       (law 2004-63)? Go-live waits for the answer; building does not.
 
@@ -47,8 +49,21 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
       budget, usage per company (to bill it), per-user on/off; Mon profil: QR code and wa.me link; welcome message
       with examples for the role; one phone in two companies: the bot asks which; the prompt and the refusal carry no
       company name (the company comes from the organization, the bot speaks for the software's brand).
+- [x] **P12-T06 "Assistant IA" screen with voice (D-314, owner 2026-11-10).** Sidebar section "Assistant IA" in the
+      admin app: the same assistant without Meta (the unverified test account is locked, error 131031). Typed or
+      dictated (browser dictation, تونسي / Français), answers read aloud ("Écouter", or "Réponses à voix haute"):
+      Azure's Tunisian voice when the key is set, the browser's voice otherwise. Owner only until T05.
 - [ ] **Test set.** 50+ real messages with the expected answer, run on demand (not in CI) to compare models
       (Haiku 5.5 vs Sonnet 5.5) and to check a prompt change.
+
+## Check on staging (T06)
+
+1. Log in as the owner: the menu shows "Assistant IA". Touch "chnowa 3andi f frigo?": the answer comes in a few
+   seconds.
+2. Chrome or Edge: touch the micro, allow it, say "chnowa 3andi f frigo?", touch the micro again: the question is
+   sent and the answer comes in Arabic letters and is read aloud (Tunisian voice in Edge, or in any browser once the
+   Azure key is in `.env`).
+3. A manager does not see the menu entry, and `/assistant` shows "no access".
 
 ## Check on staging (T01)
 

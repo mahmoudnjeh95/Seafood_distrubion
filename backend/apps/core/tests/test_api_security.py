@@ -163,8 +163,15 @@ OWNER_ONLY_CLEARING = (
     "/api/v1/supplier-balances/<int:supplier_id>/write-off",
     "/api/v1/invoices/<int:invoice_id>/give-up-gap",
 )
-# Loading the company's data (P4-T01, D-112), managing other users (D-123) and the roles (D-306): the owner alone.
-OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members", "/api/v1/roles", "/api/v1/access-sections")
+# Loading the company's data (P4-T01, D-112), managing other users (D-123) and the roles (D-306), and the
+# assistant's screen until its section exists (D-314): the owner alone.
+OWNER_ONLY_AREA = (
+    "/api/v1/imports",
+    "/api/v1/members",
+    "/api/v1/roles",
+    "/api/v1/access-sections",
+    "/api/v1/assistant",
+)
 # The API map: owner and manager only.
 OFFICE_ONLY = ("/api/v1/schema", "/api/v1/notifications/recipients")
 

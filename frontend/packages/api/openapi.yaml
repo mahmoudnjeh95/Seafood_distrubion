@@ -21,6 +21,80 @@ paths:
                 items:
                   $ref: '#/components/schemas/AccessSection'
           description: ''
+  /api/v1/assistant/chat:
+    get:
+      operationId: getAssistantChat
+      description: |-
+        The person's conversation with the assistant on the screen: the last 20 messages of the last 24 hours,
+        oldest first. A question still waiting for its answer is the last message.
+      tags:
+      - assistant
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+          description: ''
+  /api/v1/assistant/chat/messages:
+    post:
+      operationId: askAssistant
+      description: |-
+        Ask the assistant a question. The answer comes a few seconds later in the conversation
+        (`getAssistantChat`).
+      tags:
+      - assistant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatQuestion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatQuestion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatQuestion'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+          description: ''
+  /api/v1/assistant/chat/messages/{message_id}/speech:
+    get:
+      operationId: getAssistantSpeech
+      description: |-
+        One answer of the person's own conversation, read aloud (MP3): a Tunisian voice for an answer in Arabic
+        letters, a French one otherwise. 404 when the server has no voice (the screen then uses the browser's).
+      parameters:
+      - in: path
+        name: message_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assistant
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '404':
+          description: No response body
+        '502':
+          description: No response body
   /api/v1/attachments:
     get:
       operationId: listAttachments
@@ -15776,6 +15850,66 @@ components:
       - live
       - product_name
       - sent
+    Chat:
+      type: object
+      description: 'The "Assistant IA" screen: whether the assistant is on, and the
+        conversation of the last 24 hours.'
+      properties:
+        enabled:
+          type: boolean
+        server_voice:
+          type: boolean
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+      required:
+      - enabled
+      - messages
+      - server_voice
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        direction:
+          $ref: '#/components/schemas/ChatMessageDirectionEnum'
+        text:
+          type: string
+          readOnly: true
+        spoken:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - direction
+      - id
+      - spoken
+      - text
+    ChatMessageDirectionEnum:
+      enum:
+      - in
+      - out
+      type: string
+      description: |-
+        * `in` - Reçu
+        * `out` - Envoyé
+    ChatQuestion:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        spoken:
+          type: boolean
+          default: false
+      required:
+      - text
     ChequeToCash:
       type: object
       properties:

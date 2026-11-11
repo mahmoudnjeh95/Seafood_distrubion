@@ -36,8 +36,8 @@ def whatsapp(monkeypatch, settings):
 def claude(monkeypatch):
     calls = []
 
-    def answer(*, membership, history, text):
-        calls.append({"membership": membership, "history": history, "text": text})
+    def answer(*, membership, history, text, spoken=False):
+        calls.append({"membership": membership, "history": history, "text": text, "spoken": spoken})
         return agent.AgentReply(text="3andek 12,000 kg", input_tokens=900, output_tokens=30, cache_read_tokens=700)
 
     monkeypatch.setattr(agent, "reply", answer)
@@ -46,7 +46,12 @@ def claude(monkeypatch):
 
 def incoming(link, text="chnowa 3andi?", kind=MessageKind.TEXT):
     return AssistantMessage.objects.create(
-        organization=link.organization, link=link, direction=Direction.IN, kind=kind, text=text
+        organization=link.organization,
+        membership=link.membership,
+        link=link,
+        direction=Direction.IN,
+        kind=kind,
+        text=text,
     )
 
 
