@@ -8,7 +8,7 @@ _Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `cl
   `claude/confident-mayer-8rb73t`, not into `main`. Conflicts were "keep both" entries in `access.py`,
   `SettingsPage.tsx`, `DECISIONS.md` and `STATUS.md`. Two migrations numbered `sales 0037` met: the public-buyers one
   is now `sales 0038_vat_withholding`. Checks run locally: `makemigrations --check` clean, ruff, format, import-linter,
-  mypy, eslint, prettier, typecheck, vitest all pass. Backend pytest: see the "Checks" note below.
+  mypy, eslint, prettier, typecheck, vitest all pass, and the full backend pytest suite passes (1 881 tests).
 - **Checks on this branch:** the security test found two access gaps, fixed in D-322: the lot page is owner and
   accountant only, and the e-invoicing settings are owner-only writes in the test list. The mypy error in
   `sales/services.py` (public buyers, withholding) is fixed by an explicit `is not None` check.
