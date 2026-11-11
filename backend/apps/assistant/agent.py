@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.core.models import Membership
 
 from .models import AssistantMessage, Direction
-from .prompt import SYSTEM_PROMPT, context_line
+from .prompt import SPOKEN_LINE, SYSTEM_PROMPT, context_line
 from .tools import run_tool, tools_for
 
 MAX_TOOL_ROUNDS = 6
@@ -32,7 +32,9 @@ def get_client() -> Any:
     return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY or None, max_retries=2, timeout=60)
 
 
-def _conversation(membership: Membership, history: list[AssistantMessage], text: str) -> list[dict[str, Any]]:
+def _conversation(
+    membership: Membership, history: list[AssistantMessage], text: str, spoken: bool = False
+) -> list[dict[str, Any]]:
     """The past messages as alternating turns, then the new one, after a line saying who writes and when."""
     user = membership.user
     header = context_line(
@@ -51,14 +53,24 @@ def _conversation(membership: Membership, history: list[AssistantMessage], text:
     if turns[0]["role"] == "assistant":
         turns.insert(0, {"role": "user", "content": "…"})
     turns[0]["content"] = header + "\n" + turns[0]["content"]
+    if spoken:
+        turns[-1]["content"] += "\n" + SPOKEN_LINE
     return turns
 
 
-def reply(*, membership: Membership, history: list[AssistantMessage], text: str, client: Any = None) -> AgentReply:
-    """Answer one message. `history` is the conversation before it (selectors.recent_messages)."""
+def reply(
+    *,
+    membership: Membership,
+    history: list[AssistantMessage],
+    text: str,
+    spoken: bool = False,
+    client: Any = None,
+) -> AgentReply:
+    """Answer one message. `history` is the conversation before it (selectors.recent_messages); `spoken`: the
+    answer is read aloud."""
     client = client or get_client()
     tools = [tool.definition() for tool in tools_for(membership)]
-    messages = _conversation(membership, history, text)
+    messages = _conversation(membership, history, text, spoken)
     usage = AgentReply(text="")
     for round_number in range(MAX_TOOL_ROUNDS + 1):
         response = client.beta.messages.create(

@@ -33,6 +33,7 @@ export interface Customer {
   readonly credit_limit: string;
   readonly payment_terms_days: number;
   readonly withholding_subject: boolean;
+  readonly public_buyer: boolean;
   readonly contacts: readonly CustomerContact[];
   readonly is_walk_in: boolean;
   readonly is_active: boolean;

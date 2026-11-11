@@ -73,6 +73,11 @@ export function BatchStockPage() {
               {data.product.name}
             </Link>
           </Detail>
+          <Detail label={t("admin.stock.batch.lot")}>
+            <Link to={`/stock/lot-complet/${data.lot}`} className="font-semibold text-sea hover:underline">
+              {t("admin.stock.batch.lotLine", { number: data.lot_number, line: data.line_number })}
+            </Link>
+          </Detail>
           <Detail label={t("admin.stock.batch.supplier")}>{data.supplier.name}</Detail>
           <Detail label={t("admin.stock.batch.received")}>{formatDate(data.received_on)}</Detail>
           <Detail label={t("admin.stock.batch.reference")}>{data.receipt_reference || t("admin.stock.none")}</Detail>

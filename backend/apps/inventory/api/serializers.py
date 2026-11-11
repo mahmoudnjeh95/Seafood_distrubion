@@ -81,12 +81,17 @@ class BatchSupplierSerializer(serializers.Serializer[Any]):
 class BatchSerializer(serializers.ModelSerializer[Batch]):
     product = BatchProductSerializer(read_only=True)
     supplier = BatchSupplierSerializer(read_only=True)
+    # The purchase this product came in (D-320): "L-0042", and the product's place in it.
+    lot_number = serializers.CharField(source="lot.number", read_only=True)
 
     class Meta:
         model = Batch
         fields = (
             "id",
             "number",
+            "lot",
+            "lot_number",
+            "line_number",
             "product",
             "supplier",
             "receipt_reference",
@@ -99,6 +104,34 @@ class BatchSerializer(serializers.ModelSerializer[Batch]):
             "created_at",
         )
         read_only_fields = fields
+
+
+class LotLineSerializer(serializers.Serializer[Any]):
+    """One product of a lot with its kilos (D-320)."""
+
+    batch_id = serializers.IntegerField(source="batch.pk", read_only=True)
+    number = serializers.CharField(source="batch.number", read_only=True)
+    line_number = serializers.IntegerField(source="batch.line_number", read_only=True)
+    product = BatchProductSerializer(source="batch.product", read_only=True)
+    unit_cost = serializers.DecimalField(max_digits=14, decimal_places=3, source="batch.unit_cost", read_only=True)
+    use_by = serializers.DateField(source="batch.use_by", read_only=True, allow_null=True)
+    received = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    sold = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    lost = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    on_hand = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
+    purchase_value = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
+
+
+class LotSerializer(serializers.Serializer[Any]):
+    """One purchase: its supplier, its day, and its products (D-320)."""
+
+    id = serializers.IntegerField(source="lot.pk", read_only=True)
+    number = serializers.CharField(source="lot.number", read_only=True)
+    supplier = BatchSupplierSerializer(source="lot.supplier", read_only=True)
+    received_on = serializers.DateField(source="lot.received_on", read_only=True)
+    receipt_reference = serializers.CharField(source="lot.receipt_reference", read_only=True)
+    lines = LotLineSerializer(many=True, read_only=True)
+    purchase_value = serializers.DecimalField(max_digits=14, decimal_places=3, read_only=True)
 
 
 class BatchOriginWriteSerializer(serializers.Serializer[Any]):

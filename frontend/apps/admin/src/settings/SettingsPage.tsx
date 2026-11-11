@@ -1,11 +1,18 @@
 import type { Session } from "@frutti/auth";
 import { fieldErrors } from "../lib/errors";
-import { removeOrganizationLogo, uploadOrganizationLogo, useGetFinanceSettings } from "@frutti/api";
+import {
+  removeOrganizationLogo,
+  uploadOrganizationLogo,
+  useGetEInvoicingSettings,
+  useGetFinanceSettings,
+} from "@frutti/api";
 import { useTranslation } from "@frutti/i18n";
 import { Button, Card, CardTitle, Icon, PageHeader, toast } from "@frutti/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Link, useOutletContext } from "react-router";
+import { einvoicingStatus } from "./einvoicing";
+import { BooksLockCard } from "./BooksLockCard";
 import { ListDisplayCard } from "./ListDisplayCard";
 
 function LogoCard({ session }: { session: Session }) {
@@ -175,6 +182,37 @@ function LinkCard({ title, hint, to, open }: { title: string; hint: string; to: 
   );
 }
 
+/** Paramètres › Facturation électronique: the TTN account's state (P11-T05a, D-310). */
+function EInvoicingCard() {
+  const { t } = useTranslation();
+  const query = useGetEInvoicingSettings();
+  const status = query.data ? einvoicingStatus(query.data) : null;
+  const label =
+    status === null
+      ? null
+      : {
+          off: t("admin.einvoicing.statusOff"),
+          incomplete: t("admin.einvoicing.statusIncomplete"),
+          ready: t("admin.einvoicing.statusReady"),
+          on: t("admin.einvoicing.statusOn"),
+        }[status];
+  return (
+    <Card>
+      <CardTitle>{t("admin.einvoicing.cardTitle")}</CardTitle>
+      <p className="mb-2 text-[0.85rem] text-ink-2">{t("admin.einvoicing.cardHint")}</p>
+      {label && (
+        <p className="mb-3 text-[0.9rem]">
+          <span className="text-ink-2">{t("admin.einvoicing.status")} : </span>
+          <strong>{label}</strong>
+        </p>
+      )}
+      <Link to="/parametres/facturation-electronique" className="text-[0.9rem] font-semibold text-sea hover:underline">
+        {t("admin.einvoicing.open")}
+      </Link>
+    </Card>
+  );
+}
+
 /** "Paramètres": the company's logo and legal identity; the users and roles for the owner (D-306). */
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -191,6 +229,8 @@ export function SettingsPage() {
         {session.role === "owner" && <RolesCard />}
         <BanksCard />
         <NumberingCard />
+        <EInvoicingCard />
+        <BooksLockCard canWrite={session.role === "owner"} />
         <LinkCard
           title={t("admin.vatRates.title")}
           hint={t("admin.vatRates.settingsHint")}

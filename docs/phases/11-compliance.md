@@ -14,6 +14,7 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
 - Every new tax computation follows the existing pattern: pure functions, a settings version in force on the day,
   values copied onto the document when it is issued (D-057, D-018).
 - Declarations are **prepared** (screens and exports to copy into the DGI / CNSS portals), not filed by the app.
+- A value a company may need to change is a setting in a Paramètres section, never a constant in code (owner, D-310).
 
 ## Tasks
 
@@ -36,7 +37,12 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   signature block for both.
 - [ ] **P11-T05 TTN / El Fatoora (F1)** · L · **Owner** first: TTN enrolment, signing certificate (TunTrust), the
   TEIF specification (Q18, D-016). Code: TEIF XML of an invoice and a credit note, signature, sending and status,
-  TTN reference and QR code on the PDF. Split once the specification is in hand.
+  TTN reference and QR code on the PDF. Split:
+  - [x] **T05a settings and readiness (D-310, 2026-11-11):** Paramètres › Facturation électronique; switching on is
+    refused until the seller's identity, the https address, the auth mode and a valid certificate are set. Nothing is sent.
+  - [ ] **T05b TEIF XML** of an invoice and a credit note, checked against the TTN XSD. Waits for the specification.
+  - [ ] **T05c signature, sending and status** in the sandbox first (auth and endpoints from TTN's documentation).
+  - [ ] **T05d TTN reference and QR code on the PDF**, and the status per invoice.
 
 ### Wave 2: one session with the accountant, then code
 
@@ -48,12 +54,16 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   0 %, deduction prorata computed for the month.
 - [ ] **P11-T08 Deductible VAT on purchases and expenses (F5)** · M · after T06. VAT, supplier tax ID and supplier
   invoice number on expenses; supplier invoices already carry VAT (D-294).
-- [ ] **P11-T09 Public buyers (F7)** · S · after T06. Customer type "public": VAT withholding on top of the
-  withholding on the amount.
-- [ ] **P11-T10 Supplier tax status (R2)** · S · after T06. Réel / forfaitaire / no tax ID; warning on a port
-  purchase paid without an invoice.
-- [ ] **P11-T11 Cash limit on payments out (E1)** · S · after T06. The cash confirmation of D-273 on supplier payments,
-  port purchases and expenses.
+- [x] **P11-T09 Public buyers (F7)** · S. "Acheteur public" on the customer: its invoices of 1 000 DT and more also
+  keep part of the VAT (Paramètres financiers, 25 % provisional), shown on the invoice and its PDF, given back by
+  credit notes, covered by the certificate (D-313). _Done 2026-11-10; rate and threshold for the accountant._
+- [x] **P11-T10 Supplier tax status (R2)** · S. Régime réel / forfaitaire / sans matricule on the supplier (forced
+  to "sans matricule" without a tax ID), and "Retenue à la source sur nos paiements" (on by default), used by T02
+  (D-319). _Done 2026-11-10._
+- [x] **P11-T11 Cash limit on payments out (E1)** · S. Supplier payments already confirm a cash line at or above the
+  limit (D-273); a port purchase records it at validation. A cash expense at or above the limit is kept but flagged
+  "Espèces ≥ plafond" (likely not deductible), warned in the form (D-316). _Done 2026-11-10; the exact 2026 rule stays
+  for the accountant (P11-T06)._
 - [ ] **P11-T12 Payroll (P1, P2, P3, P4, B8)** · L · after T06. IRPP scale, professional expenses and family
   deductions, CSS, payslip PDF, hire and leave dates with prorata, quarterly CNSS return export, TFP and FOPROLOS.
   Until then the module is sold as "suivi des salaires".
@@ -62,15 +72,19 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
 
 - [ ] **P11-T13 Déclarations du mois (F6)** · M · after T07, T08, T02. Collected and deductible VAT, carried credit,
   stamps, withholdings made, TCL, TFP, FOPROLOS; export.
-- [ ] **P11-T14 Withholding certificates received (R3)** · S. Typed against the customer payment; yearly total.
+- [x] **P11-T14 Withholding certificates received (R3)** · S. Already built in P2-T06: a certificate per invoice
+  (file, void), and the withholding summary (`withholding-summary`) by period, month and customer: a year filter gives
+  the yearly total. _Checked 2026-11-10._
 - [x] **P11-T15 Write-off evidence (E2)** · S. A customer write-off says its motif: a settlement gap or an
   irrecoverable debt; the latter reads "Justificatif manquant" until a file is attached (D-298). _Done 2026-11-09._
-- [ ] **P11-T16 Period lock (E3)** · M. A declared month is locked; a correction is dated in the open month.
+- [x] **P11-T16 Period lock (E3)** · M. The owner locks the books up to a past day (Paramètres › Période
+  verrouillée); money movements and typed dates of expenses, day labour, receipts, supplier invoices, payments and
+  credit notes in the locked period are refused; reopening needs a reason (D-315). _Done 2026-11-10._
 - [ ] **P11-T17 Accounting export (E4)** · M · plan of accounts from the **Accountant**. Journal entries (CSV / Excel).
-- [ ] **P11-T18 Lot traceability (M1)** · M. Origin (catch / farm), catch zone and date, supplier sanitary approval
-  number on the receipt; a lot's traceability sheet (from whom, to which customers).
-- [ ] **P11-T19 Cold chain readings (M2)** · M · **Owner** decides (D-295 answer 4 said no temperatures for the frigo
-  service). Daily cold room and truck temperatures, alert out of range.
+- [x] **P11-T18 Lot traceability (M1)** · Built by P1-T23 (D-302): catch area, production method, origin, supplier
+  health approval, scientific name, and the recall sheet of a lot. _Checked 2026-11-10._
+- [x] **P11-T19 Cold chain readings (M2)** · Built by P1-T24 (D-303): a range per cold room and truck, readings by the
+  office and the driver, alert out of range, arrival temperature on the receipt. _Checked 2026-11-10._
 - [ ] **P11-T20 Closed seasons (M3) and port purchase circuits (M4)** · S · **Lawyer / DGPA** for the rules first.
 - [ ] **P11-T21 New organization onboarding (L4)** · L. Sign-up of a company, fiscal setup wizard with neutral
   defaults, subscription, tests that one organization never reads another's data.

@@ -567,6 +567,8 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     prices_include_vat = models.BooleanField(default=False)
     # Percent, 2 decimals: the withholding tax (retenue à la source) on invoices of 1 000 DT and more; 0 = never shown.
     withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    # Percent of the VAT a public buyer keeps on invoices of 1 000 DT and more (D-313); 0 = never.
+    vat_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("25.00"))
     # A cash line of this amount or more on a payment needs the office's explicit confirmation (D-273, owner: 5 000 DT).
     cash_limit = MoneyField(default=Decimal("5000.000"))
     # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.
@@ -600,6 +602,55 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.organization} · {self.valid_from}"
+
+
+# ---- E-invoicing settings (P11-T05a, D-310) ----
+
+
+class EInvoiceEnvironment(models.TextChoices):
+    SANDBOX = "sandbox", _("Test (bac à sable)")
+    PRODUCTION = "production", _("Production")
+
+
+class EInvoiceAuthMode(models.TextChoices):
+    # Undecided until the TTN documentation says which one the enrolment uses (D-016, Q18).
+    UNDECIDED = "", _("À confirmer avec TTN")
+    CERTIFICATE = "certificate", _("Certificat client")
+    CLIENT_SECRET = "client_secret", _("Identifiant et clé d'API")
+
+
+class EInvoicingSettings(OrganizationScopedModel, TimeStampedModel):
+    """The organization's TTN / El Fatoora settings (P11-T05a, D-310): one row per organization, made with the
+    defaults the first time it is read. Only what is not a secret is kept here: the API key and the certificate's
+    password stay in the server's environment. The seller's tax ID and address come from the finance settings
+    (D-296).
+
+    Nothing is sent yet: the TEIF XML, the signature and the sending (P11-T05b to d) wait for the TTN
+    specification. `enabled` cannot be turned on until every check of `sales.selectors.einvoicing_checks` passes.
+    """
+
+    enabled = models.BooleanField(default=False)
+    environment = models.CharField(
+        max_length=20, choices=EInvoiceEnvironment.choices, default=EInvoiceEnvironment.SANDBOX
+    )
+    # The TTN address given at enrolment; https only.
+    api_base_url = models.CharField(max_length=200, blank=True)
+    auth_mode = models.CharField(
+        max_length=20, choices=EInvoiceAuthMode.choices, default=EInvoiceAuthMode.UNDECIDED, blank=True
+    )
+    # Public identifier of the API account (not the secret key).
+    client_id = models.CharField(max_length=100, blank=True)
+    # Who the signing certificate was issued to (TunTrust, the company's name).
+    certificate_holder = models.CharField(max_length=200, blank=True)
+    certificate_expires_on = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization"], name="one_einvoicing_settings_per_organization"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization} · e-facture"
 
 
 # ---- Invoices and credit notes (P2-T05, D-057) ----
@@ -685,7 +736,10 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     withholding_rate_overridden = models.BooleanField(default=False)
     # (total_excl_tax + vat_total) × rate: the customer keeps it and pays the rest (P2-T06 records it).
     withholding_amount = MoneyField(default=Decimal("0.000"))
-    # total_incl_tax − withholding_amount: what the customer pays.
+    # A public buyer also keeps vat_total × this rate (D-313); both 0 for every other customer.
+    vat_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    vat_withholding_amount = MoneyField(default=Decimal("0.000"))
+    # total_incl_tax − withholding_amount − vat_withholding_amount: what the customer pays.
     net_to_pay = MoneyField(default=Decimal("0.000"))
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

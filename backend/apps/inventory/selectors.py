@@ -22,6 +22,7 @@ from .models import (
     FIFO_ORDER,
     Batch,
     LocationKind,
+    Lot,
     MovementKind,
     StockCount,
     StockCountLine,
@@ -76,12 +77,12 @@ def batches_of(
 ) -> QuerySet[Batch]:
     """Batches of one organization, newest first, with their product and supplier.
 
-    `search` matches the batch number, the supplier's receipt reference, and the product or supplier
-    name or reference.
+    `search` matches the batch number, its lot's number (D-320), the supplier's receipt reference, and the product
+    or supplier name or reference.
     """
     batches = (
         Batch.objects.for_organization(organization)
-        .select_related("product", "supplier")
+        .select_related("product", "supplier", "lot")
         .order_by("-received_on", "-id")
     )
     if product_id is not None:
@@ -91,6 +92,7 @@ def batches_of(
     if search := search.strip():
         batches = batches.filter(
             Q(number__icontains=search)
+            | Q(lot__number__icontains=search)
             | Q(receipt_reference__icontains=search)
             | Q(product__name__icontains=search)
             | Q(product__reference__icontains=search)
@@ -123,6 +125,69 @@ def batch_valued_outside(organization: Organization, *, batch_id: int) -> bool:
 def batch_of(organization: Organization, batch_id: int) -> Batch:
     """One batch. Raises Batch.DoesNotExist outside the organization."""
     return batches_of(organization).get(pk=batch_id)
+
+
+def lot_of(organization: Organization, lot_id: int) -> Lot:
+    """One lot (a purchase, D-320) with its supplier. Raises Lot.DoesNotExist outside the organization."""
+    return Lot.objects.for_organization(organization).select_related("supplier").get(pk=lot_id)
+
+
+# What entered a lot line from outside: the receipt, its corrections, and a transformation's output.
+RECEIVED_KINDS = (MovementKind.RECEIPT, MovementKind.RECEIPT_CORRECTION, MovementKind.TRANSFORMATION_IN)
+SOLD_KINDS = (MovementKind.SALE, MovementKind.CUSTOMER_RETURN)
+
+
+@dataclass(frozen=True)
+class LotLine:
+    """One product of a lot: the kilos received, sold (returns taken off), lost, and still held anywhere."""
+
+    batch: Batch
+    received: Decimal
+    sold: Decimal
+    lost: Decimal
+    on_hand: Decimal
+
+    @property
+    def purchase_value(self) -> Decimal:
+        return line_total(self.received, self.batch.unit_cost)
+
+
+def lot_lines(organization: Organization, *, lot_id: int) -> list[LotLine]:
+    """The products of one lot in line order, each with its kilos from the stock ledger (D-320). A transfer between
+    two places changes nothing here; every other movement adds to or takes from what the company holds."""
+    batches = list(batches_of(organization).filter(lot_id=lot_id).order_by("line_number", "id"))
+    zero = Decimal("0.000")
+    received: dict[int, Decimal] = defaultdict(lambda: zero)
+    sold: dict[int, Decimal] = defaultdict(lambda: zero)
+    lost: dict[int, Decimal] = defaultdict(lambda: zero)
+    on_hand: dict[int, Decimal] = defaultdict(lambda: zero)
+    rows = (
+        StockMovement.objects.for_organization(organization)
+        .filter(batch__lot_id=lot_id)
+        .order_by("id")
+        .values_list("batch_id", "kind", "from_location_id", "to_location_id", "quantity")
+    )
+    for batch_id, kind, from_id, to_id, kg in rows:
+        if (from_id is None) == (to_id is None):
+            continue
+        signed = kg if to_id is not None else -kg
+        on_hand[batch_id] += signed
+        if kind in RECEIVED_KINDS:
+            received[batch_id] += signed
+        elif kind in SOLD_KINDS:
+            sold[batch_id] -= signed
+        elif kind == MovementKind.LOSS:
+            lost[batch_id] -= signed
+    return [
+        LotLine(
+            batch=batch,
+            received=received[batch.pk],
+            sold=sold[batch.pk],
+            lost=lost[batch.pk],
+            on_hand=on_hand[batch.pk],
+        )
+        for batch in batches
+    ]
 
 
 def last_batches_from(organization: Organization, *, supplier_id: int) -> QuerySet[Batch]:
@@ -1631,3 +1696,20 @@ def transformations_of(
             | Q(output_batch__product__name__icontains=search)
         )
     return rows
+
+
+@dataclass(frozen=True)
+class LotDetail:
+    """A lot and its products, for the lot page (D-320)."""
+
+    lot: Lot
+    lines: list[LotLine]
+
+    @property
+    def purchase_value(self) -> Decimal:
+        return sum((line.purchase_value for line in self.lines), Decimal("0.000"))
+
+
+def lot_detail(organization: Organization, lot_id: int) -> LotDetail:
+    """One lot with its lines. Raises Lot.DoesNotExist outside the organization."""
+    return LotDetail(lot=lot_of(organization, lot_id), lines=lot_lines(organization, lot_id=lot_id))

@@ -152,6 +152,10 @@ OWNER_ONLY_WRITES = (
     "/api/v1/recurring-costs",
     "/api/v1/finance-settings",
     "/api/v1/stock-settings",
+    # The period lock (D-315).
+    "/api/v1/books-lock",
+    # The e-invoicing settings (D-310): the owner alone writes them.
+    "/api/v1/einvoicing-settings",
 )
 # Clearing a customer's or a supplier's balance to zero (D-252): the owner alone; a manager gets 403.
 OWNER_ONLY_CLEARING = (
@@ -161,8 +165,15 @@ OWNER_ONLY_CLEARING = (
     "/api/v1/supplier-balances/<int:supplier_id>/write-off",
     "/api/v1/invoices/<int:invoice_id>/give-up-gap",
 )
-# Loading the company's data (P4-T01, D-112), managing other users (D-123) and the roles (D-306): the owner alone.
-OWNER_ONLY_AREA = ("/api/v1/imports", "/api/v1/members", "/api/v1/roles", "/api/v1/access-sections")
+# Loading the company's data (P4-T01, D-112), managing other users (D-123) and the roles (D-306), and the
+# assistant's screen until its section exists (D-314): the owner alone.
+OWNER_ONLY_AREA = (
+    "/api/v1/imports",
+    "/api/v1/members",
+    "/api/v1/roles",
+    "/api/v1/access-sections",
+    "/api/v1/assistant",
+)
 # The API map: owner and manager only.
 OFFICE_ONLY = ("/api/v1/schema", "/api/v1/notifications/recipients")
 

@@ -21,7 +21,7 @@ test("the owner finds the demo receipt with its weight difference", async ({ pag
   await expect(page.getByRole("heading", { name: "BR-0001", level: 1 })).toBeVisible();
   const note = page.getByRole("note");
   await expect(note).toContainText("Écart de poids à la réception");
-  await expect(note).toContainText(/Dorade royale L-\d+ : 60,000\skg acceptés pour 62,000\skg facturés/);
+  await expect(note).toContainText(/Dorade royale L-\d+(?:-\d+)? : 60,000\skg acceptés pour 62,000\skg facturés/);
   await expect(page.getByText("Mareyeur Port de Sfax").first()).toBeVisible();
 });
 
@@ -57,7 +57,7 @@ test("the owner records a receipt; the last cost is suggested and the change sho
   await expect(page.getByRole("heading", { name: /^BR-\d+$/, level: 1 })).toBeVisible();
   await expect(page.getByText(deliveryNote)).toBeVisible();
   await expect(page.getByRole("note")).toContainText(
-    /Loup de mer L-\d+ : 17,500\skg acceptés pour 18,000\skg facturés/,
+    /Loup de mer L-\d+(?:-\d+)? : 17,500\skg acceptés pour 18,000\skg facturés/,
   );
 });
 

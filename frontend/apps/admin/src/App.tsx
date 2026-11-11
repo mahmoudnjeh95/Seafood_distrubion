@@ -25,6 +25,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useOutletContext } from "react-router";
 
+import { AssistantPage } from "./assistant/AssistantPage";
 import { DashboardPage } from "./dashboard/DashboardPage";
 import { EmployeeDetailPage } from "./hr/EmployeeDetailPage";
 import { EmployeesPage } from "./hr/EmployeesPage";
@@ -53,6 +54,7 @@ import { BanksPage } from "./settings/BanksPage";
 import { NumberingPage } from "./settings/NumberingPage";
 import { RolesPage } from "./settings/RolesPage";
 import { CustomerTypesPage } from "./settings/CustomerTypesPage";
+import { EInvoicingPage } from "./settings/EInvoicingPage";
 import { VatRatesPage } from "./settings/VatRatesPage";
 import { OpeningBalancesPage } from "./treasury/OpeningBalancesPage";
 import { RefundsPage } from "./treasury/RefundsPage";
@@ -87,6 +89,7 @@ import { PriceRequestsPage } from "./pricerequests/PriceRequestsPage";
 import { SupplierCreditNoteDetailPage } from "./creditnotes/SupplierCreditNoteDetailPage";
 import { SupplierCreditNoteFormPage } from "./creditnotes/SupplierCreditNoteFormPage";
 import { SupplierCreditNotesPage } from "./creditnotes/SupplierCreditNotesPage";
+import { LotPage } from "./stock/LotPage";
 import { LotRecallPage } from "./stock/LotRecallPage";
 import { ColdChainPage } from "./stock/ColdChainPage";
 import { TransformationFormPage } from "./transformations/TransformationFormPage";
@@ -136,6 +139,11 @@ function useNav(): AdminNavGroup[] {
         { to: "/", label: t("admin.nav.dashboard"), icon: "grid" },
         { to: "/rapports", label: t("admin.nav.reports"), icon: "grid" },
       ],
+    },
+    {
+      // The WhatsApp assistant inside the application, typed or spoken (D-314).
+      label: t("admin.groups.assistant"),
+      items: [{ to: "/assistant", label: t("admin.nav.assistant"), icon: "spark" }],
     },
     {
       label: t("admin.groups.sales"),
@@ -199,6 +207,7 @@ function useNav(): AdminNavGroup[] {
 
 // Screens that exist; every other entry of the menu shows "coming soon".
 const SCREENS: Record<string, ReactNode> = {
+  "/assistant": <AssistantPage />,
   "/documents": <DocumentsPage />,
   "/stock": <LocationsPage />,
   "/camions": <TruckDayPage />,
@@ -270,8 +279,9 @@ const PATH_SECTIONS: [string, Section][] = (
   ] as [string, Section][]
 ).sort((a, b) => b[0].length - a[0].length);
 
-// Screens only the owner reaches, whatever the matrix says: the import and the users and roles (D-123, D-306).
-const OWNER_PATHS = ["/import", "/parametres/utilisateurs", "/parametres/roles"];
+// Screens only the owner reaches, whatever the matrix says: the import, the users and roles (D-123, D-306), and
+// the assistant until its own section exists (D-314, P12-T05).
+const OWNER_PATHS = ["/import", "/parametres/utilisateurs", "/parametres/roles", "/assistant"];
 
 function underPath(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -371,6 +381,7 @@ function AppRoutes() {
         <Route path="/parametres/numerotation" element={<NumberingPage />} />
         <Route path="/parametres/types-clients" element={<CustomerTypesPage />} />
         <Route path="/parametres/tva" element={<VatRatesPage />} />
+        <Route path="/parametres/facturation-electronique" element={<EInvoicingPage />} />
         <Route path="/fournisseurs/:supplierId" element={<SupplierDetailPage />} />
         <Route path="/clients/:customerId" element={<CustomerDetailPage />} />
         {/* Employees and payroll (P5-T04) */}
@@ -434,6 +445,7 @@ function AppRoutes() {
         <Route path="/stock/produits/:productId" element={<ProductStockPage />} />
         <Route path="/stock/lots/:batchId" element={<BatchStockPage />} />
         <Route path="/stock/lots/:batchId/rappel" element={<LotRecallPage />} />
+        <Route path="/stock/lot-complet/:lotId" element={<LotPage />} />
         <Route path="/stock/temperatures" element={<ColdChainPage />} />
         <Route path="/stock/transformations" element={<TransformationsPage />} />
         <Route path="/stock/transformations/nouvelle" element={<TransformationFormPage />} />

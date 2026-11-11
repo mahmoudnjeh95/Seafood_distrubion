@@ -1,6 +1,7 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import OrganizationScopedModel, TimeStampedModel
 
@@ -15,6 +16,15 @@ def unique_emails(*addresses: str) -> list[str]:
             seen.add(value.lower())
             result.append(value)
     return result
+
+
+class SupplierTaxRegime(models.TextChoices):
+    """How the supplier is taxed (D-319, review R2): it decides whether its invoice gives deductible VAT and how much
+    the company withholds when paying it (P11-T02). A supplier without a tax ID is always "Sans matricule"."""
+
+    REAL = "real", _("Régime réel")
+    FLAT = "flat", _("Régime forfaitaire")
+    NONE = "none", _("Sans matricule fiscal")
 
 
 class Supplier(OrganizationScopedModel, TimeStampedModel):
@@ -39,6 +49,10 @@ class Supplier(OrganizationScopedModel, TimeStampedModel):
     buys_with_vat = models.BooleanField(default=False)
     # The supplier's health approval number ("agrément sanitaire"), printed with its lots' origin (D-302).
     health_approval = models.CharField(max_length=50, blank=True)
+    # Its tax regime (D-319), and whether the company withholds tax when paying it (P11-T02; a supplier exempt by
+    # a certificate is unticked).
+    tax_regime = models.CharField(max_length=10, choices=SupplierTaxRegime.choices, default=SupplierTaxRegime.REAL)
+    subject_to_withholding = models.BooleanField(default=True)
     # Archived suppliers keep their history but cannot be bought from.
     is_active = models.BooleanField(default=True)
 
@@ -154,6 +168,8 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
     # The customer withholds the retenue à la source on their invoices of 1 000 DT and more (companies, the State).
     # Off: their invoices never carry one, whatever the rate in the settings (D-292). On by default, as before.
     withholding_subject = models.BooleanField(default=True)
+    # A public buyer (the State, a local authority, a public body): it also keeps part of the VAT (D-313).
+    public_buyer = models.BooleanField(default=False)
     # The "Client de passage" record counters and anonymous sales use: one per organization, never archived.
     is_walk_in = models.BooleanField(default=False)
     # Archived customers keep their history but cannot be sold to.

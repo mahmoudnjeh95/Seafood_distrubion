@@ -193,7 +193,7 @@ def sale_receivables(
     for invoice in invoices.values():
         part = invoice.net_to_pay - credited.get(invoice.pk, ZERO)
         if invoice.status == InvoiceStatus.ISSUED and invoice.pk in certified:
-            part += certified[invoice.pk] * -1 + invoice.withholding_amount
+            part += certified[invoice.pk] * -1 + invoice.withholding_amount + invoice.vat_withholding_amount
         sale_ids_of_invoice = sorted(linked[invoice.pk])
         parts = split(part, [held[invoice.pk].get(sale_id, ZERO) for sale_id in sale_ids_of_invoice])
         for sale_id, share in zip(sale_ids_of_invoice, parts, strict=True):

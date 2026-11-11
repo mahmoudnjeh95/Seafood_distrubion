@@ -9,7 +9,7 @@ from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
@@ -57,6 +57,8 @@ from .serializers import (
     CreditNoteWriteSerializer,
     CustomerRefundSerializer,
     DeliverSerializer,
+    EInvoicingSettingsOverviewSerializer,
+    EInvoicingSettingsWriteSerializer,
     FinanceSettingsOverviewSerializer,
     FinanceSettingsWriteSerializer,
     InvoiceChoicesSerializer,
@@ -690,6 +692,47 @@ class FinanceSettingsView(OfficeView):
         serializer = FinanceSettingsWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         services.save_finance_settings(
+            organization=self.organization, actor=self.membership.user, **serializer.validated_data
+        )
+        return self.overview()
+
+
+# ---- E-invoicing settings (P11-T05a, D-310) ----
+
+
+class EInvoicingSettingsView(OfficeView):
+    def overview(self) -> Response:
+        today = timezone.localdate()
+        row = selectors.einvoicing_settings_of(self.organization)
+        checks = selectors.einvoicing_checks(row, selectors.finance_settings_on(self.organization, today), today)
+        data = {
+            "settings": row,
+            "checks": [{"key": check.key, "text": check.label, "ok": check.ok} for check in checks],
+            "ready": all(check.ok for check in checks),
+            "certificate_expiring": selectors.certificate_expiring_soon(row, today),
+            "may_edit": access.can(self.membership, "settings", access.Level.FULL),
+        }
+        return Response(EInvoicingSettingsOverviewSerializer(data).data)
+
+    @extend_schema(operation_id="getEInvoicingSettings", responses=EInvoicingSettingsOverviewSerializer)
+    def get(self, request: Request) -> Response:
+        """The TTN / El Fatoora settings (Paramètres › Facturation électronique) and what is still missing before
+        they can be switched on. Office roles read."""
+        return self.overview()
+
+    @extend_schema(
+        operation_id="updateEInvoicingSettings",
+        request=EInvoicingSettingsWriteSerializer,
+        responses={200: EInvoicingSettingsOverviewSerializer, 400: OpenApiResponse(description="Refused")},
+    )
+    def patch(self, request: Request) -> Response:
+        """Change the TTN settings. The owner (or a person the owner gave the settings section in full). Switching
+        them on is refused until every check passes; the missing ones are named."""
+        if not access.can(self.membership, "settings", access.Level.FULL):
+            raise PermissionDenied(_("Seul le propriétaire change les paramètres de facturation électronique."))
+        serializer = EInvoicingSettingsWriteSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        services.save_einvoicing_settings(
             organization=self.organization, actor=self.membership.user, **serializer.validated_data
         )
         return self.overview()

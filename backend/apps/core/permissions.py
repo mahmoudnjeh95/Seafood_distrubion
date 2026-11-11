@@ -117,6 +117,18 @@ class ReadOwnerOrAccountantWriteOwner(HasRole):
         return request.method in SAFE_METHODS or membership.role == Role.OWNER
 
 
+class ReadOfficeWriteOwner(HasRole):
+    """Office data only the owner changes (the period lock, D-315): owners, managers and the accountant read."""
+
+    roles = frozenset({Role.OWNER, Role.MANAGER, Role.ACCOUNTANT})
+    owner_writes = True
+
+    def role_allows(self, request: Request, view: APIView, membership: Membership) -> bool:
+        if not super().role_allows(request, view, membership):
+            return False
+        return request.method in SAFE_METHODS or membership.role == Role.OWNER
+
+
 class ReadOfficeWriteOwnerOrManager(HasRole):
     """Office data drivers have no use for (suppliers, purchases): owners, managers and the accountant read;
     only owners and managers change."""

@@ -52,6 +52,10 @@ export interface InvoiceDetail {
   readonly withholding_rate: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly withholding_amount: string;
+  /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
+  readonly vat_withholding_rate: string;
+  /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
+  readonly vat_withholding_amount: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly net_to_pay: string;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */

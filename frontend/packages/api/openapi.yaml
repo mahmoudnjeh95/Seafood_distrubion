@@ -21,6 +21,80 @@ paths:
                 items:
                   $ref: '#/components/schemas/AccessSection'
           description: ''
+  /api/v1/assistant/chat:
+    get:
+      operationId: getAssistantChat
+      description: |-
+        The person's conversation with the assistant on the screen: the last 20 messages of the last 24 hours,
+        oldest first. A question still waiting for its answer is the last message.
+      tags:
+      - assistant
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+          description: ''
+  /api/v1/assistant/chat/messages:
+    post:
+      operationId: askAssistant
+      description: |-
+        Ask the assistant a question. The answer comes a few seconds later in the conversation
+        (`getAssistantChat`).
+      tags:
+      - assistant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatQuestion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatQuestion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatQuestion'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+          description: ''
+  /api/v1/assistant/chat/messages/{message_id}/speech:
+    get:
+      operationId: getAssistantSpeech
+      description: |-
+        One answer of the person's own conversation, read aloud (MP3): a Tunisian voice for an answer in Arabic
+        letters, a French one otherwise. 404 when the server has no voice (the screen then uses the browser's).
+      parameters:
+      - in: path
+        name: message_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assistant
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '404':
+          description: No response body
+        '502':
+          description: No response body
   /api/v1/attachments:
     get:
       operationId: listAttachments
@@ -313,6 +387,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BatchSales'
+          description: ''
+  /api/v1/books-lock:
+    get:
+      operationId: getBooksLock
+      description: |-
+        The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
+        the owner moves it, and opening a locked period again needs a reason.
+      tags:
+      - books-lock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksLock'
+          description: ''
+    put:
+      operationId: setBooksLock
+      description: |-
+        The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
+        the owner moves it, and opening a locked period again needs a reason.
+      tags:
+      - books-lock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BooksLock'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BooksLock'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BooksLock'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksLock'
           description: ''
   /api/v1/boxes/adjustments:
     post:
@@ -2542,6 +2661,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/PdfState'
           description: ''
+  /api/v1/einvoicing-settings:
+    get:
+      operationId: getEInvoicingSettings
+      description: |-
+        The TTN / El Fatoora settings (Paramètres › Facturation électronique) and what is still missing before
+        they can be switched on. Office roles read.
+      tags:
+      - einvoicing-settings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EInvoicingSettingsOverview'
+          description: ''
+    patch:
+      operationId: updateEInvoicingSettings
+      description: |-
+        Change the TTN settings. The owner (or a person the owner gave the settings section in full). Switching
+        them on is refused until every check passes; the missing ones are named.
+      tags:
+      - einvoicing-settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEInvoicingSettingsWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEInvoicingSettingsWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEInvoicingSettingsWrite'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EInvoicingSettingsOverview'
+          description: ''
+        '400':
+          description: Refused
   /api/v1/electricity-bills:
     get:
       operationId: listElectricityBills
@@ -4943,6 +5108,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LotSettlementView'
+          description: ''
+  /api/v1/lots/{lot_id}:
+    get:
+      operationId: getLot
+      description: One purchase and its products, each with its kilos received, sold,
+        lost and still held (D-320).
+      parameters:
+      - in: path
+        name: lot_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lot'
           description: ''
   /api/v1/maintenance-plans:
     get:
@@ -14676,6 +14863,15 @@ components:
       - file
       - kind
       - object_id
+    AuthModeEnum:
+      enum:
+      - certificate
+      - client_secret
+      type: string
+      description: |-
+        * `` - À confirmer avec TTN
+        * `certificate` - Certificat client
+        * `client_secret` - Identifiant et clé d'API
     AwaitingInvoice:
       type: object
       description: An issued invoice that planned a withholding and has no certificate
@@ -14836,6 +15032,16 @@ components:
         number:
           type: string
           readOnly: true
+        lot:
+          type: integer
+          readOnly: true
+        lot_number:
+          type: string
+          readOnly: true
+        line_number:
+          type: integer
+          readOnly: true
+          default: 1
         product:
           allOf:
           - $ref: '#/components/schemas/BatchProduct'
@@ -14879,6 +15085,9 @@ components:
       - catch_area
       - created_at
       - id
+      - line_number
+      - lot
+      - lot_number
       - number
       - origin
       - product
@@ -15158,6 +15367,19 @@ components:
     BlankEnum:
       enum:
       - ''
+    BooksLock:
+      type: object
+      properties:
+        until:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - until
     BoxAdjustmentWrite:
       type: object
       properties:
@@ -15663,6 +15885,66 @@ components:
       - live
       - product_name
       - sent
+    Chat:
+      type: object
+      description: 'The "Assistant IA" screen: whether the assistant is on, and the
+        conversation of the last 24 hours.'
+      properties:
+        enabled:
+          type: boolean
+        server_voice:
+          type: boolean
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+      required:
+      - enabled
+      - messages
+      - server_voice
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        direction:
+          $ref: '#/components/schemas/ChatMessageDirectionEnum'
+        text:
+          type: string
+          readOnly: true
+        spoken:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - direction
+      - id
+      - spoken
+      - text
+    ChatMessageDirectionEnum:
+      enum:
+      - in
+      - out
+      type: string
+      description: |-
+        * `in` - Reçu
+        * `out` - Envoyé
+    ChatQuestion:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        spoken:
+          type: boolean
+          default: false
+      required:
+      - text
     ChequeToCash:
       type: object
       properties:
@@ -16751,6 +17033,9 @@ components:
         withholding_subject:
           type: boolean
           readOnly: true
+        public_buyer:
+          type: boolean
+          readOnly: true
         contacts:
           type: array
           items:
@@ -16783,6 +17068,7 @@ components:
       - notes
       - payment_terms_days
       - phone
+      - public_buyer
       - reference
       - tax_id
       - updated_at
@@ -17626,6 +17912,9 @@ components:
         withholding_subject:
           type: boolean
           default: true
+        public_buyer:
+          type: boolean
+          default: false
         contacts:
           type: array
           items:
@@ -19902,11 +20191,94 @@ components:
       - id
       - name
       - username
+    EInvoiceCheck:
+      type: object
+      description: One thing TTN needs before e-invoices can be sent (`selectors.einvoicing_checks`).
+      properties:
+        key:
+          type: string
+          readOnly: true
+        text:
+          type: string
+          readOnly: true
+        ok:
+          type: boolean
+          readOnly: true
+      required:
+      - key
+      - ok
+      - text
     EInvoiceStatusEnum:
       enum:
       - not_sent
       type: string
       description: '* `not_sent` - Non transmise'
+    EInvoicingSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          readOnly: true
+        environment:
+          allOf:
+          - $ref: '#/components/schemas/EnvironmentEnum'
+          readOnly: true
+        api_base_url:
+          type: string
+          readOnly: true
+        auth_mode:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/AuthModeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        client_id:
+          type: string
+          readOnly: true
+        certificate_holder:
+          type: string
+          readOnly: true
+        certificate_expires_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - api_base_url
+      - auth_mode
+      - certificate_expires_on
+      - certificate_holder
+      - client_id
+      - enabled
+      - environment
+    EInvoicingSettingsOverview:
+      type: object
+      description: The settings, what is still missing before they can be switched
+        on, and whether the user may change them.
+      properties:
+        settings:
+          allOf:
+          - $ref: '#/components/schemas/EInvoicingSettings'
+          readOnly: true
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/EInvoiceCheck'
+          readOnly: true
+        ready:
+          type: boolean
+          readOnly: true
+        certificate_expiring:
+          type: boolean
+          readOnly: true
+        may_edit:
+          type: boolean
+          readOnly: true
+      required:
+      - certificate_expiring
+      - checks
+      - may_edit
+      - ready
+      - settings
     EffetEvent:
       type: object
       description: 'One step in the life of an effet: issued, debited, rejected, cancelled...'
@@ -20219,6 +20591,14 @@ components:
           maxLength: 2000
       required:
       - name
+    EnvironmentEnum:
+      enum:
+      - sandbox
+      - production
+      type: string
+      description: |-
+        * `sandbox` - Test (bac à sable)
+        * `production` - Production
     Expense:
       type: object
       properties:
@@ -20300,9 +20680,13 @@ components:
         labourer_name:
           type: string
           readOnly: true
+        cash_over_limit:
+          type: boolean
+          readOnly: true
       required:
       - amount
       - batch
+      - cash_over_limit
       - category
       - created_at
       - day_labour_id
@@ -20454,6 +20838,9 @@ components:
         labourer_name:
           type: string
           readOnly: true
+        cash_over_limit:
+          type: boolean
+          readOnly: true
         shares:
           type: array
           items:
@@ -20462,6 +20849,7 @@ components:
       required:
       - amount
       - batch
+      - cash_over_limit
       - category
       - created_at
       - day_labour_id
@@ -21334,6 +21722,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        vat_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
         cash_limit:
           type: string
           format: decimal
@@ -21380,6 +21773,7 @@ components:
       - trade_register
       - valid_from
       - vat_rate
+      - vat_withholding_rate
       - withholding_rate
     FinanceSettingsOverview:
       type: object
@@ -21416,6 +21810,8 @@ components:
         prices_include_vat:
           type: boolean
         withholding_rate:
+          type: string
+        vat_withholding_rate:
           type: string
         cash_limit:
           type: string
@@ -22257,6 +22653,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        vat_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        vat_withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         net_to_pay:
           type: string
           format: decimal
@@ -22347,6 +22753,8 @@ components:
       - total_excl_tax
       - total_incl_tax
       - vat_total
+      - vat_withholding_amount
+      - vat_withholding_rate
       - withholding_amount
       - withholding_applied
       - withholding_rate
@@ -22577,6 +22985,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        vat_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        vat_withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         net_to_pay:
           type: string
           format: decimal
@@ -22745,6 +23163,8 @@ components:
       - total_incl_tax
       - vat_lines
       - vat_total
+      - vat_withholding_amount
+      - vat_withholding_rate
       - withholding_amount
       - withholding_applied
       - withholding_rate
@@ -23678,6 +24098,45 @@ components:
       - product
       - quantity
       - reason
+    Lot:
+      type: object
+      description: 'One purchase: its supplier, its day, and its products (D-320).'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/BatchSupplier'
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        receipt_reference:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotLine'
+          readOnly: true
+        purchase_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - lines
+      - number
+      - purchase_value
+      - receipt_reference
+      - received_on
+      - supplier
     LotClosing:
       type: object
       properties:
@@ -23887,6 +24346,70 @@ components:
       - outcome
       - partner_share
       - revenue
+    LotLine:
+      type: object
+      description: One product of a lot with its kilos (D-320).
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        line_number:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        on_hand:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - line_number
+      - lost
+      - number
+      - on_hand
+      - product
+      - purchase_value
+      - received
+      - sold
+      - unit_cost
+      - use_by
     LotOutcomeEnum:
       enum:
       - profit
@@ -27924,10 +28447,35 @@ components:
         withholding_subject:
           type: boolean
           default: true
+        public_buyer:
+          type: boolean
+          default: false
         contacts:
           type: array
           items:
             $ref: '#/components/schemas/CustomerContact'
+    PatchedEInvoicingSettingsWrite:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        environment:
+          type: string
+        api_base_url:
+          type: string
+          maxLength: 200
+        auth_mode:
+          type: string
+        client_id:
+          type: string
+          maxLength: 100
+        certificate_holder:
+          type: string
+          maxLength: 200
+        certificate_expires_on:
+          type: string
+          format: date
+          nullable: true
     PatchedEmployeeWrite:
       type: object
       properties:
@@ -28243,6 +28791,14 @@ components:
           type: string
           default: ''
           maxLength: 50
+        tax_regime:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/TaxRegimeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        subject_to_withholding:
+          type: boolean
+          default: true
         contacts:
           type: array
           items:
@@ -34281,6 +34837,13 @@ components:
         health_approval:
           type: string
           readOnly: true
+        tax_regime:
+          allOf:
+          - $ref: '#/components/schemas/TaxRegimeEnum'
+          readOnly: true
+        subject_to_withholding:
+          type: boolean
+          readOnly: true
         contacts:
           type: array
           items:
@@ -34307,7 +34870,9 @@ components:
       - payment_terms_days
       - phone
       - reference
+      - subject_to_withholding
       - tax_id
+      - tax_regime
       - updated_at
     SupplierBalance:
       type: object
@@ -35555,6 +36120,14 @@ components:
           type: string
           default: ''
           maxLength: 50
+        tax_regime:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/TaxRegimeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        subject_to_withholding:
+          type: boolean
+          default: true
         contacts:
           type: array
           items:
@@ -35667,6 +36240,14 @@ components:
         * `purchase` - purchase
         * `delivery` - delivery
         * `not_delivered` - not_delivered
+    TaxRegimeEnum:
+      enum:
+      - real
+      - flat
+      - none
+      type: string
+      description: "* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n*
+        `none` - Sans matricule fiscal"
     TemperatureRangeWrite:
       type: object
       properties:

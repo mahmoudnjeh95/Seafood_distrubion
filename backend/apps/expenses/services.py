@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 
-from apps.core import audit, numbering
+from apps.core import audit, numbering, periods
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import Number, checked_amount
@@ -202,6 +202,7 @@ def _checked_expense(
     current: Expense | None = None,
 ) -> dict[str, Any]:
     """The checked values of an expense, or a ValidationError with every problem at once."""
+    periods.ensure_open(organization, spent_on, field="spent_on")
     errors: dict[str, str] = {}
     values: dict[str, Any] = {}
     if spent_on > timezone.localdate():
@@ -729,6 +730,7 @@ def create_day_labour(
     an expense of category day labour plus who worked (D-054). Without `amount`, their usual daily pay.
     With `batch` it is a cost of that lot; without, a general cost. With `approve`, approved at once.
     A `client_uuid` already used returns that day."""
+    periods.ensure_open(organization, worked_on, field="worked_on")
     if client_uuid is not None:
         existing = (
             DayLabourEntry.objects.for_organization(organization).filter(expense__client_uuid=client_uuid).first()
@@ -781,6 +783,7 @@ def update_day_labour(
     approve: bool = False,
 ) -> DayLabourEntry:
     """Correct a day not approved yet (who, which day, how much, which lot, what work)."""
+    periods.ensure_open(labourer.organization, worked_on, field="worked_on")
     entry = DayLabourEntry.objects.select_for_update().select_related("expense", "labourer").get(pk=entry.pk)
     organization = entry.expense.organization
     before = _day_labour_snapshot(entry)
@@ -1307,6 +1310,7 @@ def _general_expense(
     months: int,
     recurring: RecurringCost | None = None,
 ) -> GeneralCostPeriod:
+    periods.ensure_open(organization, spent_on, field="spent_on")
     expense = create_expense(
         organization=organization,
         actor=actor,

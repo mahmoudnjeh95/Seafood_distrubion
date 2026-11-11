@@ -21,6 +21,7 @@ from .models import (
     IdentificationType,
     Supplier,
     SupplierContact,
+    SupplierTaxRegime,
 )
 
 # 7 digits and a key letter, then the VAT code, the category and the establishment number (000 = head office).
@@ -39,6 +40,9 @@ class SupplierFields(TypedDict, total=False):
     payment_terms_days: int | None
     buys_with_vat: bool
     health_approval: str
+    # "real", "flat", "none"; empty: "real" with a tax ID, "none" without (D-319).
+    tax_regime: str
+    subject_to_withholding: bool
 
 
 class ContactFields(TypedDict, total=False):
@@ -78,6 +82,8 @@ def _snapshot(supplier: Supplier, contacts: Sequence[SupplierContact]) -> dict[s
         "payment_terms_days": supplier.payment_terms_days,
         "buys_with_vat": supplier.buys_with_vat,
         "health_approval": supplier.health_approval,
+        "tax_regime": supplier.tax_regime,
+        "subject_to_withholding": supplier.subject_to_withholding,
         "contacts": [
             {"name": contact.name, "role": contact.role, "phone": contact.phone, "email": contact.email}
             for contact in contacts
@@ -114,6 +120,13 @@ def _clean_supplier(supplier: Supplier) -> None:
             errors["tax_id"] = _("Un autre fournisseur a déjà ce matricule fiscal.")
     if supplier.email and _email_error(supplier.email):
         errors["email"] = _("Adresse e-mail invalide.")
+    # Without a tax ID there is no regime to declare (D-319); with one, empty means the régime réel.
+    if not supplier.tax_id:
+        supplier.tax_regime = SupplierTaxRegime.NONE
+    elif not supplier.tax_regime or supplier.tax_regime == SupplierTaxRegime.NONE:
+        supplier.tax_regime = SupplierTaxRegime.REAL
+    elif supplier.tax_regime not in SupplierTaxRegime.values:
+        errors["tax_regime"] = _("Régime fiscal inconnu.")
     if errors:
         raise ValidationError(errors)
 
@@ -233,6 +246,7 @@ class CustomerFields(TypedDict, total=False):
     credit_limit: Decimal
     payment_terms_days: int
     withholding_subject: bool
+    public_buyer: bool
 
 
 def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) -> dict[str, Any]:
@@ -250,6 +264,7 @@ def _customer_snapshot(customer: Customer, contacts: Sequence[CustomerContact]) 
         "credit_limit": str(Decimal(customer.credit_limit).quantize(_MILLIME)),
         "payment_terms_days": customer.payment_terms_days,
         "withholding_subject": customer.withholding_subject,
+        "public_buyer": customer.public_buyer,
         "contacts": [
             {"name": contact.name, "role": contact.role, "phone": contact.phone, "email": contact.email}
             for contact in contacts

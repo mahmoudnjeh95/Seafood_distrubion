@@ -4240,3 +4240,100 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - The system prompt and the unknown-number refusal must not name a company (T05 removes "Frutti Del Mare" from
   them; the company name comes from the organization).
 
+**D-310 · Paramètres de facturation électronique (TTN); every parameter of the app lives in a Paramètres section (P11-T05a)** · accepted (owner request 2026-11-11) · 2026-11-11
+- Owner (2026-11-11): "this application should support any kind of activity, so if there is something parametrized, add a new section in settings for these parameters". Rule for every task from now on: a value that a company may need to change (rates, accounts, numbers, identifiers, integration addresses) is a setting in a Paramètres screen, never a constant in code.
+- The owner's answer to the TTN work: the TEIF specification, the sandbox access and the TunTrust certificate come later ("I will add the document later"). The code that depends on them waits; P11-T05a builds the settings now.
+- `sales.EInvoicingSettings` (migration `sales 0037`): one row per organization. Holds `enabled` (off by default), `environment` (sandbox or production), `api_base_url` (https only), `auth_mode` (undecided, certificate, or client identifier and key; the public sources disagree, so it stays a choice until TTN's documentation is read), `client_id`, `certificate_holder`, `certificate_expires_on`. Secrets (the API key, the certificate's password) are **not** stored in the database: they stay in the server's environment.
+- `sales.selectors.einvoicing_checks` lists what TTN needs: the seller's matricule fiscal and address (finance settings, D-296), the https address, the auth mode, the client identifier when that mode is used, and a certificate with a holder and a date not passed. `enabled` cannot be switched on until all pass (`sales.services.save_einvoicing_settings`); switching off is always allowed. A certificate ending within 30 days warns.
+- Screen: Paramètres › Facturation électronique (card on Paramètres, page `/parametres/facturation-electronique`). Endpoint `GET/PATCH einvoicing-settings`; PATCH needs the `settings` section at full level (the owner, D-306). Audited as `einvoicing_settings.saved`.
+- **Nothing is sent to TTN yet.** The page says so. Still open: P11-T05b TEIF XML and its XSD check, T05c signature and sending with status, T05d TTN reference and QR code on the PDF. They need the owner's documents (Q18).
+
+**D-315 · Period lock: the books locked up to a past day (P11-T16, review E3)** · accepted · 2026-11-10
+- `Organization.books_locked_until` (migration `core 0009`): the last locked day, included. Set on Paramètres › Période verrouillée (`/books-lock`): the office reads it, only the owner moves it (section `settings`, owner writes). Only a past day locks; moving the date back or removing it reopens a declared period and needs a reason; both are audited.
+- `core.periods.ensure_open(organization, day, field=...)` refuses a record dated on or before that day. It is called by `treasury.post_movement` (every payment, expense, salary, partner and driver-day money) and by the services that take a typed date: goods receipts (`create_receipt`, `receive_goods`), supplier invoices (create, update), supplier payments, supplier credit notes, expenses (also general costs) and day labour. Documents dated today (invoices, credit notes, BL) are never in a locked period, since today cannot be locked.
+- A backfill of records already in the books (`backfill_treasury`) runs inside `periods.writing_history()` and passes. Stock movements are not locked (they carry no tax amount; their value reaches the books through the documents).
+**D-316 · A cash expense at or above the cash limit is flagged, not refused (P11-T11, review E1)** · provisional (accountant, P11-T06) · 2026-11-10
+- The 2026 finance law sources disagree on what stays of the 5 000 DT cash rules; the penalty that is certain falls on the deduction of the cost, not on the payment itself. So an expense paid in cash for the finance settings' `cash_limit` or more is recorded as usual and carries `cash_over_limit` (computed, not stored: the limit in force on its day). The form warns while typing; the expense page shows "Espèces ≥ plafond".
+- Supplier payments keep their confirmation (D-273); a port purchase paid by the driver is confirmed by the office's validation.
+
+**D-319 · A supplier has a tax regime and a withholding flag (P11-T10, review R2)** · accepted · 2026-11-10
+- `Supplier.tax_regime`: `real` (régime réel, default), `flat` (forfaitaire), `none` (sans matricule fiscal). Without a tax ID the regime is always `none`, with one it is `real` unless `flat` is chosen; the migration (`partners 0009`) sets `none` on every supplier without a tax ID.
+- `Supplier.subject_to_withholding` (default on): whether the company withholds tax when paying it (P11-T02). A supplier with an exemption certificate is unticked.
+- Shown on the supplier page and set in its dialog. The regime does not change any amount yet: T02 (withholding) and T08 (deductible VAT) read it.
+
+**D-313 · A public buyer keeps part of the VAT (P11-T09, review F7)** · provisional (accountant, P11-T06) · 2026-11-10
+- `Customer.public_buyer` (migration `partners 0010`), only meaningful when the customer withholds (`withholding_subject`). `FinanceSettings.vat_withholding_rate` (default 25 %, per company, versioned like the other rates; migration `sales 0037`).
+- On an invoice whose total without VAT + VAT reaches 1 000 DT (the same rule as the retenue, D-291): `vat_withholding_amount` = VAT × rate, stored with its rate on the invoice; `net_to_pay` = total − retenue − retenue sur TVA. Printed as its own line.
+- A credit note's `withholding_amount` holds both parts it gives back (no second field on the credit note). The withholding certificate's amount replaces both planned amounts in the customer's balance; its form proposes their sum.
+**D-314 · "Assistant IA": the assistant inside the admin app, typed or spoken (Phase 12, P12-T06)** · accepted (owner 2026-11-10) · 2026-11-10
+- Why: Meta locked the unverified test account (error 131031, "Business Account locked") and the owner has no
+  company papers yet, so WhatsApp delivers no answer. Owner: "add assistance ia section in the side barre", "voice
+  with tunisia accent … first prio". The screen needs nothing from Meta; WhatsApp stays plugged in.
+- One assistant, two channels. `AssistantMessage` gets `membership`, `channel` (`whatsapp` / `web`) and `spoken`;
+  `link` is empty on a screen message (migrations `assistant 0002` to `0004`). The same Celery task answers both; a
+  screen question only stores its answer, and the screen reads the conversation again every 1,2 s until it is there
+  (no long request, no websocket). Each channel keeps its own conversation memory.
+- API: `GET assistant/chat`, `POST assistant/chat/messages`, `GET assistant/chat/messages/<id>/speech`. The owner
+  only, as on WhatsApp, until the section `assistant` of the roles matrix (P12-T05).
+- Voice in: the browser's own dictation (Web Speech API, `ar-TN` or `fr-FR`, Chrome and Edge). The audio goes from
+  the browser to its maker (Google, Microsoft), never through our server. Provisional: P12-T03 still chooses the
+  speech-to-text provider on real Tunisian voice notes, and WhatsApp voice notes need it on the server anyway.
+- Voice out: Azure AI Speech when `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` are set: `ar-TN-ReemNeural` for an
+  answer in Arabic letters, `fr-FR-DeniseNeural` otherwise (`ASSISTANT_VOICE_AR`, `ASSISTANT_VOICE_FR`). Azure is the
+  provider with Tunisian voices. Without the key the screen uses the browser's voice (Edge has Tunisian ones, Chrome
+  has none). The design's "no voice replies" still holds on WhatsApp.
+- A dictated question, or one asked with "Réponses à voix haute" on, tells Claude the answer is read aloud: short
+  sentences, Tunisian in Arabic letters (a voice cannot read "3andek"), no lists.
+- Personal data: an answer read by the server goes to Azure (Microsoft), as its text goes to Anthropic: one more
+  recipient for the INPDP question of Phase 12.
+**D-320 · One purchase is one lot; a partner shares only the products ticked on it (owner 2026-11-10, Q31)** · accepted · 2026-11-10
+Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per batch") for the owner's own words:
+"1 achat is one lot even if it contains multiple products; those products are related to the same lot id".
+- **Model:** a new parent `Lot` (number `L-0001`…, supplier, date, its goods receipt or port purchase) above today's
+  `Batch`, which becomes a *lot line* (one product, one cost per kg, numbered `L-0042-1`, `L-0042-2`…). The stock
+  ledger, FIFO / FEFO (D-299), sales, losses, transfers and the driver app keep working on `Batch` unchanged: every
+  kilo still knows its product, cost and supplier. Screens, BL and labels show "L-0042 · Crevette".
+- **Partnerships on the lot, per product ticked (owner 2026-11-10):** a lot may have **several partners**; each
+  partnership has its own capital, profit % and loss %, and its own ticked lines. **One product may be shared with
+  several partners** (shrimp: Ali 40 %, Salah 30 %, the owner the rest): on a line, the partners' capital together
+  stays within its purchase value and their profit rates together within 100 %. Products no partner ticks are the
+  owner's alone and never enter a partner's numbers.
+- **Q31 answers (owner 2026-11-10):**
+  1. **Netted:** the partner's share is their rate on the *sum* of the results of the ticked products (shrimp +2 400,
+     squid −500 → 1 900 at 50 % = 950). The profit rate applies if the sum is a profit, the loss rate if it is a loss.
+     With several partners, each partnership nets only its own ticked lines.
+  2. **Closed when the shared products are done:** each partnership closes and is settled as soon as every line it
+     ticks meets the closing rules (sold out or written off, costs in, customers paid, Q19); the owner's lines close
+     later on their own.
+  3. **Capital covers the shared products only:** the partner's capital is a part of the purchase value of the ticked
+     lines, returned ± their share at the settlement (Q3, Q22 unchanged otherwise).
+  4. **Costs by kilos:** a cost typed on the lot (transport of the purchase, labour) is split over its lines by kg
+     received; the truck, cold-room and general costs keep D-041 (by kg loaded or held), now per line. Each line's
+     result is computed by the existing engine, unchanged.
+- **Migration:** each goods receipt (and port purchase) becomes one lot, its batches its lines in receipt order; a
+  batch made otherwise (transformation, import, adjustment) becomes a one-line lot. An existing partnership becomes the
+  lot's with only its batch ticked. Old lot numbers printed on past documents stay readable as the line's former number.
+- **Numbers (T08a):** the lot takes the "batch" counter of the numbering settings ("L-0042"); a receipt's lines are
+  "L-0042-1", "L-0042-2"…, even a receipt of one product; a batch made alone (opening stock, demo, transformation
+  until T08d) carries its lot's number without a suffix. The migration gives each old lot its first line's number,
+  and the counter is already past every old number, so no new lot can take one.
+- **Migration of old receipts with two partners:** they stay one lot with two partnerships (several partners allowed).
+- **Transformation of a shared line (answers Q30, changes D-304's provisional refusal):** allowed. The output is a new
+  line of the same lot, ticked in the same partnerships with the same rates; the fee is a cost of that line. The
+  source line's cost moves to it as today (D-304).
+
+**D-321 · Deploy through SmartFeesh while the personal repo's Actions do not run (owner, 2026-11-10)** · accepted · 2026-11-10
+- Since 2026-11-09 every Actions job of `mahmoudnjeh95/Seafood_distrubion` stops in 2 to 4 s before any step (PRs,
+  `main`, the scheduled Uptime): the account's Actions minutes or spending limit. Owner: "Use smartfeesh for deploy".
+- Until the personal repo runs jobs again: the PR stays on the personal repo; its branch is pushed to
+  `SmartToolsAgro/SmartFeesh` and a PR opened there against its `main`, so CI runs there (D-297: only PRs and `main`
+  run CI). Merge on the personal repo once the SmartFeesh PR is green, then fast-forward SmartFeesh `main`
+  (`git push org origin/main:refs/heads/main`), which tests and deploys staging. This is the owner's standing ask for
+  D-209's "only when the owner asks"; one deploy at a time (D-308), never re-run an old SmartFeesh deploy job.
+- Close the SmartFeesh PR after the merge. Back to D-209 as soon as the personal repo runs jobs again.
+
+**D-322 · Integration of the open PRs (#343 to #350) on one branch; the lot page is the owner's and the accountant's to read** · accepted (owner 2026-11-11, "stage all of them") · 2026-11-11
+- The eight open PRs were merged, in one branch (`claude/confident-mayer-8rb73t`), to test them together. Each one merged cleanly on `main` alone but conflicted with the others (shared docs, `access.py`, `SettingsPage.tsx`); the conflicts were "keep both" entries.
+- Two migrations numbered `sales 0037` met: the public-buyers one is now `sales 0038_vat_withholding`, depending on `0037_einvoicing_settings`. `makemigrations --check` is clean.
+- The lot page (`GET lots/<id>`, which shows purchase value and results) is read by the owner and the accountant only (`ReadOwnerOrAccountantWriteOwner`), like the lot results in `closing`; it had been open to the office roles. The owner-only writes list now includes the e-invoicing settings (D-306).
+- The decision numbers used in the PR bodies were superseded by the numbers in the files: period lock D-315, cash limit D-316, supplier tax regime D-319, public buyers D-313, assistant screen D-314, one purchase is one lot D-320, SmartFeesh deploy D-321, e-invoicing settings D-310. The next free number is D-323.

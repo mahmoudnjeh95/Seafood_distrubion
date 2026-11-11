@@ -49,6 +49,10 @@ a fast-forward (`git remote add org https://github.com/SmartToolsAgro/SmartFeesh
 deploy of the same commit has finished: two deploys at once overload the shared server (#216). Never re-run an
 old SmartFeesh deploy job: it puts that older commit back on staging.
 
+**While the personal repo's Actions do not run (D-321, 2026-11-10):** push the task branch to SmartFeesh
+(`git push org <branch>`), open a PR there against `main` for its CI, merge the personal repo's PR once that is green,
+then `git push org origin/main:refs/heads/main` to test and deploy. Close the SmartFeesh PR after the merge.
+
 The SmartFeesh key (`frutti-ci-deploy-smartfeesh`) is in `~debian/.ssh/authorized_keys` with the `restrict`
 option (no tunnels, no terminal); the file before it is `authorized_keys.bak-before-smartfeesh`. The first key
 (`frutti-ci-deploy`, 2026-10-10, previous file `authorized_keys.bak-before-frutti-ci`) belongs to the personal
@@ -340,6 +344,12 @@ No company is needed (owner, 2026-11-09): a business portfolio in the owner's na
 3. Django admin › Assistant WhatsApp › WhatsApp links: add the user's number (`+216…` or 8 digits).
 4. Off at once: `ASSISTANT_ENABLED=false` and redeploy; the bot answers "désactivé" and calls no AI.
 The messages and their token counts are in Django admin › Assistant messages.
+
+**The "Assistant IA" screen (D-314)** needs only `ASSISTANT_ENABLED=true` and `ANTHROPIC_API_KEY`: nothing from Meta.
+Its dictation is the browser's (Chrome, Edge). For the Tunisian voice in every browser, add `AZURE_SPEECH_KEY` and
+`AZURE_SPEECH_REGION` (Azure portal › Speech resource › Keys and Endpoint, e.g. `francecentral`) to the staging `.env`
+and redeploy; `ASSISTANT_VOICE_AR` (default `ar-TN-ReemNeural`; the man's voice is `ar-TN-HediNeural`) and
+`ASSISTANT_VOICE_FR` change the voices. Without the key the screen uses the browser's voice (Edge has Tunisian ones).
 
 ## Production
 

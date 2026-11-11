@@ -537,6 +537,13 @@ function Totals({ invoice, owner }: { invoice: InvoiceDetail; owner: boolean }) 
             <TotalRow label={t("admin.invoices.document.withholding", { rate: plainRate(invoice.withholding_rate) })}>
               −{formatMoney(invoice.withholding_amount)}
             </TotalRow>
+            {Number(invoice.vat_withholding_amount) > 0 && (
+              <TotalRow
+                label={t("admin.invoices.document.vatWithholding", { rate: plainRate(invoice.vat_withholding_rate) })}
+              >
+                −{formatMoney(invoice.vat_withholding_amount)}
+              </TotalRow>
+            )}
             <TotalRow label={t("admin.invoices.document.netToPay")}>{formatMoney(invoice.net_to_pay)}</TotalRow>
           </>
         )}

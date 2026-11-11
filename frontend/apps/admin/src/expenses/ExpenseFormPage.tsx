@@ -8,12 +8,13 @@ import {
   updateExpense,
   useGetBatch,
   useGetExpense,
+  useGetFinanceSettings,
   useListBatches,
   useListExpenseCategories,
   useListTrucks,
 } from "@frutti/api";
 import type { Session } from "@frutti/auth";
-import { formatDate, parseDecimalInput, useTranslation } from "@frutti/i18n";
+import { formatDate, formatMoney, parseDecimalInput, useTranslation } from "@frutti/i18n";
 import {
   Button,
   Card,
@@ -62,6 +63,11 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
   const [category, setCategory] = useState(expense ? String(expense.category.id) : "");
   const [amount, setAmount] = useState(expense ? expense.amount.replace(".", ",") : "");
   const [method, setMethod] = useState<PaymentMethodEnum>(expense?.payment_method ?? "cash");
+  // The legal cash limit (D-316): a cash expense at or above it is kept but warned as likely not deductible.
+  const cashLimit = useGetFinanceSettings().data?.in_force.cash_limit;
+  const typedAmount = parseDecimalInput(amount.trim(), 3);
+  const cashOverLimit =
+    method === "cash" && cashLimit !== undefined && !!typedAmount && Number(typedAmount) >= Number(cashLimit);
   const [description, setDescription] = useState(expense?.description ?? "");
   const [payee, setPayee] = useState(expense?.payee ?? "");
   const [notes, setNotes] = useState(expense?.notes ?? "");
@@ -213,6 +219,11 @@ function ExpenseForm({ expense, initialLot }: { expense?: ExpenseDetail; initial
             method,
             (value) => setMethod(value as PaymentMethodEnum),
             PAYMENT_METHODS.map((value) => ({ value, label: t(`admin.expenses.methods.${value}`) })),
+          )}
+          {cashOverLimit && (
+            <p role="note" className="col-span-full rounded-chip bg-warn-soft px-3 py-2 text-[0.88rem] text-warn">
+              {t("admin.expenses.cashOverLimit", { limit: formatMoney(cashLimit ?? "0") })}
+            </p>
           )}
           {text("description", t("admin.expenses.form.description"), description, setDescription)}
           {text("payee", t("admin.expenses.form.payee"), payee, setPayee)}

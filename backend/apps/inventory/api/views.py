@@ -21,12 +21,18 @@ from apps.core import access
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization
-from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import (
+    IsDriver,
+    ReadOfficeWriteOwnerOrManager,
+    ReadOwnerOrAccountantWriteOwner,
+    membership_of,
+)
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
 from apps.inventory.models import (
     Batch,
+    Lot,
     StockCount,
     StockLocation,
     StockLoss,
@@ -53,6 +59,7 @@ from .serializers import (
     LossRejectSerializer,
     LossSerializer,
     LossWriteSerializer,
+    LotSerializer,
     MyStockFilterSerializer,
     MyStockLineSerializer,
     MyTemperatureWriteSerializer,
@@ -215,6 +222,30 @@ class BatchDetailView(OfficeView):
         except Batch.DoesNotExist:
             raise Http404 from None
         return Response(BatchSerializer(batch).data)
+
+
+class LotDetailView(APIView):
+    # The lot's purchase value and results are the owner's money (D-320): the owner and the accountant read it.
+    permission_classes = (ReadOwnerOrAccountantWriteOwner,)
+
+    @property
+    def membership(self) -> Membership:
+        membership = membership_of(self.request)
+        assert membership is not None  # guaranteed by the permission class
+        return membership
+
+    @property
+    def organization(self) -> Organization:
+        return self.membership.organization
+
+    @extend_schema(operation_id="getLot", responses=LotSerializer)
+    def get(self, request: Request, lot_id: int) -> Response:
+        """One purchase and its products, each with its kilos received, sold, lost and still held (D-320)."""
+        try:
+            detail = selectors.lot_detail(self.organization, lot_id)
+        except Lot.DoesNotExist:
+            raise Http404 from None
+        return Response(LotSerializer(detail).data)
 
 
 class BatchOriginView(OfficeView):

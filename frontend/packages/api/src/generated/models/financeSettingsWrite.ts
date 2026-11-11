@@ -13,6 +13,7 @@ export interface FinanceSettingsWrite {
   fiscal_stamp: string;
   prices_include_vat: boolean;
   withholding_rate: string;
+  vat_withholding_rate?: string;
   cash_limit?: string;
   credit_policy?: CreditPolicyEnum;
   /** @maxLength 200 */

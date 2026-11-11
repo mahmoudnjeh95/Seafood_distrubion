@@ -11,6 +11,7 @@ from apps.partners.models import (
     IdentificationType,
     Supplier,
     SupplierContact,
+    SupplierTaxRegime,
 )
 
 
@@ -43,6 +44,8 @@ class SupplierSerializer(serializers.ModelSerializer[Supplier]):
             "payment_terms_days",
             "buys_with_vat",
             "health_approval",
+            "tax_regime",
+            "subject_to_withholding",
             "contacts",
             "is_active",
             "updated_at",
@@ -69,6 +72,12 @@ class SupplierWriteSerializer(serializers.Serializer[Any]):
     buys_with_vat = serializers.BooleanField(required=False, default=False)
     # The supplier's health approval number ("agrément sanitaire", D-302).
     health_approval = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    # Tax regime (D-319): empty takes "real" with a tax ID, "none" without.
+    tax_regime = serializers.ChoiceField(
+        choices=[("", ""), *SupplierTaxRegime.choices], required=False, allow_blank=True, default=""
+    )
+    # The company withholds tax when paying this supplier (P11-T02).
+    subject_to_withholding = serializers.BooleanField(required=False, default=True)
     # The whole list: on a change it replaces the contacts; left out, they are kept.
     contacts = SupplierContactSerializer(many=True, required=False)
 
@@ -113,6 +122,7 @@ class CustomerSerializer(serializers.ModelSerializer[Customer]):
             "credit_limit",
             "payment_terms_days",
             "withholding_subject",
+            "public_buyer",
             "contacts",
             "is_walk_in",
             "is_active",
@@ -144,6 +154,8 @@ class CustomerWriteSerializer(serializers.Serializer[Any]):
     payment_terms_days = serializers.IntegerField(min_value=0, max_value=365, required=False, default=0)
     # Withholds the retenue à la source on invoices of 1 000 DT and more (D-292).
     withholding_subject = serializers.BooleanField(required=False, default=True)
+    # A public buyer also keeps part of the VAT on those invoices (D-313).
+    public_buyer = serializers.BooleanField(required=False, default=False)
     contacts = CustomerContactSerializer(many=True, required=False)
 
 

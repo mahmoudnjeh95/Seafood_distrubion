@@ -34,6 +34,7 @@ urlpatterns = [
     path("batches/<int:batch_id>/sales", views.BatchSalesView.as_view(), name="batch-sales"),
     # P2-T05 · finance settings, invoices, credit notes
     path("finance-settings", views.FinanceSettingsView.as_view(), name="finance-settings"),
+    path("einvoicing-settings", views.EInvoicingSettingsView.as_view(), name="einvoicing-settings"),
     path("invoices", views.InvoiceListView.as_view(), name="invoice-list"),
     path("invoices/estimate", views.InvoiceEstimateView.as_view(), name="invoice-estimate"),
     path("invoices/to-invoice-counts", views.InvoiceToInvoiceCountsView.as_view(), name="invoice-to-invoice-counts"),

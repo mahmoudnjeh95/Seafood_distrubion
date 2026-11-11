@@ -119,6 +119,19 @@ export const fr = {
   },
   admin: {
     // Paramètres: company, users, own profile (D-122)
+    booksLock: {
+      title: "Période verrouillée",
+      hint: "Une fois un mois déclaré aux impôts, plus aucune écriture n'est datée dedans : une correction se date dans le mois ouvert. Seul le propriétaire déplace la date.",
+      current: "Comptes verrouillés jusqu'au {{date}} inclus.",
+      none: "Aucune période n'est verrouillée.",
+      until: "Verrouiller jusqu'au (inclus)",
+      reason: "Raison (obligatoire pour rouvrir une période déclarée)",
+      save: "Enregistrer",
+      remove: "Tout déverrouiller",
+      locked: "Comptes verrouillés jusqu'au {{date}}.",
+      unlocked: "Plus aucune période n'est verrouillée.",
+      error: "L'enregistrement a échoué. Réessayez.",
+    },
     settings: {
       title: "Paramètres",
       intro: "Le logo de la société, ses coordonnées et les comptes qui se connectent à l'application.",
@@ -683,8 +696,10 @@ export const fr = {
       finance: "Finances",
       admin: "Administration",
       site: "Site web",
+      assistant: "Assistant IA",
     },
     nav: {
+      assistant: "Assistant IA",
       dashboard: "Tableau de bord",
       documents: "Documents",
       settings: "Paramètres",
@@ -711,6 +726,37 @@ export const fr = {
       webRequests: "Demandes du site",
       siteProducts: "Produits du site",
       siteSettings: "Paramètres du site",
+    },
+    // The assistant inside the application, typed or dictated (D-314)
+    assistant: {
+      title: "Assistant IA",
+      welcome: "Aslema {{name}}",
+      welcomeBody:
+        "Posez votre question en tunisien, en arabe ou en français. Écrivez-la, ou touchez le micro et parlez : l'assistant répond avec les chiffres de l'application.",
+      placeholder: "Écrivez votre question…",
+      speakNow: "Parlez…",
+      send: "Envoyer",
+      micStart: "Dicter la question",
+      micStop: "Arrêter et envoyer",
+      micUnsupported:
+        "Ce navigateur ne permet pas la dictée. Ouvrez l'application dans Chrome ou Edge pour parler à l'assistant.",
+      listening: "J'écoute. Parlez : la question part quand vous vous arrêtez.",
+      thinking: "L'assistant prépare sa réponse",
+      listen: "Écouter",
+      stop: "Arrêter",
+      readAloudOn: "Réponses à voix haute",
+      readAloudOff: "Réponses écrites",
+      dictationLanguage: "Langue de la dictée",
+      languages: { "ar-TN": "تونسي", "fr-FR": "Français" },
+      disabled: "L'assistant est désactivé sur ce serveur.",
+      notSent: "La question n'a pas été envoyée. Réessayez.",
+      loadError: "La conversation n'a pas pu être chargée",
+      noVoice: "Ce navigateur n'a pas de voix pour lire cette réponse. Microsoft Edge a une voix tunisienne.",
+      dictation: {
+        denied: "Le micro est bloqué. Autorisez-le dans le navigateur (icône à gauche de l'adresse), puis réessayez.",
+        silent: "Je n'ai rien entendu. Touchez le micro et parlez.",
+        failed: "La dictée n'a pas fonctionné. Réessayez, ou écrivez la question.",
+      },
     },
     // Quote requests and orders sent from the public site (D-186)
     webRequests: {
@@ -1603,12 +1649,18 @@ export const fr = {
       contactsCount_one: "{{count}} contact",
       contactsCount_other: "{{count}} contacts",
       detail: {
+        noWithholding: "sans retenue à la source",
         identity: "Fiche",
         contacts: "Contacts",
         noContacts: "Aucun contact enregistré.",
         notes: "Notes",
         edit: "Modifier",
         empty: "—",
+      },
+      taxRegimes: {
+        real: "Régime réel",
+        flat: "Régime forfaitaire",
+        none: "Sans matricule fiscal",
       },
       form: {
         createTitle: "Nouveau fournisseur",
@@ -1621,6 +1673,9 @@ export const fr = {
         termsDays: "Délai de paiement (jours)",
         termsInvalid: "Un nombre de jours de 0 à 365.",
         buysWithVat: "Achats avec TVA par défaut",
+        taxRegime: "Régime fiscal",
+        noTaxIdRegime: "Sans matricule fiscal : ses achats n'ouvrent pas droit à déduction de TVA.",
+        subjectToWithholding: "Retenue à la source sur nos paiements",
         healthApproval: "N° d'agrément sanitaire",
         phone: "Téléphone",
         email: "E-mail",
@@ -1716,6 +1771,7 @@ export const fr = {
       paymentTermsValue_other: "{{count}} jours",
       noCredit: "Pas de crédit",
       withholdingYes: "Oui, sur les factures de 1 000 DT et plus",
+      publicBuyer: "acheteur public (retient aussi sur la TVA)",
       withholdingNo: "Non",
       detail: {
         identity: "Fiche",
@@ -1751,6 +1807,8 @@ export const fr = {
         paymentTerms: "Délai de paiement (jours)",
         paymentTermsHint: "0 : à la livraison.",
         withholdingSubject: "Soumis à la retenue à la source",
+        publicBuyer: "Acheteur public (État, collectivité, établissement public)",
+        publicBuyerHint: "Il retient aussi une partie de la TVA sur ces factures (taux dans Paramètres financiers).",
         withholdingSubjectHint:
           "Le client retient la retenue sur ses factures de 1 000 DT et plus (sociétés, État). Décochez pour un particulier ou un forfaitaire.",
         contacts: "Contacts",
@@ -2051,6 +2109,7 @@ export const fr = {
         totalIncl: "Total TTC",
         total: "Total à payer",
         withholding: "Retenue à la source ({{rate}} %)",
+        vatWithholding: "Retenue sur TVA ({{rate}} %)",
         netToPay: "Net à payer",
         credited: "Avoirs",
         remaining: "Reste à payer",
@@ -2169,6 +2228,45 @@ export const fr = {
         done: "Avoir {{number}} créé.",
       },
     },
+    // Facturation électronique TTN / El Fatoora (P11-T05a, D-310)
+    einvoicing: {
+      title: "Facturation électronique",
+      cardTitle: "Facturation électronique (TTN)",
+      cardHint: "Le compte TTN / El Fatoora de la société : adresse de l'API, certificat de signature, identifiants.",
+      open: "Ouvrir les paramètres TTN",
+      intro:
+        "Les réglages du compte TTN / El Fatoora. Le mot de passe, la clé d'API et le mot de passe du certificat ne se saisissent pas ici : ils restent dans la configuration du serveur.",
+      notSent:
+        "Aucune facture n'est transmise à TTN pour l'instant. Le format TEIF, la signature et l'envoi sont branchés quand la spécification TTN est reçue.",
+      enabled: "Facturation électronique activée",
+      enabledHint:
+        "Activable seulement quand toutes les conditions ci-dessous sont remplies. Désactivable à tout moment.",
+      environment: "Environnement",
+      environmentTest: "Test (bac à sable)",
+      environmentProduction: "Production",
+      apiBaseUrl: "Adresse de l'API TTN",
+      apiBaseUrlHint: "Donnée par TTN à l'inscription. Doit commencer par https://",
+      authMode: "Mode d'authentification",
+      authUndecided: "À confirmer avec TTN",
+      authCertificate: "Certificat client",
+      authClientSecret: "Identifiant et clé d'API",
+      clientId: "Identifiant d'API",
+      certificateHolder: "Titulaire du certificat",
+      certificateExpires: "Date d'expiration du certificat",
+      checks: "Ce qu'il reste à compléter",
+      ok: "OK",
+      missing: "À compléter",
+      expiring: "Le certificat expire bientôt : renouvelez-le avant cette date.",
+      status: "État",
+      statusOff: "Désactivée",
+      statusIncomplete: "À compléter",
+      statusReady: "Prête à activer",
+      statusOn: "Activée",
+      save: "Enregistrer",
+      saved: "Paramètres de facturation électronique enregistrés",
+      saveError: "Enregistrement impossible",
+      readOnly: "Seul le propriétaire modifie ces paramètres.",
+    },
     financeSettings: {
       title: "Paramètres financiers",
       intro:
@@ -2186,6 +2284,9 @@ export const fr = {
       pricesHint: "Coché : la TVA est extraite du prix. Décoché : elle s'ajoute au prix.",
       withholdingRate: "Retenue à la source (%)",
       withholdingHint: "Prélevée sur les factures dont le total TTC atteint 1 000,000 DT ; à 0 %, aucune.",
+      vatWithholdingRate: "Retenue sur la TVA des acheteurs publics (%)",
+      vatWithholdingHint:
+        "Part de la TVA gardée par un client « acheteur public » sur ses factures de 1 000 DT et plus. À confirmer avec l'expert-comptable.",
       seller: "Vendeur imprimé sur les factures",
       legalName: "Raison sociale",
       address: "Adresse",
@@ -4899,6 +5000,19 @@ export const fr = {
         useBy: "À consommer avant",
         onHand: "En stock",
         where: "Par emplacement",
+        lot: "Lot (achat)",
+        lotLine: "{{number}} · produit {{line}}",
+      },
+      // One purchase is one lot, its products are its lines (D-320)
+      lot: {
+        lines_one: "{{count}} produit dans ce lot",
+        lines_other: "{{count}} produits dans ce lot",
+        line: "N°",
+        received: "Reçu",
+        sold: "Vendu",
+        lost: "Perdu",
+        purchaseValue: "Valeur d'achat",
+        hint: "Ouvrez un produit pour voir ses ventes, ses charges et son résultat.",
       },
       movements: {
         title: "Mouvements de stock",
@@ -5196,6 +5310,11 @@ export const fr = {
       general: "Frais généraux",
     },
     expenses: {
+      cashOverLimit:
+        "Paiement en espèces au-delà du plafond légal ({{limit}}) : la dépense est enregistrée, mais elle risque de ne pas être déductible. Préférez un chèque ou un virement.",
+      cashOverLimitPill: "Espèces ≥ plafond",
+      cashOverLimitHint:
+        "Payée en espèces au-delà du plafond légal : probablement non déductible (à voir avec l'expert-comptable).",
       title: "Dépenses",
       add: "Nouvelle dépense",
       back: "Toutes les dépenses",

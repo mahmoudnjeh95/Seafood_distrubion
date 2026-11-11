@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.db import connection
@@ -17,13 +19,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core import access, selectors, services
+from apps.core import access, periods, selectors, services
 from apps.core.authentication import LoginIPThrottle, LoginUsernameThrottle, PasswordChangeThrottle
 from apps.core.models import CustomRole, Job, Membership, Organization, Role, User
 from apps.core.permissions import (
     IsMember,
     IsOwner,
     ReadMemberWriteOwnerOrManager,
+    ReadOfficeWriteOwner,
     ReadOfficeWriteOwnerOrManager,
     membership_of,
 )
@@ -608,6 +611,44 @@ class MemberPasswordResetView(APIView):
             organization=membership.organization, membership=target, actor=membership.user, **serializer.validated_data
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BooksLockSerializer(serializers.Serializer[Any]):
+    # The last locked day, included; null: nothing is locked (D-315).
+    until = serializers.DateField(allow_null=True)
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=255)
+
+
+class BooksLockView(APIView):
+    """The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
+    the owner moves it, and opening a locked period again needs a reason."""
+
+    permission_classes = (ReadOfficeWriteOwner,)
+
+    @staticmethod
+    def _answer(organization: Organization) -> Response:
+        until = periods.locked_until(organization)
+        return Response({"until": until.isoformat() if until else None, "reason": ""})
+
+    @extend_schema(operation_id="getBooksLock", responses=BooksLockSerializer)
+    def get(self, request: Request) -> Response:
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        return self._answer(membership.organization)
+
+    @extend_schema(operation_id="setBooksLock", request=BooksLockSerializer, responses=BooksLockSerializer)
+    def put(self, request: Request) -> Response:
+        membership = membership_of(request)
+        assert membership is not None  # guaranteed by the permission class
+        serializer = BooksLockSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.set_books_lock(
+            organization=membership.organization,
+            actor=membership.user,
+            until=serializer.validated_data["until"],
+            reason=serializer.validated_data["reason"],
+        )
+        return self._answer(membership.organization)
 
 
 class NumberingView(APIView):

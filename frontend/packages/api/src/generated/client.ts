@@ -42,6 +42,7 @@ import type {
   Batch,
   BatchOriginWrite,
   BatchSales,
+  BooksLock,
   BoxAdjustmentWrite,
   BoxBalance,
   BoxMovement,
@@ -51,6 +52,9 @@ import type {
   CashLimit,
   Category,
   ChangePassword,
+  Chat,
+  ChatMessage,
+  ChatQuestion,
   CloseLot,
   ColdChainPlace,
   ColdRoomEstimateWrite,
@@ -104,6 +108,7 @@ import type {
   DepositWrite,
   DocumentList,
   DriverDay,
+  EInvoicingSettingsOverview,
   EffetReject,
   ElectricityBill,
   ElectricityBillWrite,
@@ -252,6 +257,7 @@ import type {
   LossReject,
   LossReport,
   LossWrite,
+  Lot,
   LotCosts,
   LotFigure,
   LotPartnershipAdvance,
@@ -346,6 +352,7 @@ import type {
   PatchedCategory,
   PatchedCustomerTypeWrite,
   PatchedCustomerWrite,
+  PatchedEInvoicingSettingsWrite,
   PatchedEmployeeWrite,
   PatchedExpenseCategoryUpdate,
   PatchedLanguage,
@@ -626,6 +633,290 @@ export function useListAccessSections<TData = Awaited<ReturnType<typeof listAcce
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListAccessSectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAssistantChatUrl = () => {
+
+
+
+
+  return `/api/v1/assistant/chat`
+}
+
+/**
+ * The person's conversation with the assistant on the screen: the last 20 messages of the last 24 hours,
+ * oldest first. A question still waiting for its answer is the last message.
+ */
+export const getAssistantChat = async ( options?: Parameters<typeof apiFetch>[1]): Promise<Chat> => {
+
+  return apiFetch<Chat>(getGetAssistantChatUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssistantChatQueryKey = () => {
+    return [
+    `/api/v1/assistant/chat`
+    ] as const;
+    }
+
+
+export const getGetAssistantChatQueryOptions = <TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssistantChatQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssistantChat>>> = ({ signal }) => getAssistantChat({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAssistantChatQueryResult = NonNullable<Awaited<ReturnType<typeof getAssistantChat>>>
+export type GetAssistantChatQueryError = unknown
+
+
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantChat>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantChat>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantChat>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantChat>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssistantChat>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantChat>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAssistantChatQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAskAssistantUrl = () => {
+
+
+
+
+  return `/api/v1/assistant/chat/messages`
+}
+
+/**
+ * Ask the assistant a question. The answer comes a few seconds later in the conversation
+ * (`getAssistantChat`).
+ */
+export const askAssistant = async (chatQuestion: ChatQuestion, options?: Parameters<typeof apiFetch>[1]): Promise<ChatMessage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ChatMessage>(getAskAssistantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(chatQuestion)
+  }
+);}
+
+
+
+
+
+export const getAskAssistantMutationKey = () => ['askAssistant'] as const;
+
+export const getAskAssistantMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askAssistant>>, TError,AskAssistantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof askAssistant>>, TError,AskAssistantMutationVariables, TContext> => {
+
+const mutationKey = getAskAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askAssistant>>, AskAssistantMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  askAssistant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof askAssistant>>>
+    export type AskAssistantMutationBody = ChatQuestion
+    export type AskAssistantMutationError = unknown
+    export type AskAssistantMutationVariables = {data: ChatQuestion}
+
+    export const useAskAssistant = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askAssistant>>, TError,AskAssistantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof askAssistant>>,
+        TError,
+        AskAssistantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAskAssistantMutationOptions(options), queryClient);
+    }
+
+export const getGetAssistantSpeechUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/v1/assistant/chat/messages/${messageId}/speech`
+}
+
+/**
+ * One answer of the person's own conversation, read aloud (MP3): a Tunisian voice for an answer in Arabic
+ * letters, a French one otherwise. 404 when the server has no voice (the screen then uses the browser's).
+ */
+export const getAssistantSpeech = async (messageId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetAssistantSpeechUrl(messageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssistantSpeechQueryKey = (messageId: number,) => {
+    return [
+    `/api/v1/assistant/chat/messages/${messageId}/speech`
+    ] as const;
+    }
+
+
+export const getGetAssistantSpeechQueryOptions = <TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssistantSpeechQueryKey(messageId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssistantSpeech>>> = ({ signal }) => getAssistantSpeech(messageId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: messageId !== null && messageId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAssistantSpeechQueryResult = NonNullable<Awaited<ReturnType<typeof getAssistantSpeech>>>
+export type GetAssistantSpeechQueryError = void
+
+
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantSpeech>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantSpeech>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAssistantSpeech>>,
+          TError,
+          Awaited<ReturnType<typeof getAssistantSpeech>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAssistantSpeech<TData = Awaited<ReturnType<typeof getAssistantSpeech>>, TError = void>(
+ messageId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAssistantSpeech>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAssistantSpeechQueryOptions(messageId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1627,6 +1918,191 @@ export function useGetBatchSales<TData = Awaited<ReturnType<typeof getBatchSales
 
 
 
+
+export const getGetBooksLockUrl = () => {
+
+
+
+
+  return `/api/v1/books-lock`
+}
+
+/**
+ * The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * the owner moves it, and opening a locked period again needs a reason.
+ */
+export const getBooksLock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<BooksLock> => {
+
+  return apiFetch<BooksLock>(getGetBooksLockUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBooksLockQueryKey = () => {
+    return [
+    `/api/v1/books-lock`
+    ] as const;
+    }
+
+
+export const getGetBooksLockQueryOptions = <TData = Awaited<ReturnType<typeof getBooksLock>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooksLock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBooksLockQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBooksLock>>> = ({ signal }) => getBooksLock({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBooksLock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBooksLockQueryResult = NonNullable<Awaited<ReturnType<typeof getBooksLock>>>
+export type GetBooksLockQueryError = unknown
+
+
+export function useGetBooksLock<TData = Awaited<ReturnType<typeof getBooksLock>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooksLock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBooksLock>>,
+          TError,
+          Awaited<ReturnType<typeof getBooksLock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBooksLock<TData = Awaited<ReturnType<typeof getBooksLock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooksLock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBooksLock>>,
+          TError,
+          Awaited<ReturnType<typeof getBooksLock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBooksLock<TData = Awaited<ReturnType<typeof getBooksLock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooksLock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetBooksLock<TData = Awaited<ReturnType<typeof getBooksLock>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooksLock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBooksLockQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetBooksLockUrl = () => {
+
+
+
+
+  return `/api/v1/books-lock`
+}
+
+/**
+ * The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * the owner moves it, and opening a locked period again needs a reason.
+ */
+export const setBooksLock = async (booksLock: BooksLock, options?: Parameters<typeof apiFetch>[1]): Promise<BooksLock> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<BooksLock>(getSetBooksLockUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(booksLock)
+  }
+);}
+
+
+
+
+
+export const getSetBooksLockMutationKey = () => ['setBooksLock'] as const;
+
+export const getSetBooksLockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBooksLock>>, TError,SetBooksLockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setBooksLock>>, TError,SetBooksLockMutationVariables, TContext> => {
+
+const mutationKey = getSetBooksLockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setBooksLock>>, SetBooksLockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setBooksLock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetBooksLockMutationResult = NonNullable<Awaited<ReturnType<typeof setBooksLock>>>
+    export type SetBooksLockMutationBody = BooksLock
+    export type SetBooksLockMutationError = unknown
+    export type SetBooksLockMutationVariables = {data: BooksLock}
+
+    export const useSetBooksLock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setBooksLock>>, TError,SetBooksLockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setBooksLock>>,
+        TError,
+        SetBooksLockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetBooksLockMutationOptions(options), queryClient);
+    }
 
 export const getAdjustBoxesUrl = () => {
 
@@ -7973,6 +8449,191 @@ export function useGetDocumentPdf<TData = Awaited<ReturnType<typeof getDocumentP
 
 
 
+
+export const getGetEInvoicingSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/einvoicing-settings`
+}
+
+/**
+ * The TTN / El Fatoora settings (Paramètres › Facturation électronique) and what is still missing before
+ * they can be switched on. Office roles read.
+ */
+export const getEInvoicingSettings = async ( options?: Parameters<typeof apiFetch>[1]): Promise<EInvoicingSettingsOverview> => {
+
+  return apiFetch<EInvoicingSettingsOverview>(getGetEInvoicingSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEInvoicingSettingsQueryKey = () => {
+    return [
+    `/api/v1/einvoicing-settings`
+    ] as const;
+    }
+
+
+export const getGetEInvoicingSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEInvoicingSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEInvoicingSettings>>> = ({ signal }) => getEInvoicingSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEInvoicingSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getEInvoicingSettings>>>
+export type GetEInvoicingSettingsQueryError = unknown
+
+
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEInvoicingSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getEInvoicingSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEInvoicingSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getEInvoicingSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetEInvoicingSettings<TData = Awaited<ReturnType<typeof getEInvoicingSettings>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEInvoicingSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEInvoicingSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEInvoicingSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/einvoicing-settings`
+}
+
+/**
+ * Change the TTN settings. The owner (or a person the owner gave the settings section in full). Switching
+ * them on is refused until every check passes; the missing ones are named.
+ */
+export const updateEInvoicingSettings = async (patchedEInvoicingSettingsWrite?: PatchedEInvoicingSettingsWrite, options?: Parameters<typeof apiFetch>[1]): Promise<EInvoicingSettingsOverview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<EInvoicingSettingsOverview>(getUpdateEInvoicingSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedEInvoicingSettingsWrite)
+  }
+);}
+
+
+
+
+
+export const getUpdateEInvoicingSettingsMutationKey = () => ['updateEInvoicingSettings'] as const;
+
+export const getUpdateEInvoicingSettingsMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEInvoicingSettings>>, TError,UpdateEInvoicingSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEInvoicingSettings>>, TError,UpdateEInvoicingSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateEInvoicingSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEInvoicingSettings>>, UpdateEInvoicingSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateEInvoicingSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEInvoicingSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateEInvoicingSettings>>>
+    export type UpdateEInvoicingSettingsMutationBody = PatchedEInvoicingSettingsWrite | undefined
+    export type UpdateEInvoicingSettingsMutationError = void
+    export type UpdateEInvoicingSettingsMutationVariables = {data?: PatchedEInvoicingSettingsWrite}
+
+    export const useUpdateEInvoicingSettings = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEInvoicingSettings>>, TError,UpdateEInvoicingSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateEInvoicingSettings>>,
+        TError,
+        UpdateEInvoicingSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateEInvoicingSettingsMutationOptions(options), queryClient);
+    }
 
 export const getListElectricityBillsUrl = () => {
 
@@ -15044,6 +15705,104 @@ export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSett
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetLotSettlementQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLotUrl = (lotId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${lotId}`
+}
+
+/**
+ * One purchase and its products, each with its kilos received, sold, lost and still held (D-320).
+ */
+export const getLot = async (lotId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Lot> => {
+
+  return apiFetch<Lot>(getGetLotUrl(lotId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLotQueryKey = (lotId: number,) => {
+    return [
+    `/api/v1/lots/${lotId}`
+    ] as const;
+    }
+
+
+export const getGetLotQueryOptions = <TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLotQueryKey(lotId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLot>>> = ({ signal }) => getLot(lotId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: lotId !== null && lotId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLotQueryResult = NonNullable<Awaited<ReturnType<typeof getLot>>>
+export type GetLotQueryError = unknown
+
+
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLot>>,
+          TError,
+          Awaited<ReturnType<typeof getLot>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLot>>,
+          TError,
+          Awaited<ReturnType<typeof getLot>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLotQueryOptions(lotId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

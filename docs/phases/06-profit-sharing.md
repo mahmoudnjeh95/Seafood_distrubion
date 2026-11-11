@@ -74,3 +74,32 @@ _Coarse plan: detail each task when the phase starts._
 - [x] "Clôture mensuelle" for the accountant. _`/cloture` (D-074)._
 - [x] Clôture mensuelle: each partner's share of the month's shared costs (rent, electricity, fuel,
       salaries), and the existing figures made clickable to where they come from. _Owner request, D-122._
+
+### P6-T08 · One purchase is one lot; partner on the products ticked · L → split (added 2026-11-10, D-320, Q31)
+Owner: one achat is one lot, its products share the lot number; a partner may share only one or two of them.
+- [x] **T08a · Lot above the batch.** Model `inventory.Lot` (organization, number, supplier, received_on, source);
+      `Batch.lot` FK; numbering `L-0042-1`; the receipt and the port purchase create one lot and one line per product;
+      data migration (each receipt → one lot, other batches → one-line lots, old number kept). API + `make gen-api`.
+      _Done 2026-11-10 (migration `inventory 0017`): `create_lot`, `create_batch(lot=...)`; the batch API gives
+      `lot_number` and `line_number`. A transformation's output is still a lot of its own until T08d._
+- [ ] **T08b · Show the lot.** Lot page (lines, stock, sales per product); "L-0042 · Crevette" on stock, BL, labels,
+      lot pickers and the driver's phone; search by lot number finds every line.
+      _Done 2026-11-11 (branch `lot-page`): `GET /lots/<id>` (`selectors.lot_detail`), page `/stock/lot-complet/:lotId`
+      with kg received, sold, lost and in stock per product, link "Lot (achat)" on a product's page, lot search by the
+      lot's number. BL, labels, pickers and the phone already print the line number `L-0042-1` beside the product.
+      Left: the lot link from the receipt page and the stock list._
+- [ ] **T08c · Partnerships on the lot.** `LotPartnership` points to the lot, several per lot, each with its ticked
+      lines; one line may be in several partnerships (capital together ≤ the line's purchase value, profit rates
+      together ≤ 100 %); receipt form: a "Partenaires" section per lot and per line who shares it; migration of
+      existing partnerships (their one batch ticked, two partners on one receipt stay one lot).
+- [ ] **T08d · Shared result and closing.** Each partnership's result = sum of its ticked lines' results (engine
+      unchanged per line); profit or loss rate on the sum; a transformed shared line's output stays in its
+      partnerships (Q30); closing checks on the ticked lines only; the owner's
+      lines close alone; one settlement and one capital return per lot; lot costs typed on the lot split by kg.
+- [ ] **T08e · Statement and reports.** Partner statement PDF: one block per lot, a line per shared product, the
+      netted total; reports per partner (P7) and month closing read the lot.
+- [ ] **Golden test:** the owner's example (shrimp +2 400, squid −500 shared at 50 %, sardine +300 not shared) gives
+      950 to the partner and leaves the sardine's 300 to the owner. A second case: shrimp +1 000 shared by Ali 40 %
+      and Salah 30 % gives 400 and 300, the owner 300.
+- [ ] Check on staging: a receipt of three products, partner on two; sell the two out; the shared part closes and is
+      settled while the third is still in stock.
