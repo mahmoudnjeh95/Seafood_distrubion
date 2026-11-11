@@ -1640,7 +1640,7 @@ export const getGetBooksLockUrl = () => {
 }
 
 /**
- * The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
  * the owner moves it, and opening a locked period again needs a reason.
  */
 export const getBooksLock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<BooksLock> => {
@@ -1739,7 +1739,7 @@ export const getSetBooksLockUrl = () => {
 }
 
 /**
- * The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+ * The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
  * the owner moves it, and opening a locked period again needs a reason.
  */
 export const setBooksLock = async (booksLock: BooksLock, options?: Parameters<typeof apiFetch>[1]): Promise<BooksLock> => {

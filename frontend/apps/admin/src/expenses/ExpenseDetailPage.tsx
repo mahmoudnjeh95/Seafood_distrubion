@@ -126,6 +126,11 @@ export function ExpenseDetailPage() {
       {back}
       <PageHeader eyebrow={`${formatDate(data.spent_on)} · ${data.category.name}`} title={data.number}>
         <Pill tone={EXPENSE_TONES[data.status]}>{t(`admin.expenses.statuses.${data.status}`)}</Pill>
+        {data.cash_over_limit && (
+          <Pill tone="warn" title={t("admin.expenses.cashOverLimitHint")}>
+            {t("admin.expenses.cashOverLimitPill")}
+          </Pill>
+        )}
         {canWrite && open && (
           <>
             {data.status === "draft" && !isDayLabour && (

@@ -318,7 +318,7 @@ paths:
     get:
       operationId: getBooksLock
       description: |-
-        The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+        The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
         the owner moves it, and opening a locked period again needs a reason.
       tags:
       - books-lock
@@ -334,7 +334,7 @@ paths:
     put:
       operationId: setBooksLock
       description: |-
-        The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+        The period lock (D-315, Paramètres): a declared month takes no new dated entry. The office reads it; only
         the owner moves it, and opening a locked period again needs a reason.
       tags:
       - books-lock
@@ -20504,9 +20504,13 @@ components:
         labourer_name:
           type: string
           readOnly: true
+        cash_over_limit:
+          type: boolean
+          readOnly: true
       required:
       - amount
       - batch
+      - cash_over_limit
       - category
       - created_at
       - day_labour_id
@@ -20658,6 +20662,9 @@ components:
         labourer_name:
           type: string
           readOnly: true
+        cash_over_limit:
+          type: boolean
+          readOnly: true
         shares:
           type: array
           items:
@@ -20666,6 +20673,7 @@ components:
       required:
       - amount
       - batch
+      - cash_over_limit
       - category
       - created_at
       - day_labour_id
