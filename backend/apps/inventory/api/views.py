@@ -21,7 +21,12 @@ from apps.core import access
 from apps.core.api.pagination import PagedList
 from apps.core.clock import moment_from_phone
 from apps.core.models import Membership, Organization
-from apps.core.permissions import IsDriver, ReadOfficeWriteOwnerOrManager, membership_of
+from apps.core.permissions import (
+    IsDriver,
+    ReadOfficeWriteOwnerOrManager,
+    ReadOwnerOrAccountantWriteOwner,
+    membership_of,
+)
 from apps.dayclose import selectors as dayclose
 from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
@@ -220,6 +225,9 @@ class BatchDetailView(OfficeView):
 
 
 class LotDetailView(OfficeView):
+    # The lot's purchase value and results are the owner's money (D-320): the owner and the accountant read it.
+    permission_classes = (ReadOwnerOrAccountantWriteOwner,)
+
     @extend_schema(operation_id="getLot", responses=LotSerializer)
     def get(self, request: Request, lot_id: int) -> Response:
         """One purchase and its products, each with its kilos received, sold, lost and still held (D-320)."""

@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sales', '0036_write_off_ground'),
+        ('sales', '0037_einvoicing_settings'),
     ]
 
     operations = [

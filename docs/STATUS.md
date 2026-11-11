@@ -1,194 +1,59 @@
 # Project status
 
-_Last updated: 2026-11-11 (P11-T05a e-invoicing settings, D-310; next free decision D-311)_
-_Last updated: 2026-11-09 (roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
-_Last updated: 2026-11-10 (multi-product lot D-320, Q31, plan P6-T08; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
-_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-314; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
-_Last updated: 2026-11-10 ("Assistant IA" screen with voice, D-314, P12-T06; one bot number, D-309; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; next free decision D-311)_
+_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-323)_
 
 ## Where we are
 
-- **P12-T06 "Assistant IA" (D-314, owner 2026-11-10, branch `assistant-web-voice`, migrations `assistant 0002` to
-  `0004`):** the WhatsApp assistant as a screen of the admin app (sidebar "Assistant IA", owner only): typed or
-  dictated in the browser (تونسي / Français), answers read aloud. Built because Meta locked the unverified test
-  account (131031): staging is fully wired (keys in `.env`, webhook, test number +1 555-144-3331), messages arrive
-  and Claude answers, Meta refuses the delivery. Check on staging: `docs/phases/12-whatsapp-assistant.md` "Check on
-  staging (T06)". Owner: an Azure AI Speech key for the Tunisian voice in Chrome (runbook "WhatsApp assistant");
-  Meta: pay or contest the two restricted ad accounts, or a support request for 131031.
-_Last updated: 2026-11-10 (multi-product lot D-320, Q31, plan P6-T08; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
-_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-321 (D-310 to D-319 kept for the open compliance and assistant PRs); D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
+- **Integration branch (owner 2026-11-11, "stage all of them"):** PRs #343 to #350 are merged into
+  `claude/confident-mayer-8rb73t`, not into `main`. Conflicts were "keep both" entries in `access.py`,
+  `SettingsPage.tsx`, `DECISIONS.md` and `STATUS.md`. Two migrations numbered `sales 0037` met: the public-buyers one
+  is now `sales 0038_vat_withholding`. Checks run locally: `makemigrations --check` clean, ruff, format, import-linter,
+  mypy, eslint, prettier, typecheck, vitest all pass. Backend pytest: see the "Checks" note below.
+- **Checks on this branch:** the security test found two access gaps, fixed in D-322: the lot page is owner and
+  accountant only, and the e-invoicing settings are owner-only writes in the test list. The mypy error in
+  `sales/services.py` (public buyers, withholding) is fixed by an explicit `is not None` check.
+- **Not done:** CI cannot start jobs (GitHub billing; PR bodies say so), so none of these have a CI result. The
+  Smartfeesh repo `mahmoudnjeh95/smartfeesh` is not visible to this session's GitHub access; D-321 names
+  `SmartToolsAgro/SmartFeesh` for deploys, which this session also cannot reach.
 
-## Where we are
+## Open PRs and the decision numbers in their files
 
-- **D-321 (owner 2026-11-10): deploy and CI through `SmartToolsAgro/SmartFeesh`** while the personal repo's Actions
-  stop every job in seconds (minutes or billing). Branch → SmartFeesh PR for CI → merge here → push `main` to
-  SmartFeesh to deploy (runbook "Deploy"). This cloud session cannot reach SmartFeesh; a desktop session pushes.
+| PR | Task | Decision | Migration |
+|---|---|---|---|
+| #343 | Period lock (P11-T16) | D-315 | `core 0009` |
+| #344 | Cash limit on expenses (P11-T11) | D-316 | — |
+| #345 | Assistant IA screen, voice (P12-T06) | D-314 | `assistant 0002` to `0004` |
+| #346 | Supplier tax regime (P11-T10) | D-319 | `partners 0009` |
+| #347 | One purchase is one lot (P6-T08a) | D-320 | `inventory 0017` |
+| #348 | Public buyers keep VAT (P11-T09) | D-313 | `partners 0010`, `sales 0038` |
+| #349 | Lot page (P6-T08b) | D-320 | — |
+| #350 | E-invoicing settings (P11-T05a) | D-310 | `sales 0037` |
 
-- **D-320 / P6-T08 (owner 2026-11-10): one purchase is one lot with several products; a partner shares only the
-  products ticked.** Answers Q31: results of the shared products netted, the shared part closes when they are done,
-  capital on the shared products only, costs by kilos; several partners per lot and per product; a shared product may
-  be transformed and stays shared (Q30 answered). **T08a done** (branch `claude/affectionate-noether-ykot9l`,
-  migration `inventory 0017`): model `Lot`, a receipt or port purchase makes one lot with lines `L-0042-1`…, old
-  receipts converted. Check on staging: a receipt of three products shows L-00xx-1 to -3 on the stock page.
-  **T08b lot page done 2026-11-11** (branch `lot-page`, stacked on #347, no migration): `GET /lots/<id>` and the page
-  `/stock/lot-complet/:lotId` (supplier, day, each product with kg received, sold, lost, in stock and its purchase
-  value); a product's page links to its lot; the lot search finds every line of a lot, old numbers included. Check on
-  staging: open a product of a three-product receipt, click "Lot (achat)", see the three lines. Left of T08b: the
-  lot link from the receipt page and the stock list. Next: T08c (partnerships on the lot), then T08d, T08e; then back
-  to the first review's points (global search, standing orders, driver route…), owner 2026-11-10: always take the
-  recommended answer, don't ask.
-  **Blocked 2026-11-11: GitHub Actions starts no job ("recent account payments have failed or your spending limit
-  needs to be increased"), on every open PR (#343 to #348) and on the Uptime check. Owner: GitHub › Settings ›
-  Billing & plans. Until then nothing can go green or merge. Also: #347 and #348 both carry D-320, #343 and #345 both
-  D-310; the second of each pair to merge takes the next free number.**
-
-- **D-308 (owner 2026-11-09): the staging images are built on the CI runner and loaded on the server**, never built
-  there (a build on the shared VPS took it down). Branch `deploy-build-off-server`. Check on the first deploy after the
-  merge: the "Deploy" step builds both images on the runner, the server's load stays low, the five health checks pass.
-
-- **D-306 roles and access per section (owner request 2026-11-09, branch `user-roles-matrix`, migration `core 0008`):**
-  Paramètres › Rôles makes a role with a level per section (Aucun / Lecture / Écriture / Tout); Paramètres ›
-  Utilisateurs gives it to someone, and "Accès" sets one person's own levels over their role. The API enforces it
-  (`apps/core/access.py`); the built-in roles behave as before. Check on staging: make a role "Commercial" (Bons de
-  livraison and Devis in Écriture, the rest Aucun), give it to a test user, log in as them: the menu shows only Ventes,
-  a treasury URL shows "no access". Then give a gestionnaire "Salaires" in Lecture and check they see the payroll.
-  The WhatsApp assistant session (branch `whatsapp-assistant`) adds a section `assistant` after this merges.
-
-- **Phase 12 · Assistant WhatsApp (D-307, owner request 2026-11-09)** — plan in `docs/phases/12-whatsapp-assistant.md`
-  (design and plan under `docs/superpowers/`). **T01 on branch `whatsapp-assistant`:** app `apps.assistant`
-  (migration `assistant 0001`), webhook `/api/v1/whatsapp/webhook`, phone link in the Django admin, read-only answers
-  by text through the app's own endpoints as the user, Claude Sonnet 5.5. Off until `ASSISTANT_ENABLED=true` and the
-  Meta and Anthropic keys are set (runbook "WhatsApp assistant"). Owner only until the roles matrix (`user-roles-matrix`,
-  another session) merges; then T05 adds the section `assistant`. Next: T02 write tools with confirmation.
-  Owner to do: SIM, Meta Business verification, Anthropic key, INPDP question to the accountant.
-- **Phase 10 · Flotte & entretien (D-295, owner request 2026-11-08)** — plan and the owner's answers in
-  `docs/phases/10-fleet-maintenance.md`. T01 compteur merged (#332). **T02 to T05 on branch
-  `claude/dreamy-carson-bztvxg`, PR #333 (migrations `maintenance 0002` to `0004`, new expense category `vehicles`):**
-  maintenance types and plans per truck ("Ajouter les entretiens conseillés", "Entretien effectué" → approved expense,
-  general overhead); monthly frigo / cold room service; papers of trucks and people with scans, the block of a truck
-  with an expired assurance or visite technique and the owner's one-day permission; nightly `maintenance_warnings`
-  (notifications once per step), badges on the menu, Flotte and Camions du jour, overview, driver's phone card.
-  Check on staging after the merge: Flotte › Paramètres › "Ajouter les entretiens conseillés"; follow a vidange on a
-  truck with a last date; type an assurance expired yesterday, the truck can no longer be assigned, the owner allows
-  the day; the phone shows "Entretien et papiers".
-- **P2-T20 accounting review (D-291, branch `claude/awesome-albattani-r48y7b`, merged 2026-11-08 (#331)):** review in
-  `docs/guides/accounting-review-2026-11-08.md` (bugs B1 to B11, missing Tunisian obligations, finance UX). Fixed:
-  an invoice's lines take the VAT rate their BL showed (goods not bought with VAT stay exempt on a mixed invoice, B2),
-  and the 1 000 DT withholding threshold leaves out the stamp and fees (B3). Check on staging: one BL with a product
-  bought with VAT and one without; its invoice taxes only the first and equals the BL TTC + 1 DT stamp.
-  B4 (D-292, migration `partners 0006`): "Soumis à la retenue à la source" on the customer (on by default); off, the
-  customer's invoices carry none. Check: untick it on a customer, invoice 1 200 DT, net to pay = TTC.
-  B5 (D-293): a lot's revenue is without VAT also when prices include VAT.
-  B1 (D-294, migration `purchasing 0025`): a supplier invoice owes HT + VAT of the receipts bought with VAT + stamp.
-  Check: a receipt "Achat avec TVA" of 1 000 DT, its invoice shows TVA 190, timbre 1, total 1 191 to pay.
-- **D-290 training copy (owner request 2026-11-08, branch `claude/charming-cori-q7fqcg`, merged 2026-11-08 (#330)):** same stack on
-  `app1.fruttidelmare.com` / `ch1.fruttidelmare.com`, only the database apart (`frutti_training`, services
-  `training-backend`/`training-worker` in `compose.staging.yml`), "Formation" tag on screen only, papers identical to
-  the real ones, reset by hand with `reset-training.sh` (runbook "Training copy"). Next: owner adds the DNS records
-  (`app1`, `ch1` → 217.182.205.137), then run `~/frutti-training/bin/reset-training.sh --apply` once and
-  check the tag, a PDF and a driver receipt on app1/ch1.
-
-- **Perfaxis gaps (owner answers 2026-11-07, D-285):** the owner compared the Perfaxis Achat/Vente/Avoir manual and kept
-  five gaps, built one PR each, stacked on `credit-note-refunds`: (1) **P1-T18 contested goods receipt** (branch
-  `receipt-dispute`, migration purchasing 0023): "Contester" with a motif, no supplier invoice takes it until "Lever la
-  contestation"; (2) **P2-T17 BL "non facturable" or "offert"** (branch `bl-billing`, migration sales 0034, D-286):
-  owed but never invoiced, or given away at 100 % discount; (3) **P2-T18 "Refacturer"** (branch `rebill-credit-note`,
-  migration sales 0035, D-287): a draft from a full credit note that took no goods back; (4) **P2-T19 attachments** (branch `document-attachments`,
-  migration documents 0007, D-288): "Documents associés" on quotes, BL, invoices, purchase orders, receipts, supplier
-  invoices; (5) **P1-T19 supplier price requests** (branch `supplier-price-requests`, migration purchasing 0024,
-  D-289): Achats › Demandes de prix, offers compared, one order per chosen supplier. Not wanted: Bureau d'ordre, exempt/export
-  customers, internal purchase requests, foreign currency, services.
-
-- **D-284 (branch `credit-note-refunds`, stacked on #323, migrations sales 0033, treasury 0008):** an avoir asks, per line
-  with kilos, remis en stock / mis en perte / non repris; when the invoice was paid it asks "Rembourser maintenant"
-  (caisse or bank) or "À rembourser plus tard". Debt first, then refund. Trésorerie › Remboursements clients lists and
-  pays them. Check on staging: pay an invoice, avoir partiel with one line back in stock and one in loss, refund later,
-  then pay it from Remboursements clients and see the caisse journal.
-
-- **P2-T16 / D-283 (client document "13 bugs avec captures", branch `claude/jolly-feynman-76x5xb`, migrations core 0007,
-  partners 0005, catalog 0007, sales 0032, purchasing 0022):** done 01 net price column, 02 "Bons de livraison" wording,
-  03 "— n BL" per client in Nouvelle facture, 07 clients/suppliers sorted by Réf., 08 Paramètres › Types de clients,
-  09 identification type + number, 10 open the new invoice, 12 Trésorerie › Soldes d'ouverture (OUV out of the BL
-  list), 13 draft prefix with its own counter (drafts read BROUILLON-… or BFA-…; definitive number at validation).
-  Part of 04: Paramètres › TVA and the product's VAT as a list. **Not done:** 04's document columns/TTC amounts,
-  05 and 06 (credit notes with refunds), 11 (one delivery cycle for every BL): they need owner decisions (D-283).
-
-- **Older entries** (D-241 to D-282, printing P3-T10, Phase 9 merges, SmartFeesh, CI fixes): moved to `docs/status-archive.md`.
-- **Staging** (D-036, D-155, `docs/runbook.md`): admin http://app.fruttidelmare.com, driver http://ch.fruttidelmare.com,
-  demo logins `owner` / `driver` (password in `~/frutti-staging/.env`). Every merge to `main` deploys staging.
-- **Working rules:** no tests or e2e locally, CI checks the PR; one branch and one PR per task; merge only after green.
-  Several sessions work at once; recheck decision and migration numbers right before merging.
+The PR bodies still show the numbers they were written with (D-310 to D-313, D-320, D-321); the table is right.
 
 ## Next step
 
-0. **P11-T05a e-invoicing settings (D-310, owner 2026-11-11, branch `claude/fervent-bell-einvoice-settings`, migration `sales 0037`):**
-   Paramètres › Facturation électronique holds the TTN account (environment, https address, auth mode, client identifier,
-   certificate holder and expiry). Switching on is refused until the seller's tax ID and address, the address, the auth
-   mode and a valid certificate are set. **Nothing is sent to TTN yet.** Check on staging: open the card on Paramètres,
-   tick "activée" with the fields empty (refused, missing ones named), fill them, switch on, switch off.
-   **Owner to provide** (Q18): TTN enrolment status, sandbox access, the TEIF specification and XSD, the TunTrust
-   certificate (its password only in the server's `.env`, never in chat). Then T05b (XML and XSD check), T05c, T05d.
-   Owner rule (D-310): every parameter of the app goes in a Paramètres section.
-0. **Phase 12:** after the staging check of T06, next is P12-T02 (write tools with confirmation; the screen gets the
-   Confirmer / Annuler buttons too), then T05 (section `assistant` in the roles matrix, replacing "owner only").
-0. **Phase 11 Conformité (D-296, owner 2026-11-08 "need all of them"):** every point of
-   `docs/guides/market-readiness-review-2026-11-08.md` is a task of `docs/phases/11-compliance.md`. P11-T01 merged
-   (#334): no invoice issued without the seller's address and matricule fiscal; a customer without tax ID or address
-   warns. Check on staging: blank the address in Paramètres financiers, a draft cannot be issued.
-   **P11-T15 (D-298, branch `claude/write-off-evidence`, migrations `sales 0036`, `documents 0008`):** a customer
-   write-off says its motif (écart de règlement / créance irrécouvrable); an irrecoverable one reads "Justificatif
-   manquant" until a file is attached from the client's Remises à zéro list. Check on staging: clear a balance as
-   "Créance irrécouvrable", see the pill, attach a PDF, the pill goes. Next code tasks without the accountant:
-   P11-T16 period lock, P11-T18 lot traceability, P11-T14 certificates received. The owner starts P11-T03 (INPDP,
-   hosting), P11-T04 (lawyer), P11-T05 (TTN enrolment) and books the accountant session P11-T06 (unblocks T02, T07–T12).
-0. **Phase 11 Conformité (D-296, owner 2026-11-10 "build all 19 tasks"):** `docs/phases/11-compliance.md`. Merged:
-   T01 invoice legal mentions (#334), T15 write-off evidence (#335). T14, T18, T19 were already built (P2-T06,
-   P1-T23, P1-T24). **T16 period lock (D-315, branch `p11-period-lock`, migration `core 0009`):** Paramètres ›
-   Période verrouillée; money and typed dates in the locked period are refused. Check on staging: lock up to the end
-   of last month, then an expense dated last month is refused and one dated today goes through. **T11 (D-316, branch `p11-cash-out`):** a cash
-   expense at or above the cash limit is flagged "Espèces ≥ plafond"; check: a 6 000 DT cash expense shows the warning
-   and the pill. **T10 (D-319, branch `p11-supplier-tax`, migration
-   `partners 0009`):** supplier tax regime and withholding flag; check: a supplier without tax ID reads "Sans
-   matricule fiscal". **T09 (D-313, branch `p11-public-buyers`, migrations `partners 0010`,
-   `sales 0037`):** a customer "Acheteur public" also keeps 25 % of the VAT; check: tick it, invoice 1 000 DT HT with
-   VAT, the invoice shows "Retenue sur TVA". **CI is not starting (GitHub billing): the Phase 11 PRs #343, #344, #346
-   and later are tested locally and wait for the owner to fix billing before merging.** Next, in order: T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in
-   per-company settings, marked "à confirmer"); T06 is the accountant's session (questionnaire to prepare).
-0. P10-T02 to T05 (D-295): PR #333, merge once CI is green, then the staging checks above. Owner: confirm the
-   suggested intervals against each truck's manual, and the paper list with the accountant or the ATTT.
-0. P2-T20: merged 2026-11-08 (#331); staging checks above. Then the review's next points (B6 to B9 need the
-   owner or the accountant; then the "Déclarations du mois" screen); the accountant answers the "à confirmer" points of the review.
-0. Perfaxis gaps and the client bug list: merged 2026-11-08 (#323–#329). Staging checks: the phase files P1-T18,
-   P1-T19, P2-T16 to P2-T19; ask the owner about bug 11 (stock out at delivery for direct BL) and bug 4's columns.
-0. D-281/D-282: PR from `claude/serene-gates-6iaad1` (owner asked to merge once green). Then the real-printer check:
-   a picture receipt on the Digipos (if it is BLE) or the Capacitor wrapper.
-0. P1-T17 (D-270): merge the PR once green. On staging: correct a receipt from 100 to 90 kg; the lot result shows 90 kg received and no spoilage.
-0. P1-T16 (D-269): merge the PR once green. On staging: a receipt with an accepted weight and a cost change, then Prix du jour and the stock page.
-0. **D-249 (`day-office-checks`, PR #278):** merge once green. On staging, Suivi des chauffeurs or Clôtures à vérifier: refuse a driver expense (reason), validate a port purchase (its kilos enter the truck), then "Remettre le camion en stock" and approve the day.
-0. D-243: open the PR from `partner-capital-advance`, wait for green CI, merge. On staging: a lot with a partner, "Donner une
-   avance" for part of the capital, check the ledger line and the remaining capital, then settle the lot.
-0. P1-T15 (#280): merge once green. On staging: a product, "Ajuster le stock", add 10 kg to a lot then remove it; the average on the product page and on Prix du jour moves.
-1. Owner: check on staging the merged points above, first a customer payment from the card ("Enregistrer un règlement"
-   opens the règlement page, "Total à régler" shows) and a salary payment ("Débité de la trésorerie").
-2. P9-T05b: expenses paid, sales paid on the spot, partner settlements, port purchases and the driver's approved day post
-   to the ledger; salaries are done (D-234). Then T05c, the Comptes page and "Compte" in the forms.
-3. Then T06 échéancier and alerts, T07 reports. New decisions start at D-244.
-   Withholding rule D-250 (PR #277, awaits CI): retenue à la source on invoices of 1 000 DT TTC and more, none below;
-   check on staging with a rate set in Paramètres financiers.
-4. **Owner action for D-206:** the company SMTP account in the server `.env`, then redeploy.
+0. **Owner:** decide whether this integration branch goes to `main`. Merge order if so: #350, #343, #344, #346, #348,
+   #345, #347, #349. Also fix GitHub billing so CI runs on the PRs (D-297).
+0. **P11-T05b to d (e-invoicing):** blocked on the owner's documents (Q18): TTN enrolment, sandbox access, the TEIF
+   specification and XSD, the TunTrust certificate (password only in the server's `.env`).
+0. **Phase 11 next, in order:** T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in per-company
+   settings, marked "à confirmer"). T06 is the accountant's session.
+0. **Phase 12:** P12-T02 (write tools with confirmation), then T05 (section `assistant` in the roles matrix).
+0. **Lot page (P6-T08c to e):** partnerships on the lot, the netted shared result, closing and statements.
+0. **Staging checks** for the merged work are in each phase file under "Check on staging".
 
 ## Open owner decisions
 
-- D-234 (provisional): an advance above the month's due needs a confirmation. Primes are not subject to CNSS (owner, D-263).
-- Q29 (D-197, provisional): invoice paid when the effet is received or when cashed; the company's bank accounts; bank
-  charges of an impayé; endorsing customer traites to suppliers.
-- Backups off-site and the private key (D-139); boxes opening balances (D-135); driver day cash handover (D-134);
-  24-hour stale-price window (D-150), archived-record dropdowns (D-145), electricity bills (D-142); D-191 day rule.
+- Q18 (e-invoicing documents), Q29 (invoice paid on effet receipt or cashed), the accountant's "à confirmer" points
+  (D-313, D-316, D-319).
+- D-234 (provisional): an advance above the month's due needs a confirmation.
+- Backups off-site and the private key (D-139); D-206 SMTP account in the server `.env`.
 
-## Blockers / watch out
+## Blockers
 
-- P0-T02: only one real lot worked out with the owner; P0-T01: no prototype walk-through yet.
-- DNS and certificate for `app.` and `ch.` and the Sentry DSN remain owner actions (D-155, D-140).
-- TTN / El Fatoora on hold (D-016); VAT exemptions and the CNSS employee rate need the accountant (D-119, Q26).
+- GitHub Actions starts no job (billing), so no PR can go green.
+- Smartfeesh (`mahmoudnjeh95/smartfeesh`) is not reachable from this session.
+- DNS and certificate for `app.` and `ch.`, and the Sentry DSN, remain owner actions (D-155, D-140).
 - Staging VPS is shared: touch only `frutti-staging`; `sudo nginx -t` before reload; never prune Docker.
 - Keep generated API files in sync (`make gen-api`); preserve each branch's i18n keys when merging.

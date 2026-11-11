@@ -154,6 +154,8 @@ OWNER_ONLY_WRITES = (
     "/api/v1/stock-settings",
     # The period lock (D-315).
     "/api/v1/books-lock",
+    # The e-invoicing settings (D-310): the owner alone writes them.
+    "/api/v1/einvoicing-settings",
 )
 # Clearing a customer's or a supplier's balance to zero (D-252): the owner alone; a manager gets 403.
 OWNER_ONLY_CLEARING = (

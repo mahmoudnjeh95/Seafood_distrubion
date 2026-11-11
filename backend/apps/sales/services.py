@@ -2466,7 +2466,9 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
     kept_vat = amounts.vat_withholding_amount > 0 and vat_withholding_rate is not None
-    invoice.vat_withholding_rate = vat_withholding_rate if kept_vat else Decimal("0.00")
+    invoice.vat_withholding_rate = (
+        vat_withholding_rate if kept_vat and vat_withholding_rate is not None else Decimal("0.00")
+    )
     invoice.vat_withholding_amount = amounts.vat_withholding_amount
     invoice.net_to_pay = amounts.net_to_pay
     invoice.notes = overrides.notes

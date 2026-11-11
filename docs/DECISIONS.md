@@ -4331,3 +4331,9 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
   (`git push org origin/main:refs/heads/main`), which tests and deploys staging. This is the owner's standing ask for
   D-209's "only when the owner asks"; one deploy at a time (D-308), never re-run an old SmartFeesh deploy job.
 - Close the SmartFeesh PR after the merge. Back to D-209 as soon as the personal repo runs jobs again.
+
+**D-322 · Integration of the open PRs (#343 to #350) on one branch; the lot page is the owner's and the accountant's to read** · accepted (owner 2026-11-11, "stage all of them") · 2026-11-11
+- The eight open PRs were merged, in one branch (`claude/confident-mayer-8rb73t`), to test them together. Each one merged cleanly on `main` alone but conflicted with the others (shared docs, `access.py`, `SettingsPage.tsx`); the conflicts were "keep both" entries.
+- Two migrations numbered `sales 0037` met: the public-buyers one is now `sales 0038_vat_withholding`, depending on `0037_einvoicing_settings`. `makemigrations --check` is clean.
+- The lot page (`GET lots/<id>`, which shows purchase value and results) is read by the owner and the accountant only (`ReadOwnerOrAccountantWriteOwner`), like the lot results in `closing`; it had been open to the office roles. The owner-only writes list now includes the e-invoicing settings (D-306).
+- The decision numbers used in the PR bodies were superseded by the numbers in the files: period lock D-315, cash limit D-316, supplier tax regime D-319, public buyers D-313, assistant screen D-314, one purchase is one lot D-320, SmartFeesh deploy D-321, e-invoicing settings D-310. The next free number is D-323.
