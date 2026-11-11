@@ -4255,3 +4255,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 **D-316 · A cash expense at or above the cash limit is flagged, not refused (P11-T11, review E1)** · provisional (accountant, P11-T06) · 2026-11-10
 - The 2026 finance law sources disagree on what stays of the 5 000 DT cash rules; the penalty that is certain falls on the deduction of the cost, not on the payment itself. So an expense paid in cash for the finance settings' `cash_limit` or more is recorded as usual and carries `cash_over_limit` (computed, not stored: the limit in force on its day). The form warns while typing; the expense page shows "Espèces ≥ plafond".
 - Supplier payments keep their confirmation (D-273); a port purchase paid by the driver is confirmed by the office's validation.
+
+**D-319 · A supplier has a tax regime and a withholding flag (P11-T10, review R2)** · accepted · 2026-11-10
+- `Supplier.tax_regime`: `real` (régime réel, default), `flat` (forfaitaire), `none` (sans matricule fiscal). Without a tax ID the regime is always `none`, with one it is `real` unless `flat` is chosen; the migration (`partners 0009`) sets `none` on every supplier without a tax ID.
+- `Supplier.subject_to_withholding` (default on): whether the company withholds tax when paying it (P11-T02). A supplier with an exemption certificate is unticked.
+- Shown on the supplier page and set in its dialog. The regime does not change any amount yet: T02 (withholding) and T08 (deductible VAT) read it.

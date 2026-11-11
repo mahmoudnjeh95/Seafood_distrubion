@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { SupplierContact } from './supplierContact';
+import type { TaxRegimeEnum } from './taxRegimeEnum';
 
 export interface Supplier {
   readonly id: number;
@@ -20,6 +21,8 @@ export interface Supplier {
   readonly payment_terms_days: number | null;
   readonly buys_with_vat: boolean;
   readonly health_approval: string;
+  readonly tax_regime: TaxRegimeEnum;
+  readonly subject_to_withholding: boolean;
   readonly contacts: readonly SupplierContact[];
   readonly is_active: boolean;
   readonly updated_at: string;

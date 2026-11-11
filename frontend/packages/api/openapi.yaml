@@ -28477,6 +28477,14 @@ components:
           type: string
           default: ''
           maxLength: 50
+        tax_regime:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/TaxRegimeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        subject_to_withholding:
+          type: boolean
+          default: true
         contacts:
           type: array
           items:
@@ -34515,6 +34523,13 @@ components:
         health_approval:
           type: string
           readOnly: true
+        tax_regime:
+          allOf:
+          - $ref: '#/components/schemas/TaxRegimeEnum'
+          readOnly: true
+        subject_to_withholding:
+          type: boolean
+          readOnly: true
         contacts:
           type: array
           items:
@@ -34541,7 +34556,9 @@ components:
       - payment_terms_days
       - phone
       - reference
+      - subject_to_withholding
       - tax_id
+      - tax_regime
       - updated_at
     SupplierBalance:
       type: object
@@ -35789,6 +35806,14 @@ components:
           type: string
           default: ''
           maxLength: 50
+        tax_regime:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/TaxRegimeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        subject_to_withholding:
+          type: boolean
+          default: true
         contacts:
           type: array
           items:
@@ -35901,6 +35926,14 @@ components:
         * `purchase` - purchase
         * `delivery` - delivery
         * `not_delivered` - not_delivered
+    TaxRegimeEnum:
+      enum:
+      - real
+      - flat
+      - none
+      type: string
+      description: "* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n*
+        `none` - Sans matricule fiscal"
     TemperatureRangeWrite:
       type: object
       properties:

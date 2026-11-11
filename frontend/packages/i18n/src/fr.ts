@@ -1616,12 +1616,18 @@ export const fr = {
       contactsCount_one: "{{count}} contact",
       contactsCount_other: "{{count}} contacts",
       detail: {
+        noWithholding: "sans retenue à la source",
         identity: "Fiche",
         contacts: "Contacts",
         noContacts: "Aucun contact enregistré.",
         notes: "Notes",
         edit: "Modifier",
         empty: "—",
+      },
+      taxRegimes: {
+        real: "Régime réel",
+        flat: "Régime forfaitaire",
+        none: "Sans matricule fiscal",
       },
       form: {
         createTitle: "Nouveau fournisseur",
@@ -1634,6 +1640,9 @@ export const fr = {
         termsDays: "Délai de paiement (jours)",
         termsInvalid: "Un nombre de jours de 0 à 365.",
         buysWithVat: "Achats avec TVA par défaut",
+        taxRegime: "Régime fiscal",
+        noTaxIdRegime: "Sans matricule fiscal : ses achats n'ouvrent pas droit à déduction de TVA.",
+        subjectToWithholding: "Retenue à la source sur nos paiements",
         healthApproval: "N° d'agrément sanitaire",
         phone: "Téléphone",
         email: "E-mail",

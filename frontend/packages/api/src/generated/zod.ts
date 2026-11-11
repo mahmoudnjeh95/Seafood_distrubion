@@ -23775,6 +23775,8 @@ export const ListSuppliersResponseItem = zod.object({
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
   "health_approval": zod.string(),
+  "tax_regime": zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),
+  "subject_to_withholding": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(listSuppliersResponseContactsItemNameMax),
   "role": zod.string().max(listSuppliersResponseContactsItemRoleMax).default(listSuppliersResponseContactsItemRoleDefault),
@@ -23820,6 +23822,8 @@ export const createSupplierBodyBuysWithVatDefault = false;
 export const createSupplierBodyHealthApprovalDefault = ``;
 export const createSupplierBodyHealthApprovalMax = 50;
 
+export const createSupplierBodyTaxRegimeDefault = ``;
+export const createSupplierBodySubjectToWithholdingDefault = true;
 export const createSupplierBodyContactsItemNameMax = 150;
 
 export const createSupplierBodyContactsItemRoleDefault = ``;
@@ -23847,6 +23851,8 @@ export const CreateSupplierBody = zod.object({
   "payment_terms_days": zod.int().min(createSupplierBodyPaymentTermsDaysMin).max(createSupplierBodyPaymentTermsDaysMax).nullish(),
   "buys_with_vat": zod.boolean().default(createSupplierBodyBuysWithVatDefault),
   "health_approval": zod.string().max(createSupplierBodyHealthApprovalMax).default(createSupplierBodyHealthApprovalDefault),
+  "tax_regime": zod.union([zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),zod.enum([''])]).default(createSupplierBodyTaxRegimeDefault),
+  "subject_to_withholding": zod.boolean().default(createSupplierBodySubjectToWithholdingDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierBodyContactsItemNameMax),
   "role": zod.string().max(createSupplierBodyContactsItemRoleMax).default(createSupplierBodyContactsItemRoleDefault),
@@ -23883,6 +23889,8 @@ export const CreateSupplierResponse = zod.object({
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
   "health_approval": zod.string(),
+  "tax_regime": zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),
+  "subject_to_withholding": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createSupplierResponseContactsItemNameMax),
   "role": zod.string().max(createSupplierResponseContactsItemRoleMax).default(createSupplierResponseContactsItemRoleDefault),
@@ -23926,6 +23934,8 @@ export const GetSupplierResponse = zod.object({
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
   "health_approval": zod.string(),
+  "tax_regime": zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),
+  "subject_to_withholding": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(getSupplierResponseContactsItemNameMax),
   "role": zod.string().max(getSupplierResponseContactsItemRoleMax).default(getSupplierResponseContactsItemRoleDefault),
@@ -23974,6 +23984,8 @@ export const updateSupplierBodyBuysWithVatDefault = false;
 export const updateSupplierBodyHealthApprovalDefault = ``;
 export const updateSupplierBodyHealthApprovalMax = 50;
 
+export const updateSupplierBodyTaxRegimeDefault = ``;
+export const updateSupplierBodySubjectToWithholdingDefault = true;
 export const updateSupplierBodyContactsItemNameMax = 150;
 
 export const updateSupplierBodyContactsItemRoleDefault = ``;
@@ -24001,6 +24013,8 @@ export const UpdateSupplierBody = zod.object({
   "payment_terms_days": zod.int().min(updateSupplierBodyPaymentTermsDaysMin).max(updateSupplierBodyPaymentTermsDaysMax).nullish(),
   "buys_with_vat": zod.boolean().default(updateSupplierBodyBuysWithVatDefault),
   "health_approval": zod.string().max(updateSupplierBodyHealthApprovalMax).default(updateSupplierBodyHealthApprovalDefault),
+  "tax_regime": zod.union([zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),zod.enum([''])]).default(updateSupplierBodyTaxRegimeDefault),
+  "subject_to_withholding": zod.boolean().default(updateSupplierBodySubjectToWithholdingDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierBodyContactsItemNameMax),
   "role": zod.string().max(updateSupplierBodyContactsItemRoleMax).default(updateSupplierBodyContactsItemRoleDefault),
@@ -24037,6 +24051,8 @@ export const UpdateSupplierResponse = zod.object({
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
   "health_approval": zod.string(),
+  "tax_regime": zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),
+  "subject_to_withholding": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateSupplierResponseContactsItemNameMax),
   "role": zod.string().max(updateSupplierResponseContactsItemRoleMax).default(updateSupplierResponseContactsItemRoleDefault),
@@ -24083,6 +24099,8 @@ export const ArchiveSupplierResponse = zod.object({
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
   "health_approval": zod.string(),
+  "tax_regime": zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),
+  "subject_to_withholding": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(archiveSupplierResponseContactsItemNameMax),
   "role": zod.string().max(archiveSupplierResponseContactsItemRoleMax).default(archiveSupplierResponseContactsItemRoleDefault),
@@ -24126,6 +24144,8 @@ export const RestoreSupplierResponse = zod.object({
   "payment_terms_days": zod.int().nullable(),
   "buys_with_vat": zod.boolean(),
   "health_approval": zod.string(),
+  "tax_regime": zod.enum(['real', 'flat', 'none']).describe('* `` - \n* `real` - Régime réel\n* `flat` - Régime forfaitaire\n* `none` - Sans matricule fiscal'),
+  "subject_to_withholding": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(restoreSupplierResponseContactsItemNameMax),
   "role": zod.string().max(restoreSupplierResponseContactsItemRoleMax).default(restoreSupplierResponseContactsItemRoleDefault),
