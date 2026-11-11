@@ -132,6 +132,7 @@ export function CustomerDetailPage() {
               </Detail>
               <Detail label={t("admin.customers.form.withholdingSubject")}>
                 {data.withholding_subject ? t("admin.customers.withholdingYes") : t("admin.customers.withholdingNo")}
+                {data.public_buyer && ` · ${t("admin.customers.publicBuyer")}`}
               </Detail>
             </dl>
           </Card>

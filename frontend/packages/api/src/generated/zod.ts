@@ -1269,6 +1269,8 @@ export const rebillCreditNoteResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.
 export const rebillCreditNoteResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const rebillCreditNoteResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const rebillCreditNoteResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const rebillCreditNoteResponseVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const rebillCreditNoteResponseVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const rebillCreditNoteResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const rebillCreditNoteResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const rebillCreditNoteResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -1360,6 +1362,8 @@ export const RebillCreditNoteResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', rebillCreditNoteResponseWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', rebillCreditNoteResponseWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', rebillCreditNoteResponseVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', rebillCreditNoteResponseVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', rebillCreditNoteResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', rebillCreditNoteResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', rebillCreditNoteResponseRemainingToPayRegExp),
@@ -2319,6 +2323,7 @@ export const ListCustomersResponseItem = zod.object({
   "credit_limit": zod.stringFormat('decimal', listCustomersResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(listCustomersResponseContactsItemNameMax),
   "role": zod.string().max(listCustomersResponseContactsItemRoleMax).default(listCustomersResponseContactsItemRoleDefault),
@@ -2369,6 +2374,7 @@ export const createCustomerBodyPaymentTermsDaysMin = 0;
 export const createCustomerBodyPaymentTermsDaysMax = 365;
 
 export const createCustomerBodyWithholdingSubjectDefault = true;
+export const createCustomerBodyPublicBuyerDefault = false;
 export const createCustomerBodyContactsItemNameMax = 150;
 
 export const createCustomerBodyContactsItemRoleDefault = ``;
@@ -2398,6 +2404,7 @@ export const CreateCustomerBody = zod.object({
   "credit_limit": zod.stringFormat('decimal', createCustomerBodyCreditLimitRegExp).default(createCustomerBodyCreditLimitDefault),
   "payment_terms_days": zod.int().min(createCustomerBodyPaymentTermsDaysMin).max(createCustomerBodyPaymentTermsDaysMax).default(createCustomerBodyPaymentTermsDaysDefault),
   "withholding_subject": zod.boolean().default(createCustomerBodyWithholdingSubjectDefault),
+  "public_buyer": zod.boolean().default(createCustomerBodyPublicBuyerDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createCustomerBodyContactsItemNameMax),
   "role": zod.string().max(createCustomerBodyContactsItemRoleMax).default(createCustomerBodyContactsItemRoleDefault),
@@ -2441,6 +2448,7 @@ export const CreateCustomerResponse = zod.object({
   "credit_limit": zod.stringFormat('decimal', createCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(createCustomerResponseContactsItemNameMax),
   "role": zod.string().max(createCustomerResponseContactsItemRoleMax).default(createCustomerResponseContactsItemRoleDefault),
@@ -2492,6 +2500,7 @@ export const GetCustomerResponse = zod.object({
   "credit_limit": zod.stringFormat('decimal', getCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(getCustomerResponseContactsItemNameMax),
   "role": zod.string().max(getCustomerResponseContactsItemRoleMax).default(getCustomerResponseContactsItemRoleDefault),
@@ -2545,6 +2554,7 @@ export const updateCustomerBodyPaymentTermsDaysMin = 0;
 export const updateCustomerBodyPaymentTermsDaysMax = 365;
 
 export const updateCustomerBodyWithholdingSubjectDefault = true;
+export const updateCustomerBodyPublicBuyerDefault = false;
 export const updateCustomerBodyContactsItemNameMax = 150;
 
 export const updateCustomerBodyContactsItemRoleDefault = ``;
@@ -2574,6 +2584,7 @@ export const UpdateCustomerBody = zod.object({
   "credit_limit": zod.stringFormat('decimal', updateCustomerBodyCreditLimitRegExp).default(updateCustomerBodyCreditLimitDefault),
   "payment_terms_days": zod.int().min(updateCustomerBodyPaymentTermsDaysMin).max(updateCustomerBodyPaymentTermsDaysMax).default(updateCustomerBodyPaymentTermsDaysDefault),
   "withholding_subject": zod.boolean().default(updateCustomerBodyWithholdingSubjectDefault),
+  "public_buyer": zod.boolean().default(updateCustomerBodyPublicBuyerDefault),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateCustomerBodyContactsItemNameMax),
   "role": zod.string().max(updateCustomerBodyContactsItemRoleMax).default(updateCustomerBodyContactsItemRoleDefault),
@@ -2617,6 +2628,7 @@ export const UpdateCustomerResponse = zod.object({
   "credit_limit": zod.stringFormat('decimal', updateCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(updateCustomerResponseContactsItemNameMax),
   "role": zod.string().max(updateCustomerResponseContactsItemRoleMax).default(updateCustomerResponseContactsItemRoleDefault),
@@ -2671,6 +2683,7 @@ export const ArchiveCustomerResponse = zod.object({
   "credit_limit": zod.stringFormat('decimal', archiveCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(archiveCustomerResponseContactsItemNameMax),
   "role": zod.string().max(archiveCustomerResponseContactsItemRoleMax).default(archiveCustomerResponseContactsItemRoleDefault),
@@ -2832,6 +2845,7 @@ export const SetCustomerLocationResponse = zod.object({
   "credit_limit": zod.stringFormat('decimal', setCustomerLocationResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(setCustomerLocationResponseContactsItemNameMax),
   "role": zod.string().max(setCustomerLocationResponseContactsItemRoleMax).default(setCustomerLocationResponseContactsItemRoleDefault),
@@ -2883,6 +2897,7 @@ export const RestoreCustomerResponse = zod.object({
   "credit_limit": zod.stringFormat('decimal', restoreCustomerResponseCreditLimitRegExp),
   "payment_terms_days": zod.int(),
   "withholding_subject": zod.boolean(),
+  "public_buyer": zod.boolean(),
   "contacts": zod.array(zod.object({
   "name": zod.string().max(restoreCustomerResponseContactsItemNameMax),
   "role": zod.string().max(restoreCustomerResponseContactsItemRoleMax).default(restoreCustomerResponseContactsItemRoleDefault),
@@ -7022,10 +7037,12 @@ export const RefuseFieldPurchaseResponse = zod.object({
 export const getFinanceSettingsResponseInForceOneVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseInForceOneFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseInForceOneWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseInForceOneCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseHistoryItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseHistoryItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseHistoryItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseHistoryItemCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -7037,6 +7054,7 @@ export const GetFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneWithholdingRateRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneVatWithholdingRateRegExp),
   "cash_limit": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7054,6 +7072,7 @@ export const GetFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp),
   "cash_limit": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7095,6 +7114,7 @@ export const SaveFinanceSettingsBody = zod.object({
   "fiscal_stamp": zod.string(),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.string(),
+  "vat_withholding_rate": zod.string().optional(),
   "cash_limit": zod.string().optional(),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).optional().describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string().max(saveFinanceSettingsBodyLegalNameMax).default(saveFinanceSettingsBodyLegalNameDefault),
@@ -7107,10 +7127,12 @@ export const SaveFinanceSettingsBody = zod.object({
 export const saveFinanceSettingsResponseInForceOneVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseInForceOneFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseInForceOneWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseInForceOneCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseHistoryItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseHistoryItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseHistoryItemCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -7122,6 +7144,7 @@ export const SaveFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneWithholdingRateRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneVatWithholdingRateRegExp),
   "cash_limit": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7139,6 +7162,7 @@ export const SaveFinanceSettingsResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemFiscalStampRegExp),
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp),
   "cash_limit": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7395,6 +7419,8 @@ export const listInvoicesResponseResultsItemFeesRegExp = new RegExp('^-?\\d{0,11
 export const listInvoicesResponseResultsItemTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listInvoicesResponseResultsItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const listInvoicesResponseResultsItemWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listInvoicesResponseResultsItemVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listInvoicesResponseResultsItemVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listInvoicesResponseResultsItemNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listInvoicesResponseResultsItemCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listInvoicesResponseResultsItemRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7453,6 +7479,8 @@ export const ListInvoicesResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', listInvoicesResponseResultsItemWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', listInvoicesResponseResultsItemWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', listInvoicesResponseResultsItemVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', listInvoicesResponseResultsItemVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', listInvoicesResponseResultsItemNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', listInvoicesResponseResultsItemCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', listInvoicesResponseResultsItemRemainingToPayRegExp),
@@ -7509,6 +7537,8 @@ export const createInvoiceResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d
 export const createInvoiceResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const createInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createInvoiceResponseVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createInvoiceResponseVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7600,6 +7630,8 @@ export const CreateInvoiceResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', createInvoiceResponseWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', createInvoiceResponseWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', createInvoiceResponseVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', createInvoiceResponseVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', createInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', createInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', createInvoiceResponseRemainingToPayRegExp),
@@ -7763,6 +7795,8 @@ export const getInvoiceResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,
 export const getInvoiceResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getInvoiceResponseVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getInvoiceResponseVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -7854,6 +7888,8 @@ export const GetInvoiceResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getInvoiceResponseWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', getInvoiceResponseWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', getInvoiceResponseVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', getInvoiceResponseVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', getInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', getInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', getInvoiceResponseRemainingToPayRegExp),
@@ -8036,6 +8072,8 @@ export const updateInvoiceResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d
 export const updateInvoiceResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const updateInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateInvoiceResponseVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateInvoiceResponseVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -8127,6 +8165,8 @@ export const UpdateInvoiceResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', updateInvoiceResponseWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', updateInvoiceResponseWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', updateInvoiceResponseVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', updateInvoiceResponseVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', updateInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', updateInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', updateInvoiceResponseRemainingToPayRegExp),
@@ -8433,6 +8473,8 @@ export const giveUpInvoiceGapResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.
 export const giveUpInvoiceGapResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const giveUpInvoiceGapResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const giveUpInvoiceGapResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const giveUpInvoiceGapResponseVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const giveUpInvoiceGapResponseVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const giveUpInvoiceGapResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const giveUpInvoiceGapResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const giveUpInvoiceGapResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -8524,6 +8566,8 @@ export const GiveUpInvoiceGapResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', giveUpInvoiceGapResponseVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', giveUpInvoiceGapResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', giveUpInvoiceGapResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', giveUpInvoiceGapResponseRemainingToPayRegExp),
@@ -8688,6 +8732,8 @@ export const issueInvoiceResponseFeesRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{
 export const issueInvoiceResponseTotalInclTaxRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const issueInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const issueInvoiceResponseVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const issueInvoiceResponseVatWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseNetToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseCreditedTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const issueInvoiceResponseRemainingToPayRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -8779,6 +8825,8 @@ export const IssueInvoiceResponse = zod.object({
   "withholding_applied": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', issueInvoiceResponseWithholdingRateRegExp),
   "withholding_amount": zod.stringFormat('decimal', issueInvoiceResponseWithholdingAmountRegExp),
+  "vat_withholding_rate": zod.stringFormat('decimal', issueInvoiceResponseVatWithholdingRateRegExp),
+  "vat_withholding_amount": zod.stringFormat('decimal', issueInvoiceResponseVatWithholdingAmountRegExp),
   "net_to_pay": zod.stringFormat('decimal', issueInvoiceResponseNetToPayRegExp),
   "credited_total": zod.stringFormat('decimal', issueInvoiceResponseCreditedTotalRegExp),
   "remaining_to_pay": zod.stringFormat('decimal', issueInvoiceResponseRemainingToPayRegExp),

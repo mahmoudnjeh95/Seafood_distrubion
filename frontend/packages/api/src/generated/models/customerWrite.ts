@@ -34,5 +34,6 @@ export interface CustomerWrite {
      */
   payment_terms_days?: number;
   withholding_subject?: boolean;
+  public_buyer?: boolean;
   contacts?: CustomerContact[];
 }

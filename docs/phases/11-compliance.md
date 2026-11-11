@@ -54,8 +54,9 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
   0 %, deduction prorata computed for the month.
 - [ ] **P11-T08 Deductible VAT on purchases and expenses (F5)** · M · after T06. VAT, supplier tax ID and supplier
   invoice number on expenses; supplier invoices already carry VAT (D-294).
-- [ ] **P11-T09 Public buyers (F7)** · S · after T06. Customer type "public": VAT withholding on top of the
-  withholding on the amount.
+- [x] **P11-T09 Public buyers (F7)** · S. "Acheteur public" on the customer: its invoices of 1 000 DT and more also
+  keep part of the VAT (Paramètres financiers, 25 % provisional), shown on the invoice and its PDF, given back by
+  credit notes, covered by the certificate (D-313). _Done 2026-11-10; rate and threshold for the accountant._
 - [x] **P11-T10 Supplier tax status (R2)** · S. Régime réel / forfaitaire / sans matricule on the supplier (forced
   to "sans matricule" without a tax ID), and "Retenue à la source sur nos paiements" (on by default), used by T02
   (D-319). _Done 2026-11-10._

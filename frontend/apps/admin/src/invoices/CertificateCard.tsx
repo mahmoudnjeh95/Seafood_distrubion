@@ -20,7 +20,9 @@ export function CertificateCard({ invoice, canWrite }: { invoice: InvoiceDetail;
   const certificate = invoice.certificate;
   const [number, setNumber] = useState("");
   const [issuedOn, setIssuedOn] = useState(todayInput());
-  const [amount, setAmount] = useState(invoice.withholding_amount.replace(".", ","));
+  // What the customer kept: the retenue, plus the part of the VAT a public buyer keeps (D-313).
+  const planned = (Number(invoice.withholding_amount) + Number(invoice.vat_withholding_amount)).toFixed(3);
+  const [amount, setAmount] = useState(planned.replace(".", ","));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const onError = (failure: unknown) => {
@@ -120,9 +122,7 @@ export function CertificateCard({ invoice, canWrite }: { invoice: InvoiceDetail;
         </div>
       ) : canWrite ? (
         <div className="flex flex-col gap-3">
-          <p className="text-[0.88rem] text-ink-2">
-            {t("admin.payments.cert.hint", { amount: formatMoney(invoice.withholding_amount) })}
-          </p>
+          <p className="text-[0.88rem] text-ink-2">{t("admin.payments.cert.hint", { amount: formatMoney(planned) })}</p>
           <Field label={t("admin.payments.cert.number")} htmlFor={`${formId}-n`} error={errors.number}>
             <Input
               id={`${formId}-n`}

@@ -567,6 +567,8 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     prices_include_vat = models.BooleanField(default=False)
     # Percent, 2 decimals: the withholding tax (retenue à la source) on invoices of 1 000 DT and more; 0 = never shown.
     withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    # Percent of the VAT a public buyer keeps on invoices of 1 000 DT and more (D-313); 0 = never.
+    vat_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("25.00"))
     # A cash line of this amount or more on a payment needs the office's explicit confirmation (D-273, owner: 5 000 DT).
     cash_limit = MoneyField(default=Decimal("5000.000"))
     # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.
@@ -734,7 +736,10 @@ class Invoice(OrganizationScopedModel, TimeStampedModel):
     withholding_rate_overridden = models.BooleanField(default=False)
     # (total_excl_tax + vat_total) × rate: the customer keeps it and pays the rest (P2-T06 records it).
     withholding_amount = MoneyField(default=Decimal("0.000"))
-    # total_incl_tax − withholding_amount: what the customer pays.
+    # A public buyer also keeps vat_total × this rate (D-313); both 0 for every other customer.
+    vat_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    vat_withholding_amount = MoneyField(default=Decimal("0.000"))
+    # total_incl_tax − withholding_amount − vat_withholding_amount: what the customer pays.
     net_to_pay = MoneyField(default=Decimal("0.000"))
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

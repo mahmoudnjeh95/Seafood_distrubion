@@ -693,6 +693,7 @@ class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
             "fiscal_stamp",
             "prices_include_vat",
             "withholding_rate",
+            "vat_withholding_rate",
             "cash_limit",
             "credit_policy",
             "legal_name",
@@ -725,6 +726,8 @@ class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
     fiscal_stamp = serializers.CharField(allow_blank=True)
     prices_include_vat = serializers.BooleanField()
     withholding_rate = serializers.CharField(allow_blank=True)
+    # Percent of the VAT a public buyer keeps (D-313). Left out: no change.
+    vat_withholding_rate = serializers.CharField(required=False, allow_blank=True)
     # DT, as a string: a cash line of this amount or more needs confirming (D-273). Left out: no change.
     cash_limit = serializers.CharField(required=False, allow_blank=True)
     # What happens above a customer's credit limit: block, ask the owner or a manager, or warn and log.
@@ -1084,6 +1087,8 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "withholding_applied",
             "withholding_rate",
             "withholding_amount",
+            "vat_withholding_rate",
+            "vat_withholding_amount",
             "net_to_pay",
             "credited_total",
             "remaining_to_pay",
@@ -1127,7 +1132,13 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
 
     @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=3))
     def get_extra_over_goods(self, invoice: Invoice) -> str:
-        return str(invoice.vat_total + invoice.fiscal_stamp + invoice.fees - invoice.withholding_amount)
+        return str(
+            invoice.vat_total
+            + invoice.fiscal_stamp
+            + invoice.fees
+            - invoice.withholding_amount
+            - invoice.vat_withholding_amount
+        )
 
     @extend_schema_field(SaleRefSerializer)
     def get_sale(self, invoice: Invoice) -> dict[str, Any]:

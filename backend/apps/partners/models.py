@@ -168,6 +168,8 @@ class Customer(OrganizationScopedModel, TimeStampedModel):
     # The customer withholds the retenue à la source on their invoices of 1 000 DT and more (companies, the State).
     # Off: their invoices never carry one, whatever the rate in the settings (D-292). On by default, as before.
     withholding_subject = models.BooleanField(default=True)
+    # A public buyer (the State, a local authority, a public body): it also keeps part of the VAT (D-313).
+    public_buyer = models.BooleanField(default=False)
     # The "Client de passage" record counters and anonymous sales use: one per organization, never archived.
     is_walk_in = models.BooleanField(default=False)
     # Archived customers keep their history but cannot be sold to.

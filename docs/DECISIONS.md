@@ -4260,3 +4260,8 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
 - `Supplier.tax_regime`: `real` (régime réel, default), `flat` (forfaitaire), `none` (sans matricule fiscal). Without a tax ID the regime is always `none`, with one it is `real` unless `flat` is chosen; the migration (`partners 0009`) sets `none` on every supplier without a tax ID.
 - `Supplier.subject_to_withholding` (default on): whether the company withholds tax when paying it (P11-T02). A supplier with an exemption certificate is unticked.
 - Shown on the supplier page and set in its dialog. The regime does not change any amount yet: T02 (withholding) and T08 (deductible VAT) read it.
+
+**D-313 · A public buyer keeps part of the VAT (P11-T09, review F7)** · provisional (accountant, P11-T06) · 2026-11-10
+- `Customer.public_buyer` (migration `partners 0010`), only meaningful when the customer withholds (`withholding_subject`). `FinanceSettings.vat_withholding_rate` (default 25 %, per company, versioned like the other rates; migration `sales 0037`).
+- On an invoice whose total without VAT + VAT reaches 1 000 DT (the same rule as the retenue, D-291): `vat_withholding_amount` = VAT × rate, stored with its rate on the invoice; `net_to_pay` = total − retenue − retenue sur TVA. Printed as its own line.
+- A credit note's `withholding_amount` holds both parts it gives back (no second field on the credit note). The withholding certificate's amount replaces both planned amounts in the customer's balance; its form proposes their sum.

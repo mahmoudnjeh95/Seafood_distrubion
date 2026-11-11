@@ -2021,6 +2021,8 @@ FIRST_SETTINGS: dict[str, Any] = {
     "prices_include_vat": False,
     # Owner, 2026-11 (D-266, provisional until the accountant confirms): 1 %, editable on the settings screen.
     "withholding_rate": Decimal("1.00"),
+    # Provisional until the accountant confirms (P11-T06): a public buyer keeps 25 % of the VAT (D-313).
+    "vat_withholding_rate": Decimal("25.00"),
 }
 SETTINGS_TEXT_FIELDS = ("legal_name", "address", "phone", "tax_id", "trade_register")
 _TEXT_LENGTHS = {"legal_name": 200, "address": 255, "phone": 50, "tax_id": 30, "trade_register": 50}
@@ -2033,6 +2035,7 @@ class FinanceSettingsFields(TypedDict, total=False):
     fiscal_stamp: Number
     prices_include_vat: bool
     withholding_rate: Number
+    vat_withholding_rate: Number
     # DT: a cash line of this amount or more needs confirming (D-273).
     cash_limit: Number
     # `block`, `approval` or `warn` (D-018, D-062).
@@ -2078,6 +2081,7 @@ def _settings_snapshot(version: FinanceSettings) -> dict[str, Any]:
         "fiscal_stamp": str(version.fiscal_stamp),
         "prices_include_vat": version.prices_include_vat,
         "withholding_rate": str(version.withholding_rate),
+        "vat_withholding_rate": str(version.vat_withholding_rate),
         "cash_limit": str(version.cash_limit),
         "credit_policy": version.credit_policy,
         **{name: getattr(version, name) for name in SETTINGS_TEXT_FIELDS},
@@ -2104,7 +2108,7 @@ def save_finance_settings(
         organization=organization
     )
     values: dict[str, Any] = {}
-    for name in ("vat_rate", "withholding_rate"):
+    for name in ("vat_rate", "withholding_rate", "vat_withholding_rate"):
         raw: Any = fields.get(name, getattr(in_force, name))
         rate = _percent(raw)
         if rate is None:
@@ -2388,6 +2392,8 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         overrides.withholding_rate if overrides.withholding_rate is not None else version.withholding_rate
     )
     withholds = invoice.customer.withholding_subject
+    # A public buyer keeps part of the VAT as well, at the settings' rate (D-313).
+    vat_withholding_rate = version.vat_withholding_rate if withholds and invoice.customer.public_buyer else None
     amounts = invoicing.compute(
         [
             invoicing.LineInput(amount=line.amount, vat_rate=rate, unit_price=line.unit_price)
@@ -2400,6 +2406,7 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
         withholding_rate=withholding_rate if withholds else None,
         vat_overrides=overrides.vat_amounts if overrides.apply_vat else {},
         fees=overrides.fees,
+        vat_withholding_rate=vat_withholding_rate,
     )
     if amounts.refused_overrides:
         raise ValidationError(
@@ -2458,6 +2465,9 @@ def _compute(invoice: Invoice, version: FinanceSettings, overrides: _Overrides) 
     invoice.withholding_rate = withholding_rate
     invoice.withholding_rate_overridden = withholding_rate != version.withholding_rate
     invoice.withholding_amount = amounts.withholding_amount
+    kept_vat = amounts.vat_withholding_amount > 0 and vat_withholding_rate is not None
+    invoice.vat_withholding_rate = vat_withholding_rate if kept_vat else Decimal("0.00")
+    invoice.vat_withholding_amount = amounts.vat_withholding_amount
     invoice.net_to_pay = amounts.net_to_pay
     invoice.notes = overrides.notes
     invoice.save()
@@ -2482,6 +2492,7 @@ def _invoice_snapshot(invoice: Invoice) -> dict[str, Any]:
         "withholding_applied": invoice.withholding_applied,
         "withholding_rate": str(invoice.withholding_rate),
         "withholding_amount": str(invoice.withholding_amount),
+        "vat_withholding_amount": str(invoice.vat_withholding_amount),
         "net_to_pay": str(invoice.net_to_pay),
         "overrides": {
             "vat_rates": {line.product.reference: str(line.vat_rate) for line in lines if line.vat_rate_overridden},
@@ -2569,6 +2580,11 @@ def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> In
         prices_include_vat=version.prices_include_vat,
         fiscal_stamp=version.fiscal_stamp,
         withholding_rate=version.withholding_rate if open_sales[0].customer.withholding_subject else None,
+        vat_withholding_rate=(
+            version.vat_withholding_rate
+            if open_sales[0].customer.withholding_subject and open_sales[0].customer.public_buyer
+            else None
+        ),
     )
     held = [sum((line.amount for line in sale.lines.all()), ZERO) for sale in open_sales]
     extra = amounts.net_to_pay - sum(held, ZERO)
@@ -2577,7 +2593,7 @@ def estimate_invoice(*, organization: Organization, sales: Sequence[Sale]) -> In
         vat_total=amounts.vat_total,
         vat_by_rate=[(group.rate, group.amount) for group in amounts.vat_groups],
         fiscal_stamp=amounts.fiscal_stamp,
-        withholding_amount=amounts.withholding_amount,
+        withholding_amount=amounts.withholding_amount + amounts.vat_withholding_amount,
         net_to_pay=amounts.net_to_pay,
         extra=extra,
         extra_by_sale=dict(zip((sale.pk for sale in open_sales), invoicing.shared_by(extra, held), strict=True)),
@@ -3079,7 +3095,10 @@ def create_credit_note(
     already = invoice.credit_notes.aggregate(
         stamp=Sum("fiscal_stamp"), fees=Sum("fees"), withholding=Sum("withholding_amount")
     )
-    withholding_left = invoice.withholding_amount - (already["withholding"] or Decimal("0.000"))
+    # A credit note's withholding holds both parts given back: the retenue and the VAT a public buyer kept (D-313).
+    withholding_left = (
+        invoice.withholding_amount + invoice.vat_withholding_amount - (already["withholding"] or Decimal("0.000"))
+    )
     if kind == CreditNoteKind.FULL:
         parts = _full_credit_parts(invoice, credited, stock or CreditNoteStock.NONE)
         stamp = invoice.fiscal_stamp - (already["stamp"] or Decimal("0.000"))
@@ -3092,7 +3111,11 @@ def create_credit_note(
         goods = sum((part.excl + part.vat for part in parts), Decimal("0.000"))
         withholding = Decimal("0.000")
         if invoice.withholding_amount > 0:
-            withholding = min(money(goods * invoice.withholding_rate / 100), withholding_left)
+            withholding = money(goods * invoice.withholding_rate / 100)
+        if invoice.vat_withholding_amount > 0:
+            credited_vat = sum((part.vat for part in parts), Decimal("0.000"))
+            withholding += money(credited_vat * invoice.vat_withholding_rate / 100)
+        withholding = min(withholding, withholding_left)
     total_excl = sum((part.excl for part in parts), Decimal("0.000"))
     vat_total = sum((part.vat for part in parts), Decimal("0.000"))
     today = timezone.localdate()

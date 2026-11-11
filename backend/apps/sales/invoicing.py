@@ -13,6 +13,8 @@ Rounding (ARCHITECTURE §4.1): half up to the millime, once per rate and once pe
 - Withholding = (total without VAT + VAT) × rate / 100, the stamp excluded; net to pay = total with VAT
   (stamp included) − withholding. Only an invoice whose total with VAT (stamp and fees left out, the
   withholding's own base) reaches 1 000 DT has one (owner rule, D-291).
+- A public buyer (the State, a local authority, a public body) also keeps part of the VAT (D-313): VAT ×
+  `vat_withholding_rate` / 100, on the same invoices of 1 000 DT and more; it comes off the net to pay too.
 """
 
 from collections.abc import Sequence
@@ -71,6 +73,8 @@ class InvoiceAmounts:
     withholding_amount: Decimal
     net_to_pay: Decimal
     fees: Decimal = ZERO
+    # The part of the VAT a public buyer keeps (D-313); 0 for every other customer.
+    vat_withholding_amount: Decimal = ZERO
     # Typed VAT amounts that cannot apply, by rate, with the reason (an amount above what the rate holds).
     refused_overrides: dict[Decimal, str] = field(default_factory=dict)
 
@@ -107,6 +111,7 @@ def compute(
     withholding_rate: Decimal | None,
     vat_overrides: dict[Decimal, Decimal] | None = None,
     fees: Decimal = ZERO,
+    vat_withholding_rate: Decimal | None = None,
 ) -> InvoiceAmounts:
     """Every amount of an invoice from its lines. `withholding_rate` None means no withholding, and so does a total
     without VAT + VAT under 1 000 DT (D-291). `fees` (Frais) add to the total like the stamp: no VAT on them and no
@@ -150,6 +155,13 @@ def compute(
     withholding = ZERO
     if withholding_rate is not None and withholding_rate > 0 and withholding_applies(total_excl_tax + vat_total):
         withholding = money((total_excl_tax + vat_total) * withholding_rate / HUNDRED)
+    vat_withholding = ZERO
+    if (
+        vat_withholding_rate is not None
+        and vat_withholding_rate > 0
+        and withholding_applies(total_excl_tax + vat_total)
+    ):
+        vat_withholding = money(vat_total * vat_withholding_rate / HUNDRED)
     return InvoiceAmounts(
         lines=final,
         vat_groups=groups,
@@ -158,7 +170,8 @@ def compute(
         fiscal_stamp=fiscal_stamp,
         total_incl_tax=total_incl_tax,
         withholding_amount=withholding,
-        net_to_pay=total_incl_tax - withholding,
+        net_to_pay=total_incl_tax - withholding - vat_withholding,
         fees=fees,
+        vat_withholding_amount=vat_withholding,
         refused_overrides=refused,
     )

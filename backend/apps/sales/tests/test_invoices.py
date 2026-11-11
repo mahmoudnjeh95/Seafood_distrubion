@@ -729,6 +729,23 @@ def test_withholding_is_given_back_in_proportion(organization, actor, big_sale):
     assert rest.withholding_amount == D("15.618")  # what is left: 19.367 − 3.749
 
 
+def test_a_public_buyer_keeps_part_of_the_vat_and_a_credit_note_gives_it_back(organization, actor, customer, big_sale):
+    """D-313: 1 085 HT + 206.150 TVA + 1 timbre; retenue 1 % of 1 291.150, and 25 % of the VAT."""
+    customer.public_buyer = True
+    customer.save(update_fields=["public_buyer"])
+    big_sale.customer.refresh_from_db()
+
+    invoice = services.create_invoice(apply_vat=True, sale=big_sale, actor=actor, issue=True)
+
+    assert invoice.withholding_amount == D("12.912")  # 1 291.150 × 1 % = 12.9115
+    assert (invoice.vat_withholding_rate, invoice.vat_withholding_amount) == (D("25.00"), D("51.538"))
+    assert invoice.net_to_pay == D("1292.150") - D("12.912") - D("51.538")
+
+    note = services.create_credit_note(invoice=invoice, actor=actor, kind=CreditNoteKind.FULL, reason="Annulation")
+    assert note.withholding_amount == D("64.450")
+    assert note.net_amount == invoice.net_to_pay
+
+
 # ---- the sale side ----
 
 
