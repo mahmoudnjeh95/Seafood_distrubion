@@ -224,9 +224,19 @@ class BatchDetailView(OfficeView):
         return Response(BatchSerializer(batch).data)
 
 
-class LotDetailView(OfficeView):
+class LotDetailView(APIView):
     # The lot's purchase value and results are the owner's money (D-320): the owner and the accountant read it.
     permission_classes = (ReadOwnerOrAccountantWriteOwner,)
+
+    @property
+    def membership(self) -> Membership:
+        membership = membership_of(self.request)
+        assert membership is not None  # guaranteed by the permission class
+        return membership
+
+    @property
+    def organization(self) -> Organization:
+        return self.membership.organization
 
     @extend_schema(operation_id="getLot", responses=LotSerializer)
     def get(self, request: Request, lot_id: int) -> Response:
