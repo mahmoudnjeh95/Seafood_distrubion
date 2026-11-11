@@ -266,6 +266,7 @@ def test_a_lot_settled_with_its_partner_is_not_offered(organization, actor, cust
     LotPartnership.objects.create(
         organization=organization,
         batch=lot,
+        lot=lot.lot,
         partner=SupplierFactory.create(organization=organization),
         owner_capital=D("100.000"),
         partner_capital=D("100.000"),

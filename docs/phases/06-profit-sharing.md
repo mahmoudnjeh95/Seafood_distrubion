@@ -92,6 +92,11 @@ Owner: one achat is one lot, its products share the lot number; a partner may sh
       lines; one line may be in several partnerships (capital together ≤ the line's purchase value, profit rates
       together ≤ 100 %); receipt form: a "Partenaires" section per lot and per line who shares it; migration of
       existing partnerships (their one batch ticked, two partners on one receipt stay one lot).
+  - [x] **T08c1 · The partnership's lot and lines** (D-323, migration `partnerships 0005`): `LotPartnership.lot`
+        and `PartnershipLine` (the lines it shares); every partnership so far shares its one batch, a new one too;
+        the API gives `lot_number` and `line_ids`; search by lot number. No change in the results yet.
+  - [ ] **T08c2** (with T08d, they cannot be split without wrong shares): several partners per line and several
+        lines per partnership, the checks on capital and rates, the receipt form's "Partenaires" section.
 - [ ] **T08d · Shared result and closing.** Each partnership's result = sum of its ticked lines' results (engine
       unchanged per line); profit or loss rate on the sum; a transformed shared line's output stays in its
       partnerships (Q30); closing checks on the ticked lines only; the owner's

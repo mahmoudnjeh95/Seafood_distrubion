@@ -24430,6 +24430,14 @@ components:
           allOf:
           - $ref: '#/components/schemas/PartnershipBatch'
           readOnly: true
+        lot_number:
+          type: string
+          readOnly: true
+        line_ids:
+          type: array
+          items:
+            type: integer
+          readOnly: true
         partner:
           allOf:
           - $ref: '#/components/schemas/PartnershipPartner'
@@ -24492,7 +24500,9 @@ components:
       - created_at
       - created_by_name
       - id
+      - line_ids
       - loss_rate
+      - lot_number
       - notes
       - owner_capital
       - partner
@@ -24538,6 +24548,14 @@ components:
         batch:
           allOf:
           - $ref: '#/components/schemas/PartnershipBatch'
+          readOnly: true
+        lot_number:
+          type: string
+          readOnly: true
+        line_ids:
+          type: array
+          items:
+            type: integer
           readOnly: true
         partner:
           allOf:
@@ -24611,7 +24629,9 @@ components:
       - created_by_name
       - has_sold
       - id
+      - line_ids
       - loss_rate
+      - lot_number
       - notes
       - owner_capital
       - partner

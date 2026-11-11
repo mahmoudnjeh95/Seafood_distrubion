@@ -4337,3 +4337,13 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - Two migrations numbered `sales 0037` met: the public-buyers one is now `sales 0038_vat_withholding`, depending on `0037_einvoicing_settings`. `makemigrations --check` is clean.
 - The lot page (`GET lots/<id>`, which shows purchase value and results) is read by the owner and the accountant only (`ReadOwnerOrAccountantWriteOwner`), like the lot results in `closing`; it had been open to the office roles. The owner-only writes list now includes the e-invoicing settings (D-306).
 - The decision numbers used in the PR bodies were superseded by the numbers in the files: period lock D-315, cash limit D-316, supplier tax regime D-319, public buyers D-313, assistant screen D-314, one purchase is one lot D-320, SmartFeesh deploy D-321, e-invoicing settings D-310. The next free number is D-323.
+
+**D-323 · A partnership is on a lot and lists the products it shares (P6-T08c1, D-320)** · accepted · 2026-11-11
+- `LotPartnership.lot` (the purchase) and `PartnershipLine` (partnership, batch): the products of the lot this partner
+  shares. Migration `partnerships 0005` gives every partnership its batch's lot and that batch as its one line;
+  `create_partnership` does the same. The API adds `lot_number` and `line_ids`; partnerships are found by lot number.
+- `LotPartnership.batch` stays, as the line it was made on, and the closing, the settlement, the capital and profit
+  ledgers and the reports still read it: nothing about a share changes in this step.
+- The rest of D-320 (several partners per line, several lines per partnership, the netted result, closing when the
+  shared lines are done, the receipt form) is one step, T08c2 with T08d: allowing several lines before the closing
+  nets them would compute wrong shares.

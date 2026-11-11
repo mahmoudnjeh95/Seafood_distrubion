@@ -61,6 +61,9 @@ class CapitalEntrySerializer(serializers.ModelSerializer[CapitalEntry]):
 
 class LotPartnershipSerializer(serializers.ModelSerializer[LotPartnership]):
     batch = PartnershipBatchSerializer(read_only=True)
+    # The purchase and the products of it the partner shares (D-320).
+    lot_number = serializers.CharField(source="lot.number", read_only=True)
+    line_ids = serializers.SerializerMethodField()
     partner = PartnershipPartnerSerializer(read_only=True)
     status = serializers.ChoiceField(choices=PartnershipStatus.choices, read_only=True)
     # The partner's capital in this lot now (the sum of their ledger).
@@ -72,6 +75,8 @@ class LotPartnershipSerializer(serializers.ModelSerializer[LotPartnership]):
         fields: tuple[str, ...] = (
             "id",
             "batch",
+            "lot_number",
+            "line_ids",
             "partner",
             "owner_capital",
             "partner_capital",
@@ -94,6 +99,10 @@ class LotPartnershipSerializer(serializers.ModelSerializer[LotPartnership]):
 
     def get_created_by_name(self, partnership: LotPartnership) -> str:
         return person_name(partnership.created_by)
+
+    @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
+    def get_line_ids(self, partnership: LotPartnership) -> list[int]:
+        return [line.batch_id for line in partnership.shared_lines.all()]
 
 
 class LotPartnershipDetailSerializer(LotPartnershipSerializer):

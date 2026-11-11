@@ -40,7 +40,8 @@ def partnerships_of(
     when asked for by `status`. `search` matches the lot number, the product and the partner."""
     partnerships = (
         LotPartnership.objects.for_organization(organization)
-        .select_related("batch__product", "batch__supplier", "partner", "created_by")
+        .select_related("batch__product", "batch__supplier", "lot", "partner", "created_by")
+        .prefetch_related("shared_lines")
         .order_by("-created_at", "-id")
     )
     if status:
@@ -54,6 +55,7 @@ def partnerships_of(
     if search := search.strip():
         partnerships = partnerships.filter(
             Q(batch__number__icontains=search)
+            | Q(lot__number__icontains=search)
             | Q(batch__product__name__icontains=search)
             | Q(partner__name__icontains=search)
             | Q(partner__reference__icontains=search)
@@ -81,7 +83,8 @@ def partnership_of(organization: Organization, partnership_id: int) -> LotPartne
     """One partnership, cancelled or not. Raises LotPartnership.DoesNotExist outside the organization."""
     return (
         LotPartnership.objects.for_organization(organization)
-        .select_related("batch__product", "batch__supplier", "partner", "created_by", "cancelled_by")
+        .select_related("batch__product", "batch__supplier", "lot", "partner", "created_by", "cancelled_by")
+        .prefetch_related("shared_lines")
         .get(pk=partnership_id)
     )
 
