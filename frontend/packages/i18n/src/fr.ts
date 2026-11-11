@@ -119,6 +119,19 @@ export const fr = {
   },
   admin: {
     // Paramètres: company, users, own profile (D-122)
+    booksLock: {
+      title: "Période verrouillée",
+      hint: "Une fois un mois déclaré aux impôts, plus aucune écriture n'est datée dedans : une correction se date dans le mois ouvert. Seul le propriétaire déplace la date.",
+      current: "Comptes verrouillés jusqu'au {{date}} inclus.",
+      none: "Aucune période n'est verrouillée.",
+      until: "Verrouiller jusqu'au (inclus)",
+      reason: "Raison (obligatoire pour rouvrir une période déclarée)",
+      save: "Enregistrer",
+      remove: "Tout déverrouiller",
+      locked: "Comptes verrouillés jusqu'au {{date}}.",
+      unlocked: "Plus aucune période n'est verrouillée.",
+      error: "L'enregistrement a échoué. Réessayez.",
+    },
     settings: {
       title: "Paramètres",
       intro: "Le logo de la société, ses coordonnées et les comptes qui se connectent à l'application.",

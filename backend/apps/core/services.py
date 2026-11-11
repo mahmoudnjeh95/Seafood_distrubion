@@ -1,5 +1,6 @@
 """Every write on core models goes through these functions (ARCHITECTURE §3)."""
 
+import datetime as dt
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -610,3 +611,42 @@ def set_number_prefixes(
             after={**changed, **{f"{key}.draft": value for key, value in changed_drafts.items()}},
         )
     return numbering.prefixes_of(organization)
+
+
+# ---- Period lock (D-310, P11-T16) ----
+
+
+@transaction.atomic
+def set_books_lock(
+    *, organization: Organization, actor: User | None, until: dt.date | None, reason: str = ""
+) -> Organization:
+    """Lock the books up to `until` (included), or unlock with None. Only a past day can be locked: today stays open
+    for the day's work. Moving the lock back (or removing it) opens a declared period again, so it needs a reason.
+    Audited with the dates before and after."""
+    organization = Organization.objects.select_for_update().get(pk=organization.pk)
+    before = organization.books_locked_until
+    reason = reason.strip()[:255]
+    if until is not None and until >= timezone.localdate():
+        raise ValidationError({"until": _("Seul un jour passé se verrouille : aujourd'hui reste ouvert.")})
+    reopening = before is not None and (until is None or until < before)
+    if reopening and not reason:
+        raise ValidationError(
+            {
+                "reason": _(
+                    "Indiquez pourquoi la période déclarée est rouverte (correction demandée par l'expert-comptable…)."
+                )
+            }
+        )
+    if until == before:
+        return organization
+    organization.books_locked_until = until
+    organization.save(update_fields=["books_locked_until", "updated_at"])
+    audit.record(
+        organization=organization,
+        actor=actor,
+        action="organization.books_unlocked" if reopening else "organization.books_locked",
+        target=organization,
+        before={"books_locked_until": before.isoformat() if before else None},
+        after={"books_locked_until": until.isoformat() if until else None, "reason": reason},
+    )
+    return organization

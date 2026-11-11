@@ -314,6 +314,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/BatchSales'
           description: ''
+  /api/v1/books-lock:
+    get:
+      operationId: getBooksLock
+      description: |-
+        The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+        the owner moves it, and opening a locked period again needs a reason.
+      tags:
+      - books-lock
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksLock'
+          description: ''
+    put:
+      operationId: setBooksLock
+      description: |-
+        The period lock (D-310, Paramètres): a declared month takes no new dated entry. The office reads it; only
+        the owner moves it, and opening a locked period again needs a reason.
+      tags:
+      - books-lock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BooksLock'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BooksLock'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BooksLock'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooksLock'
+          description: ''
   /api/v1/boxes/adjustments:
     post:
       operationId: adjustBoxes
@@ -15213,6 +15258,19 @@ components:
     BlankEnum:
       enum:
       - ''
+    BooksLock:
+      type: object
+      properties:
+        until:
+          type: string
+          format: date
+          nullable: true
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - until
     BoxAdjustmentWrite:
       type: object
       properties:

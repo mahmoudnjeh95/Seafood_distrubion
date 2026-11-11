@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.boxes import services as box_services
-from apps.core import audit, numbering
+from apps.core import audit, numbering, periods
 from apps.core.images import reencoded_photo
 from apps.core.models import Organization, User
 from apps.core.money import MAX_AMOUNT, Number, checked_amount, checked_quantity, display_money, line_total, money
@@ -219,6 +219,7 @@ def create_receipt(
     their weight: the order stays open until every line is delivered or it is closed by hand. A line's
     product must be on the order; its accepted weight counts as received there.
     """
+    periods.ensure_open(organization, received_on, field="received_on")
     errors = _header_errors(organization, supplier, location, received_on)
     order = _locked_order_to_receive(organization, supplier, purchase_order, errors) if purchase_order else None
     order_lines = {line.product_id: line for line in order.lines.all()} if order else {}
@@ -1062,6 +1063,7 @@ def create_invoice(
     back at once, on its field. With `post` and `apply_advances`, what the supplier was already given and is not
     on an invoice yet (cash given at the port, advances) pays it, oldest first (D-200).
     """
+    periods.ensure_open(organization, invoice_date, field="invoice_date")
     errors = _invoice_header_errors(organization, supplier, invoice_date, due_date)
     stamp = _checked_stamp(fiscal_stamp, errors)
     paper = _checked_paper_total(paper_total, errors)
@@ -1184,6 +1186,7 @@ def update_invoice(
 
     The supplier does not change: a draft for the wrong supplier is deleted and typed again.
     """
+    periods.ensure_open(invoice.organization, invoice_date, field="invoice_date")
     invoice = _locked_draft(invoice)
     organization = invoice.organization
     errors = _invoice_header_errors(organization, invoice.supplier, invoice_date, due_date)
@@ -1646,6 +1649,7 @@ def record_payment(
     leaves that to the caller. Cash a `driver` paid (the port purchase) leaves that driver's cash, as a
     `movement_kind` movement (D-262).
     """
+    periods.ensure_open(organization, paid_on, field="paid_on")
     errors: dict[str, str] = {}
     if supplier.organization_id != organization.pk:
         errors["supplier"] = _("Fournisseur inconnu.")
@@ -2634,6 +2638,7 @@ def receive_goods(
     office makes the supplier's invoice afterwards, from this receipt. `payments` are the sums given now (D-192):
     each is recorded as money not yet allocated to an invoice, an advance that the invoice made from this receipt
     takes (`apply_advances`). More than the receipt's value is refused, as a typing mistake (D-181)."""
+    periods.ensure_open(organization, received_on, field="received_on")
     errors: dict[str, str] = {}
     checked_payments = _checked_payment_lines(payments, received_on, errors)
     if errors:
@@ -3256,6 +3261,7 @@ def create_credit_note(
     return, from the place named), kilos invoiced but never accepted, or a price cut per kg. VAT is given back at the
     receipt's rate when it was bought with VAT. It settles its invoice first, then the supplier's other open invoices;
     the rest waits for the next invoice. Saved once, never edited nor deleted."""
+    periods.ensure_open(organization, credited_on, field="credited_on")
     if supplier.organization_id != organization.pk:
         raise ValidationError({"supplier": _("Fournisseur inconnu.")})
     errors: dict[str, str] = {}

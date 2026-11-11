@@ -3,6 +3,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
+from apps.core import periods
 from apps.core.models import Organization
 from apps.expenses import services as expenses
 from apps.hr import services as hr
@@ -31,7 +32,7 @@ class Command(BaseCommand):
             organizations = organizations.filter(pk=options["organization"])
         for organization in organizations:
             before = TreasuryMovement.objects.filter(organization=organization).count()
-            with transaction.atomic():
+            with transaction.atomic(), periods.writing_history():
                 services.ensure_default_accounts(organization=organization)
                 sales.post_treasury_history(organization=organization)
                 purchasing.post_treasury_history(organization=organization)

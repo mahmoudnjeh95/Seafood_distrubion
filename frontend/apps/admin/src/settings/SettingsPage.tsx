@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Link, useOutletContext } from "react-router";
 import { einvoicingStatus } from "./einvoicing";
+import { BooksLockCard } from "./BooksLockCard";
 import { ListDisplayCard } from "./ListDisplayCard";
 
 function LogoCard({ session }: { session: Session }) {
@@ -229,6 +230,7 @@ export function SettingsPage() {
         <BanksCard />
         <NumberingCard />
         <EInvoicingCard />
+        <BooksLockCard canWrite={session.role === "owner"} />
         <LinkCard
           title={t("admin.vatRates.title")}
           hint={t("admin.vatRates.settingsHint")}
