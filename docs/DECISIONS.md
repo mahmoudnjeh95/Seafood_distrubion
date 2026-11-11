@@ -4286,3 +4286,48 @@ is a new version and is notified. Replaces D-160's "draft at the load, PROVISOIR
   sentences, Tunisian in Arabic letters (a voice cannot read "3andek"), no lists.
 - Personal data: an answer read by the server goes to Azure (Microsoft), as its text goes to Anthropic: one more
   recipient for the INPDP question of Phase 12.
+**D-320 · One purchase is one lot; a partner shares only the products ticked on it (owner 2026-11-10, Q31)** · accepted · 2026-11-10
+Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per batch") for the owner's own words:
+"1 achat is one lot even if it contains multiple products; those products are related to the same lot id".
+- **Model:** a new parent `Lot` (number `L-0001`…, supplier, date, its goods receipt or port purchase) above today's
+  `Batch`, which becomes a *lot line* (one product, one cost per kg, numbered `L-0042-1`, `L-0042-2`…). The stock
+  ledger, FIFO / FEFO (D-299), sales, losses, transfers and the driver app keep working on `Batch` unchanged: every
+  kilo still knows its product, cost and supplier. Screens, BL and labels show "L-0042 · Crevette".
+- **Partnerships on the lot, per product ticked (owner 2026-11-10):** a lot may have **several partners**; each
+  partnership has its own capital, profit % and loss %, and its own ticked lines. **One product may be shared with
+  several partners** (shrimp: Ali 40 %, Salah 30 %, the owner the rest): on a line, the partners' capital together
+  stays within its purchase value and their profit rates together within 100 %. Products no partner ticks are the
+  owner's alone and never enter a partner's numbers.
+- **Q31 answers (owner 2026-11-10):**
+  1. **Netted:** the partner's share is their rate on the *sum* of the results of the ticked products (shrimp +2 400,
+     squid −500 → 1 900 at 50 % = 950). The profit rate applies if the sum is a profit, the loss rate if it is a loss.
+     With several partners, each partnership nets only its own ticked lines.
+  2. **Closed when the shared products are done:** each partnership closes and is settled as soon as every line it
+     ticks meets the closing rules (sold out or written off, costs in, customers paid, Q19); the owner's lines close
+     later on their own.
+  3. **Capital covers the shared products only:** the partner's capital is a part of the purchase value of the ticked
+     lines, returned ± their share at the settlement (Q3, Q22 unchanged otherwise).
+  4. **Costs by kilos:** a cost typed on the lot (transport of the purchase, labour) is split over its lines by kg
+     received; the truck, cold-room and general costs keep D-041 (by kg loaded or held), now per line. Each line's
+     result is computed by the existing engine, unchanged.
+- **Migration:** each goods receipt (and port purchase) becomes one lot, its batches its lines in receipt order; a
+  batch made otherwise (transformation, import, adjustment) becomes a one-line lot. An existing partnership becomes the
+  lot's with only its batch ticked. Old lot numbers printed on past documents stay readable as the line's former number.
+- **Numbers (T08a):** the lot takes the "batch" counter of the numbering settings ("L-0042"); a receipt's lines are
+  "L-0042-1", "L-0042-2"…, even a receipt of one product; a batch made alone (opening stock, demo, transformation
+  until T08d) carries its lot's number without a suffix. The migration gives each old lot its first line's number,
+  and the counter is already past every old number, so no new lot can take one.
+- **Migration of old receipts with two partners:** they stay one lot with two partnerships (several partners allowed).
+- **Transformation of a shared line (answers Q30, changes D-304's provisional refusal):** allowed. The output is a new
+  line of the same lot, ticked in the same partnerships with the same rates; the fee is a cost of that line. The
+  source line's cost moves to it as today (D-304).
+
+**D-321 · Deploy through SmartFeesh while the personal repo's Actions do not run (owner, 2026-11-10)** · accepted · 2026-11-10
+- Since 2026-11-09 every Actions job of `mahmoudnjeh95/Seafood_distrubion` stops in 2 to 4 s before any step (PRs,
+  `main`, the scheduled Uptime): the account's Actions minutes or spending limit. Owner: "Use smartfeesh for deploy".
+- Until the personal repo runs jobs again: the PR stays on the personal repo; its branch is pushed to
+  `SmartToolsAgro/SmartFeesh` and a PR opened there against its `main`, so CI runs there (D-297: only PRs and `main`
+  run CI). Merge on the personal repo once the SmartFeesh PR is green, then fast-forward SmartFeesh `main`
+  (`git push org origin/main:refs/heads/main`), which tests and deploys staging. This is the owner's standing ask for
+  D-209's "only when the owner asks"; one deploy at a time (D-308), never re-run an old SmartFeesh deploy job.
+- Close the SmartFeesh PR after the merge. Back to D-209 as soon as the personal repo runs jobs again.

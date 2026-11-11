@@ -14,6 +14,23 @@ _Last updated: 2026-11-10 ("Assistant IA" screen with voice, D-314, P12-T06; one
   and Claude answers, Meta refuses the delivery. Check on staging: `docs/phases/12-whatsapp-assistant.md` "Check on
   staging (T06)". Owner: an Azure AI Speech key for the Tunisian voice in Chrome (runbook "WhatsApp assistant");
   Meta: pay or contest the two restricted ad accounts, or a support request for 131031.
+_Last updated: 2026-11-10 (multi-product lot D-320, Q31, plan P6-T08; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
+_Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-321 (D-310 to D-319 kept for the open compliance and assistant PRs); D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
+
+## Where we are
+
+- **D-321 (owner 2026-11-10): deploy and CI through `SmartToolsAgro/SmartFeesh`** while the personal repo's Actions
+  stop every job in seconds (minutes or billing). Branch → SmartFeesh PR for CI → merge here → push `main` to
+  SmartFeesh to deploy (runbook "Deploy"). This cloud session cannot reach SmartFeesh; a desktop session pushes.
+
+- **D-320 / P6-T08 (owner 2026-11-10): one purchase is one lot with several products; a partner shares only the
+  products ticked.** Answers Q31: results of the shared products netted, the shared part closes when they are done,
+  capital on the shared products only, costs by kilos; several partners per lot and per product; a shared product may
+  be transformed and stays shared (Q30 answered). **T08a done** (branch `claude/affectionate-noether-ykot9l`,
+  migration `inventory 0017`): model `Lot`, a receipt or port purchase makes one lot with lines `L-0042-1`…, old
+  receipts converted. Check on staging: a receipt of three products shows L-00xx-1 to -3 on the stock page. Next: T08b
+  (show "L-0042 · Crevette" everywhere and a lot page), then T08c to T08e; then back to the first review's points
+  (global search, standing orders, driver route…), owner 2026-11-10: always take the recommended answer, don't ask.
 
 - **D-308 (owner 2026-11-09): the staging images are built on the CI runner and loaded on the server**, never built
   there (a build on the shared VPS took it down). Branch `deploy-build-off-server`. Check on the first deploy after the

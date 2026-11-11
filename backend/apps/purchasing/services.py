@@ -260,10 +260,19 @@ def create_receipt(
         else timezone.make_aware(dt.datetime.combine(received_on, dt.time(12, 0)))
     )
     saved: list[GoodsReceiptLine] = []
+    # One purchase, one lot: every product of the receipt is a line of it (D-320).
+    lot = inventory.create_lot(
+        organization=organization,
+        actor=actor,
+        supplier=supplier,
+        received_on=received_on,
+        receipt_reference=supplier_reference or receipt.number,
+    )
     for values in checked_lines:
         batch = inventory.create_batch(
             organization=organization,
             actor=actor,
+            lot=lot,
             product=values["product"],
             supplier=supplier,
             received_on=received_on,
