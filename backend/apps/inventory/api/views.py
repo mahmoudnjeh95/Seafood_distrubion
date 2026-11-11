@@ -27,6 +27,7 @@ from apps.fleet import selectors as fleet
 from apps.inventory import selectors, services
 from apps.inventory.models import (
     Batch,
+    Lot,
     StockCount,
     StockLocation,
     StockLoss,
@@ -53,6 +54,7 @@ from .serializers import (
     LossRejectSerializer,
     LossSerializer,
     LossWriteSerializer,
+    LotSerializer,
     MyStockFilterSerializer,
     MyStockLineSerializer,
     MyTemperatureWriteSerializer,
@@ -215,6 +217,17 @@ class BatchDetailView(OfficeView):
         except Batch.DoesNotExist:
             raise Http404 from None
         return Response(BatchSerializer(batch).data)
+
+
+class LotDetailView(OfficeView):
+    @extend_schema(operation_id="getLot", responses=LotSerializer)
+    def get(self, request: Request, lot_id: int) -> Response:
+        """One purchase and its products, each with its kilos received, sold, lost and still held (D-320)."""
+        try:
+            detail = selectors.lot_detail(self.organization, lot_id)
+        except Lot.DoesNotExist:
+            raise Http404 from None
+        return Response(LotSerializer(detail).data)
 
 
 class BatchOriginView(OfficeView):

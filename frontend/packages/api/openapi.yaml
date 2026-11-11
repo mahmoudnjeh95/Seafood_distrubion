@@ -5109,6 +5109,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/LotSettlementView'
           description: ''
+  /api/v1/lots/{lot_id}:
+    get:
+      operationId: getLot
+      description: One purchase and its products, each with its kilos received, sold,
+        lost and still held (D-320).
+      parameters:
+      - in: path
+        name: lot_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lots
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lot'
+          description: ''
   /api/v1/maintenance-plans:
     get:
       operationId: listMaintenancePlans
@@ -15010,12 +15032,16 @@ components:
         number:
           type: string
           readOnly: true
+        lot:
+          type: integer
+          readOnly: true
         lot_number:
           type: string
           readOnly: true
         line_number:
           type: integer
           readOnly: true
+          default: 1
         product:
           allOf:
           - $ref: '#/components/schemas/BatchProduct'
@@ -15060,6 +15086,7 @@ components:
       - created_at
       - id
       - line_number
+      - lot
       - lot_number
       - number
       - origin
@@ -24071,6 +24098,45 @@ components:
       - product
       - quantity
       - reason
+    Lot:
+      type: object
+      description: 'One purchase: its supplier, its day, and its products (D-320).'
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        supplier:
+          allOf:
+          - $ref: '#/components/schemas/BatchSupplier'
+          readOnly: true
+        received_on:
+          type: string
+          format: date
+          readOnly: true
+        receipt_reference:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotLine'
+          readOnly: true
+        purchase_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - lines
+      - number
+      - purchase_value
+      - receipt_reference
+      - received_on
+      - supplier
     LotClosing:
       type: object
       properties:
@@ -24280,6 +24346,70 @@ components:
       - outcome
       - partner_share
       - revenue
+    LotLine:
+      type: object
+      description: One product of a lot with its kilos (D-320).
+      properties:
+        batch_id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        line_number:
+          type: integer
+          readOnly: true
+        product:
+          allOf:
+          - $ref: '#/components/schemas/BatchProduct'
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        use_by:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        sold:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        lost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        on_hand:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+        purchase_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - batch_id
+      - line_number
+      - lost
+      - number
+      - on_hand
+      - product
+      - purchase_value
+      - received
+      - sold
+      - unit_cost
+      - use_by
     LotOutcomeEnum:
       enum:
       - profit

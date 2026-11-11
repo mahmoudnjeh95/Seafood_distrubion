@@ -5000,6 +5000,19 @@ export const fr = {
         useBy: "À consommer avant",
         onHand: "En stock",
         where: "Par emplacement",
+        lot: "Lot (achat)",
+        lotLine: "{{number}} · produit {{line}}",
+      },
+      // One purchase is one lot, its products are its lines (D-320)
+      lot: {
+        lines_one: "{{count}} produit dans ce lot",
+        lines_other: "{{count}} produits dans ce lot",
+        line: "N°",
+        received: "Reçu",
+        sold: "Vendu",
+        lost: "Perdu",
+        purchaseValue: "Valeur d'achat",
+        hint: "Ouvrez un produit pour voir ses ventes, ses charges et son résultat.",
       },
       movements: {
         title: "Mouvements de stock",

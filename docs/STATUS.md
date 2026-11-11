@@ -2,6 +2,7 @@
 
 _Last updated: 2026-11-11 (P11-T05a e-invoicing settings, D-310; next free decision D-311)_
 _Last updated: 2026-11-09 (roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
+_Last updated: 2026-11-10 (multi-product lot D-320, Q31, plan P6-T08; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-309)_
 _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap review P1-T20 to T26, D-299 to D-305; P11-T15 write-off evidence, D-298; CI on PRs and main pushes only, D-297; Phase 10 Flotte & entretien P10-T01, D-295, #332; accounting review P2-T20, D-291 to D-294, #331; training copy D-290, #330; Perfaxis gaps and client bug list #323–#329; next free decision D-314; D-306 is the roles PR, D-307 Phase 12 WhatsApp)_
 _Last updated: 2026-11-10 ("Assistant IA" screen with voice, D-314, P12-T06; one bot number, D-309; roles and access per section, D-306; images built off the server, D-308; WhatsApp assistant P12-T01, D-307; Phase 1 gap review P1-T20 to T26, D-299 to D-305; next free decision D-311)_
 
@@ -28,9 +29,18 @@ _Last updated: 2026-11-09 (images built off the server, D-308; Phase 1 gap revie
   capital on the shared products only, costs by kilos; several partners per lot and per product; a shared product may
   be transformed and stays shared (Q30 answered). **T08a done** (branch `claude/affectionate-noether-ykot9l`,
   migration `inventory 0017`): model `Lot`, a receipt or port purchase makes one lot with lines `L-0042-1`…, old
-  receipts converted. Check on staging: a receipt of three products shows L-00xx-1 to -3 on the stock page. Next: T08b
-  (show "L-0042 · Crevette" everywhere and a lot page), then T08c to T08e; then back to the first review's points
-  (global search, standing orders, driver route…), owner 2026-11-10: always take the recommended answer, don't ask.
+  receipts converted. Check on staging: a receipt of three products shows L-00xx-1 to -3 on the stock page.
+  **T08b lot page done 2026-11-11** (branch `lot-page`, stacked on #347, no migration): `GET /lots/<id>` and the page
+  `/stock/lot-complet/:lotId` (supplier, day, each product with kg received, sold, lost, in stock and its purchase
+  value); a product's page links to its lot; the lot search finds every line of a lot, old numbers included. Check on
+  staging: open a product of a three-product receipt, click "Lot (achat)", see the three lines. Left of T08b: the
+  lot link from the receipt page and the stock list. Next: T08c (partnerships on the lot), then T08d, T08e; then back
+  to the first review's points (global search, standing orders, driver route…), owner 2026-11-10: always take the
+  recommended answer, don't ask.
+  **Blocked 2026-11-11: GitHub Actions starts no job ("recent account payments have failed or your spending limit
+  needs to be increased"), on every open PR (#343 to #348) and on the Uptime check. Owner: GitHub › Settings ›
+  Billing & plans. Until then nothing can go green or merge. Also: #347 and #348 both carry D-320, #343 and #345 both
+  D-310; the second of each pair to merge takes the next free number.**
 
 - **D-308 (owner 2026-11-09): the staging images are built on the CI runner and loaded on the server**, never built
   there (a build on the shared VPS took it down). Branch `deploy-build-off-server`. Check on the first deploy after the

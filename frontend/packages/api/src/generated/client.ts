@@ -257,6 +257,7 @@ import type {
   LossReject,
   LossReport,
   LossWrite,
+  Lot,
   LotCosts,
   LotFigure,
   LotPartnershipAdvance,
@@ -15704,6 +15705,104 @@ export function useGetLotSettlement<TData = Awaited<ReturnType<typeof getLotSett
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetLotSettlementQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLotUrl = (lotId: number,) => {
+
+
+
+
+  return `/api/v1/lots/${lotId}`
+}
+
+/**
+ * One purchase and its products, each with its kilos received, sold, lost and still held (D-320).
+ */
+export const getLot = async (lotId: number, options?: Parameters<typeof apiFetch>[1]): Promise<Lot> => {
+
+  return apiFetch<Lot>(getGetLotUrl(lotId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLotQueryKey = (lotId: number,) => {
+    return [
+    `/api/v1/lots/${lotId}`
+    ] as const;
+    }
+
+
+export const getGetLotQueryOptions = <TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLotQueryKey(lotId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLot>>> = ({ signal }) => getLot(lotId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: lotId !== null && lotId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLotQueryResult = NonNullable<Awaited<ReturnType<typeof getLot>>>
+export type GetLotQueryError = unknown
+
+
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLot>>,
+          TError,
+          Awaited<ReturnType<typeof getLot>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLot>>,
+          TError,
+          Awaited<ReturnType<typeof getLot>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetLot<TData = Awaited<ReturnType<typeof getLot>>, TError = unknown>(
+ lotId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLot>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLotQueryOptions(lotId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
