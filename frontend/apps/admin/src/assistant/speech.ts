@@ -190,3 +190,106 @@ export async function playFromServer(url: string, onEnd: () => void): Promise<Pl
     },
   };
 }
+
+// ---- Recording for the server's recognition (Azure, see backend speech.py) ----
+
+/** The sample rate Azure's short-audio recognition takes. */
+export const RECOGNITION_RATE = 16_000;
+/** Azure takes up to a minute; the recording stops by itself well before. */
+export const MAX_RECORDING_MS = 30_000;
+
+/** A 16-bit mono WAV file of `samples` (between -1 and 1), at `sampleRate`. */
+export function encodeWav(samples: Float32Array, sampleRate: number = RECOGNITION_RATE): ArrayBuffer {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const write = (offset: number, text: string) => {
+    for (let index = 0; index < text.length; index += 1) view.setUint8(offset + index, text.charCodeAt(index));
+  };
+  write(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  write(8, "WAVE");
+  write(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  samples.forEach((sample, index) => {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    view.setInt16(44 + index * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  });
+  return buffer;
+}
+
+/** Whether this browser can record the microphone (the server then recognises the speech). */
+export function canRecord(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    navigator.mediaDevices?.getUserMedia !== undefined &&
+    typeof MediaRecorder !== "undefined"
+  );
+}
+
+/** Any browser's recording (WebM, MP4...) turned into 16 kHz mono WAV. */
+async function toRecognitionWav(recording: Blob): Promise<ArrayBuffer> {
+  const context = new AudioContext();
+  try {
+    const decoded = await context.decodeAudioData(await recording.arrayBuffer());
+    const frames = Math.ceil(decoded.duration * RECOGNITION_RATE);
+    if (frames === 0) return encodeWav(new Float32Array(0));
+    const offline = new OfflineAudioContext(1, frames, RECOGNITION_RATE);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start();
+    const rendered = await offline.startRendering();
+    return encodeWav(rendered.getChannelData(0));
+  } finally {
+    await context.close();
+  }
+}
+
+export interface Recording {
+  /** Stop recording and keep it: `done` gives the WAV file. */
+  stop(): void;
+  /** Stop recording and drop it: `done` gives undefined. */
+  cancel(): void;
+  /** The WAV file once recording has stopped (by `stop`, `cancel`, or the time limit). */
+  done: Promise<ArrayBuffer | undefined>;
+}
+
+/** Record the microphone until stopped. Rejects when the browser refuses the microphone. */
+export async function startRecording(): Promise<Recording> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const recorder = new MediaRecorder(stream);
+  const chunks: Blob[] = [];
+  let cancelled = false;
+  const finish = () => {
+    if (recorder.state !== "inactive") recorder.stop();
+  };
+  const done = new Promise<ArrayBuffer | undefined>((resolve, reject) => {
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      window.clearTimeout(limit);
+      for (const track of stream.getTracks()) track.stop();
+      if (cancelled) return resolve(undefined);
+      toRecognitionWav(new Blob(chunks, { type: recorder.mimeType })).then(resolve, reject);
+    };
+  });
+  recorder.start();
+  const limit = window.setTimeout(finish, MAX_RECORDING_MS);
+  return {
+    stop: finish,
+    cancel: () => {
+      cancelled = true;
+      finish();
+    },
+    done,
+  };
+}
