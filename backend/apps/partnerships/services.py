@@ -23,6 +23,7 @@ from .models import (
     CapitalEntryKind,
     LotPartnership,
     PartnerSettlement,
+    PartnershipLine,
     PartnershipStatus,
     ProfitShareEntry,
     ProfitShareKind,
@@ -230,12 +231,15 @@ def create_partnership(
     partnership = LotPartnership.objects.create(
         organization=organization,
         batch=batch,
+        lot_id=batch.lot_id,
         partner=partner,
         notes=notes.strip(),
         created_by=actor,
         terms_pending=terms_pending,
         **values,
     )
+    # The product it shares (D-320); P6-T08d lets a partnership tick more lines of the lot.
+    PartnershipLine.objects.create(organization=organization, partnership=partnership, batch=batch)
     if partnership.partner_capital > 0:
         _post_entry(partnership, actor=actor, kind=CapitalEntryKind.CONTRIBUTION, amount=partnership.partner_capital)
     audit.record(

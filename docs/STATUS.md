@@ -1,8 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-323)_
+_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-324)_
 
 ## Where we are
+
+- **P6-T08c1 (D-323, branch `claude/affectionate-noether-ykot9l`, migration `partnerships 0005`):** a partnership
+  points to its lot and lists the products it shares (today its one batch). No change in results. Next: T08c2 + T08d
+  together (several partners per line, netted result, closing when the shared lines are done, receipt form).
 
 - **Integration branch (owner 2026-11-11, "stage all of them"):** PRs #343 to #350 are merged into
   `claude/confident-mayer-8rb73t`, not into `main`. Conflicts were "keep both" entries in `access.py`,

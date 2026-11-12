@@ -41,6 +41,9 @@ def test_a_partnership_opens_the_partner_capital_ledger(organization, actor, col
     assert entries(created) == [(CapitalEntryKind.CONTRIBUTION, D("5000.000"))]
     assert selectors.capital_balance(created) == D("5000.000")
     assert AuditLog.objects.filter(action="partnership.created", target_id=str(created.pk)).exists()
+    # D-320: the partnership is on the purchase (lot) and shares the product it was made on.
+    assert created.lot_id == batch.lot_id
+    assert list(created.lines.all()) == [batch]
 
 
 def test_one_partner_per_lot_but_a_supplier_may_be_partner_in_several_lots(organization, actor, cold_room, partner):
