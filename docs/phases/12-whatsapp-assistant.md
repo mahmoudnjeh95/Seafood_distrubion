@@ -23,7 +23,8 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
 - [ ] When a company exists: Meta business verification (RNE extract, matricule fiscal, a document with the address).
 - [ ] Anthropic API key with a monthly spending limit.
 - [ ] For the Tunisian voice in every browser (D-314): an Azure AI Speech resource (portal.azure.com › Speech, free
-      tier F0: 500 000 characters a month), its key and region in the server `.env`.
+      tier F0: 500 000 characters and 5 hours of recognition a month), its key and region in the server `.env`, then
+      `manage.py check_speech` (D-323).
 - [ ] Accountant or lawyer: does sending customer names and amounts to Anthropic (abroad) need an INPDP declaration
       (law 2004-63)? Go-live waits for the answer; building does not.
 
@@ -53,6 +54,10 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
       admin app: the same assistant without Meta (the unverified test account is locked, error 131031). Typed or
       dictated (browser dictation, تونسي / Français), answers read aloud ("Écouter", or "Réponses à voix haute"):
       Azure's Tunisian voice when the key is set, the browser's voice otherwise. Owner only until T05.
+- [x] **P12-T06b Dictation recognised by Azure (D-323, owner 2026-11-12).** The browser's recognition missed Tunisian:
+      with the Azure key the micro records, the screen sends 16 kHz WAV to `POST assistant/chat/dictation`
+      (`ar-TN` or `fr-FR`) and asks the heard text. Without the key, the browser's recognition as before.
+      `manage.py check_speech` checks the key.
 - [ ] **Test set.** 50+ real messages with the expected answer, run on demand (not in CI) to compare models
       (Haiku 5.5 vs Sonnet 5.5) and to check a prompt change.
 
@@ -63,6 +68,8 @@ about 180 DT a month at ~3 000 messages (AI ~150 DT, Meta ~25 DT, voice ~6 DT).
 2. Chrome or Edge: touch the micro, allow it, say "chnowa 3andi f frigo?", touch the micro again: the question is
    sent and the answer comes in Arabic letters and is read aloud (Tunisian voice in Edge, or in any browser once the
    Azure key is in `.env`).
+2b. With the Azure key (D-323): `manage.py check_speech` says "ready"; in Firefox or Safari too, dictate a Tunisian
+   question with French words in it: the question shown is what was said.
 3. A manager does not see the menu entry, and `/assistant` shows "no access".
 
 ## Check on staging (T01)

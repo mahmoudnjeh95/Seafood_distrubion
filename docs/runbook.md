@@ -346,9 +346,10 @@ No company is needed (owner, 2026-11-09): a business portfolio in the owner's na
 The messages and their token counts are in Django admin › Assistant messages.
 
 **The "Assistant IA" screen (D-314)** needs only `ASSISTANT_ENABLED=true` and `ANTHROPIC_API_KEY`: nothing from Meta.
-Its dictation is the browser's (Chrome, Edge). For the Tunisian voice in every browser, add `AZURE_SPEECH_KEY` and
-`AZURE_SPEECH_REGION` (Azure portal › Speech resource › Keys and Endpoint, e.g. `francecentral`) to the staging `.env`
-and redeploy; `ASSISTANT_VOICE_AR` (default `ar-TN-ReemNeural`; the man's voice is `ar-TN-HediNeural`) and
+Without Azure its dictation is the browser's (Chrome, Edge), weak on Tunisian. For the Tunisian voice and Azure's
+Tunisian recognition (`ar-TN`, D-323) in every browser, add `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (Azure portal
+› Speech resource › Keys and Endpoint, e.g. `francecentral`; free tier F0) to the staging `.env`, redeploy, and check
+with `docker compose exec backend python manage.py check_speech` (a sentence read, then heard); `ASSISTANT_VOICE_AR` (default `ar-TN-ReemNeural`; the man's voice is `ar-TN-HediNeural`) and
 `ASSISTANT_VOICE_FR` change the voices. Without the key the screen uses the browser's voice (Edge has Tunisian ones).
 
 ## Production

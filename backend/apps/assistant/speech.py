@@ -17,6 +17,8 @@ AUDIO_TYPE = "audio/mpeg"
 # A dictated question: 16 kHz, 16-bit mono WAV. Azure's short-audio recognition takes up to one minute of it.
 RECOGNITION_LANGUAGES = ("ar-TN", "fr-FR")
 RECOGNITION_FORMAT = "audio/wav; codecs=audio/pcm; samplerate=16000"
+# The same WAV asked from the voice, for `check_speech` (a sentence read, then recognised).
+WAV_OUTPUT = "riff-16khz-16bit-mono-pcm"
 MAX_AUDIO_BYTES = 2 * 1024 * 1024
 _ARABIC = re.compile(r"[؀-ۿ]")
 # What a voice should not read out: emphasis marks and list bullets of a written answer.
@@ -50,13 +52,13 @@ def ssml(text: str) -> str:
     )
 
 
-def synthesize(text: str, *, transport: httpx.BaseTransport | None = None) -> bytes:
-    """`text` as MP3 audio."""
+def synthesize(text: str, *, audio_format: str = AUDIO_FORMAT, transport: httpx.BaseTransport | None = None) -> bytes:
+    """`text` as audio: MP3, or `audio_format` (an Azure output format)."""
     url = f"https://{settings.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
     headers = {
         "Ocp-Apim-Subscription-Key": settings.AZURE_SPEECH_KEY,
         "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": AUDIO_FORMAT,
+        "X-Microsoft-OutputFormat": audio_format,
         "User-Agent": "frutti-assistant",
     }
     try:
