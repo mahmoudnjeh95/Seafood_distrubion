@@ -4,9 +4,9 @@ _Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `cl
 
 ## Where we are
 
-- **P6-T08c1 (D-323, branch `claude/affectionate-noether-ykot9l`, migration `partnerships 0005`):** a partnership
-  points to its lot and lists the products it shares (today its one batch). No change in results. Next: T08c2 + T08d
-  together (several partners per line, netted result, closing when the shared lines are done, receipt form).
+- **P6-T08c1 merged (#352, D-323, migration `partnerships 0005`):** a partnership points to its lot and lists the
+  products it shares (today its one batch). No change in results. Next: T08c2 + T08d in three PRs, plan written in
+  `docs/phases/06-profit-sharing.md` under T08c2 (partnership result, then several lines and partners, then screens).
 
 - **Integration branch (owner 2026-11-11, "stage all of them"):** PRs #343 to #350 are merged into
   `claude/confident-mayer-8rb73t`, not into `main`. Conflicts were "keep both" entries in `access.py`,
