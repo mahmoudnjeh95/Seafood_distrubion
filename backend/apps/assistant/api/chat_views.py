@@ -7,7 +7,7 @@ until the answer is there. Nothing here depends on Meta.
 from django.conf import settings
 from django.http import Http404, HttpResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -19,7 +19,7 @@ from apps.core.permissions import IsOwner, membership_of
 from .. import services, speech, tasks
 from ..models import Direction
 from ..selectors import recent_messages, web_conversation
-from .serializers import ChatMessageSerializer, ChatQuestionSerializer, ChatSerializer
+from .serializers import ChatDictationSerializer, ChatMessageSerializer, ChatQuestionSerializer, ChatSerializer
 
 
 class ChatView(APIView):
@@ -84,3 +84,31 @@ class ChatSpeechView(ChatView):
         # An answer never changes: the browser keeps its audio, a second listen costs nothing.
         response["Cache-Control"] = "private, max-age=86400"
         return response
+
+
+class ChatDictationView(ChatView):
+    @extend_schema(
+        operation_id="dictateAssistant",
+        request={"audio/wav": OpenApiTypes.BINARY},
+        parameters=[OpenApiParameter("language", str, enum=list(speech.RECOGNITION_LANGUAGES), required=True)],
+        responses={200: ChatDictationSerializer, 400: None, 404: None, 413: None, 502: None},
+    )
+    def post(self, request: Request) -> Response:
+        """A question dictated on the screen, as a WAV recording (16 kHz, 16-bit mono) in the body: the text Azure
+        heard, in Tunisian (`ar-TN`) or French (`fr-FR`). The question is then sent with `askAssistant`. 404 when the
+        server has no Azure key (the screen then uses the browser's recognition)."""
+        language = request.query_params.get("language", "")
+        if language not in speech.RECOGNITION_LANGUAGES:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        if not speech.is_configured():
+            raise Http404
+        audio = request.body
+        if not audio:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        if len(audio) > speech.MAX_AUDIO_BYTES:
+            return Response(status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        try:
+            text = speech.transcribe(audio, language)
+        except speech.SpeechError:
+            return Response(status=status.HTTP_502_BAD_GATEWAY)
+        return Response(ChatDictationSerializer({"text": text}).data)

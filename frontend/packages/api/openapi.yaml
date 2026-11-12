@@ -38,6 +38,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Chat'
           description: ''
+  /api/v1/assistant/chat/dictation:
+    post:
+      operationId: dictateAssistant
+      description: |-
+        A question dictated on the screen, as a WAV recording (16 kHz, 16-bit mono) in the body: the text Azure
+        heard, in Tunisian (`ar-TN`) or French (`fr-FR`). The question is then sent with `askAssistant`. 404 when the
+        server has no Azure key (the screen then uses the browser's recognition).
+      parameters:
+      - in: query
+        name: language
+        schema:
+          type: string
+          enum:
+          - ar-TN
+          - fr-FR
+        required: true
+      tags:
+      - assistant
+      requestBody:
+        content:
+          audio/wav:
+            schema:
+              type: string
+              format: binary
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatDictation'
+          description: ''
+        '400':
+          description: No response body
+        '404':
+          description: No response body
+        '413':
+          description: No response body
+        '502':
+          description: No response body
   /api/v1/assistant/chat/messages:
     post:
       operationId: askAssistant
@@ -15902,6 +15943,14 @@ components:
       - enabled
       - messages
       - server_voice
+    ChatDictation:
+      type: object
+      description: The question as Azure heard it; empty when no speech was heard.
+      properties:
+        text:
+          type: string
+      required:
+      - text
     ChatMessage:
       type: object
       properties:

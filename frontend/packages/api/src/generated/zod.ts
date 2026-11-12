@@ -37,6 +37,20 @@ export const GetAssistantChatResponse = zod.object({
 
 
 /**
+ * A question dictated on the screen, as a WAV recording (16 kHz, 16-bit mono) in the body: the text Azure
+ * heard, in Tunisian (`ar-TN`) or French (`fr-FR`). The question is then sent with `askAssistant`. 404 when the
+ * server has no Azure key (the screen then uses the browser's recognition).
+ */
+export const DictateAssistantQueryParams = zod.object({
+  "language": zod.enum(['ar-TN', 'fr-FR'])
+})
+
+export const DictateAssistantResponse = zod.object({
+  "text": zod.string()
+}).describe('The question as Azure heard it; empty when no speech was heard.')
+
+
+/**
  * Ask the assistant a question. The answer comes a few seconds later in the conversation
  * (`getAssistantChat`).
  */
