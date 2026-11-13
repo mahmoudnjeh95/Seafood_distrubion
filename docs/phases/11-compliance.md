@@ -50,7 +50,7 @@ sandbox, from the first client or asked from TTN as a software editor).
   TTN reference and QR code on the PDF. Split:
   - [x] **T05a settings and readiness (D-310, 2026-11-11):** Paramètres › Facturation électronique; switching on is
     refused until the seller's identity, the https address, the auth mode and a valid certificate are set. Nothing is sent.
-  - [ ] **T05b TEIF XML** of an invoice and a credit note, checked against the TTN XSD. Waits for the specification.
+  - [ ] **T05b TEIF XML** (no longer blocked: schema 1.8.8 and valid samples in `docs/spec/teif/`, found online 2026-11-13; version to confirm with TTN) of an invoice and a credit note, checked against the TTN XSD. Waits for the specification.
   - [ ] **T05c signature, sending and status** in the sandbox first (auth and endpoints from TTN's documentation).
   - [ ] **T05d TTN reference and QR code on the PDF**, and the status per invoice.
 
@@ -95,6 +95,6 @@ sandbox, from the first client or asked from TTN as a software editor).
   health approval, scientific name, and the recall sheet of a lot. _Checked 2026-11-10._
 - [x] **P11-T19 Cold chain readings (M2)** · Built by P1-T24 (D-303): a range per cold room and truck, readings by the
   office and the driver, alert out of range, arrival temperature on the receipt. _Checked 2026-11-10._
-- [ ] **P11-T20 Closed seasons (M3) and port purchase circuits (M4)** · S · **Lawyer / DGPA** for the rules first.
+- [x] **P11-T20 Closed seasons (M3) and port purchase circuits (M4)** · **Dropped by the owner (2026-11-13):** not built.
 - [ ] **P11-T21 New organization onboarding (L4)** · L. Sign-up of a company, fiscal setup wizard with neutral
   defaults, subscription, tests that one organization never reads another's data.

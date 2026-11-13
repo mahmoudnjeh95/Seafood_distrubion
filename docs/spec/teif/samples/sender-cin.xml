@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEIF version="1.8.8" controlingAgency="TTN">
+  <InvoiceHeader>
+    <MessageSenderIdentifier type="I-02">04801333</MessageSenderIdentifier>
+    <MessageRecieverIdentifier type="I-02">04801333</MessageRecieverIdentifier>
+  </InvoiceHeader>
+  <InvoiceBody>
+    <Bgm>
+      <DocumentIdentifier>2023 - 0000001</DocumentIdentifier>
+      <DocumentType code="I-11">Facture</DocumentType>
+    </Bgm>
+    <Dtm>
+      <DateText functionCode="I-31" format="ddMMyy">180823</DateText>
+    </Dtm>
+    <PartnerSection>
+      <PartnerDetails functionCode="I-63">
+        <Nad>
+          <PartnerIdentifier type="I-01">1427326WAM000</PartnerIdentifier>
+          <PartnerName nameType="Qualification">STE  MEDIP</PartnerName>
+          <PartnerAdresses lang="fr">
+            <AdressDescription>Rue Ali Daghbaji Nabeul</AdressDescription>
+            <Country codeList="ISO_3166-1">TN</Country>
+          </PartnerAdresses>
+        </Nad>
+      </PartnerDetails>
+      <PartnerDetails functionCode="I-61">
+        <Nad>
+          <PartnerIdentifier type="I-02">04801333</PartnerIdentifier>
+          <PartnerName nameType="Physical">Nour El Houda Hila</PartnerName>
+        </Nad>
+      </PartnerDetails>
+    </PartnerSection>
+    <PytSection>
+      <PytSectionDetails>
+        <PytPai>
+          <PaiConditionCode>I-121</PaiConditionCode>
+          <PaiMeansCode>I-131</PaiMeansCode>
+        </PytPai>
+      </PytSectionDetails>
+    </PytSection>
+    <LinSection>
+      <Lin>
+        <ItemIdentifier>1</ItemIdentifier>
+        <LinImd>
+          <ItemCode>900001</ItemCode>
+          <ItemDescription>Frais D'inscription</ItemDescription>
+        </LinImd>
+        <LinQty>
+          <Quantity measurementUnit="UNIT">1.000</Quantity>
+        </LinQty>
+        <LinTax>
+          <TaxTypeName code="I-1602">TVA</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>7</TaxRate>
+          </TaxDetails>
+        </LinTax>
+        <LinAlc>
+          <Alc allowanceCode="I-151">
+            <AllowanceIdentifier>REM0.00</AllowanceIdentifier>
+            <SpecialServices lang="fr">Remise</SpecialServices>
+          </Alc>
+          <Pcd>
+            <Percentage>0.00</Percentage>
+            <PercentageBasis>100</PercentageBasis>
+          </Pcd>
+        </LinAlc>
+        <LinMoa>
+          <MoaDetails>
+            <Moa currencyCodeList="ISO_4217" amountTypeCode="I-188">
+              <Amount currencyIdentifier="TND">560.750</Amount>
+            </Moa>
+          </MoaDetails>
+        </LinMoa>
+      </Lin>
+      <Lin>
+        <ItemIdentifier>2</ItemIdentifier>
+        <LinImd>
+          <ItemCode>900002</ItemCode>
+          <ItemDescription>Tranche du Scolarité</ItemDescription>
+        </LinImd>
+        <LinQty>
+          <Quantity measurementUnit="UNIT">1.000</Quantity>
+        </LinQty>
+        <LinTax>
+          <TaxTypeName code="I-1602">TVA</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>12</TaxRate>
+          </TaxDetails>
+        </LinTax>
+        <LinAlc>
+          <Alc allowanceCode="I-151">
+            <AllowanceIdentifier>REM0.00</AllowanceIdentifier>
+            <SpecialServices lang="fr">Remise</SpecialServices>
+          </Alc>
+          <Pcd>
+            <Percentage>0.00</Percentage>
+            <PercentageBasis>100</PercentageBasis>
+          </Pcd>
+        </LinAlc>
+        <LinMoa>
+          <MoaDetails>
+            <Moa currencyCodeList="ISO_4217" amountTypeCode="I-188">
+              <Amount currencyIdentifier="TND">2857.140</Amount>
+            </Moa>
+          </MoaDetails>
+        </LinMoa>
+      </Lin>
+      <Lin>
+        <ItemIdentifier>3</ItemIdentifier>
+        <LinImd>
+          <ItemCode>800004</ItemCode>
+          <ItemDescription>Payement service - Panier Primaire</ItemDescription>
+        </LinImd>
+        <LinQty>
+          <Quantity measurementUnit="UNIT">1.000</Quantity>
+        </LinQty>
+        <LinTax>
+          <TaxTypeName code="I-1602">TVA</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>19</TaxRate>
+          </TaxDetails>
+        </LinTax>
+        <LinAlc>
+          <Alc allowanceCode="I-151">
+            <AllowanceIdentifier>REM0.00</AllowanceIdentifier>
+            <SpecialServices lang="fr">Remise</SpecialServices>
+          </Alc>
+          <Pcd>
+            <Percentage>0.00</Percentage>
+            <PercentageBasis>100</PercentageBasis>
+          </Pcd>
+        </LinAlc>
+        <LinMoa>
+          <MoaDetails>
+            <Moa currencyCodeList="ISO_4217" amountTypeCode="I-188">
+              <Amount currencyIdentifier="TND">478.990</Amount>
+            </Moa>
+          </MoaDetails>
+        </LinMoa>
+      </Lin>
+    </LinSection>
+    <InvoiceMoa>
+      <AmountDetails>
+        <Moa currencyCodeList="ISO_4217" amountTypeCode="I-180">
+          <Amount currencyIdentifier="TND">4371.000</Amount>
+          <AmountDescription lang="fr">Quatre Mille Trois Cent Soixante-Et-Onze Dinars Et Zéro Millimes</AmountDescription>
+        </Moa>
+      </AmountDetails>
+    </InvoiceMoa>
+    <InvoiceTax>
+      <InvoiceTaxDetails>
+        <Tax>
+          <TaxTypeName code="I-1602">TVA</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>12</TaxRate>
+          </TaxDetails>
+        </Tax>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-178">
+            <Amount currencyIdentifier="TND">2857.140</Amount>
+          </Moa>
+        </AmountDetails>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-177">
+            <Amount currencyIdentifier="TND">342.860</Amount>
+          </Moa>
+        </AmountDetails>
+      </InvoiceTaxDetails>
+      <InvoiceTaxDetails>
+        <Tax>
+          <TaxTypeName code="I-1602">TVA</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>19</TaxRate>
+          </TaxDetails>
+        </Tax>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-178">
+            <Amount currencyIdentifier="TND">478.990</Amount>
+          </Moa>
+        </AmountDetails>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-177">
+            <Amount currencyIdentifier="TND">91.010</Amount>
+          </Moa>
+        </AmountDetails>
+      </InvoiceTaxDetails>
+      <InvoiceTaxDetails>
+        <Tax>
+          <TaxTypeName code="I-1602">TVA</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>7</TaxRate>
+          </TaxDetails>
+        </Tax>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-178">
+            <Amount currencyIdentifier="TND">560.750</Amount>
+          </Moa>
+        </AmountDetails>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-177">
+            <Amount currencyIdentifier="TND">39.250</Amount>
+          </Moa>
+        </AmountDetails>
+      </InvoiceTaxDetails>
+      <InvoiceTaxDetails>
+        <Tax>
+          <TaxTypeName code="I-1601">Droit de timbre</TaxTypeName>
+          <TaxDetails>
+            <TaxRate>0</TaxRate>
+          </TaxDetails>
+        </Tax>
+        <AmountDetails>
+          <Moa currencyCodeList="ISO_4217" amountTypeCode="I-178">
+            <Amount currencyIdentifier="TND">1.000</Amount>
+          </Moa>
+        </AmountDetails>
+      </InvoiceTaxDetails>
+    </InvoiceTax>
+  </InvoiceBody>
+</TEIF>
