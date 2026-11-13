@@ -66,8 +66,10 @@ sandbox, from the first client or asked from TTN as a software editor).
   processed; F4), deduction prorata, 25 % VAT withholding of public buyers (F7), stamp on a full credit note (F8,
   B9), supplier tax status (R2), cash rules of the 2026 finance law (E1), CNSS rates and primes (P2, B6, B7), IRPP
   and CSS rules (P1), TCL / TFP / FOPROLOS rates (F6, P4). Write the answers in `OPEN_QUESTIONS.md` (Q5, Q26, new Q30+).
-- [ ] **P11-T07 VAT per product category (F4)** · M · after T06. Category default rate, "Exonéré" printed instead of
-  0 %, deduction prorata computed for the month.
+- [x] **P11-T07 VAT per product (F4)** · _Done 2026-11-13:_ several rates already exist (Paramètres › TVA, the
+  product's own rate, D-283); an exempt line (0 %) of an invoice with VAT prints "Exonéré" on the PDF, also in the
+  table per rate. Not built: a default rate per category (each product chooses its rate) and the deduction prorata
+  (with T13).
 - [ ] **P11-T08 Deductible VAT on purchases and expenses (F5)** · M · after T06. VAT, supplier tax ID and supplier
   invoice number on expenses; supplier invoices already carry VAT (D-294).
 - [x] **P11-T09 Public buyers (F7)** · S. "Acheteur public" on the customer: its invoices of 1 000 DT and more also

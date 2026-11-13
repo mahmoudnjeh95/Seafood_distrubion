@@ -58,7 +58,7 @@
       <td class="r num">{{ line.unit_price_excl_tax|money }}</td>
       <td class="r num">{{ line.discount_rate|rate }}</td>
       <td class="r num">{{ line.amount_excl_tax|money }}</td>
-      <td class="r num">{{ line.vat_rate|rate }}</td>
+      <td class="r num">{% if line.vat_rate == 0 %}Exonéré{% else %}{{ line.vat_rate|rate }}{% endif %}</td>
     </tr>
     {% endfor %}
     {% if filler_mm %}<tr class="filler">{% for column in "12345678" %}<td style="height: {{ filler_mm }}mm"></td>{% endfor %}</tr>{% endif %}
@@ -74,7 +74,7 @@
     {% if vat_lines|length > 1 %}
     <table class="kv num fa-vat">
       <tr><th>Taux TVA</th><td>Base HT</td><td>TVA</td></tr>
-      {% for vat in vat_lines %}<tr><th>{{ vat.rate|percent }}</th><td>{{ vat.base|money }}</td><td>{{ vat.amount|money }}</td></tr>{% endfor %}
+      {% for vat in vat_lines %}<tr><th>{% if vat.rate == 0 %}Exonéré{% else %}{{ vat.rate|percent }}{% endif %}</th><td>{{ vat.base|money }}</td><td>{{ vat.amount|money }}</td></tr>{% endfor %}
     </table>
     {% endif %}
   </div>

@@ -13,6 +13,7 @@ from apps.inventory import services as stock
 from apps.inventory.models import MovementKind
 from apps.inventory.tests.factories import BatchFactory, StockLocationFactory
 from apps.partners.tests.factories import CustomerFactory
+from apps.documents import services as documents
 from apps.sales import printing, selectors, services
 
 pytestmark = pytest.mark.django_db
@@ -208,6 +209,10 @@ def test_an_invoice_of_a_mixed_bl_taxes_only_the_lines_its_bl_taxed(
     assert invoice.total_incl_tax == bl.total_incl_tax + invoice.fiscal_stamp == D("495.900")
     assert (estimate.vat_total, estimate.net_to_pay) == (D("39.900"), D("495.900"))
     assert selectors.proposed_rates_of(invoice) == {taxed.pk: D("19.00"), exempt.pk: D("0.00")}
+    # The exempt line prints "Exonéré", not 0,00 (P11-T07).
+    issued = services.issue_invoice(invoice=invoice, actor=actor)
+    html = documents.render_html(documents.printable(issued.organization, "invoice", issued.pk))
+    assert html.count("Exonéré") == 2
 
 
 def test_a_typed_rate_still_taxes_a_line_its_bl_left_without_vat(
