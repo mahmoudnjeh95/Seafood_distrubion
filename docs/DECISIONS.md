@@ -4347,3 +4347,14 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - The rest of D-320 (several partners per line, several lines per partnership, the netted result, closing when the
   shared lines are done, the receipt form) is one step, T08c2 with T08d: allowing several lines before the closing
   nets them would compute wrong shares.
+
+**D-330 · One search box for the office, cut to what each person may read (P13-T01)** · accepted · 2026-11-13
+- Owner: start the review's points (2026-11-13). New app `apps.search` (reads other apps' selectors only):
+  `GET /api/v1/search?q=` returns customers, suppliers, products, lot lines, BL and invoices, at most five of each,
+  in that order; nothing under two characters. Each kind reuses its list's own `search=`, so a hit is a row the
+  person also finds on that list.
+- A kind is searched only when the person may read its section (`access.can(..., READ)`: customers, suppliers,
+  products, stock, sales, invoices), so custom roles and personal levels (D-306) apply. Any office person may call it;
+  drivers get 403. The route is in no section on purpose: the cut is per kind.
+- Admin: "Rechercher…" in the header and Ctrl+K / ⌘K; arrows and Enter, or a click, open the record.
+- D-324 to D-329 are left to the sessions working at the same time (D-324 and D-325 are already used).

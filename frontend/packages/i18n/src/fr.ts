@@ -118,6 +118,22 @@ export const fr = {
     },
   },
   admin: {
+    // The search box of every page (Ctrl+K, D-330)
+    search: {
+      button: "Rechercher…",
+      title: "Recherche",
+      placeholder: "Client, fournisseur, produit, lot, BL, facture…",
+      hint: "Tapez au moins 2 lettres : nom, référence, numéro de lot, de BL ou de facture.",
+      none: "Rien trouvé.",
+      kinds: {
+        customer: "Clients",
+        supplier: "Fournisseurs",
+        product: "Produits",
+        lot: "Lots",
+        sale: "Bons de livraison",
+        invoice: "Factures",
+      },
+    },
     // Paramètres: company, users, own profile (D-122)
     booksLock: {
       title: "Période verrouillée",

@@ -4,6 +4,10 @@ _Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `cl
 
 ## Where we are
 
+- **Phase 13 usability (owner 2026-11-13, `docs/phases/13-usability.md`):** P13-T01 global search (Ctrl+K, D-330)
+  on branch `claude/affectionate-noether-ykot9l`. Next: P13-T02 standing orders. The multi-product lot (P6-T08 PR 1
+  to 3) is being built by the session "P6-T08 PR 1: partnership result (netted)".
+
 - **P6-T08c1 merged (#352, D-323, migration `partnerships 0005`):** a partnership points to its lot and lists the
   products it shares (today its one batch). No change in results. Next: T08c2 + T08d in three PRs, plan written in
   `docs/phases/06-profit-sharing.md` under T08c2 (partnership result, then several lines and partners, then screens).

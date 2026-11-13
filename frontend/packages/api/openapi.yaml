@@ -10579,6 +10579,32 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/search:
+    get:
+      operationId: searchEverything
+      description: |-
+        Customers, suppliers, products, lots, BL and invoices matching `q` (D-324), at most five of each, only of
+        the sections the person may read. Fewer than two characters: nothing.
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 100
+        required: true
+      tags:
+      - search
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchHit'
+          description: ''
   /api/v1/site-products:
     get:
       operationId: listSiteProducts
@@ -33742,6 +33768,43 @@ components:
         * `day` - day
         * `week` - week
         * `month` - month
+    SearchHit:
+      type: object
+      properties:
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SearchHitKindEnum'
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        detail:
+          type: string
+          readOnly: true
+      required:
+      - detail
+      - id
+      - kind
+      - title
+    SearchHitKindEnum:
+      enum:
+      - customer
+      - invoice
+      - lot
+      - product
+      - sale
+      - supplier
+      type: string
+      description: |-
+        * `customer` - customer
+        * `invoice` - invoice
+        * `lot` - lot
+        * `product` - product
+        * `sale` - sale
+        * `supplier` - supplier
     SentEmailRow:
       type: object
       properties:

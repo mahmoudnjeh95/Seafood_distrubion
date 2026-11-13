@@ -21753,6 +21753,27 @@ export const ExportSalesResponse = zod.unknown()
 
 
 /**
+ * Customers, suppliers, products, lots, BL and invoices matching `q` (D-324), at most five of each, only of
+ * the sections the person may read. Fewer than two characters: nothing.
+ */
+export const searchEverythingQueryQMax = 100;
+
+
+
+export const SearchEverythingQueryParams = zod.object({
+  "q": zod.string().max(searchEverythingQueryQMax)
+})
+
+export const SearchEverythingResponseItem = zod.object({
+  "kind": zod.enum(['customer', 'invoice', 'lot', 'product', 'sale', 'supplier']).describe('* `customer` - customer\n* `invoice` - invoice\n* `lot` - lot\n* `product` - product\n* `sale` - sale\n* `supplier` - supplier'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "detail": zod.string()
+})
+export const SearchEverythingResponse = zod.array(SearchEverythingResponseItem)
+
+
+/**
  * Every active product of the application, in the site's order, with its photo, its day's price and what
  * the site shows of it. A product the office never changed is shown, without a web price.
  */
