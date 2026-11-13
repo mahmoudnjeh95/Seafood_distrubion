@@ -16,6 +16,7 @@ date_to?: string;
  * * `transfer` - Virement
  * * `bill` - Traite
  * * `other` - Autre
+ * * `withholding` - Retenue à la source
  * * `mixed` - Plusieurs moyens
  * @minLength 1
  */

@@ -364,6 +364,13 @@ class SupplierInvoice(OrganizationScopedModel, TimeStampedModel):
     fiscal_stamp_overridden = models.BooleanField(default=False)
     # What is owed: without VAT + VAT + stamp, kept by the services; frozen once posted.
     total = MoneyField(default=Decimal("0.000"))
+    # The tax the company withholds from it (D-326), fixed at validation: (without VAT + VAT) × rate. It settles
+    # that part of the invoice through a règlement "Retenue à la source"; the rest is paid to the supplier.
+    withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    withholding_amount = MoneyField(default=Decimal("0.000"))
+    withholding_payment = models.OneToOneField(
+        "purchasing.SupplierPayment", null=True, blank=True, on_delete=models.PROTECT, related_name="withheld_invoice"
+    )
     # The total printed on the supplier's paper, typed to check it (D-301); empty when not typed. A difference with
     # `total` is shown, never corrected by itself: the receipts are what we owe.
     paper_total = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
@@ -416,12 +423,20 @@ class PaymentMethod(models.TextChoices):
     # "Traite": a bill of exchange, common between Tunisian businesses.
     BILL = "bill", _("Traite")
     OTHER = "other", _("Autre")
+    # The tax the company withholds from a supplier invoice (D-326): written by the invoice's validation, never
+    # typed; it settles part of the invoice and no money leaves an account.
+    WITHHOLDING = "withholding", _("Retenue à la source")
     # A règlement paid in several ways (some cash, cheques, traites...): the lines say which (D-208).
     MIXED = "mixed", _("Plusieurs moyens")
 
 
-# The means one line pays with: every method but "several".
-LINE_METHOD_CHOICES = [(value, label) for value, label in PaymentMethod.choices if value != PaymentMethod.MIXED]
+# The means one typed line pays with: every method but "several" and the withholding, which only an invoice's
+# validation writes (D-326; its line carries "withholding" all the same).
+LINE_METHOD_CHOICES = [
+    (value, label)
+    for value, label in PaymentMethod.choices
+    if value not in (PaymentMethod.MIXED, PaymentMethod.WITHHOLDING)
+]
 # The methods that are a paper the bank pays later: an effet of the treasury (D-197, D-208).
 INSTRUMENT_METHODS = frozenset({PaymentMethod.CHEQUE, PaymentMethod.BILL})
 

@@ -11,6 +11,7 @@
  * * `transfer` - Virement
  * * `bill` - Traite
  * * `other` - Autre
+ * * `withholding` - Retenue à la source
  * * `mixed` - Plusieurs moyens
  */
 export type SupplierPaymentMethodEnum = typeof SupplierPaymentMethodEnum[keyof typeof SupplierPaymentMethodEnum];
@@ -22,5 +23,6 @@ export const SupplierPaymentMethodEnum = {
   transfer: 'transfer',
   bill: 'bill',
   other: 'other',
+  withholding: 'withholding',
   mixed: 'mixed',
 } as const;

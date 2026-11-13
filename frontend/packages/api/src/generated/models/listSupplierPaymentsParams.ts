@@ -20,6 +20,7 @@ limit?: number;
  * * `transfer` - Virement
  * * `bill` - Traite
  * * `other` - Autre
+ * * `withholding` - Retenue à la source
  * * `mixed` - Plusieurs moyens
  * @minLength 1
  */

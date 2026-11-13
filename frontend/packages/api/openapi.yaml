@@ -11519,6 +11519,7 @@ paths:
           - transfer
           - bill
           - other
+          - withholding
           - mixed
           type: string
           minLength: 1
@@ -11528,6 +11529,7 @@ paths:
           * `transfer` - Virement
           * `bill` - Traite
           * `other` - Autre
+          * `withholding` - Retenue à la source
           * `mixed` - Plusieurs moyens
       - name: offset
         required: false
@@ -11729,6 +11731,7 @@ paths:
           - transfer
           - bill
           - other
+          - withholding
           - mixed
           type: string
           minLength: 1
@@ -11738,6 +11741,7 @@ paths:
           * `transfer` - Virement
           * `bill` - Traite
           * `other` - Autre
+          * `withholding` - Retenue à la source
           * `mixed` - Plusieurs moyens
       - in: query
         name: ordering
@@ -11811,6 +11815,7 @@ paths:
           - transfer
           - bill
           - other
+          - withholding
           - mixed
           type: string
           minLength: 1
@@ -11820,6 +11825,7 @@ paths:
           * `transfer` - Virement
           * `bill` - Traite
           * `other` - Autre
+          * `withholding` - Retenue à la source
           * `mixed` - Plusieurs moyens
       - in: query
         name: search
@@ -35503,6 +35509,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
           readOnly: true
+        withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        withholding_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
         paper_total:
           type: string
           format: decimal
@@ -35576,6 +35592,8 @@ components:
       - total
       - total_excl_tax
       - vat_total
+      - withholding_amount
+      - withholding_rate
     SupplierInvoiceStatusEnum:
       enum:
       - draft
@@ -36096,6 +36114,7 @@ components:
       - transfer
       - bill
       - other
+      - withholding
       - mixed
       type: string
       description: |-
@@ -36104,6 +36123,7 @@ components:
         * `transfer` - Virement
         * `bill` - Traite
         * `other` - Autre
+        * `withholding` - Retenue à la source
         * `mixed` - Plusieurs moyens
     SupplierPaymentWrite:
       type: object

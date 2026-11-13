@@ -22808,7 +22808,7 @@ export const RejectIssuedEffetResponse = zod.object({
 }).describe('A supplier or a product, as shown on a receipt.'),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', rejectIssuedEffetResponseAmountRegExp),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
@@ -22889,6 +22889,8 @@ export const listSupplierInvoicesResponseResultsItemTotalExclTaxRegExp = new Reg
 export const listSupplierInvoicesResponseResultsItemVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const listSupplierInvoicesResponseResultsItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const listSupplierInvoicesResponseResultsItemWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemPaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemPaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const listSupplierInvoicesResponseResultsItemOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -22919,6 +22921,8 @@ export const ListSupplierInvoicesResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemTotalRegExp),
+  "withholding_rate": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemWithholdingAmountRegExp),
   "paper_total": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemPaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', listSupplierInvoicesResponseResultsItemOutstandingRegExp),
@@ -22984,6 +22988,8 @@ export const createSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\
 export const createSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const createSupplierInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const createSupplierInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const createSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -23010,6 +23016,8 @@ export const CreateSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', createSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', createSupplierInvoiceResponseTotalRegExp),
+  "withholding_rate": zod.stringFormat('decimal', createSupplierInvoiceResponseWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', createSupplierInvoiceResponseWithholdingAmountRegExp),
   "paper_total": zod.stringFormat('decimal', createSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', createSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', createSupplierInvoiceResponseOutstandingRegExp),
@@ -23051,6 +23059,8 @@ export const getSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{0
 export const getSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const getSupplierInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getSupplierInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -23077,6 +23087,8 @@ export const GetSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', getSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', getSupplierInvoiceResponseTotalRegExp),
+  "withholding_rate": zod.stringFormat('decimal', getSupplierInvoiceResponseWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', getSupplierInvoiceResponseWithholdingAmountRegExp),
   "paper_total": zod.stringFormat('decimal', getSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', getSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', getSupplierInvoiceResponseOutstandingRegExp),
@@ -23142,6 +23154,8 @@ export const updateSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\
 export const updateSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const updateSupplierInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const updateSupplierInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const updateSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -23168,6 +23182,8 @@ export const UpdateSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', updateSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', updateSupplierInvoiceResponseTotalRegExp),
+  "withholding_rate": zod.stringFormat('decimal', updateSupplierInvoiceResponseWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponseWithholdingAmountRegExp),
   "paper_total": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', updateSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', updateSupplierInvoiceResponseOutstandingRegExp),
@@ -23285,6 +23301,8 @@ export const postSupplierInvoiceResponseTotalExclTaxRegExp = new RegExp('^-?\\d{
 export const postSupplierInvoiceResponseVatTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
+export const postSupplierInvoiceResponseWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const postSupplierInvoiceResponseWithholdingAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponsePaperTotalRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponsePaidAmountRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const postSupplierInvoiceResponseOutstandingRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
@@ -23311,6 +23329,8 @@ export const PostSupplierInvoiceResponse = zod.object({
   "fiscal_stamp": zod.stringFormat('decimal', postSupplierInvoiceResponseFiscalStampRegExp),
   "fiscal_stamp_overridden": zod.boolean(),
   "total": zod.stringFormat('decimal', postSupplierInvoiceResponseTotalRegExp),
+  "withholding_rate": zod.stringFormat('decimal', postSupplierInvoiceResponseWithholdingRateRegExp),
+  "withholding_amount": zod.stringFormat('decimal', postSupplierInvoiceResponseWithholdingAmountRegExp),
   "paper_total": zod.stringFormat('decimal', postSupplierInvoiceResponsePaperTotalRegExp).nullable(),
   "paid_amount": zod.stringFormat('decimal', postSupplierInvoiceResponsePaidAmountRegExp),
   "outstanding": zod.stringFormat('decimal', postSupplierInvoiceResponseOutstandingRegExp),
@@ -23380,7 +23400,7 @@ export const ListSupplierPaymentsQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
   "limit": zod.int().optional().describe('Nombre de résultats à retourner par page.'),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "offset": zod.int().optional().describe('L\'index initial depuis lequel retourner les résultats.'),
   "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(listSupplierPaymentsQuerySearchMax).default(listSupplierPaymentsQuerySearchDefault),
@@ -23412,7 +23432,7 @@ export const ListSupplierPaymentsResponse = zod.object({
 }).describe('A supplier or a product, as shown on a receipt.'),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', listSupplierPaymentsResponseResultsItemAmountRegExp),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
@@ -23531,7 +23551,7 @@ export const RecordSupplierPaymentResponse = zod.object({
 }).describe('A supplier or a product, as shown on a receipt.'),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', recordSupplierPaymentResponseAmountRegExp),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
@@ -23601,7 +23621,7 @@ export const GetSupplierPaymentResponse = zod.object({
 }).describe('A supplier or a product, as shown on a receipt.'),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', getSupplierPaymentResponseAmountRegExp),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
@@ -23692,7 +23712,7 @@ export const AllocateSupplierPaymentResponse = zod.object({
 }).describe('A supplier or a product, as shown on a receipt.'),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', allocateSupplierPaymentResponseAmountRegExp),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
@@ -23772,7 +23792,7 @@ export const VoidSupplierPaymentResponse = zod.object({
 }).describe('A supplier or a product, as shown on a receipt.'),
   "paid_on": zod.iso.date(),
   "amount": zod.stringFormat('decimal', voidSupplierPaymentResponseAmountRegExp),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "reference": zod.string(),
   "cash_on": zod.iso.date().nullable(),
   "notes": zod.string(),
@@ -23839,7 +23859,7 @@ export const exportSupplierPaymentsQueryUnallocatedDefault = false;
 export const ExportSupplierPaymentsQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "ordering": zod.string().optional().describe('Column to sort by; a leading `-` sorts descending.'),
   "search": zod.string().max(exportSupplierPaymentsQuerySearchMax).default(exportSupplierPaymentsQuerySearchDefault),
   "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
@@ -23863,7 +23883,7 @@ export const getSupplierPaymentTotalsQueryUnallocatedDefault = false;
 export const GetSupplierPaymentTotalsQueryParams = zod.object({
   "date_from": zod.iso.date().optional(),
   "date_to": zod.iso.date().optional(),
-  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `mixed` - Plusieurs moyens'),
+  "method": zod.enum(['cash', 'cheque', 'transfer', 'bill', 'other', 'withholding', 'mixed']).optional().describe('* `cash` - Espèces\n* `cheque` - Chèque\n* `transfer` - Virement\n* `bill` - Traite\n* `other` - Autre\n* `withholding` - Retenue à la source\n* `mixed` - Plusieurs moyens'),
   "search": zod.string().max(getSupplierPaymentTotalsQuerySearchMax).default(getSupplierPaymentTotalsQuerySearchDefault),
   "state": zod.enum(['active', 'voided', 'unallocated']).optional().describe('* `active` - active\n* `voided` - voided\n* `unallocated` - unallocated'),
   "supplier": zod.int().min(1).optional(),

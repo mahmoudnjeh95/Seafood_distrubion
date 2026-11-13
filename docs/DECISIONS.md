@@ -4360,3 +4360,11 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - Who types them: the owner, or the accountant once the owner gives them the level "full" on Factures in Paramètres › Rôles (D-306). No permission was changed.
 - CNSS rates stay on each employee (17,07 % and 9,18 % by default, D-055, D-119), and the IRPP scale comes with T12: a scale is a table, not one rate.
 
+**D-326 · The company withholds tax from a supplier invoice at its validation (P11-T02b, review R1)** · accepted (owner: 1 % above 1 000 DT), the timing is provisional (accountant) · 2026-11-13
+- At validation, for a supplier `subject_to_withholding`, when `supplier_withholding_rate` is set and the invoice's amount without VAT + VAT reaches 1 000 DT (the rule of the customers' invoices, D-291; stamp left out): `withholding_amount` = that amount × rate, kept with its rate on the invoice (migration `purchasing 0029`). Opening invoices carry none.
+- It settles that part of the invoice through a règlement of the new method `withholding` ("Retenue à la source"), written by the validation and allocated to the invoice: every balance, statement, status and "reste à payer" already reads règlements, so nothing else changed. No treasury movement: the money stays with the company until it pays the State. The règlement cannot be typed, nor voided on its own.
+- `LINE_METHOD_CHOICES` (the typed methods) leaves the withholding out, so the generated `PaymentMethodEnum` is unchanged; only `SupplierPaymentMethodEnum` gains the value.
+- Existing companies: the migration of D-325 gives every settings version 1 %, so their next validated supplier invoice of 1 000 DT and more is withheld. Untick "soumis à la retenue" on a supplier, or empty the rate, to stop it.
+- Legally the withholding is due when the supplier is paid; fixing it at validation follows the customer side and keeps partial payments simple. Not done: a credit note on a withheld invoice does not give the withholding back; rent and fees (expenses) come with T02c.
+- Tests: organizations start without the rate (root `conftest.py`); a test marked `supplier_withholding` keeps the real 1 %.
+

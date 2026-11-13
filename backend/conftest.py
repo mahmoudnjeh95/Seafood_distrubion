@@ -13,3 +13,12 @@ def seller_identity(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
         return
     monkeypatch.setitem(sales_services.FIRST_SETTINGS, "address", "Route de Tunis km 5, Sakiet Ezzit, Sfax")
     monkeypatch.setitem(sales_services.FIRST_SETTINGS, "tax_id", "1234567/A/M/000")
+
+
+@pytest.fixture(autouse=True)
+def supplier_withholding(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Organizations start without a supplier withholding rate, so the tests of purchases keep their amounts; a
+    test marked `supplier_withholding` keeps the real default, 1 % (D-325, D-326)."""
+    if request.node.get_closest_marker("supplier_withholding"):
+        return
+    monkeypatch.setitem(sales_services.FIRST_SETTINGS, "supplier_withholding_rate", None)

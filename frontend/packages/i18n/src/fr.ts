@@ -3605,7 +3605,8 @@ export const fr = {
         method: "Mode",
         allocated: "Affecté",
         total: "Total de la facture",
-        paid: "Déjà payé",
+        withholding: "Retenue à la source ({{rate}})",
+        paid: "Déjà réglé (retenue comprise)",
         outstanding: "Reste à payer",
         overdueTitle: "Échéance dépassée",
         overdueBody: "Cette facture devait être payée le {{date}} ; il reste {{amount}} à payer.",
@@ -4183,6 +4184,7 @@ export const fr = {
         bill: "Traite",
         other: "Autre",
         mixed: "Plusieurs moyens",
+        withholding: "Retenue à la source",
       },
       columns: {
         reason: "Motif",

@@ -14,5 +14,6 @@ export const GetSupplierPaymentTotalsMethod = {
   transfer: 'transfer',
   bill: 'bill',
   other: 'other',
+  withholding: 'withholding',
   mixed: 'mixed',
 } as const;

@@ -38,7 +38,10 @@ sandbox, from the first client or asked from TTN as a software editor).
   subject; the payment withholds and owes the rest; a **certificate** PDF for the supplier; monthly totals. Split:
   T02a settings and supplier flag, T02b withholding on supplier payments and expenses, T02c certificate PDF and list.
   _T02a done 2026-11-13 (D-325): the accountant's rates in Paramètres financiers (purchases 1 %, rent, fees, TCL, CSS,
-  TFP, FOPROLOS; empty until typed); the supplier flag exists since D-319. Next: T02b._
+  TFP, FOPROLOS; empty until typed); the supplier flag exists since D-319._
+  _T02b done 2026-11-13 (D-326): a validated supplier invoice of 1 000 DT and more is withheld at the rate, through a
+  règlement "Retenue à la source"; the supplier is owed the rest. Next: T02c (certificate PDF, list of the month,
+  rent and fees on expenses)._
 - [ ] **P11-T03 Data protection and hosting (L1, L3)** · M · **Owner + Lawyer**, then code. INPDP declaration (and
   transfer authorization while the servers are outside Tunisia), production server apart from other clients,
   off-site backups (D-139), retention of accounting data 10 years. Code: privacy page in the admin and driver apps,

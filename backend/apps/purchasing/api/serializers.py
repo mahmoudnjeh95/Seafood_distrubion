@@ -544,6 +544,8 @@ class SupplierInvoiceSerializer(serializers.ModelSerializer[SupplierInvoice]):
             "fiscal_stamp",
             "fiscal_stamp_overridden",
             "total",
+            "withholding_rate",
+            "withholding_amount",
             "paper_total",
             "paid_amount",
             "outstanding",

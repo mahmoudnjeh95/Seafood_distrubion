@@ -15,6 +15,7 @@ from apps.sales.services import OPTIONAL_RATES
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.supplier_withholding
 def test_a_new_organization_withholds_one_percent_from_suppliers_and_has_no_other_rate():
     version = services.ensure_finance_settings(organization=OrganizationFactory.create())
 
@@ -43,6 +44,7 @@ def test_a_rate_that_is_not_a_percent_is_refused_on_its_field():
     assert list(refused.value.message_dict) == ["tfp_rate"]
 
 
+@pytest.mark.supplier_withholding
 def test_the_api_reads_and_saves_the_rates():
     owner = MembershipFactory.create(role=Role.OWNER)
     client = APIClient()

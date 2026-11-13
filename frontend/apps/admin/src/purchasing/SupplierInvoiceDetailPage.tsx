@@ -27,6 +27,7 @@ import { Link, useNavigate, useOutletContext, useParams } from "react-router";
 
 import { AttachmentsCard } from "../lib/AttachmentsCard";
 import { subtract } from "../lib/decimal";
+import { formatRate } from "../quotes/shared";
 import { canRecordReceipts } from "../receipts/shared";
 import { refreshPurchasing, STATUS_TONE } from "./shared";
 
@@ -271,6 +272,14 @@ export function SupplierInvoiceDetailPage() {
                 {data.paper_total !== data.total &&
                   ` (${t("admin.supplierInvoices.form.paperGap")} ${formatMoney(subtract(data.paper_total, data.total))})`}
               </span>
+            </Detail>
+          )}
+          {data.withholding_amount !== "0.000" && (
+            <Detail
+              label={t("admin.supplierInvoices.detail.withholding", { rate: formatRate(data.withholding_rate) })}
+              numeric
+            >
+              − {formatMoney(data.withholding_amount)}
             </Detail>
           )}
           {!isDraft && (

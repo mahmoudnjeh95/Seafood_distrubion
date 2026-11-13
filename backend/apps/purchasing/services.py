@@ -22,6 +22,7 @@ from apps.inventory import services as inventory
 from apps.inventory.services import MovementKind
 from apps.partnerships import selectors as partnership_selectors
 from apps.partnerships import services as partnerships
+from apps.sales import invoicing as sales_invoicing
 from apps.sales import selectors as sales_selectors
 from apps.treasury import services as treasury
 
@@ -1036,8 +1037,55 @@ def _post(invoice: SupplierInvoice, actor: User | None) -> None:
         target=invoice,
         after=_invoice_snapshot(invoice),
     )
+    _withhold(invoice, actor)
     # A credit note the supplier gave before this invoice settles it first (D-300).
     _apply_credits(invoice, selectors.unapplied_credit_notes(invoice.organization, supplier_id=invoice.supplier_id))
+
+
+def _withhold(invoice: SupplierInvoice, actor: User | None) -> None:
+    """Withhold the tax of a validated invoice (D-326): for a supplier subject to it, when the rate is set and the
+    invoice's amount without VAT + VAT reaches 1 000 DT (the rule of the customers' invoices, D-291). The amount
+    settles that part of the invoice through a règlement "Retenue à la source": no money leaves an account, the
+    supplier is owed the rest, and the company owes the amount to the State."""
+    rate = sales_selectors.supplier_withholding_rate_on(invoice.organization, invoice.invoice_date)
+    base = invoice.total_excl_tax + invoice.vat_total
+    if (
+        invoice.is_opening
+        or not rate
+        or not invoice.supplier.subject_to_withholding
+        or not sales_invoicing.withholding_applies(base)
+    ):
+        return
+    amount = money(base * rate / 100)
+    if amount <= 0:
+        return
+    payment = SupplierPayment.objects.create(
+        organization=invoice.organization,
+        number=numbering.next_number(invoice.organization, "supplier_payment"),
+        supplier=invoice.supplier,
+        paid_on=invoice.invoice_date,
+        amount=amount,
+        method=PaymentMethod.WITHHOLDING,
+        reference=invoice.number,
+        reason=_("Retenue à la source %(rate)s %% · %(invoice)s")
+        % {"rate": rate.normalize(), "invoice": invoice.number},
+        created_by=actor,
+    )
+    SupplierPaymentLine.objects.create(
+        organization_id=invoice.organization_id, payment=payment, method=PaymentMethod.WITHHOLDING, amount=amount
+    )
+    invoice.withholding_rate = rate
+    invoice.withholding_amount = amount
+    invoice.withholding_payment = payment
+    invoice.save(update_fields=["withholding_rate", "withholding_amount", "withholding_payment", "updated_at"])
+    _allocate(payment, actor, [(invoice, amount)])
+    audit.record(
+        organization=invoice.organization,
+        actor=actor,
+        action="supplier_invoice.withheld",
+        target=invoice,
+        after={"number": invoice.number, "rate": str(rate), "amount": str(amount), "payment": payment.number},
+    )
 
 
 def _locked_draft(invoice: SupplierInvoice) -> SupplierInvoice:
@@ -1907,6 +1955,10 @@ def void_payment(*, payment: SupplierPayment, actor: User | None, reason: str) -
     payment = SupplierPayment.objects.select_for_update().select_related("organization", "supplier").get(pk=payment.pk)
     if payment.voided_at is not None:
         raise ValidationError(_("Ce règlement est déjà annulé."))
+    if payment.method == PaymentMethod.WITHHOLDING:
+        raise ValidationError(
+            _("Une retenue à la source suit sa facture : elle ne s'annule pas à part. Corrigez par un avoir.")
+        )
     reason = reason.strip()[:255]
     if not reason:
         raise ValidationError({"reason": _("Indiquez la raison de l'annulation.")})

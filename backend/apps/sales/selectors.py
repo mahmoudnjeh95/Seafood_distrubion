@@ -556,6 +556,12 @@ def fiscal_stamp_on(organization: Organization, day: dt.date) -> Decimal:
     return version.fiscal_stamp if version is not None else _field_default("fiscal_stamp")
 
 
+def supplier_withholding_rate_on(organization: Organization, day: dt.date) -> Decimal | None:
+    """The rate the company withholds from a supplier invoice dated `day` (D-325); None when it is not set."""
+    version = finance_settings_on(organization, day)
+    return version.supplier_withholding_rate if version is not None else None
+
+
 def cash_limit_on(organization: Organization, day: dt.date | None = None) -> Decimal:
     """The amount from which a cash line of a payment needs confirming, in force on `day` (D-273)."""
     version = finance_settings_on(organization, day)
