@@ -14,6 +14,20 @@ export interface FinanceSettingsWrite {
   prices_include_vat: boolean;
   withholding_rate: string;
   vat_withholding_rate?: string;
+  /** @nullable */
+  supplier_withholding_rate?: string | null;
+  /** @nullable */
+  rent_withholding_rate?: string | null;
+  /** @nullable */
+  fees_withholding_rate?: string | null;
+  /** @nullable */
+  tcl_rate?: string | null;
+  /** @nullable */
+  css_rate?: string | null;
+  /** @nullable */
+  tfp_rate?: string | null;
+  /** @nullable */
+  foprolos_rate?: string | null;
   cash_limit?: string;
   credit_policy?: CreditPolicyEnum;
   /** @maxLength 200 */

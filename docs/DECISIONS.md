@@ -4354,3 +4354,9 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - The production server is in Tunisia (owner), so no INPDP transfer authorization is needed; the INPDP declaration itself stays an owner action, and each client declares its own data.
 - `docs/legal/contrat-abonnement-logiciel.md` and `docs/legal/contrat-participation-lot.md` are drafts written from the app's rules, not reviewed by a lawyer. The subscription draft puts the tax settings and the TTN enrolment under the client's responsibility.
 
+**D-325 · The accountant's rates are finance settings, empty until typed (P11-T02a part 1, owner 2026-11-13)** · accepted · 2026-11-13
+- Owner: "all these rates stay parameters in the finance module, the accountant types them". `FinanceSettings` gains `supplier_withholding_rate` (1 % by default, owner answer Q32), `rent_withholding_rate`, `fees_withholding_rate`, `tcl_rate`, `css_rate`, `tfp_rate`, `foprolos_rate` (migration `sales 0039`). Percent, nullable: empty means not set, and what will use the rate does nothing with it. Versioned like the other settings.
+- Nothing computes with them yet: T02b (withholding on supplier payments and expenses), T12 (payroll) and T13 (monthly return) read them. The 1 000 DT threshold stays the existing constant.
+- Who types them: the owner, or the accountant once the owner gives them the level "full" on Factures in Paramètres › Rôles (D-306). No permission was changed.
+- CNSS rates stay on each employee (17,07 % and 9,18 % by default, D-055, D-119), and the IRPP scale comes with T12: a scale is a table, not one rate.
+

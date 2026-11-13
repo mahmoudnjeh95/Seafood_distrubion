@@ -2023,7 +2023,19 @@ FIRST_SETTINGS: dict[str, Any] = {
     "withholding_rate": Decimal("1.00"),
     # Provisional until the accountant confirms (P11-T06): a public buyer keeps 25 % of the VAT (D-313).
     "vat_withholding_rate": Decimal("25.00"),
+    # Owner, 2026-11-13 (Q32): the company withholds 1 % from supplier invoices above 1 000 DT.
+    "supplier_withholding_rate": Decimal("1.00"),
 }
+# The rates the accountant sets (D-325): empty means not set.
+OPTIONAL_RATES = (
+    "supplier_withholding_rate",
+    "rent_withholding_rate",
+    "fees_withholding_rate",
+    "tcl_rate",
+    "css_rate",
+    "tfp_rate",
+    "foprolos_rate",
+)
 SETTINGS_TEXT_FIELDS = ("legal_name", "address", "phone", "tax_id", "trade_register")
 _TEXT_LENGTHS = {"legal_name": 200, "address": 255, "phone": 50, "tax_id": 30, "trade_register": 50}
 
@@ -2036,6 +2048,14 @@ class FinanceSettingsFields(TypedDict, total=False):
     prices_include_vat: bool
     withholding_rate: Number
     vat_withholding_rate: Number
+    # The accountant's rates (D-325), percent as typed; empty or None = not set.
+    supplier_withholding_rate: Number | None
+    rent_withholding_rate: Number | None
+    fees_withholding_rate: Number | None
+    tcl_rate: Number | None
+    css_rate: Number | None
+    tfp_rate: Number | None
+    foprolos_rate: Number | None
     # DT: a cash line of this amount or more needs confirming (D-273).
     cash_limit: Number
     # `block`, `approval` or `warn` (D-018, D-062).
@@ -2084,6 +2104,7 @@ def _settings_snapshot(version: FinanceSettings) -> dict[str, Any]:
         "vat_withholding_rate": str(version.vat_withholding_rate),
         "cash_limit": str(version.cash_limit),
         "credit_policy": version.credit_policy,
+        **{name: None if getattr(version, name) is None else str(getattr(version, name)) for name in OPTIONAL_RATES},
         **{name: getattr(version, name) for name in SETTINGS_TEXT_FIELDS},
     }
 
@@ -2114,6 +2135,15 @@ def save_finance_settings(
         if rate is None:
             errors[name] = _("Indiquez un taux en %, de 0 à 100, avec 2 décimales au plus.")
         values[name] = rate
+    for name in OPTIONAL_RATES:
+        typed: Any = fields.get(name, getattr(in_force, name))
+        if typed in (None, ""):
+            values[name] = None
+            continue
+        optional = _percent(typed)
+        if optional is None:
+            errors[name] = _("Indiquez un taux en %, de 0 à 100, avec 2 décimales au plus.")
+        values[name] = optional
     stamp: Any = fields.get("fiscal_stamp", in_force.fiscal_stamp)
     try:
         values["fiscal_stamp"] = checked_amount(stamp)

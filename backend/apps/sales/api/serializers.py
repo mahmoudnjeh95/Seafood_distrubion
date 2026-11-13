@@ -694,6 +694,13 @@ class FinanceSettingsSerializer(serializers.ModelSerializer[FinanceSettings]):
             "prices_include_vat",
             "withholding_rate",
             "vat_withholding_rate",
+            "supplier_withholding_rate",
+            "rent_withholding_rate",
+            "fees_withholding_rate",
+            "tcl_rate",
+            "css_rate",
+            "tfp_rate",
+            "foprolos_rate",
             "cash_limit",
             "credit_policy",
             "legal_name",
@@ -728,6 +735,14 @@ class FinanceSettingsWriteSerializer(serializers.Serializer[Any]):
     withholding_rate = serializers.CharField(allow_blank=True)
     # Percent of the VAT a public buyer keeps (D-313). Left out: no change.
     vat_withholding_rate = serializers.CharField(required=False, allow_blank=True)
+    # The accountant's rates in percent (D-325). Left out: no change; empty or null: not set.
+    supplier_withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    rent_withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    fees_withholding_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tcl_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    css_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tfp_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    foprolos_rate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     # DT, as a string: a cash line of this amount or more needs confirming (D-273). Left out: no change.
     cash_limit = serializers.CharField(required=False, allow_blank=True)
     # What happens above a customer's credit limit: block, ask the owner or a manager, or warn and log.

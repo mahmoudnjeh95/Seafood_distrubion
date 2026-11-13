@@ -30,6 +30,18 @@ import { Link } from "react-router";
 import { fieldErrors } from "../lib/errors";
 import { plainRate, toInput } from "./shared";
 
+/** The rates the accountant sets (D-325): empty = not set. */
+const ACCOUNTANT_RATES = [
+  "supplier_withholding_rate",
+  "rent_withholding_rate",
+  "fees_withholding_rate",
+  "tcl_rate",
+  "css_rate",
+  "tfp_rate",
+  "foprolos_rate",
+] as const;
+type AccountantRate = (typeof ACCOUNTANT_RATES)[number];
+
 function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
   const { t } = useTranslation();
   const formId = useId();
@@ -40,6 +52,13 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
   const [withholding, setWithholding] = useState(toInput(current.withholding_rate));
   const [vatWithholding, setVatWithholding] = useState(toInput(current.vat_withholding_rate));
   const [cashLimit, setCashLimit] = useState(toInput(current.cash_limit));
+  const [accountantRates, setAccountantRates] = useState<Record<AccountantRate, string>>(
+    () =>
+      Object.fromEntries(ACCOUNTANT_RATES.map((key) => [key, toInput(current[key] ?? "")])) as Record<
+        AccountantRate,
+        string
+      >,
+  );
   const [includeVat, setIncludeVat] = useState(current.prices_include_vat);
   const [creditPolicy, setCreditPolicy] = useState<CreditPolicyEnum>(current.credit_policy);
   const [validFrom, setValidFrom] = useState("");
@@ -63,6 +82,13 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
       if (rateVatWithholding === null) found.vat_withholding_rate = t("admin.financeSettings.rateError");
       if (stampValue === null) found.fiscal_stamp = t("admin.financeSettings.moneyError");
       if (limitValue === null) found.cash_limit = t("admin.financeSettings.moneyError");
+      const typedRates: Partial<Record<AccountantRate, string | null>> = {};
+      for (const key of ACCOUNTANT_RATES) {
+        const typed = accountantRates[key].trim();
+        const parsed = typed === "" ? null : parseDecimalInput(typed, 2);
+        if (typed !== "" && parsed === null) found[key] = t("admin.financeSettings.rateError");
+        typedRates[key] = parsed;
+      }
       if (
         Object.keys(found).length > 0 ||
         rate === null ||
@@ -81,6 +107,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
         prices_include_vat: includeVat,
         withholding_rate: rateWithholding,
         vat_withholding_rate: rateVatWithholding,
+        ...typedRates,
         cash_limit: limitValue,
         credit_policy: creditPolicy,
         legal_name: legalName.trim(),
@@ -116,11 +143,7 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
           id={`${formId}-${key}`}
           value={value}
           disabled={!mayEdit}
-          inputMode={
-            ["vat_rate", "fiscal_stamp", "withholding_rate", "vat_withholding_rate", "cash_limit"].includes(key)
-              ? "decimal"
-              : undefined
-          }
+          inputMode={key.endsWith("_rate") || key === "fiscal_stamp" || key === "cash_limit" ? "decimal" : undefined}
           onChange={(event) => set(event.target.value)}
           aria-invalid={errors[key] ? true : undefined}
           autoComplete="off"
@@ -207,6 +230,20 @@ function SettingsForm({ overview }: { overview: FinanceSettingsOverview }) {
             </Select>
             <p className="text-[0.78rem] text-ink-2">{t("admin.payments.policy.hint")}</p>
           </Field>
+          <hr className="border-line" />
+          <p className="text-[0.85rem] font-semibold">{t("admin.financeSettings.accountant.title")}</p>
+          <p className="text-[0.82rem] text-ink-2">{t("admin.financeSettings.accountant.hint")}</p>
+          {ACCOUNTANT_RATES.map((key) => (
+            <div key={key}>
+              {field(
+                key,
+                t(`admin.financeSettings.accountant.${key}`),
+                accountantRates[key],
+                (value) => setAccountantRates((rates) => ({ ...rates, [key]: value })),
+                t(`admin.financeSettings.accountant.${key}_hint`),
+              )}
+            </div>
+          ))}
           <hr className="border-line" />
           <p className="text-[0.85rem] font-semibold">{t("admin.financeSettings.seller")}</p>
           {field("legal_name", t("admin.financeSettings.legalName"), legalName, setLegalName)}

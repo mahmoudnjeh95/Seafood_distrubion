@@ -7100,11 +7100,25 @@ export const getFinanceSettingsResponseInForceOneVatRateRegExp = new RegExp('^-?
 export const getFinanceSettingsResponseInForceOneFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseInForceOneWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseInForceOneVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneSupplierWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneRentWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneFeesWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneTclRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneCssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneTfpRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseInForceOneFoprolosRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseInForceOneCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseHistoryItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseHistoryItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const getFinanceSettingsResponseHistoryItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemSupplierWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemRentWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemFeesWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemTclRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemCssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemTfpRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const getFinanceSettingsResponseHistoryItemFoprolosRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const getFinanceSettingsResponseHistoryItemCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -7117,6 +7131,13 @@ export const GetFinanceSettingsResponse = zod.object({
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneWithholdingRateRegExp),
   "vat_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneVatWithholdingRateRegExp),
+  "supplier_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneSupplierWithholdingRateRegExp).nullable(),
+  "rent_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneRentWithholdingRateRegExp).nullable(),
+  "fees_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneFeesWithholdingRateRegExp).nullable(),
+  "tcl_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneTclRateRegExp).nullable(),
+  "css_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneCssRateRegExp).nullable(),
+  "tfp_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneTfpRateRegExp).nullable(),
+  "foprolos_rate": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneFoprolosRateRegExp).nullable(),
   "cash_limit": zod.stringFormat('decimal', getFinanceSettingsResponseInForceOneCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7135,6 +7156,13 @@ export const GetFinanceSettingsResponse = zod.object({
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
   "vat_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp),
+  "supplier_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemSupplierWithholdingRateRegExp).nullable(),
+  "rent_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemRentWithholdingRateRegExp).nullable(),
+  "fees_withholding_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemFeesWithholdingRateRegExp).nullable(),
+  "tcl_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemTclRateRegExp).nullable(),
+  "css_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemCssRateRegExp).nullable(),
+  "tfp_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemTfpRateRegExp).nullable(),
+  "foprolos_rate": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemFoprolosRateRegExp).nullable(),
   "cash_limit": zod.stringFormat('decimal', getFinanceSettingsResponseHistoryItemCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7177,6 +7205,13 @@ export const SaveFinanceSettingsBody = zod.object({
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.string(),
   "vat_withholding_rate": zod.string().optional(),
+  "supplier_withholding_rate": zod.string().nullish(),
+  "rent_withholding_rate": zod.string().nullish(),
+  "fees_withholding_rate": zod.string().nullish(),
+  "tcl_rate": zod.string().nullish(),
+  "css_rate": zod.string().nullish(),
+  "tfp_rate": zod.string().nullish(),
+  "foprolos_rate": zod.string().nullish(),
   "cash_limit": zod.string().optional(),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).optional().describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string().max(saveFinanceSettingsBodyLegalNameMax).default(saveFinanceSettingsBodyLegalNameDefault),
@@ -7190,11 +7225,25 @@ export const saveFinanceSettingsResponseInForceOneVatRateRegExp = new RegExp('^-
 export const saveFinanceSettingsResponseInForceOneFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseInForceOneWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseInForceOneVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneSupplierWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneRentWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneFeesWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneTclRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneCssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneTfpRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseInForceOneFoprolosRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseInForceOneCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseHistoryItemVatRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseHistoryItemFiscalStampRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 export const saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemSupplierWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemRentWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemFeesWithholdingRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemTclRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemCssRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemTfpRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
+export const saveFinanceSettingsResponseHistoryItemFoprolosRateRegExp = new RegExp('^-?\\d{0,3}(?:\\.\\d{0,2})?$');
 export const saveFinanceSettingsResponseHistoryItemCashLimitRegExp = new RegExp('^-?\\d{0,11}(?:\\.\\d{0,3})?$');
 
 
@@ -7207,6 +7256,13 @@ export const SaveFinanceSettingsResponse = zod.object({
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneWithholdingRateRegExp),
   "vat_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneVatWithholdingRateRegExp),
+  "supplier_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneSupplierWithholdingRateRegExp).nullable(),
+  "rent_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneRentWithholdingRateRegExp).nullable(),
+  "fees_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneFeesWithholdingRateRegExp).nullable(),
+  "tcl_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneTclRateRegExp).nullable(),
+  "css_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneCssRateRegExp).nullable(),
+  "tfp_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneTfpRateRegExp).nullable(),
+  "foprolos_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneFoprolosRateRegExp).nullable(),
   "cash_limit": zod.stringFormat('decimal', saveFinanceSettingsResponseInForceOneCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),
@@ -7225,6 +7281,13 @@ export const SaveFinanceSettingsResponse = zod.object({
   "prices_include_vat": zod.boolean(),
   "withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemWithholdingRateRegExp),
   "vat_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemVatWithholdingRateRegExp),
+  "supplier_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemSupplierWithholdingRateRegExp).nullable(),
+  "rent_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemRentWithholdingRateRegExp).nullable(),
+  "fees_withholding_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemFeesWithholdingRateRegExp).nullable(),
+  "tcl_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemTclRateRegExp).nullable(),
+  "css_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemCssRateRegExp).nullable(),
+  "tfp_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemTfpRateRegExp).nullable(),
+  "foprolos_rate": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemFoprolosRateRegExp).nullable(),
   "cash_limit": zod.stringFormat('decimal', saveFinanceSettingsResponseHistoryItemCashLimitRegExp),
   "credit_policy": zod.enum(['block', 'approval', 'warn']).describe('* `block` - Bloquer la vente\n* `approval` - Demander l\'approbation du propriétaire ou du gérant\n* `warn` - Avertir et consigner'),
   "legal_name": zod.string(),

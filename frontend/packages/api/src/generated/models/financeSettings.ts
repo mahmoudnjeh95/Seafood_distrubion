@@ -21,6 +21,41 @@ export interface FinanceSettings {
   readonly withholding_rate: string;
   /** @pattern ^-?\d{0,3}(?:\.\d{0,2})?$ */
   readonly vat_withholding_rate: string;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly supplier_withholding_rate: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly rent_withholding_rate: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly fees_withholding_rate: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly tcl_rate: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly css_rate: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly tfp_rate: string | null;
+  /**
+     * @nullable
+     * @pattern ^-?\d{0,3}(?:\.\d{0,2})?$
+     */
+  readonly foprolos_rate: string | null;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly cash_limit: string;
   readonly credit_policy: CreditPolicyEnum;

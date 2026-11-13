@@ -569,6 +569,20 @@ class FinanceSettings(OrganizationScopedModel, TimeStampedModel):
     withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("1.00"))
     # Percent of the VAT a public buyer keeps on invoices of 1 000 DT and more (D-313); 0 = never.
     vat_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("25.00"))
+    # The rates the accountant sets (D-325), in percent; empty = not set, and what would use it does nothing.
+    # Withheld by the company from a supplier invoice of 1 000 DT and more (owner 2026-11-13: 1 %).
+    supplier_withholding_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True, default=Decimal("1.00")
+    )
+    # Withheld by the company from the rent and from fees (accountant, lawyer) it pays.
+    rent_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    fees_withholding_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    # Taxe sur les établissements (TCL), on the turnover.
+    tcl_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    # On salaries: contribution sociale de solidarité, taxe de formation professionnelle, FOPROLOS.
+    css_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    tfp_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    foprolos_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     # A cash line of this amount or more on a payment needs the office's explicit confirmation (D-273, owner: 5 000 DT).
     cash_limit = MoneyField(default=Decimal("5000.000"))
     # What happens above a customer's credit limit (P2-T06, D-018, D-062): block, ask for approval, or warn.

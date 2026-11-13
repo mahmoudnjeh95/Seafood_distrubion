@@ -21727,6 +21727,48 @@ components:
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           readOnly: true
+        supplier_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        rent_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        fees_withholding_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        tcl_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        css_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        tfp_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        foprolos_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
         cash_limit:
           type: string
           format: decimal
@@ -21764,12 +21806,19 @@ components:
       - created_at
       - created_by
       - credit_policy
+      - css_rate
+      - fees_withholding_rate
       - fiscal_stamp
+      - foprolos_rate
       - id
       - legal_name
       - phone
       - prices_include_vat
+      - rent_withholding_rate
+      - supplier_withholding_rate
       - tax_id
+      - tcl_rate
+      - tfp_rate
       - trade_register
       - valid_from
       - vat_rate
@@ -21813,6 +21862,27 @@ components:
           type: string
         vat_withholding_rate:
           type: string
+        supplier_withholding_rate:
+          type: string
+          nullable: true
+        rent_withholding_rate:
+          type: string
+          nullable: true
+        fees_withholding_rate:
+          type: string
+          nullable: true
+        tcl_rate:
+          type: string
+          nullable: true
+        css_rate:
+          type: string
+          nullable: true
+        tfp_rate:
+          type: string
+          nullable: true
+        foprolos_rate:
+          type: string
+          nullable: true
         cash_limit:
           type: string
         credit_policy:

@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-325)_
+_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-326)_
 
 ## Where we are
 
@@ -37,11 +37,13 @@ The PR bodies still show the numbers they were written with (D-310 to D-313, D-3
 
 ## Next step
 
-0. **Phase 11, owner answers 2026-11-13 (Q32, D-324, branch `claude/fervent-bell-nn75az`):** backups now keep the
-   first of each month 10 years; draft contracts in `docs/legal/` (owner: give them to a lawyer). Unblocked, one PR
-   each, in this order: **P11-T02a** (withholding made by the company: 1 % above 1 000 DT, settings and supplier
-   flag), T02b, T02c, T08, T07, T13, T12, T17, T21. T05b can start from `docs/spec/teif/` (schema 1.8.8 and samples found online, version to confirm);
-   sending (T05c) still needs a sandbox account. Closed seasons (T20) dropped by the owner.
+0. **Phase 11, owner answers 2026-11-13 (Q32, D-324, D-325, branch `claude/fervent-bell-nn75az`):** backups keep the
+   first of each month 10 years; draft contracts in `docs/legal/` (owner: a lawyer reviews); TEIF 1.8.8 schema and
+   samples in `docs/spec/teif/`; closed seasons dropped. **T02a done:** the accountant's rates in Paramètres
+   financiers (migration `sales 0039`), nothing computes with them yet. Check on staging: Paramètres financiers shows
+   "Taux fixés par l'expert-comptable", purchases at 1 %, the others empty; type one, save, it stays.
+   **Next: P11-T02b** (withhold on supplier payments and expenses from these rates), then T02c, T08, T07, T13, T12,
+   T17, T21, T05b.
 0. **Owner:** decide whether this integration branch goes to `main`. Merge order if so: #350, #343, #344, #346, #348,
    #345, #347, #349. Also fix GitHub billing so CI runs on the PRs (D-297).
 0. **P11-T05b to d (e-invoicing):** blocked on the owner's documents (Q18): TTN enrolment, sandbox access, the TEIF
