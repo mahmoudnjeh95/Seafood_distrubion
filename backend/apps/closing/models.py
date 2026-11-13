@@ -103,6 +103,67 @@ class LotResult(OrganizationScopedModel):
         return f"{self.batch} · {self.get_status_display()}"
 
 
+class PartnershipResultQuerySet(OrganizationScopedQuerySet["PartnershipResult"]):
+    def update(self, **kwargs: Any) -> int:
+        raise TypeError("A partnership result is frozen: reopen one of its lots (with a reason) and close it again")
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise TypeError("A partnership result is never deleted: reopening keeps it as history")
+
+
+class PartnershipResult(OrganizationScopedModel):
+    """The frozen result of one partnership (P6-T08, D-320, D-324): the partner's rate on the *sum* of the frozen
+    nets of the lines it shares, rounded once (D-031). Frozen when the last of those lines closes.
+
+    Each line keeps its own `LotResult` (the engine, unchanged, per product); this is what the partner's ledgers and
+    settlement read. Immutable like a `LotResult`: reopening one of its lines marks it `reopened` (history) and the
+    next closing of the lines freezes a new one.
+    """
+
+    # By name, not by import (ARCHITECTURE §3).
+    partnership = models.ForeignKey("partnerships.LotPartnership", on_delete=models.PROTECT, related_name="+")
+    status = models.CharField(max_length=20, choices=LotResultStatus.choices, default=LotResultStatus.CLOSED)
+    # Sum of the frozen nets of its lines, the partner's signed share of it and what the owner keeps (net − share).
+    net_result = MoneyField()
+    partner_share = MoneyField()
+    owner_share = MoneyField()
+    capital_deducted = MoneyField(default=0)
+    uncovered_loss = MoneyField(default=0)
+    capital_to_return = MoneyField(default=0)
+    # `engine.partnership_result_to_json`: its lines (each with its `LotResult` id and net) and the steps.
+    data = models.JSONField(encoder=DjangoJSONEncoder)
+    closed_at = models.DateTimeField()
+    closed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="+")
+    reopened_at = models.DateTimeField(null=True, blank=True)
+    reopened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    reopen_reason = models.CharField(max_length=300, blank=True)
+
+    objects = PartnershipResultQuerySet.as_manager()  # type: ignore[misc]
+
+    class Meta:
+        ordering = ["-closed_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["partnership"],
+                condition=models.Q(status="closed"),
+                name="one_closed_result_per_partnership",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.partnership_id} · {self.get_status_display()}"
+
+    @property
+    def lot_result_ids(self) -> list[int]:
+        return [int(line["lot_result_id"]) for line in self.data.get("lines", []) if line.get("lot_result_id")]
+
+    @property
+    def batch_ids(self) -> list[int]:
+        return [int(line["batch_id"]) for line in self.data.get("lines", [])]
+
+
 # ---- The monthly closing for the accountant (P6-T06, D-074) ----
 
 

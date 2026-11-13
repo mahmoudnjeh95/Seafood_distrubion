@@ -100,6 +100,24 @@ def live_partnership_of_batch(organization: Organization, *, batch_id: int) -> L
     )
 
 
+def live_partnerships_of_line(organization: Organization, *, batch_id: int) -> list[LotPartnership]:
+    """The partnerships, not cancelled, that share this line of a lot (D-320), oldest first."""
+    return list(
+        LotPartnership.objects.for_organization(organization)
+        .exclude(status=PartnershipStatus.CANCELLED)
+        .filter(shared_lines__batch_id=batch_id)
+        .select_related("batch__product", "partner")
+        .prefetch_related("shared_lines")
+        .order_by("id")
+        .distinct()
+    )
+
+
+def line_ids_of(partnership: LotPartnership) -> list[int]:
+    """The lines (batch ids) this partnership shares, in line order."""
+    return sorted(line.batch_id for line in partnership.shared_lines.all())
+
+
 def capital_entries_of(partnership: LotPartnership) -> QuerySet[CapitalEntry]:
     """The partner's capital ledger in this lot, oldest first."""
     return (
@@ -186,11 +204,15 @@ def profit_share_balance_of_partner(organization: Organization, *, partner_id: i
     return total if total is not None else ZERO
 
 
-def late_adjustments_booked(partnership: LotPartnership, *, lot_result_id: int) -> Decimal:
-    """The change of the lot's net result already carried to the partner's settlements (sum of `basis`)."""
+def late_adjustments_booked(partnership: LotPartnership, *, partnership_result_id: int) -> Decimal:
+    """The change of the partnership's net result already carried to the partner's settlements (sum of `basis`)."""
     total = (
         ProfitShareEntry.objects.for_organization(partnership.organization)
-        .filter(partnership=partnership, kind=ProfitShareKind.LATE_ADJUSTMENT, lot_result_id=lot_result_id)
+        .filter(
+            partnership=partnership,
+            kind=ProfitShareKind.LATE_ADJUSTMENT,
+            partnership_result_id=partnership_result_id,
+        )
         .aggregate(total=Sum("basis"))["total"]
     )
     return total if total is not None else ZERO

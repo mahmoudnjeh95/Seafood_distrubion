@@ -9,6 +9,10 @@ the partnership terms); `lot_result` turns it into a `ComputedResult` with every
                     cover is carried as an amount the partner owes (D-031, provisional)
     capital to return = capital − loss share taken from it
 
+A partnership sharing several lines of a lot (D-320) nets them: `partnership_result` applies the rate once to the
+sum of the lines' nets. A line's own result carries the partner's share only when its partnership shares that line
+alone, where the two are the same figures (D-324).
+
 Amounts are Decimal in DT, rounded half up to the millime once per share (ARCHITECTURE §4.1). The
 partner's share and the owner's share always add up to the net result exactly.
 """
@@ -286,6 +290,24 @@ def partner_share(terms: PartnershipTerms, net_result: Decimal) -> PartnerShare:
     )
 
 
+def _share_steps(share: PartnerShare, owner_share: Decimal) -> list[Step]:
+    """The partner's side of a result, step by step: their share, the owner's, the capital and what is paid."""
+    steps = [
+        Step(code="partner_share", sign="=", amount=share.share, rate=share.rate),
+        Step(code="owner_share", sign="=", amount=owner_share),
+        Step(code="partner_capital", sign="+", amount=share.partner_capital),
+    ]
+    if share.capital_deducted:
+        steps.append(Step(code="capital_deducted", sign="-", amount=share.capital_deducted))
+    steps.append(Step(code="capital_to_return", sign="=", amount=share.capital_to_return))
+    if share.share > 0:
+        steps.append(Step(code="profit_share", sign="+", amount=share.share))
+    steps.append(Step(code="payable_to_partner", sign="=", amount=share.payable_to_partner))
+    if share.uncovered_loss:
+        steps.append(Step(code="uncovered_loss", sign="=", amount=share.uncovered_loss))
+    return steps
+
+
 def lot_result(snapshot: LotSnapshot) -> ComputedResult:
     """The result of one lot, so far (an open lot) or final (a lot being closed), with every step."""
     revenue = _sum(sale.revenue for sale in snapshot.sales)
@@ -305,19 +327,7 @@ def lot_result(snapshot: LotSnapshot) -> ComputedResult:
         Step(code="net_result", sign="=", amount=net_result),
     ]
     if share is not None:
-        steps += [
-            Step(code="partner_share", sign="=", amount=share.share, rate=share.rate),
-            Step(code="owner_share", sign="=", amount=owner_share),
-            Step(code="partner_capital", sign="+", amount=share.partner_capital),
-        ]
-        if share.capital_deducted:
-            steps.append(Step(code="capital_deducted", sign="-", amount=share.capital_deducted))
-        steps.append(Step(code="capital_to_return", sign="=", amount=share.capital_to_return))
-        if share.share > 0:
-            steps.append(Step(code="profit_share", sign="+", amount=share.share))
-        steps.append(Step(code="payable_to_partner", sign="=", amount=share.payable_to_partner))
-        if share.uncovered_loss:
-            steps.append(Step(code="uncovered_loss", sign="=", amount=share.uncovered_loss))
+        steps += _share_steps(share, owner_share)
 
     kept = snapshot.received_quantity - snapshot.returned_quantity
     return ComputedResult(
@@ -339,6 +349,55 @@ def lot_result(snapshot: LotSnapshot) -> ComputedResult:
     )
 
 
+# ---- One partnership: its rate on the sum of the lines it shares (D-320, D-324) ----
+
+
+@dataclass(frozen=True)
+class SharedLine:
+    """One line (product) of the lot a partnership shares, with its net result (frozen or so far)."""
+
+    batch_id: int
+    batch_number: str
+    product_name: str
+    net_result: Decimal
+    # The line's frozen result; None while the line is open (a live partnership result).
+    lot_result_id: int | None = None
+
+
+@dataclass(frozen=True)
+class ComputedPartnershipResult:
+    terms: PartnershipTerms
+    lines: tuple[SharedLine, ...]
+    net_result: Decimal
+    outcome: Outcome
+    partner: PartnerShare
+    owner_share: Decimal
+    steps: tuple[Step, ...] = field(default=())
+
+
+def partnership_result(terms: PartnershipTerms, lines: tuple[SharedLine, ...]) -> ComputedPartnershipResult:
+    """A partnership's result (Q31 1, D-320): the lines' nets are added first, then the profit rate applies to a
+    profit sum and the loss rate to a loss sum, rounded once (D-031). Shrimp +2 400 and squid −500 at 50 %: 950.
+    With one line it is that line's share exactly. The owner keeps net − share, so the two always add up."""
+    net_result = _sum(line.net_result for line in lines)
+    share = partner_share(terms, net_result)
+    owner_share = net_result - share.share
+    steps = [
+        *(Step(code="line", sign="+", amount=line.net_result, kind=line.batch_number) for line in lines),
+        Step(code="net_result", sign="=", amount=net_result),
+        *_share_steps(share, owner_share),
+    ]
+    return ComputedPartnershipResult(
+        terms=terms,
+        lines=lines,
+        net_result=net_result,
+        outcome=outcome_of(net_result),
+        partner=share,
+        owner_share=owner_share,
+        steps=tuple(steps),
+    )
+
+
 # ---- To JSON, for the frozen copy and the API ----
 
 
@@ -356,6 +415,38 @@ def plain(value: Any) -> Any:
 
 def _fields(instance: Any, names: tuple[str, ...]) -> dict[str, Any]:
     return {name: plain(getattr(instance, name)) for name in names}
+
+
+PARTNER_FIELDS: tuple[str, ...] = (
+    "partnership_id",
+    "partner_id",
+    "partner_name",
+    "owner_capital",
+    "partner_capital",
+    "profit_rate",
+    "loss_rate",
+    "rate",
+    "share",
+    "capital_deducted",
+    "uncovered_loss",
+    "capital_to_return",
+    "payable_to_partner",
+)
+
+
+def partnership_result_to_json(result: ComputedPartnershipResult) -> dict[str, Any]:
+    """A partnership's result as plain JSON: kept frozen in `PartnershipResult.data`."""
+    return {
+        "lines": [
+            _fields(line, ("lot_result_id", "batch_id", "batch_number", "product_name", "net_result"))
+            for line in result.lines
+        ],
+        "net_result": plain(result.net_result),
+        "outcome": result.outcome,
+        "owner_share": plain(result.owner_share),
+        "partner": _fields(result.partner, PARTNER_FIELDS),
+        "steps": [_fields(step, ("code", "sign", "amount", "kind", "rate")) for step in result.steps],
+    }
 
 
 def to_json(result: ComputedResult) -> dict[str, Any]:
@@ -439,27 +530,6 @@ def to_json(result: ComputedResult) -> dict[str, Any]:
             }
             for group in result.cost_groups
         ],
-        "partner": (
-            _fields(
-                result.partner,
-                (
-                    "partnership_id",
-                    "partner_id",
-                    "partner_name",
-                    "owner_capital",
-                    "partner_capital",
-                    "profit_rate",
-                    "loss_rate",
-                    "rate",
-                    "share",
-                    "capital_deducted",
-                    "uncovered_loss",
-                    "capital_to_return",
-                    "payable_to_partner",
-                ),
-            )
-            if result.partner is not None
-            else None
-        ),
+        "partner": _fields(result.partner, PARTNER_FIELDS) if result.partner is not None else None,
         "steps": [_fields(step, ("code", "sign", "amount", "kind", "rate")) for step in result.steps],
     }

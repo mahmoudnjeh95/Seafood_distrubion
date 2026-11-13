@@ -161,6 +161,7 @@ def _post_entry(
     amount: Decimal,
     note: str = "",
     lot_result_id: int | None = None,
+    partnership_result_id: int | None = None,
     on: dt.date | None = None,
 ) -> CapitalEntry:
     return CapitalEntry.objects.create(
@@ -171,6 +172,7 @@ def _post_entry(
         entry_date=on or timezone.localdate(),
         note=note[:300],
         lot_result_id=lot_result_id,
+        partnership_result_id=partnership_result_id,
         created_by=actor,
     )
 
@@ -437,10 +439,17 @@ def cancel_partnership(*, partnership: LotPartnership, actor: User | None, reaso
 
 
 def record_lot_closed(
-    *, partnership: LotPartnership, actor: User | None, lot_result_id: int, capital_deducted: Decimal, on: dt.date
+    *,
+    partnership: LotPartnership,
+    actor: User | None,
+    partnership_result_id: int,
+    capital_deducted: Decimal,
+    on: dt.date,
+    lot_result_id: int | None = None,
 ) -> LotPartnership:
-    """The lot's result is frozen: the partnership is closed, and a loss share taken from the capital is
-    posted on the ledger (D-031). Runs inside the closing's transaction, which holds the lot's lock."""
+    """The partnership's result is frozen (its last shared line closed, D-324): the partnership is closed, and a
+    loss share taken from the capital is posted on the ledger (D-031). Runs inside the closing's transaction, which
+    holds the lines' locks. `lot_result_id` is the line's result for a partnership of one line."""
     partnership = _locked(partnership)
     if partnership.status != PartnershipStatus.OPEN:
         raise ValidationError(_("Ce partenariat n'est pas en cours."))
@@ -451,6 +460,7 @@ def record_lot_closed(
             kind=CapitalEntryKind.LOSS_DEDUCTION,
             amount=-capital_deducted,
             lot_result_id=lot_result_id,
+            partnership_result_id=partnership_result_id,
             on=on,
         )
     partnership.status = PartnershipStatus.CLOSED
@@ -459,7 +469,13 @@ def record_lot_closed(
 
 
 def record_lot_reopened(
-    *, partnership: LotPartnership, actor: User | None, lot_result_id: int, capital_deducted: Decimal, reason: str
+    *,
+    partnership: LotPartnership,
+    actor: User | None,
+    partnership_result_id: int,
+    capital_deducted: Decimal,
+    reason: str,
+    lot_result_id: int | None = None,
 ) -> LotPartnership:
     """A closed lot is reopened: the partnership is open again and a deducted loss share comes back to the
     capital (a reversal entry, never an edit). The next closing computes and deducts it again."""
@@ -474,6 +490,7 @@ def record_lot_reopened(
             amount=capital_deducted,
             note=reason,
             lot_result_id=lot_result_id,
+            partnership_result_id=partnership_result_id,
         )
     partnership.status = PartnershipStatus.OPEN
     partnership.save(update_fields=["status", "updated_at"])
@@ -492,6 +509,7 @@ def _post_share_entry(
     basis: Decimal = ZERO,
     note: str = "",
     lot_result_id: int | None = None,
+    partnership_result_id: int | None = None,
     settlement: PartnerSettlement | None = None,
     on: dt.date | None = None,
 ) -> ProfitShareEntry:
@@ -504,6 +522,7 @@ def _post_share_entry(
         entry_date=on or timezone.localdate(),
         note=note[:300],
         lot_result_id=lot_result_id,
+        partnership_result_id=partnership_result_id,
         settlement=settlement,
         created_by=actor,
     )
@@ -514,10 +533,11 @@ def record_late_adjustment(
     *,
     partnership: LotPartnership,
     actor: User | None,
-    lot_result_id: int,
+    partnership_result_id: int,
     amount: Decimal,
     basis: Decimal,
     note: str = "",
+    lot_result_id: int | None = None,
 ) -> ProfitShareEntry:
     """A cost or a sale recorded after the lot closed changed its net result by `basis`: the difference in
     the partner's share (`amount`, signed) goes on their profit-share balance, so their next settlement
@@ -533,6 +553,7 @@ def record_late_adjustment(
         basis=basis,
         note=note,
         lot_result_id=lot_result_id,
+        partnership_result_id=partnership_result_id,
     )
     audit.record(
         organization=partnership.organization,
@@ -577,9 +598,10 @@ def settle_partnership(
     *,
     partnership: LotPartnership,
     actor: User | None,
-    lot_result_id: int,
+    partnership_result_id: int,
     lot_share: Decimal,
     uncovered_loss: Decimal,
+    lot_result_id: int | None = None,
     payments: list[dict[str, Any]],
     settled_on: dt.date | None = None,
     notes: str = "",
@@ -622,6 +644,7 @@ def settle_partnership(
         organization=organization,
         partnership=partnership,
         lot_result_id=lot_result_id,
+        partnership_result_id=partnership_result_id,
         settled_on=on,
         capital_returned=capital,
         lot_share=lot_share,
@@ -645,6 +668,7 @@ def settle_partnership(
                 kind=kind,
                 amount=amount,
                 lot_result_id=lot_result_id,
+                partnership_result_id=partnership_result_id,
                 settlement=settlement,
                 on=on,
             )
@@ -656,6 +680,7 @@ def settle_partnership(
             amount=-capital,
             note=_("Règlement du lot"),
             lot_result_id=lot_result_id,
+            partnership_result_id=partnership_result_id,
             on=on,
         )
     for payment in checked:
