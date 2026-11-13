@@ -1,4 +1,4 @@
-"""Check the Azure AI Speech key of the "Assistant IA" screen (D-314, D-323) once it is in `.env`.
+"""Check the Azure AI Speech key of the "Assistant IA" screen (D-314, D-324) once it is in `.env`.
 
 The Tunisian voice reads a sentence, then the recognition listens to that recording: both halves of the screen's
 voice, for a few characters and seconds of the free tier.

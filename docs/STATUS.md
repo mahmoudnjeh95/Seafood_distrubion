@@ -1,15 +1,18 @@
 # Project status
 
-_Last updated: 2026-11-12 (dictation recognised by Azure on the Assistant IA screen, D-323; next free decision D-324)_
+_Last updated: 2026-11-13 (dictation recognised by Azure on the Assistant IA screen, D-324; next free decision D-325)_
 
 ## Where we are
 
-- **Main has the integration of #343 to #350** (#351, D-322).
-- **This session (branch `claude/vigilant-dirac-wnt3pw`, P12-T06b, D-323):** the owner's Tunisian was not understood
-  by the browser's dictation. With `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`, the micro now records and Azure
-  recognises the question (`POST assistant/chat/dictation`, `ar-TN`/`fr-FR`), in every browser. Without the key the
-  browser's recognition stays. `manage.py check_speech` checks a new key. Backend assistant tests (100), typecheck,
-  eslint, prettier and vitest pass; no live Azure call was made (no key in the session), no browser test run.
+- **Main has the integration of #343 to #350** (#351, D-322). PRs #344, #346 and #348 are still open but their work is
+  in `main` through #351.
+- **P6-T08c1 merged (#352, D-323, migration `partnerships 0005`):** a partnership points to its lot and lists the
+  products it shares (today its one batch). No change in results. Next: T08c2 + T08d in three PRs, plan written in
+  `docs/phases/06-profit-sharing.md` under T08c2 (#353).
+- **P12-T06b (D-324):** the owner's Tunisian was not understood by the browser's dictation. With `AZURE_SPEECH_KEY`
+  and `AZURE_SPEECH_REGION`, the micro records and Azure recognises the question (`POST assistant/chat/dictation`,
+  `ar-TN`/`fr-FR`) in every browser. Without the key the browser's recognition stays. `manage.py check_speech`
+  checks a new key. No live Azure call was made (no key in the session), no browser test run.
 - **Owner:** create the Azure Speech resource (free tier F0), put the key and region in the staging `.env`,
   redeploy, run `check_speech`, then "Check on staging (T06)" step 2b in the phase 12 file.
 

@@ -11,6 +11,8 @@ import type { PartnershipStatusEnum } from './partnershipStatusEnum';
 export interface LotPartnership {
   readonly id: number;
   readonly batch: PartnershipBatch;
+  readonly lot_number: string;
+  readonly line_ids: readonly number[];
   readonly partner: PartnershipPartner;
   /** @pattern ^-?\d{0,11}(?:\.\d{0,3})?$ */
   readonly owner_capital: string;

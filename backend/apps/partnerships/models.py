@@ -32,6 +32,10 @@ class LotPartnership(OrganizationScopedModel, TimeStampedModel):
 
     # By name, not by import (ARCHITECTURE §3): read through `inventory.selectors` and `partners.selectors`.
     batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+    # The purchase (D-320) and the products of it this partner shares ("partagé"). Today a partnership shares the one
+    # line it was made on (`batch`); P6-T08d lets it tick several lines and several partners share one line.
+    lot = models.ForeignKey("inventory.Lot", on_delete=models.PROTECT, related_name="+")
+    lines = models.ManyToManyField("inventory.Batch", through="PartnershipLine", related_name="+")
     partner = models.ForeignKey("partners.Supplier", on_delete=models.PROTECT, related_name="+")
     # What each side put into the lot. The partner's is also the first entry of their capital ledger.
     owner_capital = MoneyField()
@@ -76,6 +80,22 @@ class LotPartnership(OrganizationScopedModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.batch} · {self.partner}"
+
+
+class PartnershipLine(OrganizationScopedModel):
+    """One product of the lot shared in a partnership (D-320): the line's result counts in the partner's share."""
+
+    partnership = models.ForeignKey(LotPartnership, on_delete=models.CASCADE, related_name="shared_lines")
+    batch = models.ForeignKey("inventory.Batch", on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        ordering = ["partnership", "batch"]
+        constraints = [
+            models.UniqueConstraint(fields=["partnership", "batch"], name="one_partnership_line_per_batch"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.partnership_id} · {self.batch_id}"
 
 
 # ---- The partner's capital, a ledger per partner and lot ----

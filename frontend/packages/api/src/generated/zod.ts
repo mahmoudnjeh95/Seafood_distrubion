@@ -14775,6 +14775,8 @@ export const ListPartnershipsResponse = zod.object({
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', listPartnershipsResponseResultsItemBatchOneUnitCostRegExp)
 }),
+  "lot_number": zod.string(),
+  "line_ids": zod.array(zod.int()),
   "partner": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -14833,6 +14835,8 @@ export const CreatePartnershipResponse = zod.object({
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', createPartnershipResponseBatchOneUnitCostRegExp)
 }),
+  "lot_number": zod.string(),
+  "line_ids": zod.array(zod.int()),
   "partner": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -14892,6 +14896,8 @@ export const GetPartnershipResponse = zod.object({
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', getPartnershipResponseBatchOneUnitCostRegExp)
 }),
+  "lot_number": zod.string(),
+  "line_ids": zod.array(zod.int()),
   "partner": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -14964,6 +14970,8 @@ export const UpdatePartnershipResponse = zod.object({
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', updatePartnershipResponseBatchOneUnitCostRegExp)
 }),
+  "lot_number": zod.string(),
+  "line_ids": zod.array(zod.int()),
   "partner": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -15040,6 +15048,8 @@ export const AdvancePartnerCapitalResponse = zod.object({
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', advancePartnerCapitalResponseBatchOneUnitCostRegExp)
 }),
+  "lot_number": zod.string(),
+  "line_ids": zod.array(zod.int()),
   "partner": zod.object({
   "id": zod.int(),
   "reference": zod.string(),
@@ -15108,6 +15118,8 @@ export const CancelPartnershipResponse = zod.object({
   "received_on": zod.iso.date(),
   "unit_cost": zod.stringFormat('decimal', cancelPartnershipResponseBatchOneUnitCostRegExp)
 }),
+  "lot_number": zod.string(),
+  "line_ids": zod.array(zod.int()),
   "partner": zod.object({
   "id": zod.int(),
   "reference": zod.string(),

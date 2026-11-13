@@ -1,4 +1,4 @@
-"""`manage.py check_speech` (D-323): the Azure key checked by reading a sentence, then recognising it."""
+"""`manage.py check_speech` (D-324): the Azure key checked by reading a sentence, then recognising it."""
 
 from io import StringIO
 
