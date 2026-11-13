@@ -2,6 +2,7 @@ import {
   askAssistant,
   type Chat,
   type ChatMessage,
+  dictateAssistant,
   getGetAssistantChatQueryKey,
   useGetAssistantChat,
 } from "@frutti/api";
@@ -14,6 +15,7 @@ import { useOutletContext } from "react-router";
 
 import {
   canDictate,
+  canRecord,
   dictate,
   type Dictation,
   DICTATION_LANGUAGES,
@@ -21,7 +23,9 @@ import {
   isWaiting,
   type Playback,
   playFromServer,
+  type Recording,
   speakWithBrowser,
+  startRecording,
 } from "./speech";
 
 const LANGUAGE_KEY = "frutti.assistant.dictation";
@@ -173,14 +177,19 @@ export function AssistantPage() {
   );
   const [readAloud, setReadAloud] = useState(() => remembered(READ_ALOUD_KEY) === "1");
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
   const dictation = useRef<Dictation | undefined>(undefined);
+  const recorder = useRef<Recording | undefined>(undefined);
   const playback = useRef<Playback | undefined>(undefined);
   // The answers already there when the screen opened are not read aloud; only the ones that come after.
   const lastHeard = useRef<number | null>(null);
   const lastQuestionSpoken = useRef(false);
   const warnedNoVoice = useRef(false);
   const end = useRef<HTMLDivElement>(null);
-  const dictationAvailable = canDictate();
+  // The server's recognition (Azure, with the key) understands Tunisian on any browser that records; otherwise the
+  // browser's own recognition (Chrome and Edge) does the job.
+  const serverDictation = serverVoice && canRecord();
+  const dictationAvailable = serverDictation || canDictate();
 
   const stopPlayback = useCallback(() => {
     playback.current?.stop();
@@ -234,7 +243,52 @@ export function AssistantPage() {
     ask.mutate({ text: question, spoken: lastQuestionSpoken.current });
   };
 
+  const startServerListening = async () => {
+    stopPlayback();
+    setDraft("");
+    let recording: Recording;
+    try {
+      recording = await startRecording();
+    } catch (error) {
+      const refused = error instanceof DOMException && error.name === "NotAllowedError";
+      toast.error(t(`admin.assistant.dictation.${refused ? "denied" : "failed"}`));
+      return;
+    }
+    recorder.current = recording;
+    setListening(true);
+    recording.done
+      .then(async (wav) => {
+        recorder.current = undefined;
+        setListening(false);
+        if (wav === undefined) return;
+        setTranscribing(true);
+        try {
+          const heard = await dictateAssistant({ language }, new Blob([wav], { type: "audio/wav" }));
+          if (heard.text.trim() === "") toast.error(t("admin.assistant.dictation.silent"));
+          else send(heard.text, true);
+        } catch {
+          toast.error(t("admin.assistant.dictation.failed"));
+        } finally {
+          setTranscribing(false);
+        }
+      })
+      .catch(() => {
+        recorder.current = undefined;
+        setListening(false);
+        toast.error(t("admin.assistant.dictation.failed"));
+      });
+  };
+
+  const stopListening = () => {
+    if (recorder.current !== undefined) recorder.current.stop();
+    else dictation.current?.stop();
+  };
+
   const startListening = () => {
+    if (serverDictation) {
+      void startServerListening();
+      return;
+    }
     stopPlayback();
     setDraft("");
     dictation.current = dictate({
@@ -254,6 +308,7 @@ export function AssistantPage() {
 
   const cancelListening = () => {
     dictation.current?.cancel();
+    recorder.current?.cancel();
     setListening(false);
     setDraft("");
   };
@@ -276,6 +331,7 @@ export function AssistantPage() {
   useEffect(
     () => () => {
       dictation.current?.cancel();
+      recorder.current?.cancel();
       playback.current?.stop();
     },
     [],
@@ -395,8 +451,8 @@ export function AssistantPage() {
             />
             <button
               type="button"
-              onClick={() => (listening ? dictation.current?.stop() : startListening())}
-              disabled={!dictationAvailable || !enabled || busy}
+              onClick={() => (listening ? stopListening() : startListening())}
+              disabled={!dictationAvailable || !enabled || busy || transcribing}
               aria-pressed={listening}
               aria-label={listening ? t("admin.assistant.micStop") : t("admin.assistant.micStart")}
               title={

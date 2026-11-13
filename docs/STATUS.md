@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-324)_
+_Last updated: 2026-11-13 (dictation recognised by Azure on the Assistant IA screen, D-324; next free decision D-325)_
 
 ## Where we are
 
@@ -8,41 +8,22 @@ _Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `cl
   on branch `claude/affectionate-noether-ykot9l`. Next: P13-T02 standing orders. The multi-product lot (P6-T08 PR 1
   to 3) is being built by the session "P6-T08 PR 1: partnership result (netted)".
 
+- **Main has the integration of #343 to #350** (#351, D-322). PRs #344, #346 and #348 are still open but their work is
+  in `main` through #351.
 - **P6-T08c1 merged (#352, D-323, migration `partnerships 0005`):** a partnership points to its lot and lists the
   products it shares (today its one batch). No change in results. Next: T08c2 + T08d in three PRs, plan written in
-  `docs/phases/06-profit-sharing.md` under T08c2 (partnership result, then several lines and partners, then screens).
-
-- **Integration branch (owner 2026-11-11, "stage all of them"):** PRs #343 to #350 are merged into
-  `claude/confident-mayer-8rb73t`, not into `main`. Conflicts were "keep both" entries in `access.py`,
-  `SettingsPage.tsx`, `DECISIONS.md` and `STATUS.md`. Two migrations numbered `sales 0037` met: the public-buyers one
-  is now `sales 0038_vat_withholding`. Checks run locally: `makemigrations --check` clean, ruff, format, import-linter,
-  mypy, eslint, prettier, typecheck, vitest all pass, and the full backend pytest suite passes (1 881 tests).
-- **Checks on this branch:** the security test found two access gaps, fixed in D-322: the lot page is owner and
-  accountant only, and the e-invoicing settings are owner-only writes in the test list. The mypy error in
-  `sales/services.py` (public buyers, withholding) is fixed by an explicit `is not None` check.
-- **Not done:** CI cannot start jobs (GitHub billing; PR bodies say so), so none of these have a CI result. The
-  Smartfeesh repo `mahmoudnjeh95/smartfeesh` is not visible to this session's GitHub access; D-321 names
-  `SmartToolsAgro/SmartFeesh` for deploys, which this session also cannot reach.
-
-## Open PRs and the decision numbers in their files
-
-| PR | Task | Decision | Migration |
-|---|---|---|---|
-| #343 | Period lock (P11-T16) | D-315 | `core 0009` |
-| #344 | Cash limit on expenses (P11-T11) | D-316 | — |
-| #345 | Assistant IA screen, voice (P12-T06) | D-314 | `assistant 0002` to `0004` |
-| #346 | Supplier tax regime (P11-T10) | D-319 | `partners 0009` |
-| #347 | One purchase is one lot (P6-T08a) | D-320 | `inventory 0017` |
-| #348 | Public buyers keep VAT (P11-T09) | D-313 | `partners 0010`, `sales 0038` |
-| #349 | Lot page (P6-T08b) | D-320 | — |
-| #350 | E-invoicing settings (P11-T05a) | D-310 | `sales 0037` |
-
-The PR bodies still show the numbers they were written with (D-310 to D-313, D-320, D-321); the table is right.
+  `docs/phases/06-profit-sharing.md` under T08c2 (#353).
+- **P12-T06b (D-324):** the owner's Tunisian was not understood by the browser's dictation. With `AZURE_SPEECH_KEY`
+  and `AZURE_SPEECH_REGION`, the micro records and Azure recognises the question (`POST assistant/chat/dictation`,
+  `ar-TN`/`fr-FR`) in every browser. Without the key the browser's recognition stays. `manage.py check_speech`
+  checks a new key. No live Azure call was made (no key in the session), no browser test run.
+- **Owner:** create the Azure Speech resource (free tier F0), put the key and region in the staging `.env`,
+  redeploy, run `check_speech`, then "Check on staging (T06)" step 2b in the phase 12 file.
 
 ## Next step
 
-0. **Owner:** decide whether this integration branch goes to `main`. Merge order if so: #350, #343, #344, #346, #348,
-   #345, #347, #349. Also fix GitHub billing so CI runs on the PRs (D-297).
+0. **Owner:** the Azure key (above), and a PR for `claude/vigilant-dirac-wnt3pw` when wanted. Fix GitHub billing so CI
+   runs on the PRs (D-297).
 0. **P11-T05b to d (e-invoicing):** blocked on the owner's documents (Q18): TTN enrolment, sandbox access, the TEIF
    specification and XSD, the TunTrust certificate (password only in the server's `.env`).
 0. **Phase 11 next, in order:** T02, T08, T07, T13, T12, T17, T21, T20, T03, T04, T05 (provisional values in per-company

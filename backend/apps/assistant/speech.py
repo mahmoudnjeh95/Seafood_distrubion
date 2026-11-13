@@ -1,7 +1,7 @@
-"""The assistant's voice on the "Assistant IA" screen (D-314): an answer read aloud by Azure AI Speech.
+"""The voice of the "Assistant IA" screen (D-314), by Azure AI Speech: an answer read aloud, and a question dictated.
 
-Azure has Tunisian voices (`ar-TN-ReemNeural`, `ar-TN-HediNeural`); a browser other than Edge has none. Without
-the Azure key the screen falls back to the browser's own voice.
+Azure has Tunisian voices (`ar-TN-ReemNeural`, `ar-TN-HediNeural`) and recognises Tunisian speech (`ar-TN`); a browser
+other than Edge has neither. Without the Azure key the screen falls back to the browser's own voice and recognition.
 """
 
 import re
@@ -14,6 +14,12 @@ from django.conf import settings
 MAX_CHARACTERS = 1500
 AUDIO_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 AUDIO_TYPE = "audio/mpeg"
+# A dictated question: 16 kHz, 16-bit mono WAV. Azure's short-audio recognition takes up to one minute of it.
+RECOGNITION_LANGUAGES = ("ar-TN", "fr-FR")
+RECOGNITION_FORMAT = "audio/wav; codecs=audio/pcm; samplerate=16000"
+# The same WAV asked from the voice, for `check_speech` (a sentence read, then recognised).
+WAV_OUTPUT = "riff-16khz-16bit-mono-pcm"
+MAX_AUDIO_BYTES = 2 * 1024 * 1024
 _ARABIC = re.compile(r"[؀-ۿ]")
 # What a voice should not read out: emphasis marks and list bullets of a written answer.
 _MARKS = re.compile(r"[*_`#]+|^\s*[-•]\s+", re.MULTILINE)
@@ -46,13 +52,13 @@ def ssml(text: str) -> str:
     )
 
 
-def synthesize(text: str, *, transport: httpx.BaseTransport | None = None) -> bytes:
-    """`text` as MP3 audio."""
+def synthesize(text: str, *, audio_format: str = AUDIO_FORMAT, transport: httpx.BaseTransport | None = None) -> bytes:
+    """`text` as audio: MP3, or `audio_format` (an Azure output format)."""
     url = f"https://{settings.AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
     headers = {
         "Ocp-Apim-Subscription-Key": settings.AZURE_SPEECH_KEY,
         "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": AUDIO_FORMAT,
+        "X-Microsoft-OutputFormat": audio_format,
         "User-Agent": "frutti-assistant",
     }
     try:
@@ -63,3 +69,28 @@ def synthesize(text: str, *, transport: httpx.BaseTransport | None = None) -> by
     if response.status_code >= 300:
         raise SpeechError(f"{response.status_code}: {response.text[:300]}")
     return response.content
+
+
+def transcribe(audio: bytes, language: str, *, transport: httpx.BaseTransport | None = None) -> str:
+    """What was said in `audio` (16 kHz 16-bit mono WAV), as text. Empty when Azure heard no speech."""
+    url = f"https://{settings.AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
+    headers = {
+        "Ocp-Apim-Subscription-Key": settings.AZURE_SPEECH_KEY,
+        "Content-Type": RECOGNITION_FORMAT,
+        "Accept": "application/json",
+        "User-Agent": "frutti-assistant",
+    }
+    try:
+        with httpx.Client(transport=transport, timeout=30) as http:
+            response = http.post(url, params={"language": language, "format": "simple"}, content=audio, headers=headers)
+    except httpx.HTTPError as error:
+        raise SpeechError(repr(error)) from error
+    if response.status_code >= 300:
+        raise SpeechError(f"{response.status_code}: {response.text[:300]}")
+    try:
+        result = response.json()
+    except ValueError as error:
+        raise SpeechError("not JSON") from error
+    if not isinstance(result, dict) or result.get("RecognitionStatus") != "Success":
+        return ""
+    return str(result.get("DisplayText", "")).strip()

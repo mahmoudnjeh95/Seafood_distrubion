@@ -53,6 +53,7 @@ import type {
   Category,
   ChangePassword,
   Chat,
+  ChatDictation,
   ChatMessage,
   ChatQuestion,
   CloseLot,
@@ -106,6 +107,7 @@ import type {
   Deliver,
   Deposit,
   DepositWrite,
+  DictateAssistantParams,
   DocumentList,
   DriverDay,
   EInvoicingSettingsOverview,
@@ -745,6 +747,101 @@ export function useGetAssistantChat<TData = Awaited<ReturnType<typeof getAssista
 
 
 
+
+export const getDictateAssistantUrl = (params: DictateAssistantParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/assistant/chat/dictation?${stringifiedParams}` : `/api/v1/assistant/chat/dictation`
+}
+
+/**
+ * A question dictated on the screen, as a WAV recording (16 kHz, 16-bit mono) in the body: the text Azure
+ * heard, in Tunisian (`ar-TN`) or French (`fr-FR`). The question is then sent with `askAssistant`. 404 when the
+ * server has no Azure key (the screen then uses the browser's recognition).
+ */
+export const dictateAssistant = async (params: DictateAssistantParams,
+    dictateAssistantBody?: Blob, options?: Parameters<typeof apiFetch>[1]): Promise<ChatDictation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ChatDictation>(getDictateAssistantUrl(params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'audio/wav', ...getHeaders(options?.headers) },
+    body: dictateAssistantBody
+  }
+);}
+
+
+
+
+
+export const getDictateAssistantMutationKey = () => ['dictateAssistant'] as const;
+
+export const getDictateAssistantMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dictateAssistant>>, TError,DictateAssistantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dictateAssistant>>, TError,DictateAssistantMutationVariables, TContext> => {
+
+const mutationKey = getDictateAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dictateAssistant>>, DictateAssistantMutationVariables> = (props) => {
+          const {params,data} = props ?? {};
+
+          return  dictateAssistant(params,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DictateAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof dictateAssistant>>>
+    export type DictateAssistantMutationBody = Blob | undefined
+    export type DictateAssistantMutationError = void
+    export type DictateAssistantMutationVariables = {params: DictateAssistantParams;data?: Blob}
+
+    export const useDictateAssistant = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dictateAssistant>>, TError,DictateAssistantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dictateAssistant>>,
+        TError,
+        DictateAssistantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDictateAssistantMutationOptions(options), queryClient);
+    }
 
 export const getAskAssistantUrl = () => {
 
@@ -33627,7 +33724,7 @@ export const getSearchEverythingUrl = (params: SearchEverythingParams,) => {
 }
 
 /**
- * Customers, suppliers, products, lots, BL and invoices matching `q` (D-324), at most five of each, only of
+ * Customers, suppliers, products, lots, BL and invoices matching `q` (D-330), at most five of each, only of
  * the sections the person may read. Fewer than two characters: nothing.
  */
 export const searchEverything = async (params: SearchEverythingParams, options?: Parameters<typeof apiFetch>[1]): Promise<SearchHit[]> => {
