@@ -214,7 +214,7 @@ def terms_of(partnership: Any) -> engine.PartnershipTerms:
 
 
 def _terms(organization: Organization, batch_id: int) -> engine.PartnershipTerms | None:
-    """The terms a line's own result shows (D-324): those of its one partnership when that partnership shares this
+    """The terms a line's own result shows (D-325): those of its one partnership when that partnership shares this
     line alone, so the line's share is the partnership's to the millime. A line shared by several partnerships, or
     by one that shares other lines too, shows none: the share is the partnership's, on the sum of its lines."""
     live = partnerships.live_partnerships_of_line(organization, batch_id=batch_id)
@@ -352,7 +352,7 @@ def closed_batch_ids(organization: Organization, *, batch_ids: list[int] | None 
     return set(results.values_list("batch_id", flat=True))
 
 
-# ---- Partnership results (D-320, D-324) ----
+# ---- Partnership results (D-320, D-325) ----
 
 
 def partnership_results_of(
@@ -453,7 +453,7 @@ class LateDrift:
 def late_drift(organization: Organization, result: "LotResult | PartnershipResult") -> LateDrift | None:
     """The late adjustment a closed partnership is waiting for, or None for a line without partner.
 
-    Per partnership (D-324): drift = the sum of its lines' live nets − its frozen net. The share is computed on the
+    Per partnership (D-325): drift = the sum of its lines' live nets − its frozen net. The share is computed on the
     whole drift and the booked part taken off, so what is booked adds up to `share(live net) − share(frozen net)`
     exactly, whatever the number of adjustments (no rounding drift). Given a line's result, it is the partnership's
     that shares this line alone."""

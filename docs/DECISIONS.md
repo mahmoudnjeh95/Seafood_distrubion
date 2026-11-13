@@ -4348,7 +4348,7 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
   shared lines are done, the receipt form) is one step, T08c2 with T08d: allowing several lines before the closing
   nets them would compute wrong shares.
 
-**D-324 · A partnership's result is its rate on the sum of its lines, frozen when its last line closes (P6-T08 PR 1, D-320)** · accepted · 2026-11-13
+**D-325 · A partnership's result is its rate on the sum of its lines, frozen when its last line closes (P6-T08 PR 1, D-320)** · accepted · 2026-11-13
 - New `closing.PartnershipResult` (migration `closing 0003`): the partnership, closed/reopened, `net_result` = sum
   of its lines' frozen nets, `partner_share`, `owner_share` = net − share, `capital_deducted`, `uncovered_loss`,
   `capital_to_return`, `data` (its lines with their `LotResult` id and net, and the steps). One closed per

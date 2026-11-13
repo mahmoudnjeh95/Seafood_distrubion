@@ -149,7 +149,7 @@ class CapitalEntry(OrganizationScopedModel):
     method = models.CharField(max_length=20, choices=SettlementPaymentMethod.choices, blank=True)
     reference = models.CharField(max_length=50, blank=True)
     # The frozen lot result that caused it (a loss deduction or its reversal), by id: `closing` reads us.
-    # Since D-324 the partnership's result (`closing.PartnershipResult`) is what causes it; `lot_result_id` is kept
+    # Since D-325 the partnership's result (`closing.PartnershipResult`) is what causes it; `lot_result_id` is kept
     # on old rows and, for a partnership of one line, on new ones.
     lot_result_id = models.PositiveBigIntegerField(null=True, blank=True)
     partnership_result_id = models.PositiveBigIntegerField(null=True, blank=True)
@@ -205,7 +205,7 @@ class ProfitShareEntry(OrganizationScopedModel):
     entry_date = models.DateField()
     note = models.CharField(max_length=300, blank=True)
     lot_result_id = models.PositiveBigIntegerField(null=True, blank=True)
-    # The partnership's frozen result this entry belongs to (D-324): late adjustments are counted on it.
+    # The partnership's frozen result this entry belongs to (D-325): late adjustments are counted on it.
     partnership_result_id = models.PositiveBigIntegerField(null=True, blank=True)
     settlement = models.ForeignKey(
         "partnerships.PartnerSettlement", null=True, blank=True, on_delete=models.PROTECT, related_name="entries"
@@ -231,7 +231,7 @@ class PartnerSettlement(OrganizationScopedModel, TimeStampedModel):
     recorded settlement is never edited (a later correction is a late adjustment on the next one)."""
 
     partnership = models.OneToOneField(LotPartnership, on_delete=models.PROTECT, related_name="settlement")
-    # The line's result on old settlements and on a partnership of one line; the partnership's result always (D-324).
+    # The line's result on old settlements and on a partnership of one line; the partnership's result always (D-325).
     lot_result_id = models.PositiveBigIntegerField(null=True, blank=True)
     partnership_result_id = models.PositiveBigIntegerField(null=True, blank=True)
     settled_on = models.DateField()

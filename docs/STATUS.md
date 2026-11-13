@@ -1,10 +1,10 @@
 # Project status
 
-_Last updated: 2026-11-13 (P6-T08 PR 1, partnership result, D-324; next free decision D-325)_
+_Last updated: 2026-11-13 (P6-T08 PR 1, partnership result, D-325; next free decision D-325)_
 
 ## Where we are
 
-- **P6-T08 PR 1 · Partnership result (D-324, migrations `closing 0003`, `0004`, `partnerships 0006`):**
+- **P6-T08 PR 1 · Partnership result (D-325, migrations `closing 0003`, `0004`, `partnerships 0006`):**
   `closing.PartnershipResult` freezes each partnership's rate on the sum of its lines when its last line closes;
   reopen, late drift, book and settle work per partnership; ledgers carry `partnership_result_id`; old results
   migrated one line each. Existing closing tests pass unchanged; golden tests in

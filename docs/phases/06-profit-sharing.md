@@ -108,7 +108,7 @@ Owner: one achat is one lot, its products share the lot number; a partner may sh
   per batch) and `PartnerSettlement.partnership` one-to-one stay true in the new model.
 
   1. **PR 1 · Partnership result (backend only, no visible change for one-line partnerships).**
-     _Done 2026-11-13 (D-324, migrations `closing 0003`, `0004`, `partnerships 0006`), golden tests in
+     _Done 2026-11-13 (D-325, migrations `closing 0003`, `0004`, `partnerships 0006`), golden tests in
      `closing/tests/test_partnership_result.py`. One change from the text below: a line shared alone by one
      partnership still shows the share on its own result (same figures), so the existing tests stay unchanged._
      - New `closing.PartnershipResult` (organization, partnership FK, status closed/reopened, `net_result` = sum of

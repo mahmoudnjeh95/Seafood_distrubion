@@ -25,7 +25,7 @@ class LotResultAdmin(admin.ModelAdmin[LotResult]):
 
 @admin.register(PartnershipResult)
 class PartnershipResultAdmin(admin.ModelAdmin[PartnershipResult]):
-    """For looking only: frozen by the lot closings (D-324)."""
+    """For looking only: frozen by the lot closings (D-325)."""
 
     list_display = ("partnership", "status", "net_result", "partner_share", "closed_at", "organization")
     list_filter = ("organization", "status")

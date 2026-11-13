@@ -1,4 +1,4 @@
-"""Every lot result frozen with a partner gets its partnership result (D-324): one line, the same figures, and the
+"""Every lot result frozen with a partner gets its partnership result (D-325): one line, the same figures, and the
 partner's ledger rows and settlement point to it. The line results keep their partner columns as history."""
 
 from typing import Any

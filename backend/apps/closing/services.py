@@ -1,5 +1,5 @@
 """Closing and reopening a lot: its result frozen, or unfrozen with a reason (P6-T02, D-061); a partnership's
-result frozen when the last line it shares closes (D-324)."""
+result frozen when the last line it shares closes (D-325)."""
 
 from typing import TYPE_CHECKING, Any
 
@@ -83,7 +83,7 @@ def _partnership_summary(result: PartnershipResult) -> dict[str, Any]:
 def _freeze_partnership(
     organization: Organization, actor: User | None, partnership: Any, lines: tuple[engine.SharedLine, ...]
 ) -> PartnershipResult:
-    """Freeze a partnership's result from its lines' frozen nets (D-324) and post its consequences: the loss share
+    """Freeze a partnership's result from its lines' frozen nets (D-325) and post its consequences: the loss share
     taken from the capital, the partnership closed."""
     computed = engine.partnership_result(selectors.terms_of(partnership), lines)
     partner = computed.partner
@@ -128,7 +128,7 @@ def close_lot(
     the line still waiting for approval; `costs_confirmed` not given (only the person closing knows every
     cost is in); customers still owing money on its sales (customer payments, P2-T06, D-062); a partnership
     sharing it whose terms are not filled in yet.
-    Each partnership sharing this line whose every line is now closed gets its result frozen (D-324), and a
+    Each partnership sharing this line whose every line is now closed gets its result frozen (D-325), and a
     partner's loss share is taken from their capital in the same transaction. Two closings at once: the second
     waits, then is refused.
     """

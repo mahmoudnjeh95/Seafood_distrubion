@@ -1,4 +1,4 @@
-"""A partnership's result: its rate on the sum of the lines it shares (D-320 Q31, D-324)."""
+"""A partnership's result: its rate on the sum of the lines it shares (D-320 Q31, D-325)."""
 
 from decimal import Decimal
 
@@ -221,7 +221,7 @@ def test_a_line_with_pending_terms_does_not_close(organization, actor, cold_room
         close(organization, actor, shrimp)
 
 
-# ---- The migration of lots closed before D-324 ----
+# ---- The migration of lots closed before D-325 ----
 
 
 def test_the_migration_gives_each_old_partner_result_its_partnership_result(organization, actor, finished_lot):
@@ -240,7 +240,7 @@ def test_the_migration_gives_each_old_partner_result_its_partnership_result(orga
         payments=[{"amount": "1286.000", "method": "cash"}],
     )
     expected = PartnershipResult.objects.get()
-    # As the data stood before D-324: no partnership result, the ledgers by line result only.
+    # As the data stood before D-325: no partnership result, the ledgers by line result only.
     with connection.cursor() as cursor:
         cursor.execute("DELETE FROM closing_partnershipresult")
         for table in ("capitalentry", "profitshareentry", "partnersettlement"):

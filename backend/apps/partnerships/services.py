@@ -447,7 +447,7 @@ def record_lot_closed(
     on: dt.date,
     lot_result_id: int | None = None,
 ) -> LotPartnership:
-    """The partnership's result is frozen (its last shared line closed, D-324): the partnership is closed, and a
+    """The partnership's result is frozen (its last shared line closed, D-325): the partnership is closed, and a
     loss share taken from the capital is posted on the ledger (D-031). Runs inside the closing's transaction, which
     holds the lines' locks. `lot_result_id` is the line's result for a partnership of one line."""
     partnership = _locked(partnership)

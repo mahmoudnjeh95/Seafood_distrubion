@@ -11,7 +11,7 @@ the partnership terms); `lot_result` turns it into a `ComputedResult` with every
 
 A partnership sharing several lines of a lot (D-320) nets them: `partnership_result` applies the rate once to the
 sum of the lines' nets. A line's own result carries the partner's share only when its partnership shares that line
-alone, where the two are the same figures (D-324).
+alone, where the two are the same figures (D-325).
 
 Amounts are Decimal in DT, rounded half up to the millime once per share (ARCHITECTURE §4.1). The
 partner's share and the owner's share always add up to the net result exactly.
@@ -349,7 +349,7 @@ def lot_result(snapshot: LotSnapshot) -> ComputedResult:
     )
 
 
-# ---- One partnership: its rate on the sum of the lines it shares (D-320, D-324) ----
+# ---- One partnership: its rate on the sum of the lines it shares (D-320, D-325) ----
 
 
 @dataclass(frozen=True)

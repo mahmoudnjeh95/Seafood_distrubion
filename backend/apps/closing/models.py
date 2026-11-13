@@ -112,7 +112,7 @@ class PartnershipResultQuerySet(OrganizationScopedQuerySet["PartnershipResult"])
 
 
 class PartnershipResult(OrganizationScopedModel):
-    """The frozen result of one partnership (P6-T08, D-320, D-324): the partner's rate on the *sum* of the frozen
+    """The frozen result of one partnership (P6-T08, D-320, D-325): the partner's rate on the *sum* of the frozen
     nets of the lines it shares, rounded once (D-031). Frozen when the last of those lines closes.
 
     Each line keeps its own `LotResult` (the engine, unchanged, per product); this is what the partner's ledgers and
