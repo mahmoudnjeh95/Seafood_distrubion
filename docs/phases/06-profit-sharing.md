@@ -97,6 +97,49 @@ Owner: one achat is one lot, its products share the lot number; a partner may sh
         the API gives `lot_number` and `line_ids`; search by lot number. No change in the results yet.
   - [ ] **T08c2** (with T08d, they cannot be split without wrong shares): several partners per line and several
         lines per partnership, the checks on capital and rates, the receipt form's "Partenaires" section.
+
+  **Implementation plan for T08c2 + T08d (written 2026-11-12 after reading the code; three PRs, in order):**
+
+  Today, per line (`Batch`): `closing.LotResult` freezes the line's net *and* the partner's share
+  (`engine.lot_result` with `LotSnapshot.partnership` from `selectors._terms` → `live_partnership_of_batch`);
+  `close_lot` calls `partnerships.record_lot_closed`; `settle_lot` → `settle_partnership(lot_result_id=…)`;
+  `late_drift` shares a line's drift at the partnership's rate; `CapitalEntry`, `ProfitShareEntry` and
+  `PartnerSettlement` carry a bare `lot_result_id`. Constraint `one_live_partnership_per_lot` (one live partnership
+  per batch) and `PartnerSettlement.partnership` one-to-one stay true in the new model.
+
+  1. **PR 1 · Partnership result (backend only, no visible change for one-line partnerships).**
+     - New `closing.PartnershipResult` (organization, partnership FK, status closed/reopened, `net_result` = sum of
+       its lines' frozen nets, `partner_share`, `capital_deducted`, `uncovered_loss`, `capital_to_return`,
+       `owner_share` = net − share, `data` JSON: the lines with their `LotResult` id and net, and the steps,
+       closed/reopened by and at; one closed per partnership by constraint).
+     - The engine's line result stops computing a share: `lot_result` gets `partnership=None` for lines, and a new
+       `engine.partnership_result(terms, lines)` reuses `partner_share(terms, Σ net)` (rounding once, D-031).
+     - `close_lot` freezes the line only; then, for each live partnership ticking that line whose every ticked line
+       now has a closed `LotResult`, it freezes a `PartnershipResult` and calls `record_lot_closed` with its id.
+       A partnership with `terms_pending` still blocks the closing of its lines.
+     - `reopen_lot` of a line also reopens the partnership results that include it (refused once settled, as now).
+     - `late_drift` and `book_late_adjustments` work per partnership: drift = Σ live nets of its lines − frozen net.
+     - Ledgers and the settlement: add `partnership_result_id` (nullable) next to `lot_result_id`; old rows keep
+       `lot_result_id`; new rows set the new field. `settle_lot` takes the partnership (by id) instead of a batch.
+     - Migration: for every closed `LotResult` with a partnership, a `PartnershipResult` copying its share fields,
+       one line; ledgers and settlements get its id. Old line results keep their partner columns as history.
+     - Golden tests: shrimp +2 400 / squid −500 shared 50 % → 950; a loss sum uses the loss rate; one-line
+       partnerships give the same figures as before to the millime (run every existing closing test unchanged).
+  2. **PR 2 · Several lines and several partners (backend + API).**
+     - `create_partnership(lot=…, lines=[…])`; `update_partnership` may change the lines before the first sale of any
+       of them. Checks: lines of that lot only; on each line, the live partnerships' profit rates together ≤ 100 %
+       and loss rates together ≤ 100 %; their partner capitals together ≤ the line's purchase value (kg × cost)
+       summed over the partnership's lines (D-320 3). Drop `one_live_partnership_per_lot`; keep one live
+       partnership per partner per lot.
+     - Transformation of a shared line (Q30): the output line joins the source's lot and its partnerships.
+     - API: partnership create/update take `lot` and `lines`; the lot page lists each partnership with its lines.
+  3. **PR 3 · Screens and papers.**
+     - Receipt form: a "Partenaires" section per receipt (partner, capital, rates, "partagé" tick per product)
+       instead of the per-line partner column; lot page: result per product, each partnership's netted result,
+       "Clôturer" per product, "Régler" per partnership; partner statement PDF one block per lot, a line per shared
+       product and the netted total; reports per partner read `PartnershipResult`.
+     - Check on staging: the owner's example of D-320 and the two-partner case (Ali 40 %, Salah 30 % on shrimp
+       +1 000 → 400 and 300, the owner 300).
 - [ ] **T08d · Shared result and closing.** Each partnership's result = sum of its ticked lines' results (engine
       unchanged per line); profit or loss rate on the sum; a transformed shared line's output stays in its
       partnerships (Q30); closing checks on the ticked lines only; the owner's
