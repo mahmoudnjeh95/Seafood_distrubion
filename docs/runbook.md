@@ -208,7 +208,7 @@ deploy), `SENTRY_DSN_FRONTEND` (build argument, becomes `VITE_SENTRY_DSN`; `VITE
 - `manifest.txt` (not secret): time, key fingerprint, PostgreSQL version, SHA-256 of both files.
 
 Both files are encrypted with gpg to the backup public key while they stream: nothing readable is written to disk
-and the server cannot read its own backups. Folders older than 30 days are deleted. Each run adds one line to
+and the server cannot read its own backups. Every backup is kept 30 days; after that the first backup of each month stays 10 years (D-324), the others are deleted. Each run adds one line to
 `~/frutti-staging/backup.log`: `... BACKUP OK frutti-staging <time> db=541KB media=916KB duration=2s kept=.. removed=..
 offsite=..` or `... BACKUP FAILED frutti-staging <time>: <reason>` (exit code 1). To run one by hand:
 `~/frutti-staging/bin/backup.sh`. Not backed up: `.env` (recreated by a deploy; keep its off-site credentials in the

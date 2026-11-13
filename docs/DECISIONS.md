@@ -4347,3 +4347,10 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - The rest of D-320 (several partners per line, several lines per partnership, the netted result, closing when the
   shared lines are done, the receipt form) is one step, T08c2 with T08d: allowing several lines before the closing
   nets them would compute wrong shares.
+
+**D-324 · Phase 11 owner answers; backups kept 10 years; draft contracts (P11-T03, P11-T04)** · accepted (owner 2026-11-13, Q32) · 2026-11-13
+- The owner's answers to the twelve compliance questions are Q32. They unblock P11-T02 (1 % above 1 000 DT), T08, T12, T13, T17 and T21 (the owner opens each company; monthly or yearly subscription with promotions); every rate stays a setting.
+- `deploy/backup.sh`: every backup for 30 days, then the first backup of each month for 10 years (`KEEP_YEARS`), instead of deleting everything after 30 days. Local disk and the off-site bucket grow by one database dump and one media archive per month; watch the disk.
+- The production server is in Tunisia (owner), so no INPDP transfer authorization is needed; the INPDP declaration itself stays an owner action, and each client declares its own data.
+- `docs/legal/contrat-abonnement-logiciel.md` and `docs/legal/contrat-participation-lot.md` are drafts written from the app's rules, not reviewed by a lawyer. The subscription draft puts the tax settings and the TTN enrolment under the client's responsibility.
+

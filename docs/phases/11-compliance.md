@@ -16,6 +16,16 @@ One branch and one PR per code task. Review IDs in brackets (F1, R1…).
 - Declarations are **prepared** (screens and exports to copy into the DGI / CNSS portals), not filed by the app.
 - A value a company may need to change is a setting in a Paramètres section, never a constant in code (owner, D-310).
 
+## Owner answers (2026-11-13, Q32)
+
+TTN: each client company brings its own enrolment and certificate; the app offers the feature (T05). Withholding made
+by the company: 1 % above 1 000 DT (T02 no longer waits for the accountant; rent and fees rates stay empty settings).
+Several VAT rates already exist (Paramètres › TVA, D-283); T07 keeps "Exonéré" and the category default. T08, T12,
+T13, T17: build them, every rate a setting. Hosting is in Tunisia, backups 10 years (done, D-324). Contracts: drafts
+in `docs/legal/` (D-324). Selling: monthly or yearly with promotions, the owner opens the accounts (T21 has no
+self sign-up). **Build order:** T02 → T08 → T07 → T13 → T12 → T17 → T21 → T05b–d (needs TTN's TEIF files and a
+sandbox, from the first client or asked from TTN as a software editor).
+
 ## Tasks
 
 ### Wave 1: before the first paying client

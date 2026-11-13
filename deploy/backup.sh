@@ -7,7 +7,7 @@
 #    avatars, receipts, generated PDFs).
 # 2. Both are encrypted with gpg to the public key while they stream: nothing readable is written to disk, and the
 #    server never holds the private key needed to read a backup (it stays with the owner).
-# 3. Kept 30 days in ~/<project>/backups/<UTC time>/; older folders are deleted.
+# 3. Kept in ~/<project>/backups/<UTC time>/: every backup for 30 days, then the first of each month for 10 years.
 # 4. Copied off the server with rclone (from a container) when BACKUP_S3_BUCKET is set in ~/<project>/.env.
 #
 # Prints one line "BACKUP OK ..." on success, or "BACKUP FAILED ..." and exits non-zero, for monitoring.
@@ -19,6 +19,7 @@ BASE="$HOME/$PROJECT"
 ENV_FILE="$BASE/.env"
 BACKUPS="$BASE/backups"
 KEEP_DAYS=30
+KEEP_YEARS=10
 # Images already used by the project, or official ones pinned to an exact version.
 TOOLS_IMAGE="postgres:16-alpine"
 RCLONE_IMAGE="rclone/rclone:1.68.2"
@@ -109,11 +110,22 @@ mv "$PARTIAL" "$BACKUPS/$STAMP"
 DIR="$BACKUPS/$STAMP"
 
 STEP="retention"
+# Every backup of the last KEEP_DAYS days; before that, the first backup of each month for KEEP_YEARS years
+# (accounting records are kept 10 years, D-324). The folders sort by time, so a month's first one comes first.
 CUTOFF="$(date -u -d "$KEEP_DAYS days ago" +%Y%m%dT%H%M%SZ)"
+YEARS_CUTOFF="$(date -u -d "$KEEP_YEARS years ago" +%Y%m%dT%H%M%SZ)"
 removed=0
+month_seen=""
 for old in "$BACKUPS"/20*; do
   [ -d "$old" ] || continue
-  if [[ "$(basename "$old")" < "$CUTOFF" ]]; then rm -rf "$old"; removed=$((removed + 1)); fi
+  name="$(basename "$old")"
+  month="${name:0:6}"
+  first_of_month=0
+  if [ "$month" != "$month_seen" ]; then first_of_month=1; month_seen="$month"; fi
+  [[ "$name" < "$CUTOFF" ]] || continue
+  if [ "$first_of_month" = 1 ] && ! [[ "$name" < "$YEARS_CUTOFF" ]]; then continue; fi
+  rm -rf "$old"
+  removed=$((removed + 1))
 done
 KEPT="$(find "$BACKUPS" -mindepth 1 -maxdepth 1 -type d -name '20*' | wc -l)"
 
