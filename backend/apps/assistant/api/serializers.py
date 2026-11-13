@@ -27,3 +27,9 @@ class ChatQuestionSerializer(serializers.Serializer[dict[str, object]]):
     text = serializers.CharField(max_length=MAX_QUESTION, trim_whitespace=True)
     # Dictated, or the answer will be read aloud: the answer is then written to be spoken.
     spoken = serializers.BooleanField(default=False)
+
+
+class ChatDictationSerializer(serializers.Serializer[dict[str, object]]):
+    """The question as Azure heard it; empty when no speech was heard."""
+
+    text = serializers.CharField(allow_blank=True)
