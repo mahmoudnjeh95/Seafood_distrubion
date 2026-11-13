@@ -4348,6 +4348,12 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
   shared lines are done, the receipt form) is one step, T08c2 with T08d: allowing several lines before the closing
   nets them would compute wrong shares.
 
+**D-324 · Dictation on the "Assistant IA" screen is recognised by Azure when the key is set** · accepted (owner 2026-11-12, "نبداو بالحل متاع Azure") · 2026-11-12
+- The browser's recognition (`ar-TN`, Chrome and Edge only) did not understand the owner's Tunisian. Azure AI Speech, already used for the voice (D-314), recognises `ar-TN` and is reached with the same key, so no new provider.
+- The screen records with `MediaRecorder`, turns any browser's recording into 16 kHz 16-bit mono WAV (Azure's short-audio REST takes no WebM), and posts it to `POST assistant/chat/dictation?language=`; the text heard is then asked like a typed question (`spoken`). At most 30 s of recording, 2 MB on the server; Azure's silence is an empty text, a refusal a 502.
+- Without the key (404, and `server_voice` false), the browser's own recognition stays, so nothing breaks before the key is added. `manage.py check_speech` checks a new key: the Tunisian voice reads a sentence as WAV, then the recognition hears it.
+- Not P12-T03 (WhatsApp voice notes): that still needs the provider test on real voice notes; this recognition can be one of the candidates. The next free number is D-325.
+
 **D-325 · A partnership's result is its rate on the sum of its lines, frozen when its last line closes (P6-T08 PR 1, D-320)** · accepted · 2026-11-13
 - New `closing.PartnershipResult` (migration `closing 0003`): the partnership, closed/reopened, `net_result` = sum
   of its lines' frozen nets, `partner_share`, `owner_share` = net − share, `capital_deducted`, `uncovered_loss`,

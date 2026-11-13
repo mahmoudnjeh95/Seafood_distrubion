@@ -229,3 +229,66 @@ def test_azure_refusing_is_a_speech_error(settings):
     transport = httpx.MockTransport(lambda request: httpx.Response(401, text="denied"))
     with pytest.raises(speech.SpeechError):
         speech.synthesize("salut", transport=transport)
+
+
+WAV = b"RIFF0000WAVEfmt fake-wav"
+
+
+def dictation_url(language="ar-TN"):
+    return f"/api/v1/assistant/chat/dictation?language={language}"
+
+
+def test_azure_hears_the_tunisian_question(owner, settings, monkeypatch):
+    settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION = "key", "francecentral"
+    sent: list[httpx.Request] = []
+
+    def recognise(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(200, json={"RecognitionStatus": "Success", "DisplayText": "chnowa 3andi f frigo?"})
+
+    transport = httpx.MockTransport(recognise)
+    original = speech.transcribe
+    monkeypatch.setattr(speech, "transcribe", lambda audio, language: original(audio, language, transport=transport))
+    answer = client_of(owner).post(dictation_url(), WAV, content_type="audio/wav")
+    assert answer.status_code == 200
+    assert answer.json() == {"text": "chnowa 3andi f frigo?"}
+    assert sent[0].url.host == "francecentral.stt.speech.microsoft.com"
+    assert sent[0].url.params["language"] == "ar-TN"
+    assert sent[0].headers["Ocp-Apim-Subscription-Key"] == "key"
+    assert sent[0].headers["Content-Type"] == speech.RECOGNITION_FORMAT
+    assert sent[0].content == WAV
+
+
+def test_silence_is_an_empty_text_not_an_error(owner, settings):
+    settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION = "key", "francecentral"
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"RecognitionStatus": "NoMatch"}))
+    assert speech.transcribe(WAV, "ar-TN", transport=transport) == ""
+
+
+def test_dictation_refusals(owner, settings, monkeypatch):
+    settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION = "key", "francecentral"
+    client = client_of(owner)
+    assert client.post(dictation_url("en-US"), WAV, content_type="audio/wav").status_code == 400
+    assert client.post(dictation_url(), b"", content_type="audio/wav").status_code == 400
+    assert (
+        client.post(dictation_url(), b"x" * (speech.MAX_AUDIO_BYTES + 1), content_type="audio/wav").status_code == 413
+    )
+    settings.AZURE_SPEECH_KEY = ""
+    assert client.post(dictation_url(), WAV, content_type="audio/wav").status_code == 404
+
+
+def test_azure_failing_on_dictation_is_a_502(owner, settings, monkeypatch):
+    settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION = "bad", "francecentral"
+
+    def fail(audio, language):
+        raise speech.SpeechError("401")
+
+    monkeypatch.setattr(speech, "transcribe", fail)
+    assert client_of(owner).post(dictation_url(), WAV, content_type="audio/wav").status_code == 502
+
+
+@pytest.mark.parametrize("role", [Role.MANAGER, Role.DRIVER])
+def test_only_the_owner_dictates(role, settings):
+    settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION = "key", "francecentral"
+    client = client_of(MembershipFactory.create(role=role))
+    assert client.post(dictation_url(), WAV, content_type="audio/wav").status_code == 403
