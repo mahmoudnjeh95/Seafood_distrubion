@@ -1,0 +1,39 @@
+{% extends "documents/pdf_base.html" %}{% load pdf_format %}
+{% comment %}The certificate the company gives a supplier for the tax it withheld from one invoice (D-327).{% endcomment %}
+{% block heading %}Certificat de retenue à la source{% endblock %}
+{% block body %}
+<div class="parties">
+  <div>
+    <h2>Organisme payeur</h2>
+    <p>{{ seller.name }}</p>
+    {% if seller.tax_id %}<p>Matricule fiscal : {{ seller.tax_id }}</p>{% endif %}
+    {% if seller.address %}<p>{{ seller.address }}</p>{% endif %}
+  </div>
+</div>
+
+<h2>Retenue effectuée</h2>
+<table class="lines">
+  <thead>
+    <tr><th>Facture</th><th>Réf. fournisseur</th><th>Date</th><th class="r">Montant brut</th><th class="r">Taux</th><th class="r">Retenue</th><th class="r">Montant net</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="num">{{ invoice.number }}</td>
+      <td class="num">{{ invoice.supplier_reference }}</td>
+      <td class="num">{{ invoice.invoice_date|date:"d/m/Y" }}</td>
+      <td class="r num">{{ base|money }}</td>
+      <td class="r num">{{ invoice.withholding_rate|percent }}</td>
+      <td class="r num">{{ invoice.withholding_amount|money }}</td>
+      <td class="r num">{{ net|money }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="totals num" style="margin-bottom: 6mm">
+  <div class="grand"><span>Retenue à la source</span><span>{{ invoice.withholding_amount|money }} DT</span></div>
+</div>
+
+<p>Je soussigné, certifie exacts les renseignements figurant sur le présent certificat.</p>
+<p class="muted">Montant brut : total hors TVA + TVA de la facture, hors timbre fiscal.</p>
+<div style="display: flex; justify-content: flex-end; margin-top: 10mm"><span>Cachet et signature du payeur :</span><div style="width: 70mm; height: 24mm"></div></div>
+{% endblock %}

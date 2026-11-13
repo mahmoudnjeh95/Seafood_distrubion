@@ -40,8 +40,9 @@ sandbox, from the first client or asked from TTN as a software editor).
   _T02a done 2026-11-13 (D-325): the accountant's rates in Paramètres financiers (purchases 1 %, rent, fees, TCL, CSS,
   TFP, FOPROLOS; empty until typed); the supplier flag exists since D-319._
   _T02b done 2026-11-13 (D-326): a validated supplier invoice of 1 000 DT and more is withheld at the rate, through a
-  règlement "Retenue à la source"; the supplier is owed the rest. Next: T02c (certificate PDF, list of the month,
-  rent and fees on expenses)._
+  règlement "Retenue à la source"; the supplier is owed the rest. _
+  _T02c part 1 done 2026-11-13 (D-327): the règlement "Retenue à la source" prints as the certificate. Left: rent and
+  fees on expenses; the month's list comes with T13._
 - [ ] **P11-T03 Data protection and hosting (L1, L3)** · M · **Owner + Lawyer**, then code. INPDP declaration (and
   transfer authorization while the servers are outside Tunisia), production server apart from other clients,
   off-site backups (D-139), retention of accounting data 10 years. Code: privacy page in the admin and driver apps,

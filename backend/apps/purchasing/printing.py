@@ -40,8 +40,33 @@ def _supplier_party(supplier: Any) -> dict[str, str]:
     }
 
 
+def _withholding_certificate(organization: Organization, payment: Any) -> documents.Printable:
+    """The certificate of the tax withheld from one supplier invoice (D-327): the règlement "Retenue à la source"
+    prints as it."""
+    invoice = SupplierInvoice.objects.for_organization(organization).get(withholding_payment=payment)
+    base = invoice.total_excl_tax + invoice.vat_total
+    return documents.Printable(
+        template="purchasing/pdf/withholding_certificate.html",
+        context={
+            "number": payment.number,
+            "seller": _seller_of(organization),
+            "doc_date": payment.paid_on,
+            "party": _supplier_party(payment.supplier),
+            "invoice": invoice,
+            "base": base,
+            "net": base - invoice.withholding_amount,
+        },
+        version=payment.updated_at.isoformat(),
+        filename=f"certificat-retenue-{slugify(payment.number) or 'document'}.pdf",
+        title=f"Certificat de retenue {payment.number}",
+        email_to=payment.supplier.email_addresses(),
+    )
+
+
 def supplier_receipt_printable(organization: Organization, payment_id: int) -> documents.Printable:
     payment = payment_of(organization, payment_id)
+    if payment.method == PaymentMethod.WITHHOLDING:
+        return _withholding_certificate(organization, payment)
     allocations = list(payment.allocations.all())
     allocated = Decimal("0.000") if payment.voided_at else sum((row.amount for row in allocations), Decimal("0.000"))
     context: dict[str, Any] = {

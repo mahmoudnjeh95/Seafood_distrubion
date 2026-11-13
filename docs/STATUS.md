@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-327)_
+_Last updated: 2026-11-11 (integration of the eight open PRs #343 to #350 on `claude/confident-mayer-8rb73t`, D-322; next free decision D-328)_
 
 ## Where we are
 
@@ -45,8 +45,8 @@ The PR bodies still show the numbers they were written with (D-310 to D-313, D-3
    **T02b done (D-326, migration `purchasing 0029`):** validating a supplier invoice of 1 000 DT and more withholds
    the rate through a règlement "Retenue à la source". Check on staging: validate a supplier invoice of 2 000 DT, it
    shows "Retenue à la source (1 %) − 20,000", reste à payer 1 980; the caisse did not move.
-   **Next: P11-T02c** (certificate PDF, list of the month, rent and fees on expenses), then T08, T07, T13, T12, T17,
-   T21, T05b.
+   **T02c part 1 (D-327):** the règlement "Retenue à la source" prints as the certificate (PDF on the règlement).
+   **Next:** rent and fees withholding on expenses (rest of T02c), then T08, T07, T13, T12, T17, T21, T05b.
 0. **Owner:** decide whether this integration branch goes to `main`. Merge order if so: #350, #343, #344, #346, #348,
    #345, #347, #349. Also fix GitHub billing so CI runs on the PRs (D-297).
 0. **P11-T05b to d (e-invoicing):** blocked on the owner's documents (Q18): TTN enrolment, sandbox access, the TEIF

@@ -4368,3 +4368,7 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - Legally the withholding is due when the supplier is paid; fixing it at validation follows the customer side and keeps partial payments simple. Not done: a credit note on a withheld invoice does not give the withholding back; rent and fees (expenses) come with T02c.
 - Tests: organizations start without the rate (root `conftest.py`); a test marked `supplier_withholding` keeps the real 1 %.
 
+**D-327 · The règlement "Retenue à la source" prints as the withholding certificate (P11-T02c part 1)** · accepted · 2026-11-13
+- The existing PDF of a supplier règlement (`supplier_receipt`) renders `withholding_certificate.html` when the règlement's method is `withholding`: payer, supplier, invoice, gross amount (without VAT + VAT), rate, amount withheld, net, signature. No new document kind, button or route: "PDF" on the règlement gives it.
+- The wording is ours, not the official DGI form: the accountant checks it. Still open in T02c: withholding on rent and fees (expenses) and the month's list, which comes with the monthly return (T13).
+

@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.catalog.tests.factories import ProductFactory
 from apps.core.tests.factories import OrganizationFactory
+from apps.documents import services as documents
 from apps.inventory.tests.factories import StockLocationFactory
 from apps.partners.tests.factories import SupplierFactory
 from apps.purchasing import selectors, services
@@ -135,3 +136,16 @@ def test_a_withholding_is_not_typed_nor_voided(organization, supplier):
         )
     with pytest.raises(ValidationError, match="retenue"):
         services.void_payment(payment=invoice.withholding_payment, actor=None, reason="erreur")
+
+
+def test_the_withholding_prints_as_a_certificate(organization, supplier):
+    invoice = posted_invoice(organization, supplier, "100", "20.000")
+
+    printable = documents.printable(organization, "supplier_receipt", invoice.withholding_payment.pk)
+    html = documents.render_html(printable)
+
+    assert printable.filename.startswith("certificat-retenue-")
+    assert "Certificat de retenue à la source" in html
+    assert invoice.number in html
+    assert "2 000,000" in html.replace("\u202f", " ").replace("\xa0", " ")
+    assert "1 980,000" in html.replace("\u202f", " ").replace("\xa0", " ")
