@@ -195,7 +195,7 @@ def lot_settlement_payload(organization: Organization, batch_id: int) -> dict[st
         "balances": partner_balances_payload(organization, partnership.partner_id, partnership.partner.name),
         "state": SettlementState.NOT_CLOSED,
     }
-    result = selectors.closed_result_of(organization, batch_id=batch_id)
+    result = selectors.closed_partnership_result_of(organization, partnership_id=partnership.pk)
     if result is None:
         return payload
     drift = selectors.late_drift(organization, result)

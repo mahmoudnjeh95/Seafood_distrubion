@@ -4353,6 +4353,33 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - The screen records with `MediaRecorder`, turns any browser's recording into 16 kHz 16-bit mono WAV (Azure's short-audio REST takes no WebM), and posts it to `POST assistant/chat/dictation?language=`; the text heard is then asked like a typed question (`spoken`). At most 30 s of recording, 2 MB on the server; Azure's silence is an empty text, a refusal a 502.
 - Without the key (404, and `server_voice` false), the browser's own recognition stays, so nothing breaks before the key is added. `manage.py check_speech` checks a new key: the Tunisian voice reads a sentence as WAV, then the recognition hears it.
 - Not P12-T03 (WhatsApp voice notes): that still needs the provider test on real voice notes; this recognition can be one of the candidates. The next free number is D-325.
+
+**D-325 · A partnership's result is its rate on the sum of its lines, frozen when its last line closes (P6-T08 PR 1, D-320)** · accepted · 2026-11-13
+- New `closing.PartnershipResult` (migration `closing 0003`): the partnership, closed/reopened, `net_result` = sum
+  of its lines' frozen nets, `partner_share`, `owner_share` = net − share, `capital_deducted`, `uncovered_loss`,
+  `capital_to_return`, `data` (its lines with their `LotResult` id and net, and the steps). One closed per
+  partnership by constraint. `engine.partnership_result(terms, lines)` applies `partner_share` once to the sum
+  (profit rate on a profit sum, loss rate on a loss sum, rounding once, D-031).
+- `close_lot` freezes the line, then each open partnership sharing it whose every line is now closed gets its
+  result frozen and `record_lot_closed` (loss share from the capital). It locks the line and every line of those
+  partnerships in id order first. A partnership with `terms_pending` still blocks its lines' closing.
+  `reopen_lot` of a line reopens the partnership results that include it (refused once settled, as before).
+  Late drift and `book_late_adjustments` are per partnership: Σ live nets of its lines − frozen net.
+  `settle_lot` takes `partnership_id`, or `batch_id` for a line one partnership shares.
+- **Differs from the plan's wording, on purpose:** a line's own result still shows the partner's share when its
+  one partnership shares that line alone (then line share = partnership share to the millime). A line shared with
+  other lines, or by several partnerships, shows none. This keeps every closing test, the lot result card and the
+  statement unchanged for one-line partnerships (owner: one-product partnerships give the same figures); the
+  ledgers and the settlement read only `PartnershipResult`.
+- Ledgers and settlement: `partnership_result_id` (nullable) beside `lot_result_id` on `CapitalEntry`,
+  `ProfitShareEntry` and `PartnerSettlement` (migration `partnerships 0006`; the settlement's `lot_result_id` is
+  now nullable). New rows always set the new id, and the line's id only for a one-line partnership. Late
+  adjustments are counted by `partnership_result_id`. Data migration `closing 0004`: every `LotResult` with a
+  partnership (closed or reopened) gets a one-line `PartnershipResult` with the same figures and status, and its
+  ledger rows and settlement get its id. Old line results keep their partner columns as history.
+- No API change in this step (the lot settlement screen reads the partnership's result through the same endpoint);
+  the per-partnership endpoints and screens come with PR 2 and PR 3.
+
 **D-330 · One search box for the office, cut to what each person may read (P13-T01)** · accepted · 2026-11-13
 - Owner: start the review's points (2026-11-13). New app `apps.search` (reads other apps' selectors only):
   `GET /api/v1/search?q=` returns customers, suppliers, products, lot lines, BL and invoices, at most five of each,

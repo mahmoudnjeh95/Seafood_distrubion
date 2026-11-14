@@ -19,7 +19,7 @@ from apps.purchasing import selectors as purchasing
 from apps.sales import selectors as sales
 
 from . import engine
-from .models import LotResult, LotResultStatus
+from .models import LotResult, LotResultStatus, PartnershipResult
 
 ZERO = Decimal("0.000")
 
@@ -200,10 +200,8 @@ def cost_rows_for_batch(
     return tuple(row for row in _cost_rows(organization, batch_id) if date_from <= row.on <= date_to)
 
 
-def _terms(organization: Organization, batch_id: int) -> engine.PartnershipTerms | None:
-    partnership = partnerships.live_partnership_of_batch(organization, batch_id=batch_id)
-    if partnership is None:
-        return None
+def terms_of(partnership: Any) -> engine.PartnershipTerms:
+    """A partnership's terms as the engine uses them: its capital put in (contributions and corrections) and rates."""
     return engine.PartnershipTerms(
         partnership_id=partnership.pk,
         partner_id=partnership.partner_id,
@@ -213,6 +211,16 @@ def _terms(organization: Organization, batch_id: int) -> engine.PartnershipTerms
         profit_rate=partnership.profit_rate,
         loss_rate=partnership.loss_rate,
     )
+
+
+def _terms(organization: Organization, batch_id: int) -> engine.PartnershipTerms | None:
+    """The terms a line's own result shows (D-325): those of its one partnership when that partnership shares this
+    line alone, so the line's share is the partnership's to the millime. A line shared by several partnerships, or
+    by one that shares other lines too, shows none: the share is the partnership's, on the sum of its lines."""
+    live = partnerships.live_partnerships_of_line(organization, batch_id=batch_id)
+    if len(live) != 1 or partnerships.line_ids_of(live[0]) != [batch_id]:
+        return None
+    return terms_of(live[0])
 
 
 def lot_snapshot(organization: Organization, *, batch_id: int) -> engine.LotSnapshot:
@@ -344,15 +352,93 @@ def closed_batch_ids(organization: Organization, *, batch_ids: list[int] | None 
     return set(results.values_list("batch_id", flat=True))
 
 
+# ---- Partnership results (D-320, D-325) ----
+
+
+def partnership_results_of(
+    organization: Organization, *, partnership_id: int | None = None
+) -> QuerySet[PartnershipResult]:
+    """Partnership results, newest closing first, closed and reopened ones."""
+    results = PartnershipResult.objects.for_organization(organization).select_related(
+        "partnership__partner", "closed_by", "reopened_by"
+    )
+    if partnership_id is not None:
+        results = results.filter(partnership_id=partnership_id)
+    return results.order_by("-closed_at", "-id")
+
+
+def closed_partnership_result_of(organization: Organization, *, partnership_id: int) -> PartnershipResult | None:
+    """The frozen result of a closed (or settled) partnership; None while one of its lines is open."""
+    return (
+        partnership_results_of(organization, partnership_id=partnership_id)
+        .filter(status=LotResultStatus.CLOSED)
+        .first()
+    )
+
+
+def closed_partnership_results_of_line(organization: Organization, *, batch_id: int) -> list[PartnershipResult]:
+    """The frozen results of the partnerships that share this line, oldest partnership first."""
+    ids = [partnership.pk for partnership in partnerships.live_partnerships_of_line(organization, batch_id=batch_id)]
+    results = partnership_results_of(organization).filter(status=LotResultStatus.CLOSED, partnership_id__in=ids)
+    return sorted(results, key=lambda result: result.partnership_id)
+
+
+def shared_lines(organization: Organization, partnership: Any) -> tuple[engine.SharedLine, ...] | None:
+    """The frozen lines of a partnership, in line order, once every line it shares is closed; None before."""
+    lines = []
+    for batch_id in partnerships.line_ids_of(partnership):
+        result = closed_result_of(organization, batch_id=batch_id)
+        if result is None:
+            return None
+        lines.append(
+            engine.SharedLine(
+                batch_id=batch_id,
+                batch_number=result.batch.number,
+                product_name=result.batch.product.name,
+                net_result=result.net_result,
+                lot_result_id=result.pk,
+            )
+        )
+    return tuple(lines)
+
+
+def live_partnership_result(organization: Organization, partnership: Any) -> engine.ComputedPartnershipResult:
+    """A partnership's result now: the live nets of its lines (frozen or not), netted at its rates."""
+    lines = []
+    for batch_id in partnerships.line_ids_of(partnership):
+        computed = live_result(organization, batch_id=batch_id)
+        lines.append(
+            engine.SharedLine(
+                batch_id=batch_id,
+                batch_number=computed.snapshot.batch_number,
+                product_name=computed.snapshot.product_name,
+                net_result=computed.net_result,
+            )
+        )
+    return engine.partnership_result(terms_of(partnership), tuple(lines))
+
+
+def partnership_result_for(
+    organization: Organization, result: "LotResult | PartnershipResult"
+) -> PartnershipResult | None:
+    """The partnership result a screen asks about by its line's result: the closed result of the partnership that
+    shares that line alone (`LotResult.partnership`), None for a line without one. A partnership result is itself."""
+    if isinstance(result, PartnershipResult):
+        return result
+    if result.partnership_id is None:
+        return None
+    return closed_partnership_result_of(organization, partnership_id=result.partnership_id)
+
+
 # ---- Late costs and settlement (P6-T03, D-066) ----
 
 
 @dataclass(frozen=True)
 class LateDrift:
-    """How far a closed lot's live net result has moved from its frozen one, and what of it is already
-    carried to the partner's settlements."""
+    """How far a closed partnership's live net result (the sum of its lines) has moved from its frozen one, and
+    what of it is already carried to the partner's settlements."""
 
-    lot_result_id: int
+    partnership_result_id: int
     frozen_net: Decimal
     live_net: Decimal
     # live − frozen: a cost recorded after the closing is negative.
@@ -364,31 +450,26 @@ class LateDrift:
     pending_share: Decimal
 
 
-def late_drift(organization: Organization, result: LotResult) -> LateDrift | None:
-    """The late adjustment a closed partnership lot is waiting for, or None for a lot without partner.
+def late_drift(organization: Organization, result: "LotResult | PartnershipResult") -> LateDrift | None:
+    """The late adjustment a closed partnership is waiting for, or None for a line without partner.
 
-    The share is computed on the whole drift and the booked part taken off, so what is booked adds up to
-    `share(live net) − share(frozen net)` exactly, whatever the number of adjustments (no rounding drift)."""
-    if result.partnership_id is None:
+    Per partnership (D-325): drift = the sum of its lines' live nets − its frozen net. The share is computed on the
+    whole drift and the booked part taken off, so what is booked adds up to `share(live net) − share(frozen net)`
+    exactly, whatever the number of adjustments (no rounding drift). Given a line's result, it is the partnership's
+    that shares this line alone."""
+    frozen_result = partnership_result_for(organization, result)
+    if frozen_result is None:
         return None
-    partnership = partnerships.partnership_of(organization, result.partnership_id)
-    terms = engine.PartnershipTerms(
-        partnership_id=partnership.pk,
-        partner_id=partnership.partner_id,
-        partner_name=partnership.partner.name,
-        owner_capital=partnership.owner_capital,
-        partner_capital=partnerships.capital_put_in(partnership),
-        profit_rate=partnership.profit_rate,
-        loss_rate=partnership.loss_rate,
-    )
-    live_net = live_result(organization, batch_id=result.batch_id).net_result
-    frozen = result.net_result
+    partnership = partnerships.partnership_of(organization, frozen_result.partnership_id)
+    terms = terms_of(partnership)
+    live_net = _sum_nets(organization, frozen_result.batch_ids)
+    frozen = frozen_result.net_result
     drift = live_net - frozen
-    booked = partnerships.late_adjustments_booked(partnership, lot_result_id=result.pk)
+    booked = partnerships.late_adjustments_booked(partnership, partnership_result_id=frozen_result.pk)
     share_now = engine.partner_share(terms, frozen + drift).share
     share_booked = engine.partner_share(terms, frozen + booked).share
     return LateDrift(
-        lot_result_id=result.pk,
+        partnership_result_id=frozen_result.pk,
         frozen_net=frozen,
         live_net=live_net,
         drift=drift,
@@ -398,50 +479,57 @@ def late_drift(organization: Organization, result: LotResult) -> LateDrift | Non
     )
 
 
+def _sum_nets(organization: Organization, batch_ids: list[int]) -> Decimal:
+    return sum((live_result(organization, batch_id=batch_id).net_result for batch_id in batch_ids), ZERO)
+
+
 @dataclass(frozen=True)
 class SettlementPreview:
-    """What settling a closed partnership lot would pay, step by step (mirrors `settle_partnership`)."""
+    """What settling a closed partnership would pay, step by step (mirrors `settle_partnership`)."""
 
     capital_to_return: Decimal
     lot_share: Decimal
     uncovered_loss: Decimal
-    # Late adjustments still to book on this partner's lots (this one and the others) before settling.
+    # Late adjustments still to book on this partner's partnerships (this one and the others) before settling.
     pending_adjustments: Decimal
-    # The partner's profit-share balance after those adjustments, before this lot's share.
+    # The partner's profit-share balance after those adjustments, before this partnership's share.
     carried_in: Decimal
     share_paid: Decimal
     total: Decimal
     carried_out: Decimal
 
 
-def partner_closed_results(organization: Organization, *, partner_id: int) -> list[LotResult]:
-    """The frozen results of every closed or settled partnership lot of one partner, oldest lot first."""
+def partner_closed_results(organization: Organization, *, partner_id: int) -> list[PartnershipResult]:
+    """The frozen results of every closed or settled partnership of one partner, oldest first."""
     results = []
     for partnership in partnerships.partnerships_of(organization, partner_id=partner_id):
         if partnership.status == "open":
             continue
-        result = closed_result_of(organization, batch_id=partnership.batch_id)
-        if result is not None and result.partnership_id == partnership.pk:
+        result = closed_partnership_result_of(organization, partnership_id=partnership.pk)
+        if result is not None:
             results.append(result)
-    return sorted(results, key=lambda result: result.batch_id)
+    return sorted(results, key=lambda result: (min(result.batch_ids, default=0), result.partnership_id))
 
 
-def settlement_preview(organization: Organization, result: LotResult) -> SettlementPreview:
-    partnership = partnerships.partnership_of(organization, result.partnership_id or 0)
+def settlement_preview(organization: Organization, result: "LotResult | PartnershipResult") -> SettlementPreview:
+    frozen = partnership_result_for(organization, result)
+    if frozen is None:
+        raise ValueError("No partnership result to settle")
+    partnership = partnerships.partnership_of(organization, frozen.partnership_id)
     pending = ZERO
     for other in partner_closed_results(organization, partner_id=partnership.partner_id):
         drift = late_drift(organization, other)
         if drift is not None:
             pending += drift.pending_share
     carried_in = partnerships.profit_share_balance_of_partner(organization, partner_id=partnership.partner_id) + pending
-    lot_entry = result.partner_share if result.partner_share > 0 else -result.uncovered_loss
+    lot_entry = frozen.partner_share if frozen.partner_share > 0 else -frozen.uncovered_loss
     balance = carried_in + lot_entry
     share_paid = balance if balance > 0 else ZERO
     capital = partnerships.capital_balance(partnership)
     return SettlementPreview(
         capital_to_return=capital,
-        lot_share=result.partner_share,
-        uncovered_loss=result.uncovered_loss,
+        lot_share=frozen.partner_share,
+        uncovered_loss=frozen.uncovered_loss,
         pending_adjustments=pending,
         carried_in=carried_in,
         share_paid=share_paid,
