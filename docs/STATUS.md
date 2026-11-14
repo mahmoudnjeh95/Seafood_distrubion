@@ -1,8 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-13 (P6-T08 PR 1, partnership result, D-325; next free decision D-326; D-330 is used by open PR #355)_
+_Last updated: 2026-11-14 (P6-T08 PR 1, partnership result, D-325; next free decision D-326; D-330 is taken by global search)_
 
 ## Where we are
+
+- **Phase 13 usability (owner 2026-11-13, `docs/phases/13-usability.md`):** P13-T01 global search (Ctrl+K, D-330)
+  merged (#355). Next: P13-T02 standing orders. The multi-product lot (P6-T08 PR 1
+  to 3) is being built by the session "P6-T08 PR 1: partnership result (netted)".
 
 - **Main has the integration of #343 to #350** (#351, D-322). PRs #344, #346 and #348 are still open but their work is
   in `main` through #351.

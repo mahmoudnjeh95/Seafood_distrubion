@@ -116,6 +116,7 @@ import { CountPage } from "./counts/CountPage";
 import { CountsPage } from "./counts/CountsPage";
 import { DayClosingsPage } from "./dayclose/DayClosingsPage";
 import { DocumentsPage } from "./doclist/DocumentsPage";
+import { GlobalSearch } from "./search/GlobalSearch";
 import { LossDetailPage } from "./losses/LossDetailPage";
 import { LossesPage } from "./losses/LossesPage";
 import { LossFormPage } from "./losses/LossFormPage";
@@ -327,7 +328,12 @@ function Shell({ session }: { session: Session }) {
       nav={nav}
       user={{ name: displayName(session), role: session.role_label, avatarUrl: session.user.avatar_url }}
       logoUrl={session.organization.logo_url}
-      actions={<NotificationCenter userId={session.user.id} />}
+      actions={
+        <>
+          <GlobalSearch />
+          <NotificationCenter userId={session.user.id} />
+        </>
+      }
       onLogout={() => logout.mutate()}
     >
       {mayOpen(session, pathname) ? <Outlet context={session} /> : <NoAccess />}

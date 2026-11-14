@@ -70,6 +70,8 @@ _OUTSIDE = (
     "whatsapp/",
     # The owner alone until the section "assistant" (P12-T05).
     "assistant/",
+    # One box over several sections: each kind of hit is cut to the person's level in its own section (D-330).
+    "search",
 )
 
 
