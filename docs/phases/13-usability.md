@@ -12,8 +12,11 @@ Things already planned elsewhere are not repeated here (P1-T27 purchase suggesti
       _Done 2026-11-13: app `apps.search`, `GET /search?q=`, `GlobalSearch` in the admin header._
       Check on staging: Ctrl+K, type part of a customer's name, Enter opens their page; a manager without "Clients"
       sees no customers in it.
-- [ ] **P13-T02 · Standing orders** · M. "Refaire la dernière commande" on a customer, and a weekly template per
-      customer that prepares the BL drafts of the day.
+- [x] **P13-T02a · "Refaire la commande"** · S (D-331). On a BL and on the customer's page ("Refaire la dernière
+      commande", their latest confirmed BL): a new draft for the same customer and place with the same products and
+      kilos at today's prices. _Done 2026-11-14: `POST /sales/<id>/repeat`._ Check on staging: a customer's page,
+      "Refaire la dernière commande", the draft shows the same kilos at the price of the day.
+- [ ] **P13-T02b · Weekly standing order** · M. A template per customer and weekday that prepares the day's BL drafts.
 - [ ] **P13-T03 · Last price for this customer** · S. While typing a sale or quote line: the last price sold to this
       customer for the product and the margin against the lot's cost.
 - [ ] **P13-T04 · Overdue reminders** · S. From the ageing list: send the statement by e-mail or WhatsApp (wa.me link)

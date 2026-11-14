@@ -1797,6 +1797,7 @@ export const fr = {
         notes: "Notes",
         edit: "Modifier",
         empty: "—",
+        repeatLast: "Refaire la dernière commande ({{number}})",
         walkInNote:
           "Ce client sert aux ventes au comptoir sans nom : il paie toujours comptant et ne peut pas être archivé.",
         later: "Solde et historique",
@@ -2668,6 +2669,8 @@ export const fr = {
         invoice: "Facturer",
         invoiceLabel: "Facture",
         invoiceReady: "Brouillon de facture prêt : vérifiez la TVA puis émettez-la.",
+        repeat: "Refaire la commande",
+        repeated: "Nouveau brouillon {{number}} : mêmes produits et kilos, prix du jour. Vérifiez puis validez.",
         statusNotes: {
           draft:
             "Brouillon : rien n'est encore sorti du stock. Validez le bon de livraison (ou imprimez-le) quand la marchandise part.",

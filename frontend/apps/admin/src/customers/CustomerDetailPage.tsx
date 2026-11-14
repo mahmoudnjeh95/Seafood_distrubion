@@ -11,7 +11,9 @@ import { StatementButton } from "../lib/StatementButton";
 import { CustomerBoxesCard } from "../boxes/CustomerBoxesCard";
 import { canCollect } from "../payments/shared";
 import { BalanceCard } from "./BalanceCard";
+import { canSell } from "../sales/shared";
 import { CustomerDialog } from "./CustomerDialog";
+import { RepeatLastOrderButton } from "./RepeatLastOrderButton";
 import { canEditCustomers, refreshCustomers, useCustomerTypes } from "./shared";
 
 function Detail({ label, children, numeric = false }: { label: string; children: ReactNode; numeric?: boolean }) {
@@ -73,6 +75,7 @@ export function CustomerDetailPage() {
       <PageHeader eyebrow={data.reference} title={data.name}>
         {!data.is_active && <Pill tone="neutral">{t("admin.customers.archived")}</Pill>}
         <StatementButton side="customer" id={data.id} name={data.name} />
+        {canSell(session) && data.is_active && !data.is_walk_in && <RepeatLastOrderButton customerId={data.id} />}
         {canEdit && (
           <>
             {!data.is_walk_in && (

@@ -5,7 +5,8 @@ _Last updated: 2026-11-13 (dictation recognised by Azure on the Assistant IA scr
 ## Where we are
 
 - **Phase 13 usability (owner 2026-11-13, `docs/phases/13-usability.md`):** P13-T01 global search (Ctrl+K, D-330)
-  on branch `claude/affectionate-noether-ykot9l`. Next: P13-T02 standing orders. The multi-product lot (P6-T08 PR 1
+  merged (#355). P13-T02a "Refaire la commande" (D-331) on branch `claude/affectionate-noether-ykot9l`. Next: P13-T02b
+  weekly standing order, then P13-T03 last price for this customer. The multi-product lot (P6-T08 PR 1
   to 3) is being built by the session "P6-T08 PR 1: partnership result (netted)".
 
 - **Main has the integration of #343 to #350** (#351, D-322). PRs #344, #346 and #348 are still open but their work is

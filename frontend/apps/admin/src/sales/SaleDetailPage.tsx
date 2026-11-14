@@ -1,4 +1,4 @@
-import { ApiError, cancelSale, confirmSale, createInvoice, setSaleBilling, useGetSale } from "@frutti/api";
+import { ApiError, cancelSale, confirmSale, createInvoice, repeatSale, setSaleBilling, useGetSale } from "@frutti/api";
 import type { Session } from "@frutti/auth";
 import { formatDateTime, formatMoney, formatQuantity, useTranslation } from "@frutti/i18n";
 import {
@@ -110,6 +110,16 @@ export function SaleDetailPage() {
     },
     onError: onFailure,
   });
+  // "Refaire la commande" (P13-T02, D-331): a new draft with the same products and kilos at today's prices.
+  const repeat = useMutation({
+    mutationFn: () => repeatSale(id),
+    onSuccess: async (saved) => {
+      toast.success(t("admin.sales.detail.repeated", { number: saved.number }));
+      await refreshAfterSale(queryClient);
+      void navigate(`/ventes/${saved.id}`);
+    },
+    onError: onFailure,
+  });
   const invoice = useMutation({
     mutationFn: () => createInvoice({ sale: id }),
     onSuccess: async (saved) => {
@@ -170,7 +180,12 @@ export function SaleDetailPage() {
   if (data.is_opening) return <OpeningBalanceDetail sale={data} />;
   const canWrite = canSell(session);
   const busy =
-    confirm.isPending || cancel.isPending || invoice.isPending || validateAndPrint.isPending || billing.isPending;
+    confirm.isPending ||
+    cancel.isPending ||
+    invoice.isPending ||
+    validateAndPrint.isPending ||
+    billing.isPending ||
+    repeat.isPending;
   const switchable =
     canWrite && data.status !== "cancelled" && !data.invoice && data.billing !== "free" && !data.customer.is_walk_in;
   const hasDiscount = !isZero(data.discount_total);
@@ -251,6 +266,11 @@ export function SaleDetailPage() {
           <Button variant="primary" disabled={busy} onClick={() => invoice.mutate()}>
             <Icon name="receipt" />
             {t("admin.sales.detail.invoice")}
+          </Button>
+        )}
+        {canWrite && data.lines.length > 0 && (
+          <Button disabled={busy} onClick={() => repeat.mutate()}>
+            {t("admin.sales.detail.repeat")}
           </Button>
         )}
         {canWrite && data.status !== "cancelled" && (

@@ -10511,6 +10511,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/SaleDetail'
           description: ''
+  /api/v1/sales/{sale_id}/repeat:
+    post:
+      operationId: repeatSale
+      description: |-
+        "Refaire la commande" (P13-T02, D-331): a new draft BL for the same customer and place with the same
+        products and kilos at today's prices. Owner or manager.
+      parameters:
+      - in: path
+        name: sale_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sales
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+          description: ''
   /api/v1/sales/export:
     get:
       operationId: exportSales

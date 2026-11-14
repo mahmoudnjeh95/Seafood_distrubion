@@ -4363,3 +4363,11 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
   drivers get 403. The route is in no section on purpose: the cut is per kind.
 - Admin: "Rechercher…" in the header and Ctrl+K / ⌘K; arrows and Enter, or a click, open the record.
 - D-324 to D-329 are left to the sessions working at the same time (D-324 and D-325 are already used).
+
+**D-331 · "Refaire la commande": a new draft with the same products and kilos at today's prices (P13-T02a)** · accepted · 2026-11-14
+- `sales.services.repeat_sale` / `POST /api/v1/sales/<id>/repeat` (owner or manager): a draft BL for the same
+  customer, place and delivery address, one line per line of the old BL with its product and kilos.
+- Recommended option taken (owner's standing rule): prices are those of the day (D-020), not the old ones; no
+  discount, no lot picked (the lots leave first to expire, D-299). It stays a draft: the office checks and validates.
+- Buttons: "Refaire la commande" on any BL with lines; "Refaire la dernière commande (BL-…)" on the customer's page,
+  from their latest confirmed BL (opening balances left out).

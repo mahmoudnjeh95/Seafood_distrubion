@@ -33603,6 +33603,78 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getNotDeliveredSaleMutationOptions(options), queryClient);
     }
 
+export const getRepeatSaleUrl = (saleId: number,) => {
+
+
+
+
+  return `/api/v1/sales/${saleId}/repeat`
+}
+
+/**
+ * "Refaire la commande" (P13-T02, D-331): a new draft BL for the same customer and place with the same
+ * products and kilos at today's prices. Owner or manager.
+ */
+export const repeatSale = async (saleId: number, options?: Parameters<typeof apiFetch>[1]): Promise<SaleDetail> => {
+
+  return apiFetch<SaleDetail>(getRepeatSaleUrl(saleId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRepeatSaleMutationKey = () => ['repeatSale'] as const;
+
+export const getRepeatSaleMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof repeatSale>>, TError,RepeatSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof repeatSale>>, TError,RepeatSaleMutationVariables, TContext> => {
+
+const mutationKey = getRepeatSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof repeatSale>>, RepeatSaleMutationVariables> = (props) => {
+          const {saleId} = props ?? {};
+
+          return  repeatSale(saleId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RepeatSaleMutationResult = NonNullable<Awaited<ReturnType<typeof repeatSale>>>
+
+    export type RepeatSaleMutationError = unknown
+    export type RepeatSaleMutationVariables = {saleId: number}
+
+    export const useRepeatSale = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof repeatSale>>, TError,RepeatSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof repeatSale>>,
+        TError,
+        RepeatSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRepeatSaleMutationOptions(options), queryClient);
+    }
+
 export const getExportSalesUrl = (params?: ExportSalesParams,) => {
   const normalizedParams = new URLSearchParams();
 

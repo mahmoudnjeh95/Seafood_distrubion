@@ -525,6 +525,17 @@ class SaleBillingView(SaleView):
         return self.answer(sale_id)
 
 
+class SaleRepeatView(SaleView):
+    permission_classes = (IsOwnerOrManager,)
+
+    @extend_schema(operation_id="repeatSale", request=None, responses={201: SaleDetailSerializer})
+    def post(self, request: Request, sale_id: int) -> Response:
+        """ "Refaire la commande" (P13-T02, D-331): a new draft BL for the same customer and place with the same
+        products and kilos at today's prices. Owner or manager."""
+        repeated = services.repeat_sale(sale=self.sale(sale_id), actor=self.membership.user)
+        return self.answer(repeated.pk, status_code=status.HTTP_201_CREATED)
+
+
 class SaleConfirmView(SaleView):
     @extend_schema(operation_id="confirmSale", request=SaleConfirmSerializer, responses=SaleDetailSerializer)
     def post(self, request: Request, sale_id: int) -> Response:

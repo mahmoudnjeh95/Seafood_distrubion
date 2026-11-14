@@ -992,3 +992,58 @@ def test_the_lot_picked_on_a_quote_goes_on_its_bl(organization, actor, customer,
     line = converted.lines.get()
     assert line.requested_batch == new
     assert [(row.batch, row.quantity) for row in line.batches.order_by("id")] == [(new, Decimal("4.000"))]
+
+
+# ---- "Refaire la commande" (P13-T02, D-331) ----
+
+
+def test_repeating_a_sale_makes_a_draft_with_the_same_kilos_at_today_prices(
+    organization, actor, customer, counter, crevette, calamar
+):
+    receive(organization, crevette, counter, "50")
+    receive(organization, calamar, counter, "50")
+    first = sale(
+        organization,
+        actor,
+        customer,
+        counter,
+        [
+            {"product": crevette, "quantity": "10", "unit_price": "40.000", "discount_rate": "5"},
+            {"product": calamar, "quantity": "4.5"},
+        ],
+        confirm=True,
+    )
+    ProductPriceFactory.create(product=crevette, price=Decimal("45.000"), valid_from=timezone.now())
+
+    again = services.repeat_sale(sale=first, actor=actor)
+
+    assert again.pk != first.pk
+    assert (again.status, again.customer_id, again.location_id) == (SaleStatus.DRAFT, customer.pk, counter.pk)
+    assert [(line.product_id, line.quantity, line.unit_price, line.discount_rate) for line in again.lines.all()] == [
+        (crevette.pk, Decimal("10.000"), Decimal("45.000"), Decimal("0.00")),
+        (calamar.pk, Decimal("4.500"), Decimal("29.000"), Decimal("0.00")),
+    ]
+    # A draft takes nothing from the stock.
+    assert on_hand(organization, counter, crevette) == Decimal("40.000")
+
+
+def test_the_office_repeats_a_sale_through_the_api_and_a_driver_cannot(
+    organization, actor, customer, counter, crevette
+):
+    from django.urls import reverse
+    from rest_framework.test import APIClient
+
+    receive(organization, crevette, counter, "50")
+    first = sale(organization, actor, customer, counter, [{"product": crevette, "quantity": "3"}], confirm=True)
+    manager = MembershipFactory.create(organization=organization, role=Role.MANAGER)
+    client = APIClient()
+    client.force_authenticate(manager.user)
+
+    answer = client.post(reverse("sale-repeat", args=[first.pk]))
+
+    assert answer.status_code == 201
+    assert answer.json()["status"] == "draft"
+    assert answer.json()["id"] != first.pk
+    driver = MembershipFactory.create(organization=organization, role=Role.DRIVER)
+    client.force_authenticate(driver.user)
+    assert client.post(reverse("sale-repeat", args=[first.pk])).status_code == 403

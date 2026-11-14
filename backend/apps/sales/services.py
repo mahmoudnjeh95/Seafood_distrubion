@@ -1918,6 +1918,27 @@ def cancel_sale(*, sale: Sale, actor: User | None, reason: str = "") -> Sale:
 
 
 @transaction.atomic
+def repeat_sale(*, sale: Sale, actor: User | None) -> Sale:
+    """A new draft BL for the same customer, place and delivery address, with the same products and kilos at today's
+    prices (P13-T02, D-331): "Refaire la commande" for customers who order the same thing again. Nothing is copied
+    from the old prices, discounts or lots: prices change daily (D-020) and the lots leave oldest first (D-299).
+    Refused like any new sale (an archived product, too little stock on confirming...)."""
+    lines: list[SaleLineFields] = [
+        {"product": line.product, "quantity": line.quantity} for line in sale.lines.select_related("product")
+    ]
+    if not lines:
+        raise ValidationError(_("Ce bon n'a aucune ligne à refaire."))
+    return create_sale(
+        organization=sale.organization,
+        actor=actor,
+        customer=sale.customer,
+        location=sale.location,
+        lines=lines,
+        delivery_address=sale.delivery_address or None,
+    )
+
+
+@transaction.atomic
 def create_sale_from_quote(
     *,
     quote: Quote,
