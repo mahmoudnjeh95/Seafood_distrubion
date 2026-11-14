@@ -4353,3 +4353,13 @@ Changes D-009 ("a batch is one product") and D-040 / Q22 ("one partnership per b
 - The screen records with `MediaRecorder`, turns any browser's recording into 16 kHz 16-bit mono WAV (Azure's short-audio REST takes no WebM), and posts it to `POST assistant/chat/dictation?language=`; the text heard is then asked like a typed question (`spoken`). At most 30 s of recording, 2 MB on the server; Azure's silence is an empty text, a refusal a 502.
 - Without the key (404, and `server_voice` false), the browser's own recognition stays, so nothing breaks before the key is added. `manage.py check_speech` checks a new key: the Tunisian voice reads a sentence as WAV, then the recognition hears it.
 - Not P12-T03 (WhatsApp voice notes): that still needs the provider test on real voice notes; this recognition can be one of the candidates. The next free number is D-325.
+**D-330 · One search box for the office, cut to what each person may read (P13-T01)** · accepted · 2026-11-13
+- Owner: start the review's points (2026-11-13). New app `apps.search` (reads other apps' selectors only):
+  `GET /api/v1/search?q=` returns customers, suppliers, products, lot lines, BL and invoices, at most five of each,
+  in that order; nothing under two characters. Each kind reuses its list's own `search=`, so a hit is a row the
+  person also finds on that list.
+- A kind is searched only when the person may read its section (`access.can(..., READ)`: customers, suppliers,
+  products, stock, sales, invoices), so custom roles and personal levels (D-306) apply. Any office person may call it;
+  drivers get 403. The route is in no section on purpose: the cut is per kind.
+- Admin: "Rechercher…" in the header and Ctrl+K / ⌘K; arrows and Enter, or a click, open the record.
+- D-324 to D-329 are left to the sessions working at the same time (D-324 and D-325 are already used).

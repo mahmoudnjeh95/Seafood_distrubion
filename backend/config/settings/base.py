@@ -56,6 +56,7 @@ LOCAL_APPS = [
     "apps.dayclose",
     "apps.documents",
     "apps.doclist",
+    "apps.search",
     "apps.dataimport",
     "apps.notifications",
     "apps.storefront",
